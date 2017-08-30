@@ -1,0 +1,40 @@
+&general_param
+datadir = "../data/nemo",
+prefix = "nemo",
+colorlog = .true.,
+model = "nemo",
+nl = 3,
+levs = 1,2,3,
+new_param = .true.,
+new_mpi = .true.,
+check_adjoints = .true.,
+check_pos_def = .false.,
+check_mpi = .true.,
+check_dirac = .true.,
+check_perf = .true.,
+ndir = 3,
+levdir = 1,
+londir = -51.06,-84.55,-79.63,
+latdir = 53.0,28.86,5.94,
+/
+
+&sampling_param
+sam_default_seed = .true.,
+mask_check = .false.,
+ntry = 30,
+nrep = 2,
+logpres = .false.,
+/
+
+&nicas_param
+lsqrt = .false.,
+Lbh_file = "none",
+Lbh = 600.0e3,800.0e3,1000.0e3,,
+Lbv_file = "none",
+Lbv = 2.0,2.0,2.0,,
+resol = 6.0,
+network = .true.,
+nproc = 2,
+mpicom = 2,
+/
+

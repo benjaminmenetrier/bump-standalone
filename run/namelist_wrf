@@ -1,0 +1,40 @@
+&general_param
+datadir = "../data/wrf",
+prefix = "wrf",
+colorlog = .true.,
+model = "wrf",
+nl = 3,
+levs = 1,2,3,
+new_param = .true.,
+new_mpi = .true.,
+check_adjoints = .true.,
+check_pos_def = .false.,
+check_mpi = .true.,
+check_dirac = .true.,
+check_perf = .true.,
+ndir = 3,
+levdir = 1,
+londir = -125.0,-98.0,-84.0,
+latdir = 50.0,25.0,43.0,
+/
+
+&sampling_param
+sam_default_seed = .true.,
+mask_check = .false,
+ntry = 30,
+nrep = 20,
+logpres = .true.,
+/
+
+&nicas_param
+lsqrt = .false.,
+Lbh_file = "none",
+Lbh = 400.0e3,500.0e3,600.0e3,,
+Lbv_file = "none",
+Lbv = 2.0,2.0,2.0,
+resol = 10.0,
+network = .false.,
+nproc = 0,
+mpicom = 0,
+/
+

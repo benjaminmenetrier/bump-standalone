@@ -1,0 +1,40 @@
+&general_param
+datadir = "../data/arp/6B60",
+prefix = "arp_6B60",
+colorlog = .true.,
+model = "arp",
+nl = 3,
+levs = 1,2,3,
+new_param = .false.,
+new_mpi = .true.,
+check_adjoints = .true.,
+check_pos_def = .false.,
+check_mpi = .true.,
+check_dirac = .true.,
+check_perf = .true.,
+ndir = 3,
+levdir = 1,
+londir = -1.2,147.0,-79.8,
+latdir = -31.7,10.7,21.7,
+/
+
+&sampling_param
+sam_default_seed = .true.,
+mask_check = .false,
+ntry = 3,
+nrep = 2,
+logpres = .true.,
+/
+
+&nicas_param
+lsqrt = .false.,
+Lbh_file = "none",!"arp_6B60_Lh_circle.nc",
+Lbh = 1000.0e3,1500.0e3,2000.0e3,,
+Lbv_file = "none",
+Lbv = 2.0,2.0,2.0,
+resol = 10.0,
+network = .false.,
+nproc = 4,
+mpicom = 2,
+/
+

@@ -1,0 +1,26 @@
+# Build
+build
+
+# Data
+data/*/*.nc
+data/*/*/*.nc
+data/*/*/*/*.nc
+
+# Documentation
+doc/html
+
+# NCL figures
+ncl/fig
+
+# Executable
+run/nicas
+
+# Old namelists
+run/old
+
+# Test
+test
+
+# Versions
+versions
+

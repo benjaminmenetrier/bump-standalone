@@ -1,0 +1,40 @@
+&general_param
+datadir = "../test",
+prefix = "truth",
+colorlog = .true.,
+model = "gem",
+nl = 1,
+levs = 1,
+new_param = .true.,
+new_mpi = .true.,
+check_adjoints = .false.,
+check_pos_def = .false.,
+check_mpi = .false.,
+check_dirac = .false.,
+check_perf = .true.,
+ndir = 0,
+levdir = 1,
+londir = -999.0,
+latdir = -999.0,
+/
+
+&sampling_param
+sam_default_seed = .true.,
+mask_check = .false,
+ntry = 30,
+nrep = 20,
+logpres = .true.,
+/
+
+&nicas_param
+lsqrt = .false.,
+Lbh_file = "none",
+Lbh = 2000.0e3,,
+Lbv_file = "none",
+Lbv = 2.0,
+resol = 4.0,
+network = .false.,
+nproc = 0,
+mpicom = 2,
+/
+

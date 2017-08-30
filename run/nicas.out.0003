@@ -1,0 +1,43 @@
+-------------------------------------------------------------------
+--- You are running nicas -----------------------------------------
+--- Author: Benjamin Menetrier ------------------------------------
+--- Copyright © 2017 METEO-FRANCE------------------ ---------------
+-------------------------------------------------------------------
+--- Parallelization with  4 MPI tasks and  1 OpenMP threads
+-------------------------------------------------------------------
+--- Initialize coordinates
+-------------------------------------------------------------------
+--- Call NICAS driver
+       Number of independent levels:   1
+-------------------------------------------------------------------
+--- Read NICAS parameters
+-------------------------------------------------------------------
+--- Read NICAS local distribution
+-------------------------------------------------------------------
+--- Compute observation operator interpolation
+       Single level:
+          Compute interpolation:   0%  5%  10%  15%  20%  25%  30%  35%  40%  45%  50%  55%  60%  65%  70%  75%  80%  85%  90%  95% 100%
+       Number of observations:      330
+       Number of observations per MPI task:
+          Task   1:       98
+          Task   2:       58
+          Task   3:       68
+          Task   4:      106
+       Observation repartition imbalance:  58.2 %
+       Number of grid points, halo size and number of received values per MPI task:
+          Task   1:     8273 /     8274 /        1
+          Task   2:     8273 /     8275 /        2
+          Task   3:     8273 /     8274 /        1
+          Task   4:     8273 /     8273 /        0
+       Observation operator adjoint test, global: 0.25131617E+03 / 0.25131617E+03 / 0.56545724E-15
+       Observation operator adjoint test, local:  0.24880696E+03 / 0.24880696E+03 / 0.22846395E-15
+-------------------------------------------------------------------
+--- Execution stats
+--- CPU time:                      4.470 s
+--- Elapsed time:                  4.515 s
+--- CPU/elapsed ratio:             0.990
+--- Peak virtual mem. size:        415.4 Mb
+--- Peak resident set size:         69.7 Mb
+--- Read data volume:               42.0 Mb
+--- Written data volume:             1.2 kb
+-------------------------------------------------------------------

@@ -1,0 +1,40 @@
+&general_param
+datadir = "../data/aro/5840",
+prefix = "aro_5840",
+colorlog = .true.,
+model = "aro",
+nl = 3,
+levs = 1,2,3,
+new_param = .true.,
+new_mpi = .true.,
+check_adjoints = .true.,
+check_pos_def = .false.,
+check_mpi = .true.,
+check_dirac = .true.,
+check_perf = .true.,
+ndir = 3,
+levdir = 1,
+londir = 10.0,-10.0,8.0,
+latdir = 50.6,52.9,41.5,
+/
+
+&sampling_param
+sam_default_seed = .true.,
+mask_check = .false,
+ntry = 30,
+nrep = 20,
+logpres = .true.,
+/
+
+&nicas_param
+lsqrt = .false.,
+Lbh_file = "none",!"aro_5840_Lh.nc",
+Lbh = 121.5e3,121.5e3,121.5e3,,
+Lbv_file = "none",
+Lbv = 0.2,0.2,0.2,,
+resol = 13.0,
+network = .false.,
+nproc = 8,
+mpicom = 2,
+/
+
