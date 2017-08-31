@@ -443,9 +443,6 @@ type(linoptype),intent(in) :: linop !< Linear operator
 integer :: n_s_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_write_single'
 
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
-
 if (linop%n_s>0) then
    ! Start definition mode
    call ncerr(subr,nf90_redef(ncid))
@@ -489,9 +486,6 @@ type(linoptype),intent(in) :: linop(:) !< Linear operator
 integer :: narr,iarr,n_s_max
 integer :: n_s_max_id,narr_id,n_s_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_write_array'
-
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Array size
 narr = size(linop)

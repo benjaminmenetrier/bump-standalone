@@ -10,12 +10,12 @@
 !----------------------------------------------------------------------
 module module_apply_nicas
 
-use module_apply_com, only: alpha_copy_bc,alpha_copy_ac
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
 use module_apply_nicas_sqrt, only: apply_nicas_sqrt,apply_nicas_sqrt_ad
 use module_namelist, only: nam
 use tools_kinds, only: kind_real
+use tools_missing, only: msr
 use type_com, only: com_ext,com_red
 use type_mpl, only: mpl,mpl_barrier
 use type_ndata, only: ndatatype,ndataloctype
@@ -76,7 +76,7 @@ type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 real(kind_real),intent(inout) :: fld(ndataloc%nc0a,ndataloc%nl0)  !< Field
 
 ! Local variables
-real(kind_real),allocatable :: alpha(:)
+real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
@@ -86,14 +86,46 @@ call interp_ad(ndataloc,fld,alpha)
 
 ! Communication
 if (nam%mpicom==1) then
+   ! Allocation 
+   allocate(alpha_tmp(ndataloc%nsb))
+
+   ! Copy zone B
+   alpha_tmp = alpha
+
+   ! Reallocation
+   deallocate(alpha)
+   allocate(alpha(ndataloc%nsc))
+
+   ! Initialize
+   call msr(alpha)
+
    ! Copy zone B into zone C
-   call alpha_copy_BC(ndataloc,alpha)
+   alpha(ndataloc%isb_to_isc) = alpha_tmp
+
+   ! Release memory
+   deallocate(alpha_tmp)
 elseif (nam%mpicom==2) then
    ! Halo reduction from zone B to zone A
    call com_red(ndataloc%AB,alpha)
 
+   ! Allocation 
+   allocate(alpha_tmp(ndataloc%nsb))
+
+   ! Copy zone A
+   alpha_tmp = alpha
+
+   ! Reallocation
+   deallocate(alpha)
+   allocate(alpha(ndataloc%nsc))
+
+   ! Initialize
+   call msr(alpha)
+
    ! Copy zone A into zone C
-   call alpha_copy_AC(ndataloc,alpha)
+   alpha(ndataloc%isa_to_isc) = alpha_tmp
+
+   ! Release memory
+   deallocate(alpha_tmp)
 end if
 
 ! Convolution

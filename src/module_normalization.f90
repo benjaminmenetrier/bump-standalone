@@ -208,7 +208,7 @@ do il0=1,ndata%nl0
       ! MPI offset
       ic0 = ic0_s(mpl%myproc)+ic0_loc-1
 
-      if (ndata%mask(ic0,il0)) then
+      if (ndata%geom%mask(ic0,il0)) then
          ! Allocation
          allocate(is_list(ineh(ic0,il0i)*maxval(inev(il0,:))*maxval(ines)))
          allocate(order(ineh(ic0,il0i)*maxval(inev(il0,:))*maxval(ines)))

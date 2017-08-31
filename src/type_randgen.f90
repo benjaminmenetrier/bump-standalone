@@ -21,6 +21,8 @@ type randgentype
    type(c_ptr) :: ptr !< Pointer to the C++ class
 end type randgentype
 
+type(randgentype) :: rng !< Random number generator
+
 ! C++ interface
 interface
    function create_randgen_c(default_seed) bind(C,name="create_randgen")
@@ -88,7 +90,7 @@ interface rand_real
 end interface
 
 private
-public :: randgentype,create_randgen,delete_randgen,rand_integer,rand_real,initialize_sampling
+public :: rng,randgentype,create_randgen,delete_randgen,rand_integer,rand_real,initialize_sampling
 
 contains
 

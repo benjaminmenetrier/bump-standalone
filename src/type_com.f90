@@ -15,6 +15,7 @@ use netcdf
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr
+use type_geom, only: geomtype
 use type_mpl, only: mpl_alltoallv
 use tools_nc, only: ncfloat,ncerr
 
@@ -59,6 +60,7 @@ implicit none
 type(comtype),intent(inout) :: com !< Linear operator
 
 ! Release memory
+if (allocated(com%ired_to_iext)) deallocate(com%ired_to_iext)
 if (allocated(com%jhalocounts)) deallocate(com%jhalocounts)
 if (allocated(com%jexclcounts)) deallocate(com%jexclcounts)
 if (allocated(com%jhalodispl)) deallocate(com%jhalodispl)
@@ -82,6 +84,8 @@ type(comtype),intent(inout) :: com_out !< Output linear operator
 
 ! Copy attributes
 com_out%prefix = trim(com_in%prefix)
+com_out%nred = com_in%nred
+com_out%next = com_in%next
 com_out%nhalo = com_in%nhalo
 com_out%nexcl = com_in%nexcl
 
@@ -89,6 +93,7 @@ com_out%nexcl = com_in%nexcl
 call com_dealloc(com_out)
 
 ! Allocation
+allocate(com_out%ired_to_iext(nam%nproc))
 allocate(com_out%jhalocounts(nam%nproc))
 allocate(com_out%jexclcounts(nam%nproc))
 allocate(com_out%jhalodispl(nam%nproc))
@@ -97,6 +102,7 @@ allocate(com_out%halo(com_out%nhalo))
 allocate(com_out%excl(com_out%nexcl))
 
 ! Copy data
+com_out%ired_to_iext = com_in%ired_to_iext
 com_out%jhalocounts = com_in%jhalocounts
 com_out%jexclcounts = com_in%jexclcounts
 com_out%jhalodispl = com_in%jhalodispl
@@ -255,7 +261,10 @@ real(kind_real),allocatable,intent(inout) :: vec(:)    !< Subgrid variable
 real(kind_real) :: sbuf(com%nhalo),rbuf(com%nexcl),vec_tmp(com%next)
 
 ! Check input vector size
-if (size(vec)/=com%next) call msgerror('vector size inconsistent in com_red')
+if (size(vec)/=com%next) then
+print*, size(vec),com%next
+call msgerror('vector size inconsistent in com_red')
+end if
 
 ! Prepare buffers to send
 sbuf = vec(com%halo)

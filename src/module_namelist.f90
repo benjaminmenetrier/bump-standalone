@@ -328,9 +328,6 @@ integer,intent(in) :: ncid !< NetCDF file id
 ! Local variables
 character(len=1024) :: subr = 'namncwrite'
 
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
-
 ! general_param
 call namncwrite_param(ncid,'general_param_datadir',trim(nam%datadir))
 call namncwrite_param(ncid,'general_param_prefix',trim(nam%prefix))

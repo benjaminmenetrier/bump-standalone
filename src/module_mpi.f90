@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: module_mpi.f90
-!> Purpose: compute NICAS parameters
+!> Purpose: compute NICAS parameters MPI distribution
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -20,7 +20,7 @@ use tools_nc, only: ncfloat,ncerr
 use type_com, only: comtype,com_dealloc,com_copy,com_setup
 use type_linop, only: linop_alloc,linop_reorder
 use type_mpl, only: mpl
-use type_ndata, only: ndatatype,ndataloctype
+use type_ndata, only: ndatatype,ndataloctype,ndataloc_dealloc,ndataloc_copy
 use type_randgen, only: initialize_sampling
 
 implicit none
@@ -44,13 +44,13 @@ contains
 ! Subroutine: compute_mpi
 !> Purpose: compute NICAS MPI distribution
 !----------------------------------------------------------------------
-subroutine compute_mpi(ndata,ndataloc_arr)
+subroutine compute_mpi(ndata,ndataloc)
 
 implicit none
 
 ! Passed variables
 type(ndatatype),intent(inout) :: ndata                      !< Sampling data
-type(ndataloctype),intent(inout) :: ndataloc_arr(nam%nproc) !< Sampling data, local
+type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
 
 ! Local variables
 integer :: il0i,iproc,ic0,ic0a,ic1,ic2,jc2,ic1b,ic2b,il1,isa,isb,isc,i_s,i_s_loc,is,js,jproc,i,s_n_s_max,s_n_s_max_loc
@@ -63,6 +63,7 @@ logical :: lcheck_h(ndata%h(1)%n_s,ndata%nl0i),lcheck_c(ndata%c%n_s)
 logical,allocatable :: lcheck_s(:,:)
 type(comtype) :: comAB(nam%nproc),comAC(nam%nproc)
 type(convtype) :: conv(nam%nproc)
+type(ndataloctype) :: ndataloc_arr(nam%nproc)
 
 ! Allocation
 s_n_s_max = 0
@@ -71,12 +72,9 @@ do il1=1,ndata%nl1
 end do
 allocate(lcheck_s(s_n_s_max,ndata%nl1))
 
-! Initialization
-ndata%nc0amax = 0
-
 ! Find on which processor are the grid-points and what is their local index for interpolation
 do il0i=1,ndata%nl0i
-   interph_row_proc(1:ndata%h(il0i)%n_s,il0i) = ndata%ic0_to_iproc(ndata%h(il0i)%row)
+   interph_row_proc(1:ndata%h(il0i)%n_s,il0i) = ndata%geom%ic0_to_iproc(ndata%h(il0i)%row)
 end do
 
 do iproc=1,nam%nproc
@@ -98,7 +96,7 @@ do iproc=1,nam%nproc
    do is=1,ndata%ns
       ic1 = ndata%is_to_ic1(is)
       ic0 = ndata%ic1_to_ic0(ic1)
-      if (ndata%ic0_to_iproc(ic0)==iproc) lcheck_nsa(is) = .true.
+      if (ndata%geom%ic0_to_iproc(ic0)==iproc) lcheck_nsa(is) = .true.
    end do
    ndataloc_arr(iproc)%nsa = count(lcheck_nsa)
 
@@ -293,8 +291,7 @@ do iproc=1,nam%nproc
    end if
 
    ! Number of cells
-   ndataloc_arr(iproc)%nc0a = count(ndata%ic0_to_iproc==iproc)
-   ndata%nc0amax = max(ndata%nc0amax,ndataloc_arr(iproc)%nc0a)
+   ndataloc_arr(iproc)%nc0a = ndata%geom%iproc_to_nc0a(iproc)
 
    ! Local data
 
@@ -306,7 +303,7 @@ do iproc=1,nam%nproc
       call linop_alloc(ndataloc_arr(iproc)%h(il0i))
       do i_s_loc=1,ndataloc_arr(iproc)%h(il0i)%n_s
          i_s = interph_i_s_lg(i_s_loc,il0i)
-         ndataloc_arr(iproc)%h(il0i)%row(i_s_loc) = ndata%ic0_to_ic0a(ndata%h(il0i)%row(i_s))
+         ndataloc_arr(iproc)%h(il0i)%row(i_s_loc) = ndata%geom%ic0_to_ic0a(ndata%h(il0i)%row(i_s))
          ndataloc_arr(iproc)%h(il0i)%col(i_s_loc) = ic1_to_ic1b(ndata%h(il0i)%col(i_s))
          ndataloc_arr(iproc)%h(il0i)%S(i_s_loc) = ndata%h(il0i)%S(i_s)
       end do
@@ -424,8 +421,8 @@ do iproc=1,nam%nproc
    if (nam%lsqrt) allocate(ndataloc_arr(iproc)%norm_sqrt(ndataloc_arr(iproc)%nsb))
 end do
 do ic0=1,ndata%nc0
-   iproc = ndata%ic0_to_iproc(ic0)
-   ic0a = ndata%ic0_to_ic0a(ic0)
+   iproc = ndata%geom%ic0_to_iproc(ic0)
+   ic0a = ndata%geom%ic0_to_ic0a(ic0)
    ndataloc_arr(iproc)%norm(ic0a,1:ndataloc_arr(iproc)%nl0) = ndata%norm(ic0,1:ndata%nl0)
 end do
 if (nam%lsqrt) then
@@ -457,7 +454,7 @@ do iproc=1,nam%nproc
       is = conv(iproc)%isb_to_is(isb)
       ic1 = ndata%is_to_ic1(is)
       ic0 = ndata%ic1_to_ic0(ic1)
-      jproc = ndata%ic0_to_iproc(ic0)
+      jproc = ndata%geom%ic0_to_iproc(ic0)
       comAB(iproc)%iext_to_iproc(isb) = jproc
       isa = conv(jproc)%is_to_isa(is)
       comAB(iproc)%iext_to_ired(isb) = isa
@@ -468,7 +465,7 @@ do iproc=1,nam%nproc
       is = conv(iproc)%isc_to_is(isc)
       ic1 = ndata%is_to_ic1(is)
       ic0 = ndata%ic1_to_ic0(ic1)
-      jproc = ndata%ic0_to_iproc(ic0)
+      jproc = ndata%geom%ic0_to_iproc(ic0)
       isa =  conv(jproc)%is_to_isa(is)
       comAC(iproc)%iext_to_iproc(isc) = jproc
       comAC(iproc)%iext_to_ired(isc) = isa
@@ -492,6 +489,14 @@ end do
 do iproc=1,nam%nproc
    call com_dealloc(comAB(iproc))
    call com_dealloc(comAC(iproc))
+end do
+
+! Copy ndataloc for the concerned processor
+call ndataloc_copy(ndataloc_arr(mpl%myproc),ndataloc)  
+
+! Release memory
+do iproc=1,nam%nproc
+   call ndataloc_dealloc(ndataloc_arr(iproc))
 end do
 
 end subroutine compute_mpi

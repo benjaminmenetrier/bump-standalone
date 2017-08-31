@@ -111,12 +111,12 @@ do is_loc=1,ns_loc(mpl%myproc)
          jl0 = plist(ip,2)
 
          ! Loop over neighbors
-         do i=1,ndata%net_nnb(jc0)
-            kc0 = ndata%net_inb(i,jc0)
+         do i=1,ndata%geom%net_nnb(jc0)
+            kc0 = ndata%geom%net_inb(i,jc0)
             do kl0=max(jl0-1,1),min(jl0+1,ndata%nl0)
-               if (ndata%mask(kc0,kl0)) then
-                  distnorm = sqrt(ndata%net_dnb(i,jc0)/(0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)) &
-                           & +abs(ndata%vunit(jl0)-ndata%vunit(kl0))/(0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)))
+               if (ndata%geom%mask(kc0,kl0)) then
+                  distnorm = sqrt(ndata%geom%net_dnb(i,jc0)/(0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)) &
+                           & +abs(ndata%geom%vunit(jl0)-ndata%geom%vunit(kl0))/(0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)))
                   disttest = dist(jc0,jl0)+distnorm
                   if (disttest<1.0) then
                      ! Point is inside the support
@@ -243,7 +243,7 @@ end do
 write(mpl%unit,'(a10,a)') '','Compute cover tree'
 allocate(mask_ctree(ndata%nc1))
 mask_ctree = 1
-ctree = create_ctree(ndata%nc1,dble(ndata%lon(ndata%ic1_to_ic0)),dble(ndata%lat(ndata%ic1_to_ic0)),mask_ctree)
+ctree = create_ctree(ndata%nc1,dble(ndata%geom%lon(ndata%ic1_to_ic0)),dble(ndata%geom%lat(ndata%ic1_to_ic0)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Number of neighbors
@@ -265,8 +265,8 @@ allocate(nn_dist(ms,ndata%nc1))
 write(mpl%unit,'(a10,a)') '','Compute nearest neighbors'
 do ic1_loc=1,nc1_loc(mpl%myproc)
    ic1 = ic1_s(mpl%myproc)+ic1_loc-1
-   call find_nearest_neighbors(ctree,dble(ndata%lon(ndata%ic1_to_ic0(ic1))), &
- & dble(ndata%lat(ndata%ic1_to_ic0(ic1))),ms,nn_index(:,ic1),nn_dist(:,ic1))
+   call find_nearest_neighbors(ctree,dble(ndata%geom%lon(ndata%ic1_to_ic0(ic1))), &
+ & dble(ndata%geom%lat(ndata%ic1_to_ic0(ic1))),ms,nn_index(:,ic1),nn_dist(:,ic1))
 end do
 
 ! Communication
@@ -359,7 +359,7 @@ do is_loc=1,ns_loc(mpl%myproc)
             if (is>js) then
                ! Normalized distance
                distnorm = sqrt(nn_dist(i,ic1)**2/(0.5*(rhs(is)**2+rhs(js)**2)) &
-                        & +(ndata%vunit(il0)-ndata%vunit(jl0))**2/(0.5*(rvs(is)**2+rvs(js)**2)))
+                        & +(ndata%geom%vunit(il0)-ndata%geom%vunit(jl0))**2/(0.5*(rvs(is)**2+rvs(js)**2)))
 
                if (distnorm<1.0) then
                   ! Gaspari-Cohn (1999) function

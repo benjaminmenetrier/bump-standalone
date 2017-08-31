@@ -12,17 +12,21 @@ program nicas
 
 use model_interface, only: model_coord
 use module_namelist, only: nam,namread,namcheck
-use module_driver, only: nicas_driver
+use module_driver, only: nicas_driver,obsop_driver
 use tools_display, only: listing_setup
+use type_geom, only: geomtype
 use type_mpl, only: mpl,mpl_start,mpl_end
-use type_ndata, only: ndatatype,ndataloctype
+use type_ndata, only: ndataloctype
+use type_odata, only: odataloctype
+use type_randgen, only: rng,create_randgen
 use type_timer, only: timertype,timer_start,timer_display
 
 implicit none
 
 ! Local variables
-type(ndatatype) :: ndata
+type(geomtype),target :: geom
 type(ndataloctype) :: ndataloc
+type(odataloctype) :: odataloc
 type(timertype) :: timer
 
 !----------------------------------------------------------------------
@@ -72,23 +76,42 @@ call namcheck
 write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI tasks and ',mpl%nthread,' OpenMP threads'
 
 !----------------------------------------------------------------------
+! Initialize random number generator
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a,i5,a)') '--- Initialize random number generator'
+   
+rng = create_randgen()
+
+!----------------------------------------------------------------------
 ! Initialize coordinates
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i5,a)') '--- Initialize coordinates'
 
-! Get coordinates
-call model_coord(ndata)
+call model_coord(geom)
 
-!----------------------------------------------------------------------
-! Call NICAS driver
-!----------------------------------------------------------------------
+if (.false.) then
+   !----------------------------------------------------------------------
+   ! Call NICAS driver
+   !----------------------------------------------------------------------
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Call NICAS driver'
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a,i5,a)') '--- Call NICAS driver'
 
-call nicas_driver(ndata,ndataloc)
+   call nicas_driver(geom,ndataloc)
+else
+   !----------------------------------------------------------------------
+   ! Call observation operator driver
+   !----------------------------------------------------------------------
+
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
+
+   call obsop_driver(geom,odataloc)   
+end if
 
 !----------------------------------------------------------------------
 ! Execution stats

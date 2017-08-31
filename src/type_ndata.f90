@@ -18,44 +18,23 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncerr,ncfloat
 use type_com, only: comtype,com_dealloc,com_read,com_write
+use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_read,linop_write
 use type_mpl, only: mpl
-use type_randgen, only: randgentype,create_randgen,delete_randgen
 
 implicit none
 
 ! Sampling data derived type
 type ndatatype
-   ! Vector sizes
-   integer :: nlon                         !< Longitude size
-   integer :: nlat                         !< Latitude size
-   integer :: nlev                         !< Number of levels
-   logical,allocatable :: rgmask(:,:)      !< Reduced Gaussian grid mask
-   real(kind_real),allocatable :: area(:)  !< Domain area
+   ! Geometry
+   type(geomtype),pointer :: geom                  !< Geometry
 
-   ! Vector coordinates
-   real(kind_real),allocatable :: lon(:)              !< Cells longitude
-   real(kind_real),allocatable :: lat(:)              !< Cells latitude
-   logical,allocatable :: mask(:,:)        !< Cells mask
-   real(kind_real),allocatable :: vunit(:)            !< Vertical unit
+   ! Forced sampling points
    integer :: nfor                         !< Number of forced sampling points
    integer,allocatable :: ifor(:)          !< Forced sampling points indices
 
    ! Sampling properties
    logical,allocatable :: llev(:)          !< Vertical interpolation key
-   integer,allocatable :: net_nnb(:)      !< Number of neighbors on the full grid
-   integer,allocatable :: net_inb(:,:)    !< Neighbors indices on the full grid
-   real(kind_real),allocatable :: net_dnb(:,:)       !< Neighbors distances on the full grid
-
-   ! Boundary nodes
-   integer,allocatable :: nbnd(:)          !< Number of boundary nodes
-   real(kind_real),allocatable :: xbnd(:,:,:)         !< Boundary nodes, x-coordinate
-   real(kind_real),allocatable :: ybnd(:,:,:)         !< Boundary nodes, y-coordinate
-   real(kind_real),allocatable :: zbnd(:,:,:)         !< Boundary nodes, z-coordinate
-   real(kind_real),allocatable :: vbnd(:,:,:)         !< Boundary nodes, orthogonal vector
-
-   ! Random number generator
-   type(randgentype) :: rng                !< Random number generator
 
    ! NICAS global data
 
@@ -96,11 +75,6 @@ type ndatatype
    integer,allocatable :: ic2il1_to_is(:,:)  !< Grid Gs to subgrid
    integer,allocatable :: ic2il1_to_ic1(:,:) !< Grid Gs to subset Sc1
    integer,allocatable :: ic1il1_to_is(:,:)  !< Grid Gv to subgrid
-
-   ! NICAS local data
-   integer,allocatable :: ic0_to_iproc(:)    !< Subset Sc0 to local task
-   integer,allocatable :: ic0_to_ic0a(:)     !< Subset Sc0, global to halo A
-   integer :: nc0amax                        !< Maximum size of halo A
 
    ! Illustration
    integer,allocatable :: halo(:)            !< Halo points for illustration
@@ -146,38 +120,11 @@ end type ndataloctype
 
 private
 public :: ndatatype,ndataloctype
-public :: ndata_alloc,ndataloc_dealloc, ndataloc_copy, &
- & ndata_read_param,ndata_read_local,ndata_read_mpi, &
+public :: ndataloc_dealloc, ndataloc_copy, &
+ & ndata_read_param,ndata_read_mpi, &
  & ndata_write_param,ndata_write_mpi,ndata_write_mpi_summary
 
 contains
-
-!----------------------------------------------------------------------
-! Subroutine: ndata_alloc
-!> Purpose: ndata object allocation for grid parameters
-!----------------------------------------------------------------------
-subroutine ndata_alloc(ndata)
-
-implicit none
-
-! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-
-! Allocation
-allocate(ndata%lon(ndata%nc0))
-allocate(ndata%lat(ndata%nc0))
-allocate(ndata%area(ndata%nl0))
-allocate(ndata%mask(ndata%nc0,ndata%nl0))
-allocate(ndata%vunit(ndata%nl0))
-
-! Initialization
-call msr(ndata%lon)
-call msr(ndata%lat)
-ndata%mask = .false.
-call msr(ndata%vunit)
-ndata%rng = create_randgen()
-
-end subroutine ndata_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: ndataloc_dealloc
@@ -393,75 +340,6 @@ call ncerr(subr,nf90_close(ncid))
 end subroutine ndata_read_param
 
 !----------------------------------------------------------------------
-! Subroutine: ndata_read_local
-!> Purpose: read ndata object
-!----------------------------------------------------------------------
-subroutine ndata_read_local(ndata)
-
-implicit none
-
-! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-
-! Local variables
-integer :: ic0,info,iproc,ic0a
-integer :: ncid,ic0_to_iproc_id,ic0_to_ic0a_id
-character(len=4) :: nprocchar
-character(len=1024) :: filename
-character(len=1024) :: subr = 'ndata_read_local'
-
-if (.not.allocated(ndata%ic0_to_iproc)) then
-   ! Allocation
-   allocate(ndata%ic0_to_iproc(ndata%nc0))
-   allocate(ndata%ic0_to_ic0a(ndata%nc0))
-   
-   if (nam%nproc==1) then
-      ! All points on a single processor
-      ndata%ic0_to_iproc = 1
-      do ic0=1,ndata%nc0
-         ndata%ic0_to_ic0a(ic0) = ic0
-      end do
-      ndata%nc0amax = ndata%nc0
-   elseif (nam%nproc>1) then
-      ! Open file
-      write(nprocchar,'(i4.4)') nam%nproc
-      filename = trim(nam%prefix)//'_distribution_'//nprocchar//'.nc'
-      info = nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid)
-   
-      if (info==nf90_noerr) then
-         ! Read data and close file
-         call ncerr(subr,nf90_inq_varid(ncid,'ic0_to_iproc',ic0_to_iproc_id))
-         call ncerr(subr,nf90_inq_varid(ncid,'ic0_to_ic0a',ic0_to_ic0a_id))
-         call ncerr(subr,nf90_get_var(ncid,ic0_to_iproc_id,ndata%ic0_to_iproc))
-         call ncerr(subr,nf90_get_var(ncid,ic0_to_ic0a_id,ndata%ic0_to_ic0a))
-         call ncerr(subr,nf90_close(ncid))
-         ndata%nc0amax = maxval(ndata%ic0_to_ic0a)
-      else
-         ! Generate a distribution (use METIS one day?)
-         ndata%nc0amax = ndata%nc0/nam%nproc
-         if (ndata%nc0amax*nam%nproc<ndata%nc0) ndata%nc0amax = ndata%nc0amax+1
-         iproc = 1
-         ic0a = 1
-         do ic0=1,ndata%nc0
-            ndata%ic0_to_iproc(ic0) = iproc
-            ndata%ic0_to_ic0a(ic0) = ic0a
-            ic0a = ic0a+1
-            if (ic0a>ndata%nc0amax) then
-               ! Change proc
-               iproc = iproc+1
-               ic0a = 1
-            end if
-         end do
-      end if
-   end if
-end if
-
-! Check
-if (maxval(ndata%ic0_to_iproc)>nam%nproc) call msgerror('wrong distribution')
-
-end subroutine ndata_read_local
-
-!----------------------------------------------------------------------
 ! Subroutine: ndata_read_mpi
 !> Purpose: read ndata object
 !----------------------------------------------------------------------
@@ -654,7 +532,7 @@ subroutine ndata_write_mpi(ndataloc)
 implicit none
 
 ! Passed variables
-type(ndataloctype),intent(in) :: ndataloc(nam%nproc) !< Sampling data, local
+type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
 integer :: iproc,il0i,il1,h_sum,s_sum
@@ -664,79 +542,70 @@ integer :: vbot_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
 integer :: c_n_s_id,h_n_s_id,s_n_s_id
 integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
 integer :: norm_id
-integer :: AB_jhalocounts_id,AB_jexclcounts_id
-integer :: AC_jhalocounts_id,AC_jexclcounts_id
-integer :: nc0_id,nproc1_id,nproc2_id
-integer :: lon_id,lat_id,ic0_to_iproc_id,halo_id,nc0a_per_proc_id,nsa_per_proc_id
 character(len=1) :: mpicomchar
-character(len=4) :: nprocchar,iprocchar
+character(len=4) :: nprocchar,myprocchar
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndata_write_mpi'
-
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Filename suffix
 write(mpicomchar,'(i1)') nam%mpicom
 write(nprocchar,'(i4.4)') nam%nproc
 
-do iproc=1,nam%nproc
-   ! Create file
-   write(iprocchar,'(i4.4)') iproc
-   filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'-'//iprocchar//'.nc'
-   call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
+! Create file
+write(myprocchar,'(i4.4)') mpl%myproc
+filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'-'//myprocchar//'.nc'
+call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
-   ! Write namelist parameters
-   call namncwrite(ncid)
+! Write namelist parameters
+call namncwrite(ncid)
 
-   ! Define dimensions
-   call ncerr(subr,nf90_def_dim(ncid,'nc0a',ndataloc(iproc)%nc0a,nc0a_id))
-   call ncerr(subr,nf90_def_dim(ncid,'nl0',ndataloc(iproc)%nl0,nl0_id))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',ndataloc(iproc)%nl0i))
-   if (ndataloc(iproc)%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndataloc(iproc)%nc1b,nc1b_id))
-   call ncerr(subr,nf90_def_dim(ncid,'nl1',ndataloc(iproc)%nl1,nl1_id))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_def_dim(ncid,'nsa',ndataloc(iproc)%nsa,nsa_id))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_def_dim(ncid,'nsb',ndataloc(iproc)%nsb,nsb_id))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndataloc(iproc)%nsc))
+! Define dimensions
+call ncerr(subr,nf90_def_dim(ncid,'nc0a',ndataloc%nc0a,nc0a_id))
+call ncerr(subr,nf90_def_dim(ncid,'nl0',ndataloc%nl0,nl0_id))
+call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',ndataloc%nl0i))
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndataloc%nc1b,nc1b_id))
+call ncerr(subr,nf90_def_dim(ncid,'nl1',ndataloc%nl1,nl1_id))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_def_dim(ncid,'nsa',ndataloc%nsa,nsa_id))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_def_dim(ncid,'nsb',ndataloc%nsb,nsb_id))
+call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndataloc%nsc))
 
-   ! Define variables
-   if (ndataloc(iproc)%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1b_id/),vbot_id))
-   call ncerr(subr,nf90_def_var(ncid,'nc2b',nf90_int,(/nl1_id/),nc2b_id))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_ic2b',nf90_int,(/nsb_id/),isb_to_ic2b_id))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_il1',nf90_int,(/nsb_id/),isb_to_il1_id))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isb',nf90_int,(/nsa_id/),isa_to_isb_id))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isc',nf90_int,(/nsa_id/),isa_to_isc_id))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_isc',nf90_int,(/nsb_id/),isb_to_isc_id))
-   call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0a_id,nl0_id/),norm_id))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isb_id,'_FillValue',msvali))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isc_id,'_FillValue',msvali))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_put_att(ncid,isb_to_isc_id,'_FillValue',msvali))
-   call ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_enddef(ncid))
+! Define variables
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1b_id/),vbot_id))
+call ncerr(subr,nf90_def_var(ncid,'nc2b',nf90_int,(/nl1_id/),nc2b_id))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_ic2b',nf90_int,(/nsb_id/),isb_to_ic2b_id))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_il1',nf90_int,(/nsb_id/),isb_to_il1_id))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isb',nf90_int,(/nsa_id/),isa_to_isb_id))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isc',nf90_int,(/nsa_id/),isa_to_isc_id))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_isc',nf90_int,(/nsb_id/),isb_to_isc_id))
+call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0a_id,nl0_id/),norm_id))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isb_id,'_FillValue',msvali))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isc_id,'_FillValue',msvali))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_put_att(ncid,isb_to_isc_id,'_FillValue',msvali))
+call ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',msvalr))
+call ncerr(subr,nf90_enddef(ncid))
 
-   ! Write variables
-   if (ndataloc(iproc)%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vbot_id,ndataloc(iproc)%vbot))
-   call ncerr(subr,nf90_put_var(ncid,nc2b_id,ndataloc(iproc)%nc2b))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_ic2b_id,ndataloc(iproc)%isb_to_ic2b))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_il1_id,ndataloc(iproc)%isb_to_il1))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isb_id,ndataloc(iproc)%isa_to_isb))
-   if (ndataloc(iproc)%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isc_id,ndataloc(iproc)%isa_to_isc))
-   if (ndataloc(iproc)%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc(iproc)%isb_to_isc))
-   call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc(iproc)%norm))
+! Write variables
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vbot_id,ndataloc%vbot))
+call ncerr(subr,nf90_put_var(ncid,nc2b_id,ndataloc%nc2b))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_ic2b_id,ndataloc%isb_to_ic2b))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_il1_id,ndataloc%isb_to_il1))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isb_id,ndataloc%isa_to_isb))
+if (ndataloc%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isc_id,ndataloc%isa_to_isc))
+if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc%isb_to_isc))
+call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc%norm))
 
-   ! Write communications
-   call com_write(ncid,ndataloc(iproc)%AB)
-   call com_write(ncid,ndataloc(iproc)%AC)
+! Write communications
+call com_write(ncid,ndataloc%AB)
+call com_write(ncid,ndataloc%AC)
 
-   ! Write linear operators
-   call linop_write(ncid,ndataloc(iproc)%c)
-   call linop_write(ncid,ndataloc(iproc)%h)
-   call linop_write(ncid,ndataloc(iproc)%v)
-   call linop_write(ncid,ndataloc(iproc)%s)
+! Write linear operators
+call linop_write(ncid,ndataloc%c)
+call linop_write(ncid,ndataloc%h)
+call linop_write(ncid,ndataloc%v)
+call linop_write(ncid,ndataloc%s)
 
-   ! Close file
-   call ncerr(subr,nf90_close(ncid))
-end do
+! Close file
+call ncerr(subr,nf90_close(ncid))
 
 end subroutine ndata_write_mpi
 
@@ -744,25 +613,17 @@ end subroutine ndata_write_mpi
 ! Subroutine: ndata_write_mpi_summary
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write_mpi_summary(ndata,ndataloc)
+subroutine ndata_write_mpi_summary(ndata)
 
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata                  !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(nam%nproc) !< Sampling data, local
+type(ndatatype),intent(in) :: ndata !< Sampling data
 
 ! Local variables
-integer :: iproc,il0i,il1,h_sum,s_sum
 integer :: ncid
-integer :: nc0a_id,nl0_id,nc1b_id,nl1_id,nsa_id,nsb_id
-integer :: vbot_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
-integer :: c_n_s_id,h_n_s_id,s_n_s_id
-integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
-integer :: AB_jhalocounts_id,AB_jexclcounts_id
-integer :: AC_jhalocounts_id,AC_jexclcounts_id
-integer :: nc0_id,nproc1_id,nproc2_id
-integer :: lon_id,lat_id,ic0_to_iproc_id,halo_id,nc0a_per_proc_id,nsa_per_proc_id
+integer :: nc0_id
+integer :: lon_id,lat_id,ic0_to_iproc_id,halo_id
 character(len=1) :: mpicomchar
 character(len=4) :: nprocchar,iprocchar
 character(len=1024) :: filename
@@ -786,49 +647,19 @@ call namncwrite(ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nc0',ndata%nc0,nc0_id))
-call ncerr(subr,nf90_def_dim(ncid,'nproc1',nam%nproc,nproc1_id))
-call ncerr(subr,nf90_def_dim(ncid,'nproc2',nam%nproc,nproc2_id))
 
 ! Define variables
 call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
 call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
 call ncerr(subr,nf90_def_var(ncid,'ic0_to_iproc',nf90_int,(/nc0_id/),ic0_to_iproc_id))
 call ncerr(subr,nf90_def_var(ncid,'halo',nf90_int,(/nc0_id/),halo_id))
-call ncerr(subr,nf90_def_var(ncid,'nc0a_per_proc',nf90_int,(/nproc1_id/),nc0a_per_proc_id))
-call ncerr(subr,nf90_def_var(ncid,'nsa_per_proc',nf90_int,(/nproc1_id/),nsa_per_proc_id))
-call ncerr(subr,nf90_def_var(ncid,'c_n_s',nf90_int,(/nproc1_id/),c_n_s_id))
-call ncerr(subr,nf90_def_var(ncid,'h_n_s',nf90_int,(/nproc1_id/),h_n_s_id))
-call ncerr(subr,nf90_def_var(ncid,'s_n_s',nf90_int,(/nproc1_id/),s_n_s_id))
-call ncerr(subr,nf90_def_var(ncid,'AB_jhalocounts',nf90_int,(/nproc1_id,nproc2_id/),AB_jhalocounts_id))
-call ncerr(subr,nf90_def_var(ncid,'AB_jexclcounts',nf90_int,(/nproc1_id,nproc2_id/),AB_jexclcounts_id))
-call ncerr(subr,nf90_def_var(ncid,'AC_jhalocounts',nf90_int,(/nproc1_id,nproc2_id/),AC_jhalocounts_id))
-call ncerr(subr,nf90_def_var(ncid,'AC_jexclcounts',nf90_int,(/nproc1_id,nproc2_id/),AC_jexclcounts_id))
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
-call ncerr(subr,nf90_put_var(ncid,lon_id,ndata%lon*rad2deg))
-call ncerr(subr,nf90_put_var(ncid,lat_id,ndata%lat*rad2deg))
-call ncerr(subr,nf90_put_var(ncid,ic0_to_iproc_id,ndata%ic0_to_iproc))
-if (nam%nproc>1) call ncerr(subr,nf90_put_var(ncid,halo_id,ndata%halo))
-do iproc=1,nam%nproc
-   call ncerr(subr,nf90_put_var(ncid,nc0a_per_proc_id,ndataloc(iproc)%nc0a,(/iproc/)))
-   call ncerr(subr,nf90_put_var(ncid,nsa_per_proc_id,ndataloc(iproc)%nsa,(/iproc/)))
-   call ncerr(subr,nf90_put_var(ncid,c_n_s_id,ndataloc(iproc)%c%n_s,(/iproc/)))
-   h_sum = 0
-   do il0i=1,ndataloc(iproc)%nl0i
-      h_sum = h_sum+ndataloc(iproc)%h(il0i)%n_s
-   end do
-   call ncerr(subr,nf90_put_var(ncid,h_n_s_id,h_sum,(/iproc/)))
-   s_sum = 0
-   do il1=1,ndataloc(iproc)%nl1
-      s_sum = s_sum+ndataloc(iproc)%s(il1)%n_s
-   end do
-   call ncerr(subr,nf90_put_var(ncid,s_n_s_id,s_sum,(/iproc/)))
-   call ncerr(subr,nf90_put_var(ncid,AB_jhalocounts_id,ndataloc(iproc)%AB%jhalocounts,(/iproc,1/),(/1,nam%nproc/)))
-   call ncerr(subr,nf90_put_var(ncid,AB_jexclcounts_id,ndataloc(iproc)%AB%jexclcounts,(/iproc,1/),(/1,nam%nproc/)))
-   call ncerr(subr,nf90_put_var(ncid,AC_jhalocounts_id,ndataloc(iproc)%AC%jhalocounts,(/iproc,1/),(/1,nam%nproc/)))
-   call ncerr(subr,nf90_put_var(ncid,AC_jexclcounts_id,ndataloc(iproc)%AC%jexclcounts,(/iproc,1/),(/1,nam%nproc/)))
-end do
+call ncerr(subr,nf90_put_var(ncid,lon_id,ndata%geom%lon*rad2deg))
+call ncerr(subr,nf90_put_var(ncid,lat_id,ndata%geom%lat*rad2deg))
+call ncerr(subr,nf90_put_var(ncid,ic0_to_iproc_id,ndata%geom%ic0_to_iproc))
+call ncerr(subr,nf90_put_var(ncid,halo_id,ndata%halo))
 
 ! Close summary file
 call ncerr(subr,nf90_close(ncid))

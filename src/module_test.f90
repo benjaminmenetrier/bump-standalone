@@ -11,7 +11,6 @@
 module module_test
 
 use model_interface, only: model_write
-use module_apply_com, only: fld_com_gl,fld_com_lg,alpha_copy_ac,alpha_copy_bc
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
 use module_apply_nicas, only: apply_nicas,apply_nicas_from_sqrt
@@ -24,9 +23,10 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
 use type_com, only: com_ext,com_red
+use type_geom, only: fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype
-use type_randgen, only: rand_real
+use type_randgen, only: rng,rand_real
 use type_timer, only: timertype,timer_start,timer_end
 
 implicit none
@@ -58,8 +58,8 @@ real(kind_real) :: fld1(ndata%nc0,ndata%nl0),fld1_save(ndata%nc0,ndata%nl0)
 real(kind_real) :: fld2(ndata%nc0,ndata%nl0),fld2_save(ndata%nc0,ndata%nl0)
 
 ! Initialization
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,alpha_save)
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fld_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_save)
 
 ! Adjoint test
 call interp(ndata,alpha_save,fld)
@@ -72,8 +72,8 @@ write(mpl%unit,'(a7,a,e14.8,a,e14.8,a,e14.8)') '','Interpolation adjoint test: '
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Initialization
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,alpha1_save)
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,alpha2_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha1_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha2_save)
 alpha1 = alpha1_save
 alpha2 = alpha2_save
 
@@ -88,8 +88,8 @@ write(mpl%unit,'(a7,a,e14.8,a,e14.8,a,e14.8)') '','Convolution adjoint test:   '
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Initialization
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fld1_save)
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fld2_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld1_save)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld2_save)
 fld1 = fld1_save
 fld2 = fld2_save
 
@@ -129,7 +129,7 @@ real(kind_real) :: norm,egvmax,egvmax_prev,egvmin,egvmin_prev
 real(kind_real) :: fld(ndata%nc0,ndata%nl0),fld_prev(ndata%nc0,ndata%nl0)
 
 ! Power method to find the largest eigenvalue
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
 norm = sum(fld_prev**2)
 fld_prev = fld_prev/norm
 egvmax_prev = huge(1.0)
@@ -162,7 +162,7 @@ do while (iter<=nitermax)
 end do
 
 ! Power method to find the smallest eigenvalue
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
 norm = sum(fld_prev**2)
 egvmin_prev = huge(1.0)
 fld_prev = fld_prev/norm
@@ -218,42 +218,42 @@ type(ndatatype),intent(in) :: ndata       !< Sampling data
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
-real(kind_real),allocatable :: fldg(:,:),fldl(:,:)
+real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
 
 ! Allocation
 if (mpl%main) then
    ! Allocation
-   allocate(fldg(ndata%nc0,ndata%nl0))
-   allocate(fldl(ndata%nc0,ndata%nl0))
+   allocate(fld(ndata%nc0,ndata%nl0))
+   allocate(fldloc(ndata%nc0,ndata%nl0))
 
    ! Initialization
-   call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.false.,fldg)
-   fldl = fldg
+   call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
+   fldloc = fld
 end if
 
 ! Global to local
-call fld_com_gl(ndata,ndataloc,fldl)
+call fld_com_gl(ndata%geom,fldloc)
 
 if (nam%lsqrt) then
    ! Global
-   if (mpl%main) call apply_nicas_from_sqrt(ndata,fldg)
+   if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
 
    ! Local
-   call apply_nicas_from_sqrt(ndataloc,fldl)
+   call apply_nicas_from_sqrt(ndataloc,fldloc)
 else
    ! Global
-   if (mpl%main) call apply_nicas(ndata,fldg)
+   if (mpl%main) call apply_nicas(ndata,fld)
 
    ! Local
-   call apply_nicas(ndataloc,fldl)
+   call apply_nicas(ndataloc,fldloc)
 end if
 
 ! Local to global
-call fld_com_lg(ndata,ndataloc,fldl)
+call fld_com_lg(ndata%geom,fldloc)
 
 ! Print difference
 if (mpl%main) write(mpl%unit,'(a7,a,e14.8)') '','RMSE between single-proc and multi-procs executions: ', &
- & sqrt(sum((fldg-fldl)**2)/float(ndata%nc0*ndata%nl0))
+ & sqrt(sum((fld-fldloc)**2)/float(ndata%nc0*ndata%nl0))
 
 end subroutine test_mpi
 
@@ -280,7 +280,7 @@ if (mpl%main) then
    end do
 
    ! Setup dirac field
-   call setup_dirac_points(ndata%nc0,ndata%lon,ndata%lat,ndata%mask(:,il0dir),nam%ndir,nam%londir,nam%latdir,ic0dir)
+   call setup_dirac_points(ndata%nc0,ndata%geom%lon,ndata%geom%lat,ndata%geom%mask(:,il0dir),nam%ndir,nam%londir,nam%latdir,ic0dir)
 
    ! Allocation
    allocate(fld(ndata%nc0,ndata%nl0))
@@ -293,7 +293,7 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(ndata,ndataloc,fld)
+call fld_com_gl(ndata%geom,fld)
 
 ! Apply NICAS method
 if (nam%lsqrt) then
@@ -303,12 +303,12 @@ else
 end if
 
 ! Local to global
-call fld_com_lg(ndata,ndataloc,fld)
+call fld_com_lg(ndata%geom,fld)
 
 if (mpl%main) then
    ! Write field
    call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
-   call model_write(trim(nam%prefix)//'_dirac.nc','hr',ndata,fld)
+   call model_write(trim(nam%prefix)//'_dirac.nc','hr',ndata%geom,fld)
 
    ! Print results
    write(mpl%unit,'(a7,a)') '','Normalization:'
@@ -316,7 +316,7 @@ if (mpl%main) then
       write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',fld(ic0dir(idir),il0dir)
    end do
    write(mpl%unit,'(a7,a,f10.7,a,f10.7)') '','Min - max: ', &
- & minval(fld(:,il0dir),mask=ndata%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=ndata%mask(:,il0dir))
+ & minval(fld(:,il0dir),mask=ndata%geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=ndata%geom%mask(:,il0dir))
 end if
 
 end subroutine test_dirac
@@ -335,14 +335,14 @@ type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 
 ! Local variables
 real(kind_real) :: fld(ndataloc%nc0a,ndataloc%nl0)
-real(kind_real),allocatable :: alpha(:)
+real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
 type(timertype) :: timer_interp_ad,timer_com_1,timer_convol,timer_com_2,timer_interp
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
 
 ! Random initialization
-call rand_real(ndata%rng,0.0_kind_real,1.0_kind_real,.true.,fld)
+call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,fld)
 
 ! Adjoint interpolation
 call timer_start(timer_interp_ad)
@@ -352,13 +352,46 @@ call timer_end(timer_interp_ad)
 ! Communication
 call timer_start(timer_com_1)
 if (nam%mpicom==1) then
+   ! Allocation 
+   allocate(alpha_tmp(ndataloc%nsb))
+
+   ! Copy zone B
+   alpha_tmp = alpha
+
+   ! Reallocation
+   deallocate(alpha)
+   allocate(alpha(ndataloc%nsc))
+
+   ! Initialize
+   call msr(alpha)
+
    ! Copy zone B into zone C
-   call alpha_copy_BC(ndataloc,alpha)
+   alpha(ndataloc%isb_to_isc) = alpha_tmp
+
+   ! Release memory
+   deallocate(alpha_tmp)
 elseif (nam%mpicom==2) then
    ! Halo reduction from zone B to zone A
    call com_red(ndataloc%AB,alpha)
+
+   ! Allocation 
+   allocate(alpha_tmp(ndataloc%nsb))
+
+   ! Copy zone A
+   alpha_tmp = alpha
+
+   ! Reallocation
+   deallocate(alpha)
+   allocate(alpha(ndataloc%nsc))
+
+   ! Initialize
+   call msr(alpha)
+
    ! Copy zone A into zone C
-   call alpha_copy_AC(ndataloc,alpha)
+   alpha(ndataloc%isa_to_isc) = alpha_tmp
+
+   ! Release memory
+   deallocate(alpha_tmp)
 end if
 call timer_end(timer_com_1)
 

@@ -22,7 +22,7 @@ use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
 use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
 use type_ndata, only: ndatatype
-use type_randgen, only: initialize_sampling
+use type_randgen, only: rng,initialize_sampling
 
 implicit none
 
@@ -54,9 +54,9 @@ type(linoptype) :: hbase,htmp
 type(ctreetype) :: ctree
 
 ! Compute interpolation
-call interp_horiz(ndata%rng,ndata%nc1,ndata%lon(ndata%ic1_to_ic0),ndata%lat(ndata%ic1_to_ic0), &
- & any(ndata%mask(ndata%ic1_to_ic0,:),dim=2),ndata%nc0,ndata%lon,ndata%lat, &
- & any(ndata%mask,dim=2),hbase) 
+call interp_horiz(rng,ndata%nc1,ndata%geom%lon(ndata%ic1_to_ic0),ndata%geom%lat(ndata%ic1_to_ic0), &
+ & any(ndata%geom%mask(ndata%ic1_to_ic0,:),dim=2),ndata%nc0,ndata%geom%lon,ndata%geom%lat, &
+ & any(ndata%geom%mask,dim=2),hbase) 
 
 ! Allocation
 allocate(valid(hbase%n_s))
@@ -106,7 +106,7 @@ do il0i=1,ndata%nl0i
    ! Count points that are not interpolated
    missing = .false.
    do ic0=1,ndata%nc0
-      if (ndata%mask(ic0,il0i)) missing(ic0) = .true.
+      if (ndata%geom%mask(ic0,il0i)) missing(ic0) = .true.
    end do
    do i_s=1,ndata%h(il0i)%n_s
       missing(ndata%h(il0i)%row(i_s)) = .false.
@@ -129,9 +129,9 @@ do il0i=1,ndata%nl0i
       allocate(mask_ctree(ndata%nc1))
       mask_ctree = 0
       do ic1=1,ndata%nc1
-         if (ndata%mask(ndata%ic1_to_ic0(ic1),il0i)) mask_ctree(ic1) = 1
+         if (ndata%geom%mask(ndata%ic1_to_ic0(ic1),il0i)) mask_ctree(ic1) = 1
       end do
-      ctree = create_ctree(ndata%nc1,dble(ndata%lon(ndata%ic1_to_ic0)),dble(ndata%lat(ndata%ic1_to_ic0)),mask_ctree)
+      ctree = create_ctree(ndata%nc1,dble(ndata%geom%lon(ndata%ic1_to_ic0)),dble(ndata%geom%lat(ndata%ic1_to_ic0)),mask_ctree)
       deallocate(mask_ctree)
 
       ! Compute nearest neighbors
@@ -139,7 +139,8 @@ do il0i=1,ndata%nl0i
          if (missing(ic0)) then
             htmp%n_s = htmp%n_s+1
             ndata%h(il0i)%row(htmp%n_s) = ic0
-            call find_nearest_neighbors(ctree,dble(ndata%lon(ic0)),dble(ndata%lat(ic0)),1,ndata%h(il0i)%col(htmp%n_s:htmp%n_s),dum)
+            call find_nearest_neighbors(ctree,dble(ndata%geom%lon(ic0)),dble(ndata%geom%lat(ic0)),1, &
+          & ndata%h(il0i)%col(htmp%n_s:htmp%n_s),dum)
             ndata%h(il0i)%S(htmp%n_s) = 1.0
          end if
       end do
@@ -205,12 +206,14 @@ do il0=1,ndata%nl0
          vbase%n_s = vbase%n_s+1
          vbase%row(vbase%n_s) = jl0
          vbase%col(vbase%n_s) = il0inf
-         vbase%S(vbase%n_s) = abs(ndata%vunit(il0sup)-ndata%vunit(jl0))/abs(ndata%vunit(il0sup)-ndata%vunit(il0inf))
+         vbase%S(vbase%n_s) = abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(jl0)) & 
+                            & /abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(il0inf))
 
          vbase%n_s = vbase%n_s+1
          vbase%row(vbase%n_s) = jl0
          vbase%col(vbase%n_s) = il0sup
-         vbase%S(vbase%n_s) = abs(ndata%vunit(jl0)-ndata%vunit(il0inf))/abs(ndata%vunit(il0sup)-ndata%vunit(il0inf))
+         vbase%S(vbase%n_s) = abs(ndata%geom%vunit(jl0)-ndata%geom%vunit(il0inf)) &
+                            & /abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(il0inf))
       end do
       il0inf = il0
    end if
@@ -286,7 +289,7 @@ allocate(ndata%vbot(ndata%nc1))
 do ic1=1,ndata%nc1
    ic0 = ndata%ic1_to_ic0(ic1)
    il0 = 1
-   do while (ndata%mask(ic0,il0).and.(il0<ndata%nl0))
+   do while (ndata%geom%mask(ic0,il0).and.(il0<ndata%nl0))
       il0 = il0+1
    end do
    ndata%vbot(ic1) = min(il0,ndata%nl0i)
@@ -337,11 +340,11 @@ do il1=1,ndata%nl1
       end do
    else
       ! Compute interpolation
-      call interp_horiz(ndata%rng,ndata%nc2(il1),ndata%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), & 
-    & ndata%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), &
-    & ndata%mask(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1),ndata%il1_to_il0(il1)), &
-    & ndata%nc1,ndata%lon(ndata%ic1_to_ic0),ndata%lat(ndata%ic1_to_ic0), &
-    & ndata%mask(ndata%ic1_to_ic0,ndata%il1_to_il0(il1)),stmp)
+      call interp_horiz(rng,ndata%nc2(il1),ndata%geom%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), & 
+    & ndata%geom%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), &
+    & ndata%geom%mask(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1),ndata%il1_to_il0(il1)), &
+    & ndata%nc1,ndata%geom%lon(ndata%ic1_to_ic0),ndata%geom%lat(ndata%ic1_to_ic0), &
+    & ndata%geom%mask(ndata%ic1_to_ic0,ndata%il1_to_il0(il1)),stmp)
    
       ! Allocation
       allocate(valid(stmp%n_s))
@@ -384,7 +387,7 @@ do il1=1,ndata%nl1
       ! Count points that are not interpolated
       missing = .false.
       do ic1=1,ndata%nc1
-         if (ndata%mask(ndata%ic1_to_ic0(ic1),ndata%il1_to_il0(il1))) missing(ic1) = .true.
+         if (ndata%geom%mask(ndata%ic1_to_ic0(ic1),ndata%il1_to_il0(il1))) missing(ic1) = .true.
       end do
       do i_s=1,ndata%s(il1)%n_s
          missing(ndata%s(il1)%row(i_s)) = .false.
@@ -407,10 +410,10 @@ do il1=1,ndata%nl1
          allocate(mask_ctree(ndata%nc2(il1)))
          mask_ctree = 0
          do ic2=1,ndata%nc2(il1)
-            if (ndata%mask(ndata%ic1_to_ic0(ndata%ic2il1_to_ic1(ic2,il1)),ndata%il1_to_il0(il1))) mask_ctree(ic2) = 1
+            if (ndata%geom%mask(ndata%ic1_to_ic0(ndata%ic2il1_to_ic1(ic2,il1)),ndata%il1_to_il0(il1))) mask_ctree(ic2) = 1
          end do
-         ctree = create_ctree(ndata%nc2(il1),dble(ndata%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))), &
-       & dble(ndata%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))),mask_ctree)
+         ctree = create_ctree(ndata%nc2(il1),dble(ndata%geom%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))), &
+       & dble(ndata%geom%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))),mask_ctree)
          deallocate(mask_ctree)
    
          ! Compute nearest neighbors
@@ -418,8 +421,8 @@ do il1=1,ndata%nl1
             if (missing(ic1)) then
                stmp%n_s = stmp%n_s+1
                ndata%s(il1)%row(stmp%n_s) = ic1
-               call find_nearest_neighbors(ctree,dble(ndata%lon(ndata%ic1_to_ic0(ic1))), &
-             & dble(ndata%lat(ndata%ic1_to_ic0(ic1))),1,ndata%s(il1)%col(stmp%n_s:stmp%n_s),dum)
+               call find_nearest_neighbors(ctree,dble(ndata%geom%lon(ndata%ic1_to_ic0(ic1))), &
+             & dble(ndata%geom%lat(ndata%ic1_to_ic0(ic1))),1,ndata%s(il1)%col(stmp%n_s:stmp%n_s),dum)
                ndata%s(il1)%S(stmp%n_s) = 1.0
             end if
          end do
@@ -505,7 +508,7 @@ do i_s_loc=1,n_s_loc(mpl%myproc)
       end if
 
       ! Transform to cartesian coordinates
-      call trans(2,ndata%lat((/ic0,jc0/)),ndata%lon((/ic0,jc0/)),x,y,z)
+      call trans(2,ndata%geom%lat((/ic0,jc0/)),ndata%geom%lon((/ic0,jc0/)),x,y,z)
 
       ! Compute arc orthogonal vector
       v1 = (/x(1),y(1),z(1)/)
@@ -513,16 +516,16 @@ do i_s_loc=1,n_s_loc(mpl%myproc)
       call vector_product(v1,v2,va)
 
       ! Check if arc is crossing boundary arcs
-      do ibnd=1,ndata%nbnd(il0)
-         call vector_product(va,ndata%vbnd(:,ibnd,il0),vp)
+      do ibnd=1,ndata%geom%nbnd(il0)
+         call vector_product(va,ndata%geom%vbnd(:,ibnd,il0),vp)
          v1 = (/x(1),y(1),z(1)/)
          call vector_triple_product(v1,va,vp,t(1))
          v1 = (/x(2),y(2),z(2)/)
          call vector_triple_product(v1,va,vp,t(2))
-         v1 = (/ndata%xbnd(1,ibnd,il0),ndata%ybnd(1,ibnd,il0),ndata%zbnd(1,ibnd,il0)/)
-         call vector_triple_product(v1,ndata%vbnd(:,ibnd,il0),vp,t(3))
-         v1 = (/ndata%xbnd(2,ibnd,il0),ndata%ybnd(2,ibnd,il0),ndata%zbnd(2,ibnd,il0)/)
-         call vector_triple_product(v1,ndata%vbnd(:,ibnd,il0),vp,t(4))
+         v1 = (/ndata%geom%xbnd(1,ibnd,il0),ndata%geom%ybnd(1,ibnd,il0),ndata%geom%zbnd(1,ibnd,il0)/)
+         call vector_triple_product(v1,ndata%geom%vbnd(:,ibnd,il0),vp,t(3))
+         v1 = (/ndata%geom%xbnd(2,ibnd,il0),ndata%geom%ybnd(2,ibnd,il0),ndata%geom%zbnd(2,ibnd,il0)/)
+         call vector_triple_product(v1,ndata%geom%vbnd(:,ibnd,il0),vp,t(4))
          t(1) = -t(1)
          t(3) = -t(3)
          if (all(t>0).or.(all(t<0))) then
