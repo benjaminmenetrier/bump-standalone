@@ -11,7 +11,7 @@
 module type_randgen
 
 use iso_c_binding, only: c_ptr,c_int,c_double
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use tools_kinds, only: kind_real
 use type_mpl, only: mpl,mpl_bcast
 
@@ -98,11 +98,12 @@ contains
 ! Subroutine: create_randgen
 !> Purpose: create a random number generator
 !----------------------------------------------------------------------
-function create_randgen()
+function create_randgen(nam)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(randgentype) :: create_randgen !< Random number generator object
 
 ! Local variable

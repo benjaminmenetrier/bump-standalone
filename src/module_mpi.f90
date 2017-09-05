@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module module_mpi
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use omp_lib
 use tools_const, only: pi,rad2deg,req,sphere_dist
@@ -18,7 +18,7 @@ use tools_display, only: msgerror,prog_init,prog_print
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use tools_nc, only: ncfloat,ncerr
 use type_com, only: comtype,com_dealloc,com_copy,com_setup
-use type_linop, only: linop_alloc,linop_reorder
+use type_linop, only: linop_alloc,linop_copy,linop_reorder
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype,ndataloc_dealloc,ndataloc_copy
 use type_randgen, only: initialize_sampling
@@ -44,16 +44,17 @@ contains
 ! Subroutine: compute_mpi
 !> Purpose: compute NICAS MPI distribution
 !----------------------------------------------------------------------
-subroutine compute_mpi(ndata,ndataloc)
+subroutine compute_mpi(nam,ndata,ndataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata                      !< Sampling data
 type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
 
 ! Local variables
-integer :: il0i,iproc,ic0,ic0a,ic1,ic2,jc2,ic1b,ic2b,il1,isa,isb,isc,i_s,i_s_loc,is,js,jproc,i,s_n_s_max,s_n_s_max_loc
+integer :: il0i,iproc,ic0,ic0a,ic1,ic2,jc2,ic1b,ic2b,il0,il1,isa,isb,isc,i_s,i_s_loc,is,js,jproc,s_n_s_max,s_n_s_max_loc
 integer :: interph_row_proc(ndata%h(1)%n_s,ndata%nl0i)
 integer,allocatable :: ic1b_to_ic1(:),ic1_to_ic1b(:),ic2il1_to_ic2b(:,:)
 integer,allocatable :: interph_i_s_lg(:,:),interps_i_s_lg(:,:),convol_i_s_lg(:)
@@ -86,7 +87,6 @@ do iproc=1,nam%nproc
    ! Allocation
    allocate(ndataloc_arr(iproc)%nc2b(ndataloc_arr(iproc)%nl1))
    allocate(ndataloc_arr(iproc)%h(ndataloc_arr(iproc)%nl0i))
-   allocate(ndataloc_arr(iproc)%v(ndataloc_arr(iproc)%nl0i))
    allocate(ndataloc_arr(iproc)%s(ndataloc_arr(iproc)%nl1))
 
    ! Halo definitions
@@ -96,7 +96,9 @@ do iproc=1,nam%nproc
    do is=1,ndata%ns
       ic1 = ndata%is_to_ic1(is)
       ic0 = ndata%ic1_to_ic0(ic1)
-      if (ndata%geom%ic0_to_iproc(ic0)==iproc) lcheck_nsa(is) = .true.
+      il1 = ndata%is_to_il1(is)
+      il0 = ndata%il1_to_il0(il1)
+      if (ndata%geom%mask(ic0,il0).and.(ndata%geom%ic0_to_iproc(ic0)==iproc)) lcheck_nsa(is) = .true.
    end do
    ndataloc_arr(iproc)%nsa = count(lcheck_nsa)
 
@@ -155,7 +157,7 @@ do iproc=1,nam%nproc
       end do
    elseif (nam%mpicom==2) then
       ! 2 communication steps
-      lcheck_nsc = lcheck_nsa
+      lcheck_nsc = lcheck_nsb
       lcheck_c = .false.
       do i_s=1,ndata%c%n_s
          is = ndata%c%row(i_s)
@@ -169,6 +171,19 @@ do iproc=1,nam%nproc
    end if
    ndataloc_arr(iproc)%nsc = count(lcheck_nsc)
    ndataloc_arr(iproc)%c%n_s = count(lcheck_c)
+
+   ! Check halos consistency
+   do is=1,ndata%ns
+      if (lcheck_nsa(is).and.(.not.lcheck_nsb(is))) then
+         call msgerror('point in halo A but not in halo B')
+      end if
+      if (lcheck_nsa(is).and.(.not.lcheck_nsc(is))) then
+         call msgerror('point in halo A but not in halo C')
+      end if
+      if (lcheck_nsb(is).and.(.not.lcheck_nsc(is))) then
+         call msgerror('point in halo B but not in halo C')
+      end if
+   end do
 
    ! Global <-> local conversions for fields
 
@@ -311,12 +326,12 @@ do iproc=1,nam%nproc
    end do
 
    ! Vertical interpolation
-   do il0i=1,ndataloc_arr(iproc)%nl0i
-      ndataloc_arr(iproc)%v(il0i) = ndata%v(il0i)
-   end do
+   call linop_copy(ndata%v,ndataloc_arr(iproc)%v)
    if (ndataloc_arr(iproc)%nc1b>0) then
       allocate(ndataloc_arr(iproc)%vbot(ndataloc_arr(iproc)%nc1b))
+      allocate(ndataloc_arr(iproc)%vtop(ndataloc_arr(iproc)%nc1b))
       ndataloc_arr(iproc)%vbot = ndata%vbot(ic1b_to_ic1)
+      ndataloc_arr(iproc)%vtop = ndata%vtop(ic1b_to_ic1)
    end if
 
    ! Subsampling horizontal interpolation
@@ -379,6 +394,7 @@ do iproc=1,nam%nproc
    do il0i=1,ndataloc_arr(iproc)%nl0i
       write(mpl%unit,'(a10,a,i3,a,i8)') '','h(',il0i,')%n_s = ',ndataloc_arr(iproc)%h(il0i)%n_s
    end do
+   write(mpl%unit,'(a10,a,i8)') '','v%n_s =     ',ndataloc_arr(iproc)%v%n_s
    do il1=1,ndataloc_arr(iproc)%nl1
       write(mpl%unit,'(a10,a,i3,a,i8)') '','s(',il1,')%n_s = ',ndataloc_arr(iproc)%s(il1)%n_s
    end do
@@ -434,7 +450,6 @@ if (nam%lsqrt) then
    end do
 end if
 
-
 do iproc=1,nam%nproc
    ! Allocation
    comAB(iproc)%nred = ndataloc_arr(iproc)%nsa
@@ -474,15 +489,15 @@ do iproc=1,nam%nproc
 end do
 
 ! Communications setup
-call com_setup(comAB)
-call com_setup(comAC)
+call com_setup(nam,comAB)
+call com_setup(nam,comAC)
 
 ! Communications copy
 do iproc=1,nam%nproc
    comAB(iproc)%prefix = 'AB'
-   call com_copy(comAB(iproc),ndataloc_arr(iproc)%AB)
+   call com_copy(nam,comAB(iproc),ndataloc_arr(iproc)%AB)
    comAC(iproc)%prefix = 'AC'
-   call com_copy(comAC(iproc),ndataloc_arr(iproc)%AC)
+   call com_copy(nam,comAC(iproc),ndataloc_arr(iproc)%AC)
 end do
 
 ! Release memory
@@ -492,7 +507,7 @@ do iproc=1,nam%nproc
 end do
 
 ! Copy ndataloc for the concerned processor
-call ndataloc_copy(ndataloc_arr(mpl%myproc),ndataloc)  
+call ndataloc_copy(nam,ndataloc_arr(mpl%myproc),ndataloc)  
 
 ! Release memory
 do iproc=1,nam%nproc

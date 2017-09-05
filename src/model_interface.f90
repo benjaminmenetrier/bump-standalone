@@ -20,7 +20,7 @@ use model_mpas, only: model_mpas_coord,model_mpas_read,model_mpas_write
 use model_nemo, only: model_nemo_coord,model_nemo_read,model_nemo_write
 use model_oops, only: model_oops_write
 use model_wrf, only: model_wrf_coord,model_wrf_read,model_wrf_write
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
@@ -40,11 +40,12 @@ contains
 ! Subroutine: model_coord
 !> Purpose: get coordinates
 !----------------------------------------------------------------------
-subroutine model_coord(geom)
+subroutine model_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! TODO: change that one day
@@ -52,25 +53,25 @@ geom%nl0 = nam%nl
 
 ! Select model
 if (trim(nam%model)=='aro') then
-   call model_aro_coord(geom)
+   call model_aro_coord(nam,geom)
 elseif (trim(nam%model)=='arp') then
-   call model_arp_coord(geom)
+   call model_arp_coord(nam,geom)
 elseif (trim(nam%model)=='gem') then
-   call model_gem_coord(geom)
+   call model_gem_coord(nam,geom)
 elseif (trim(nam%model)=='geos') then
-   call model_geos_coord(geom)
+   call model_geos_coord(nam,geom)
 elseif (trim(nam%model)=='gfs') then
-   call model_gfs_coord(geom)
+   call model_gfs_coord(nam,geom)
 elseif (trim(nam%model)=='ifs') then
-   call model_ifs_coord(geom)
+   call model_ifs_coord(nam,geom)
 elseif (trim(nam%model)=='mpas') then
-   call model_mpas_coord(geom)
+   call model_mpas_coord(nam,geom)
 elseif (trim(nam%model)=='nemo') then
-   call model_nemo_coord(geom)
+   call model_nemo_coord(nam,geom)
 elseif (trim(nam%model)=='oops') then
-   ! Specific interface, see module_oops.f90
+   call msgerror('specific interface in module_oops')
 elseif (trim(nam%model)=='wrf') then
-   call model_wrf_coord(geom)
+   call model_wrf_coord(nam,geom)
 else
    call msgerror('wrong model')
 end if
@@ -81,11 +82,12 @@ end subroutine model_coord
 ! Subroutine: model_read
 !> Purpose: read model field
 !----------------------------------------------------------------------
-subroutine model_read(filename,varname,geom,fld)
+subroutine model_read(nam,filename,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 character(len=*),intent(in) :: filename                 !< File name
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data
@@ -100,25 +102,25 @@ call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,nc
 
 ! Select model
 if (trim(nam%model)=='aro') then
-   call model_aro_read(ncid,varname,geom,fld)
+   call model_aro_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='arp') then
-   call model_arp_read(ncid,varname,geom,fld)
+   call model_arp_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='gem') then
-   call model_gem_read(ncid,varname,geom,fld)
+   call model_gem_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='geos') then
-   call model_geos_read(ncid,varname,geom,fld)
+   call model_geos_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='gfs') then
-   call model_gfs_read(ncid,varname,geom,fld)
+   call model_gfs_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='ifs') then
-   call model_ifs_read(ncid,varname,geom,fld)
+   call model_ifs_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='mpas') then
-   call model_mpas_read(ncid,varname,geom,fld)
+   call model_mpas_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='nemo') then
-   call model_nemo_read(ncid,varname,geom,fld)
+   call model_nemo_read(nam,ncid,varname,geom,fld)
 elseif (trim(nam%model)=='oops') then
-   ! Specific interface, see module_oops.f90 TODO
+   call msgerror('not implemented yet')
 elseif (trim(nam%model)=='wrf') then
-   call model_wrf_read(ncid,varname,geom,fld)
+   call model_wrf_read(nam,ncid,varname,geom,fld)
 else
    call msgerror('wrong model')
 end if
@@ -132,11 +134,12 @@ end subroutine model_read
 ! Subroutine: model_write
 !> Purpose: write model field
 !----------------------------------------------------------------------
-subroutine model_write(filename,varname,geom,fld)
+subroutine model_write(nam,filename,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 character(len=*),intent(in) :: filename                !< File name
 character(len=*),intent(in) :: varname                 !< Variable name
 type(geomtype),intent(in) :: geom                    !< Sampling data
@@ -173,7 +176,7 @@ elseif (trim(nam%model)=='arp') then
    call model_arp_write(ncid,varname,geom,fld)
 elseif (trim(nam%model)=='gem') then
    call model_gem_write(ncid,varname,geom,fld)
-elseif (trim(nam%model)=='geos') then
+elseif (trim(nam%model)=='sgeos') then
    call model_geos_write(ncid,varname,geom,fld)
 elseif (trim(nam%model)=='gfs') then
    call model_gfs_write(ncid,varname,geom,fld)
@@ -184,7 +187,6 @@ elseif (trim(nam%model)=='mpas') then
 elseif (trim(nam%model)=='nemo') then
    call model_nemo_write(ncid,varname,geom,fld)
 elseif (trim(nam%model)=='oops') then
-   ! Specific interface, see module_oops.f90
    call model_oops_write(ncid,varname,geom,fld)
 elseif (trim(nam%model)=='wrf') then
    call model_wrf_write(ncid,varname,geom,fld)

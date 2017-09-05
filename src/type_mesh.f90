@@ -83,13 +83,13 @@ if (lred) then
    allocate(done(n_loc(mpl%myproc)))
 
    ! Loop over points
-   write(mpl%unit,'(a10,a)',advance='no') '','Look for redundant points: '
+   write(mpl%unit,'(a7,a)',advance='no') '','Look for redundant points: '
    call prog_init(progint,done)
    !$omp parallel do private(i_loc,i,j)
    do i_loc=1,n_loc(mpl%myproc)
       i = i_glb(i_loc,mpl%myproc)
       do j=1,i-1
-         if ((abs(lon(i)-lon(j))<tiny(1.0)).and.(abs(lat(i)-lat(j))<tiny(1.0))) then
+         if (.not.(abs(lon(i)-lon(j))>0.0).and..not.(abs(lat(i)-lat(j))>0.0)) then
             mesh%redundant(i) = j
             exit
          end if

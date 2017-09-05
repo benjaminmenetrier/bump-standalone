@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_com
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
@@ -74,11 +74,12 @@ end subroutine com_dealloc
 ! Subroutine: com_copy
 !> Purpose: communications object copyment
 !----------------------------------------------------------------------
-subroutine com_copy(com_in,com_out)
+subroutine com_copy(nam,com_in,com_out)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(comtype),intent(in) :: com_in     !< Input linear operator
 type(comtype),intent(inout) :: com_out !< Output linear operator
 
@@ -116,15 +117,16 @@ end subroutine com_copy
 ! Subroutine: com_setup
 !> Purpose: setup communications
 !----------------------------------------------------------------------
-subroutine com_setup(com)
+subroutine com_setup(nam,com)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(comtype),intent(inout) :: com(nam%nproc) !< Communication
 
 ! Local variables
-integer :: iproc,jproc,i,j
+integer :: iproc,jproc,i
 
 ! Allocation
 do iproc=1,nam%nproc
@@ -261,10 +263,7 @@ real(kind_real),allocatable,intent(inout) :: vec(:)    !< Subgrid variable
 real(kind_real) :: sbuf(com%nhalo),rbuf(com%nexcl),vec_tmp(com%next)
 
 ! Check input vector size
-if (size(vec)/=com%next) then
-print*, size(vec),com%next
-call msgerror('vector size inconsistent in com_red')
-end if
+if (size(vec)/=com%next) call msgerror('vector size inconsistent in com_red')
 
 ! Prepare buffers to send
 sbuf = vec(com%halo)
@@ -291,24 +290,38 @@ end subroutine com_red
 ! Subroutine: com_read
 !> Purpose: read communications from a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_read(ncid,prefix,com)
+subroutine com_read(nam,ncid,prefix,com)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid            !< NetCDF file id
 character(len=*),intent(in) :: prefix !< Communication prefix
 type(comtype),intent(inout) :: com    !< Communication
 
 ! Local variables
 integer :: info
-integer :: nproc_id,nhalo_id,nexcl_id,jhalocounts_id,jexclcounts_id,jhalodispl_id,jexcldispl_id,halo_id,excl_id
+integer :: nred_id,next_id,ired_to_iext_id,nhalo_id,nexcl_id
+integer :: jhalocounts_id,jexclcounts_id,jhalodispl_id,jexcldispl_id,halo_id,excl_id
 character(len=1024) :: subr = 'com_read'
 
 ! Copy prefix
 com%prefix = trim(prefix)
 
 ! Get dimensions
+info = nf90_inq_dimid(ncid,trim(prefix)//'_nred',nred_id)
+if (info==nf90_noerr) then
+   call ncerr(subr,nf90_inquire_dimension(ncid,nred_id,len=com%nred))
+else
+   com%nred = 0
+end if
+info = nf90_inq_dimid(ncid,trim(prefix)//'_next',next_id)
+if (info==nf90_noerr) then
+   call ncerr(subr,nf90_inquire_dimension(ncid,next_id,len=com%next))
+else
+   com%next = 0
+end if
 info = nf90_inq_dimid(ncid,trim(prefix)//'_nhalo',nhalo_id)
 if (info==nf90_noerr) then
    call ncerr(subr,nf90_inquire_dimension(ncid,nhalo_id,len=com%nhalo))
@@ -323,6 +336,7 @@ else
 end if
 
 ! Allocation
+allocate(com%ired_to_iext(com%nred))
 allocate(com%jhalocounts(nam%nproc))
 allocate(com%jexclcounts(nam%nproc))
 allocate(com%jhalodispl(nam%nproc))
@@ -331,6 +345,7 @@ if (com%nhalo>0) allocate(com%halo(com%nhalo))
 if (com%nexcl>0) allocate(com%excl(com%nexcl))
 
 ! Get variables id
+call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_ired_to_iext',ired_to_iext_id))
 call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jhalocounts',jhalocounts_id))
 call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jexclcounts',jexclcounts_id))
 call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jhalodispl',jhalodispl_id))
@@ -339,6 +354,7 @@ if (com%nhalo>0) call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_halo',halo_
 if (com%nexcl>0) call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_excl',excl_id))
 
 ! Get variable
+call ncerr(subr,nf90_get_var(ncid,ired_to_iext_id,com%ired_to_iext))
 call ncerr(subr,nf90_get_var(ncid,jhalocounts_id,com%jhalocounts))
 call ncerr(subr,nf90_get_var(ncid,jexclcounts_id,com%jexclcounts))
 call ncerr(subr,nf90_get_var(ncid,jhalodispl_id,com%jhalodispl))
@@ -352,17 +368,19 @@ end subroutine com_read
 ! Subroutine: com_write
 !> Purpose: write communications to a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_write(ncid,com)
+subroutine com_write(nam,ncid,com)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid      !< NetCDF file id
 type(comtype),intent(in) :: com !< Communication
 
 ! Local variables
 integer :: info
-integer :: nproc_id,nhalo_id,nexcl_id,jhalocounts_id,jexclcounts_id,jhalodispl_id,jexcldispl_id,halo_id,excl_id
+integer :: nproc_id,nred_id,next_id,ired_to_iext_id,nhalo_id,nexcl_id
+integer :: jhalocounts_id,jexclcounts_id,jhalodispl_id,jexcldispl_id,halo_id,excl_id
 character(len=1024) :: subr = 'com_write'
 
 ! Start definition mode
@@ -371,10 +389,13 @@ call ncerr(subr,nf90_redef(ncid))
 ! Define dimensions
 info = nf90_inq_dimid(ncid,'nproc',nproc_id)
 if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nproc',nam%nproc,nproc_id))
+call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nred',com%nred,nred_id))
+call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_next',com%next,next_id))
 if (com%nhalo>0) call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nhalo',com%nhalo,nhalo_id))
 if (com%nexcl>0) call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nexcl',com%nexcl,nexcl_id))
 
 ! Define variables
+call ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_ired_to_iext',nf90_int,(/nred_id/),ired_to_iext_id))
 call ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jhalocounts',nf90_int,(/nproc_id/),jhalocounts_id))
 call ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jexclcounts',nf90_int,(/nproc_id/),jexclcounts_id))
 call ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jhalodispl',nf90_int,(/nproc_id/),jhalodispl_id))
@@ -386,6 +407,7 @@ if (com%nexcl>0) call ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_excl',nf9
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Put variables
+call ncerr(subr,nf90_put_var(ncid,ired_to_iext_id,com%ired_to_iext))
 call ncerr(subr,nf90_put_var(ncid,jhalocounts_id,com%jhalocounts))
 call ncerr(subr,nf90_put_var(ncid,jexclcounts_id,com%jexclcounts))
 call ncerr(subr,nf90_put_var(ncid,jhalodispl_id,com%jhalodispl))

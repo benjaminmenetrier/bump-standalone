@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module module_mpi_obsop
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi
@@ -33,11 +33,12 @@ contains
 ! Subroutine: compute_mpi_obsop
 !> Purpose: compute observation operator MPI distribution
 !----------------------------------------------------------------------
-subroutine compute_mpi_obsop(odata,odataloc)
+subroutine compute_mpi_obsop(nam,odata,odataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam
 type(odatatype),intent(inout) :: odata
 type(odataloctype),intent(inout) :: odataloc
 
@@ -194,10 +195,10 @@ do iproc=1,nam%nproc
 end do
 
 ! Communications setup
-call com_setup(comobs)
+call com_setup(nam,comobs)
 
 ! Communications copy
-call com_copy(comobs(mpl%myproc),odataloc%com)
+call com_copy(nam,comobs(mpl%myproc),odataloc%com)
 odataloc%com%prefix = 'o'
 
 ! Print results

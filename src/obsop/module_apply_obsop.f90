@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module module_apply_obsop
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
@@ -77,7 +77,6 @@ real(kind_real),intent(out) :: obs(odataloc%nobsa,odataloc%nl0)  !< Observations
 
 ! Local variables
 integer :: il0
-real(kind_real) :: sbuf(odataloc%com%nexcl),rbuf(odataloc%com%nhalo)
 real(kind_real) :: fld_ext(odataloc%nc0b,odataloc%nl0)
 real(kind_real),allocatable :: slab(:)
 
@@ -140,7 +139,6 @@ real(kind_real),intent(out) :: fld(odataloc%nc0a,odataloc%nl0) !< Field
 
 ! Local variables
 integer :: il0
-real(kind_real) :: sbuf(odataloc%com%nexcl),rbuf(odataloc%com%nhalo)
 real(kind_real) :: fld_ext(odataloc%nc0b,odataloc%nl0)
 real(kind_real),allocatable :: slab(:)
 

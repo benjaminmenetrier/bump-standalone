@@ -12,7 +12,7 @@ module module_driver
 
 use module_mpi, only: compute_mpi
 use module_mpi_obsop, only: compute_mpi_obsop
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use module_normalization, only: compute_normalization
 use module_parameters, only: compute_parameters
 use module_parameters_obsop, only: compute_parameters_obsop
@@ -36,19 +36,19 @@ contains
 ! Subroutine: nicas_driver
 !> Purpose: NICAS driver
 !----------------------------------------------------------------------
-subroutine nicas_driver(geom,ndataloc)
+subroutine nicas_driver(nam,geom,ndataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),target,intent(in) :: geom    !< Sampling data
 type(ndataloctype),intent(inout) :: ndataloc !< Sampling data,local
 
 ! Local variables
-integer :: il0,iproc
+integer :: il0
 logical :: same_mask
 type(ndatatype) :: ndata
-type(ndataloctype),allocatable :: ndataloc_arr(:)
 
 ! Set ndata geometry
 ndata%geom => geom
@@ -56,7 +56,7 @@ ndata%nc0 = ndata%geom%nc0
 ndata%nl0 = ndata%geom%nl0
 
 ! Compute grid mesh
-call compute_grid_mesh(ndata%geom)
+call compute_grid_mesh(nam,ndata%geom)
 
 ! Check whether the mask is the same for all levels
 same_mask = .true.
@@ -77,55 +77,55 @@ if (nam%new_param) then
    ! Compute NICAS parameters
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute NICAS parameters'
-   call compute_parameters(ndata)
+   call compute_parameters(nam,ndata)
 
    ! Compute NICAS normalization
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute NICAS normalization'
-   call compute_normalization(ndata)
+   call compute_normalization(nam,ndata)
 
    if (mpl%main) then
       ! Write NICAS parameters
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Write NICAS parameters'
-      call ndata_write_param(ndata)
+      call ndata_write_param(nam,ndata)
    end if
 else
    ! Read NICAS parameters
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Read NICAS parameters'
-   call ndata_read_param(ndata)
+   call ndata_read_param(nam,ndata)
 end if
 call flush(mpl%unit)
 
 ! Read local distribution
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Read local distribution'
-call geom_read_local(ndata%geom)
+call geom_read_local(nam,ndata%geom)
 call flush(mpl%unit)
 
 if (nam%new_mpi) then
    ! Compute NICAS MPI distribution
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute NICAS MPI distribution'
-   call compute_mpi(ndata,ndataloc)
+   call compute_mpi(nam,ndata,ndataloc)
 
    ! Write NICAS MPI distribution
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Write NICAS MPI distribution'
-   call ndata_write_mpi(ndataloc)
+   call ndata_write_mpi(nam,ndataloc)
 
-   if (mpl%main) then
+   if (mpl%main.and.(nam%nproc>1)) then
       ! Write NICAS MPI summary
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
-      call ndata_write_mpi_summary(ndata)
+      call ndata_write_mpi_summary(nam,ndata)
    end if
 else
    ! Read NICAS MPI distribution
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Read NICAS MPI distribution'
-   call ndata_read_mpi(ndataloc)
+   call ndata_read_mpi(nam,ndataloc)
 end if
 call flush(mpl%unit)
 
@@ -133,7 +133,7 @@ if (nam%check_adjoints) then
    ! Test adjoints
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS adjoints'
-   if (mpl%main) call test_adjoints(ndata)
+   if (mpl%main) call test_adjoints(nam,ndata)
    call flush(mpl%unit)
 end if
 
@@ -141,7 +141,7 @@ if (nam%check_pos_def) then
    ! Test NICAS positive definiteness
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
-   if (mpl%main) call test_pos_def(ndata)
+   if (mpl%main) call test_pos_def(nam,ndata)
    call flush(mpl%unit)
 end if
 
@@ -149,7 +149,7 @@ if (nam%check_mpi.and.(nam%nproc>0)) then
    ! Test single/multi-procs equivalence
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
-   call test_mpi(ndata,ndataloc)
+   call test_mpi(nam,ndata,ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -157,7 +157,7 @@ if (nam%check_dirac) then
    ! Apply NICAS to diracs
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
-   call test_dirac(ndata,ndataloc)
+   call test_dirac(nam,ndata,ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -165,7 +165,7 @@ if (nam%check_perf) then
    ! Test NICAS performance
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS performance'
-   call test_perf(ndata,ndataloc)
+   call test_perf(nam,ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -175,11 +175,12 @@ end subroutine nicas_driver
 ! Subroutine: obsop_driver
 !> Purpose: observation operator driver
 !----------------------------------------------------------------------
-subroutine obsop_driver(geom,odataloc)
+subroutine obsop_driver(nam,geom,odataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),target,intent(inout) :: geom         !< Sampling data
 type(odataloctype),intent(inout) :: odataloc !< Sampling data
 
@@ -214,14 +215,14 @@ call flush(mpl%unit)
 ! Read local distribution
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Read local distribution'
-call geom_read_local(geom)
+call geom_read_local(nam,geom)
 call flush(mpl%unit)
 
 !if (nam%new_mpi) then
    ! Compute observation operator MPI distribution
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute observation operator MPI distribution'
-   call compute_mpi_obsop(odata,odataloc)
+   call compute_mpi_obsop(nam,odata,odataloc)
 
 !   if (mpl%main) then
 !      ! Write observation operator MPI distribution

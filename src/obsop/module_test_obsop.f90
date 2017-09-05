@@ -11,7 +11,6 @@
 module module_test_obsop
 
 use module_apply_obsop, only: apply_obsop,apply_obsop_ad
-use module_namelist, only: nam
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use type_geom, only: geomtype,fld_com_gl,fld_com_lg

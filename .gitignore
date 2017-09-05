@@ -1,5 +1,9 @@
 # Build
-build
+build/CMakeCache.txt
+build/CMakeFiles
+build/cmake_install.cmake
+build/Makefile
+build/*.mod
 
 # Data
 data/*/*.nc
@@ -14,6 +18,9 @@ ncl/fig
 
 # Executable
 run/nicas
+
+# Listings
+run/nicas.out.*
 
 # Old namelists
 run/old

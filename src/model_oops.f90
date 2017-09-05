@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_oops
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,deg2rad,rad2deg,req
 use tools_display, only: msgerror
@@ -32,11 +32,12 @@ contains
 ! Subroutine: model_oops_coord
 !> Purpose: load OOPS coordinates
 !----------------------------------------------------------------------
-subroutine model_oops_coord(lats,lons,areas,levs,mask3d,mask2d,glbind,geom)
+subroutine model_oops_coord(nam,lats,lons,areas,levs,mask3d,mask2d,glbind,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 real(kind_real),intent(in) :: lats(:)
 real(kind_real),intent(in) :: lons(:)
 real(kind_real),intent(in) :: areas(:)
@@ -207,7 +208,7 @@ real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
 integer :: il0,ierr
-integer :: nc0_id,nlev_id,nt_id,fld_id,lon_id,lat_id
+integer :: nc0_id,nlev_id,fld_id,lon_id,lat_id
 character(len=1024) :: subr = 'model_oops_write'
 
 ! Get variable id

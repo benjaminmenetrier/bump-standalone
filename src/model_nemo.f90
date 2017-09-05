@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_nemo
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: req,deg2rad,sphere_dist
 use tools_kinds,only: kind_real
@@ -29,11 +29,12 @@ contains
 ! Subroutine: model_nemo_coord
 !> Purpose: get NEMO coordinates
 !----------------------------------------------------------------------
-subroutine model_nemo_coord(geom)
+subroutine model_nemo_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -135,11 +136,12 @@ end subroutine model_nemo_coord
 ! Subroutine: model_nemo_read
 !> Purpose: read NEMO field
 !----------------------------------------------------------------------
-subroutine model_nemo_read(ncid,varname,geom,fld)
+subroutine model_nemo_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

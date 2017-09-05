@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_gfs
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,deg2rad,ps
 use tools_kinds,only: kind_real
@@ -29,11 +29,12 @@ contains
 ! Subroutine: model_gfs_coord
 !> Purpose: get GFS coordinates
 !----------------------------------------------------------------------
-subroutine model_gfs_coord(geom)
+subroutine model_gfs_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -111,11 +112,12 @@ end subroutine model_gfs_coord
 ! Subroutine: model_gfs_read
 !> Purpose: read GFS field
 !----------------------------------------------------------------------
-subroutine model_gfs_read(ncid,varname,geom,fld)
+subroutine model_gfs_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

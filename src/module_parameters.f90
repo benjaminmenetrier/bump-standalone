@@ -11,7 +11,7 @@
 module module_parameters
 
 use model_interface, only: model_read
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use module_parameters_convol, only: compute_convol_network,compute_convol_distance
 use module_parameters_interp, only: compute_interp_h,compute_interp_v,compute_interp_s
 use netcdf
@@ -36,20 +36,22 @@ contains
 ! Subroutine: compute_parameters
 !> Purpose: compute NICAS parameters
 !----------------------------------------------------------------------
-subroutine compute_parameters(ndata)
+subroutine compute_parameters(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
 integer :: il0,il0_prev,il1,ic0,ic1,ic2,i,is,il0i
-integer :: mask_cell(ndata%nc0)
-integer,allocatable :: ifors(:)
+integer :: mask_ind_col(ndata%nc0)
+integer,allocatable :: ifors(:),mask_ind(:,:)
 real(kind_real) :: distnorm
 real(kind_real) :: rh0(ndata%nc0,ndata%nl0),rv0(ndata%nc0,ndata%nl0),rh0min(ndata%nc0)
 real(kind_real),allocatable :: rh1(:,:),rv1(:,:),rh2(:,:),rv2(:,:),rhs(:),rvs(:)
+logical :: inside
 
 ! Forced points in the subgrid (TODO: rethink that)
 ndata%nfor = 1
@@ -70,14 +72,14 @@ if (trim(nam%Lbh_file)=='none') then
       rh0(:,il0) = nam%Lbh(il0)
    end do
 else
-   call model_read(trim(nam%Lbh_file),'Lh',ndata%geom,rh0)
+   call model_read(nam,trim(nam%Lbh_file),'Lh',ndata%geom,rh0)
 end if
 if (trim(nam%Lbv_file)=='none') then
    do il0=1,ndata%nl0
       rv0(:,il0) = nam%Lbv(il0)
    end do
 else
-   call model_read(trim(nam%Lbv_file),'Lv',ndata%geom,rv0)
+   call model_read(nam,trim(nam%Lbv_file),'Lv',ndata%geom,rv0)
 end if
 write(mpl%unit,'(a10,a,e10.3,a,e10.3)') '','Average length-scales (H/V): ', &
  & sum(rh0)/float(ndata%nc0*ndata%nl0),' / ',sum(rv0)/float(ndata%nc0*ndata%nl0)
@@ -96,15 +98,15 @@ if (ndata%nc1>ndata%nc0/2) then
    call msgwarning('required nc1 larger than nc0/2, resetting to nc0/2')
    ndata%nc1 = ndata%nc0/2
 end if
-mask_cell = 0
+mask_ind_col = 0
 do ic0=1,ndata%nc0
-   if (any(ndata%geom%mask(ic0,:))) mask_cell(ic0) = 1
+   if (any(ndata%geom%mask(ic0,:))) mask_ind_col(ic0) = 1
 end do
 allocate(ndata%ic1_to_ic0(ndata%nc1))
 
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
-call initialize_sampling(rng,ndata%nc0,dble(ndata%geom%lon),dble(ndata%geom%lat),mask_cell,rh0min,nam%ntry,nam%nrep, &
+call initialize_sampling(rng,ndata%nc0,dble(ndata%geom%lon),dble(ndata%geom%lat),mask_ind_col,rh0min,nam%ntry,nam%nrep, &
  & ndata%nc1,ndata%nfor,ndata%ifor,ndata%ic1_to_ic0)
 
 ! Inverse conversion
@@ -153,6 +155,31 @@ do il0=1,ndata%nl0
 end do
 write(mpl%unit,'(a)') ''
 
+! Find bottom and top for each point of S1
+allocate(ndata%vbot(ndata%nc1))
+allocate(ndata%vtop(ndata%nc1))
+!$omp parallel do private(ic1,ic0,inside,il1,il0)
+do ic1=1,ndata%nc1
+   ic0 = ndata%ic1_to_ic0(ic1)
+   inside = .false.
+   ndata%vtop(ic1) = ndata%nl0
+   do il1=1,ndata%nl1
+      il0 = ndata%il1_to_il0(il1)
+      if (.not.inside.and.ndata%geom%mask(ic0,il0)) then
+         ! Bottom level
+         ndata%vbot(ic1) = il0
+         inside = .true.
+      end if
+      if (inside.and.(.not.ndata%geom%mask(ic0,il0))) then
+         ! Top level
+         ndata%vtop(ic1) = il0
+         inside = .false.
+      end if
+   end do
+   if (ndata%vbot(ic1)>ndata%vtop(ic1)) call msgerror('non contiguous mask')
+end do
+!$omp end parallel do
+
 ! Inverse conversion
 allocate(ndata%il0_to_il1(ndata%nl0))
 call msi(ndata%il0_to_il1)
@@ -173,9 +200,19 @@ end do
 allocate(ndata%nc2(ndata%nl1))
 allocate(ndata%ic2il1_to_ic1(ndata%nc1,ndata%nl1))
 allocate(ifors(ndata%nfor))
+allocate(mask_ind(ndata%nc1,ndata%nl1))
 do i=1,ndata%nfor
    ifors(i) = i
 end do
+mask_ind = 0
+do il1=1,ndata%nl1
+   il0 = ndata%il1_to_il0(il1)
+   do ic1=1,ndata%nc1
+      ic0 = ndata%ic1_to_ic0(ic1)
+      if (ndata%geom%mask(ic0,il0)) mask_ind(ic1,il1) = 1
+   end do
+end do
+
 do il1=1,ndata%nl1
    write(mpl%unit,'(a7,a,i3,a)') '','Compute horizontal subset C2 (level ',il1,')'
    il0 = ndata%il1_to_il0(il1)
@@ -184,9 +221,8 @@ do il1=1,ndata%nl1
    ndata%nc2(il1) = min(ndata%nc2(il1),ndata%nc1)
    if (ndata%nc2(il1)<ndata%nc1) then
       ! Compute subset
-
       call initialize_sampling(rng,ndata%nc1,dble(ndata%geom%lon(ndata%ic1_to_ic0)), &
-    & dble(ndata%geom%lat(ndata%ic1_to_ic0)), mask_cell(ndata%ic1_to_ic0),rh0(ndata%ic1_to_ic0,il0),nam%ntry,nam%nrep, &
+    & dble(ndata%geom%lat(ndata%ic1_to_ic0)),mask_ind(:,il1),rh0(ndata%ic1_to_ic0,il0),nam%ntry,nam%nrep, &
     & ndata%nc2(il1),ndata%nfor,ifors,ndata%ic2il1_to_ic1(1:ndata%nc2(il1),il1))
    else
       do ic2=1,ndata%nc2(il1)
@@ -235,7 +271,7 @@ end do
 
 ! Compute horizontal interpolation data
 write(mpl%unit,'(a7,a)') '','Compute horizontal interpolation data'
-call compute_interp_h(ndata)
+call compute_interp_h(nam,ndata)
 
 ! Compute vertical interpolation data
 write(mpl%unit,'(a7,a)') '','Compute vertical interpolation data'
@@ -243,14 +279,14 @@ call compute_interp_v(ndata)
 
 ! Compute subsampling horizontal interpolation data
 write(mpl%unit,'(a7,a)') '','Compute subsampling horizontal interpolation data'
-call compute_interp_s(ndata)
+call compute_interp_s(nam,ndata)
 
 ! Compute convolution data
 write(mpl%unit,'(a7,a)') '','Compute convolution data'
 if (nam%network) then
-   call compute_convol_network(ndata,rh0,rv0)
+   call compute_convol_network(nam,ndata,rh0,rv0)
 else
-   call compute_convol_distance(ndata,rhs,rvs)
+   call compute_convol_distance(nam,ndata,rhs,rvs)
 end if
 
 ! Print results
@@ -266,9 +302,7 @@ write(mpl%unit,'(a10,a,i8)') '','ns =        ',ndata%ns
 do il0i=1,ndata%nl0i
    write(mpl%unit,'(a10,a,i3,a,i8)') '','h(',il0i,')%n_s = ',ndata%h(il0i)%n_s
 end do
-do il0i=1,ndata%nl0i
-   write(mpl%unit,'(a10,a,i3,a,i8)') '','v(',il0i,')%n_s = ',ndata%v(il0i)%n_s
-end do
+write(mpl%unit,'(a10,a,i8)') '','v%n_s =     ',ndata%v%n_s
 do il1=1,ndata%nl1
    write(mpl%unit,'(a10,a,i3,a,i8)') '','s(',il1,')%n_s = ',ndata%s(il1)%n_s
 end do

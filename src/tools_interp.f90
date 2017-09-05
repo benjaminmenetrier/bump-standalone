@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module tools_interp
 
-use module_namelist, only: nam
 use omp_lib
 use tools_display, only: msgerror,prog_init,prog_print
 use tools_kinds,only: kind_real
@@ -99,13 +98,12 @@ logical,intent(in) :: mask_dst(n_dst)
 type(linoptype),intent(inout) :: interp
 
 ! Local variables
-integer :: info,i_src,j_src,k_src,i,ibnd,il0,nt,i_dst,inn(1),n_s,i_s,offset,progint
+integer :: i,i_dst,inn(1),n_s,offset,progint
 integer :: ib(3)
 integer :: iproc,i_dst_s(mpl%nproc),i_dst_e(mpl%nproc),n_dst_loc(mpl%nproc),i_dst_loc,n_sg(mpl%nproc)
 integer,allocatable :: row(:),col(:)
 real(kind_real) :: dist(1),p(3),b(3)
 real(kind_real),allocatable :: S(:)
-logical :: init
 logical,allocatable :: done(:)
 
 ! MPI splitting
@@ -134,7 +132,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
       call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)), &
     & dble(lat_dst(i_dst)),1,inn,dist)
 
-      if (dist(1)<tiny(1.0)) then
+      if (.not.(abs(dist(1))>0.0)) then
          ! Subset point
          n_s = n_s+1
          row(n_s) = i_dst

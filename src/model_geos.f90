@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_geos
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: deg2rad,pi
 use tools_kinds, only: kind_real
@@ -29,11 +29,12 @@ contains
 ! Subroutine: model_geos_coord
 !> Purpose: get geos coordinates
 !----------------------------------------------------------------------
-subroutine model_geos_coord(geom)
+subroutine model_geos_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -105,11 +106,12 @@ end subroutine model_geos_coord
 ! Subroutine: model_geos_read
 !> Purpose: read geos field
 !----------------------------------------------------------------------
-subroutine model_geos_read(ncid,varname,geom,fld)
+subroutine model_geos_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

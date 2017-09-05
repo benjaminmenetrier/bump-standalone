@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_parameters_obsop
 
-use module_namelist, only: nam
 use tools_display, only: msgerror
 use tools_interp, only: interp_horiz
 use tools_kinds, only: kind_real

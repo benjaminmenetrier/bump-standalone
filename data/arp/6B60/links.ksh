@@ -8,7 +8,7 @@
 
 # Generate grid.nc with EPyGrAM
 ORIGIN_FILE="../../../../../data/ARPEGE/6B60/20160928H00A/4dupd1/ICMSHARPE+0000"
-#rm -f grid.nc
+rm -f grid.nc
 cat<<EOFNAM >epygram_request.py
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
@@ -25,5 +25,5 @@ mapfac.fid["netCDF"]="mapfac"
 rout.writefield(mapfac)
 rout.close()
 EOFNAM
-#python epygram_request.py
+python epygram_request.py
 rm -f epygram_request.py

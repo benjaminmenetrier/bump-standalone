@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_gem
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,req,deg2rad,ps
 use tools_display, only: msgerror
@@ -30,11 +30,12 @@ contains
 ! Subroutine: model_gem_coord
 !> Purpose: get GEM coordinates
 !----------------------------------------------------------------------
-subroutine model_gem_coord(geom)
+subroutine model_gem_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -110,11 +111,12 @@ end subroutine model_gem_coord
 ! Subroutine: model_gem_read
 !> Purpose: read GEM field
 !----------------------------------------------------------------------
-subroutine model_gem_read(ncid,varname,geom,fld)
+subroutine model_gem_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

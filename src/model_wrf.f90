@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_wrf
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: deg2rad,req
 use tools_kinds,only: kind_real
@@ -29,11 +29,12 @@ contains
 ! Subroutine: model_wrf_coord
 !> Purpose: get WRF coordinates
 !----------------------------------------------------------------------
-subroutine model_wrf_coord(geom)
+subroutine model_wrf_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -99,11 +100,12 @@ end subroutine model_wrf_coord
 ! Subroutine: model_wrf_read
 !> Purpose: read WRF field
 !----------------------------------------------------------------------
-subroutine model_wrf_read(ncid,varname,geom,fld)
+subroutine model_wrf_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

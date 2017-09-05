@@ -139,7 +139,7 @@ type(odatatype),intent(in) :: odata       !< Sampling data
 real(kind_real),allocatable,intent(inout) :: yobs(:,:)        !< Field
 
 ! Local variables
-integer :: iobs,iobsa,iproc,jproc,nobsa
+integer :: iobs,iobsa,iproc,jproc
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 
 ! Allocation

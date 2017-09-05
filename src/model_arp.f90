@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module model_arp
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,req,deg2rad,ps,rad2deg
 use tools_kinds,only: kind_real
@@ -29,11 +29,12 @@ contains
 ! Subroutine: model_arp_coord
 !> Purpose: get ARPEGE coordinates
 !----------------------------------------------------------------------
-subroutine model_arp_coord(geom)
+subroutine model_arp_coord(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -126,11 +127,12 @@ end subroutine model_arp_coord
 ! Subroutine: model_arp_read
 !> Purpose: read ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_read(ncid,varname,geom,fld)
+subroutine model_arp_read(nam,ncid,varname,geom,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
 type(geomtype),intent(in) :: geom                     !< Sampling data

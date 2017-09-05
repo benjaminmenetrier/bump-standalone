@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module module_parameters_interp
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: pi,req,deg2rad,rad2deg,sphere_dist,vector_product,vector_triple_product
 use tools_display, only: msgerror,prog_init,prog_print
@@ -35,21 +35,20 @@ contains
 ! Subroutine: compute_interp_h
 !> Purpose: compute basic horizontal interpolation
 !----------------------------------------------------------------------
-subroutine compute_interp_h(ndata)
+subroutine compute_interp_h(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
-integer :: ic0,ic1,i_s,ibnd,jc0,jc1,progint,il0i
-integer :: iproc,i_s_s(mpl%nproc),i_s_e(mpl%nproc),n_s_loc(mpl%nproc),i_s_loc
+integer :: ic0,ic1,i_s,il0i
 integer,allocatable :: mask_ctree(:)
 real(kind_real) :: dum(1)
 real(kind_real) :: renorm(ndata%nc0)
-real(kind_real),allocatable :: v1(:),v2(:),va(:),vp(:),t(:)
-logical,allocatable :: done(:),valid(:),validg(:,:),missing(:)
+logical,allocatable :: mask_extra(:),valid(:),missing(:)
 type(linoptype) :: hbase,htmp
 type(ctreetype) :: ctree
 
@@ -60,6 +59,7 @@ call interp_horiz(rng,ndata%nc1,ndata%geom%lon(ndata%ic1_to_ic0),ndata%geom%lat(
 
 ! Allocation
 allocate(valid(hbase%n_s))
+allocate(mask_extra(ndata%nc1))
 allocate(ndata%h(ndata%nl0i))
 
 do il0i=1,ndata%nl0i
@@ -69,9 +69,27 @@ do il0i=1,ndata%nl0i
 
    ! Check mask boundaries
    if (nam%mask_check) then
-      call check_mask_bnd(ndata,htmp,valid,il0i,col_to_ic0=ndata%ic1_to_ic0)
+      call check_mask_bnd(nam,ndata,htmp,valid,il0i,col_to_ic0=ndata%ic1_to_ic0)
    else
       write(mpl%unit,'(a10,a,i3)') '','Level ',nam%levs(il0i)
+   end if
+
+   if (ndata%nl0i>1) then
+      ! Check extrapolated points because of masks vertical variations (unsampled levels)
+      mask_extra = .false.
+      do ic1=1,ndata%nc1
+         ic0 = ndata%ic1_to_ic0(ic1)
+         if (ndata%geom%mask(ic0,il0i).and.((il0i<ndata%vbot(ic1)).or.(il0i>ndata%vtop(ic1)))) mask_extra(ic1) = .true.
+      end do
+
+      ! Remove operations for extrapolated points
+      do i_s=1,htmp%n_s
+         if (valid(i_s)) then
+            ic1 = hbase%col(i_s)
+            if (mask_extra(ic1)) valid(i_s) = .false.
+         end if
+      end do
+      if (count(mask_extra)>0) write(mpl%unit,'(a10,a,i5)') '','Extrapolated points: ',count(mask_extra)
    end if
 
    ! Renormalization
@@ -98,7 +116,6 @@ do il0i=1,ndata%nl0i
 
    ! Release memory
    call linop_dealloc(htmp)
-   deallocate(valid)
 
    ! Allocation
    allocate(missing(ndata%nc0))
@@ -129,7 +146,7 @@ do il0i=1,ndata%nl0i
       allocate(mask_ctree(ndata%nc1))
       mask_ctree = 0
       do ic1=1,ndata%nc1
-         if (ndata%geom%mask(ndata%ic1_to_ic0(ic1),il0i)) mask_ctree(ic1) = 1
+         if (ndata%geom%mask(ndata%ic1_to_ic0(ic1),il0i).and.(.not.mask_extra(ic1))) mask_ctree(ic1) = 1
       end do
       ctree = create_ctree(ndata%nc1,dble(ndata%geom%lon(ndata%ic1_to_ic0)),dble(ndata%geom%lat(ndata%ic1_to_ic0)),mask_ctree)
       deallocate(mask_ctree)
@@ -159,6 +176,8 @@ end do
 
 ! Release memory
 call linop_dealloc(hbase)
+deallocate(valid)
+deallocate(mask_extra)
 
 end subroutine compute_interp_h
 
@@ -174,127 +193,59 @@ implicit none
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
-integer :: il0,jl0,il1,il0inf,il0sup,il0i,i_s,ic0,ic1
-logical,allocatable :: valid(:)
-type(linoptype) :: vbase,vtmp
+integer :: il0,jl0,il1,il0inf,il0sup
+
+! Initialize vertical interpolation
+ndata%v%prefix = 'v'
+ndata%v%n_src = ndata%nl1
+ndata%v%n_dst = ndata%nl0
 
 ! Linear interpolation
-vbase%n_s = ndata%nl1
+ndata%v%n_s = ndata%nl1
 il0inf = 1
 do il0=1,ndata%nl0
    if (ndata%llev(il0)) then
       il0sup = il0
       do jl0=il0inf+1,il0sup-1
-         vbase%n_s = vbase%n_s+2
+         ndata%v%n_s = ndata%v%n_s+2
       end do
       il0inf = il0
    end if
 end do
-call linop_alloc(vbase)
+call linop_alloc(ndata%v)
 do il1=1,ndata%nl1
    il0 = ndata%il1_to_il0(il1)
-   vbase%row(il1) = il0
-   vbase%col(il1) = il0
-   vbase%S(il1) = 1.0
+   ndata%v%row(il1) = il0
+   ndata%v%col(il1) = il0
+   ndata%v%S(il1) = 1.0
 end do
-vbase%n_s = ndata%nl1
+ndata%v%n_s = ndata%nl1
 il0inf = 1
 do il0=1,ndata%nl0
    if (ndata%llev(il0)) then
       il0sup = il0
       do jl0=il0inf+1,il0sup-1
-         vbase%n_s = vbase%n_s+1
-         vbase%row(vbase%n_s) = jl0
-         vbase%col(vbase%n_s) = il0inf
-         vbase%S(vbase%n_s) = abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(jl0)) & 
+         ndata%v%n_s = ndata%v%n_s+1
+         ndata%v%row(ndata%v%n_s) = jl0
+         ndata%v%col(ndata%v%n_s) = il0inf
+         ndata%v%S(ndata%v%n_s) = abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(jl0)) & 
                             & /abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(il0inf))
 
-         vbase%n_s = vbase%n_s+1
-         vbase%row(vbase%n_s) = jl0
-         vbase%col(vbase%n_s) = il0sup
-         vbase%S(vbase%n_s) = abs(ndata%geom%vunit(jl0)-ndata%geom%vunit(il0inf)) &
+         ndata%v%n_s = ndata%v%n_s+1
+         ndata%v%row(ndata%v%n_s) = jl0
+         ndata%v%col(ndata%v%n_s) = il0sup
+         ndata%v%S(ndata%v%n_s) = abs(ndata%geom%vunit(jl0)-ndata%geom%vunit(il0inf)) &
                             & /abs(ndata%geom%vunit(il0sup)-ndata%geom%vunit(il0inf))
       end do
       il0inf = il0
    end if
 end do
 
-! Allocation
-allocate(ndata%v(ndata%nl0i))
-allocate(valid(vbase%n_s))
+! Conversion
+ndata%v%col = ndata%il0_to_il1(ndata%v%col)
 
-do il0i=1,ndata%nl0i
-   ! Initialize vertical interpolation
-   ndata%v(il0i)%prefix = 'v'
-   ndata%v(il0i)%n_src = ndata%nl1
-   ndata%v(il0i)%n_dst = ndata%nl0
-
-   if (ndata%nl0i==1) then
-      ! Copy basic vertical interpolation
-      ndata%v(il0i)%n_s = vbase%n_s
-      call linop_alloc(ndata%v(il0i))
-      ndata%v(il0i)%row = vbase%row
-      ndata%v(il0i)%col = vbase%col
-      ndata%v(il0i)%S = vbase%S
-   else
-      ! Check valid operations
-      do i_s=1,vbase%n_s
-         valid(i_s) = (vbase%row(i_s)<=il0i).and.(vbase%col(i_s)<=il0i)
-      end do
-
-      ! Copy valid operations
-      vtmp%n_s = count(valid)
-      call linop_alloc(vtmp)
-      vtmp%n_s = 0
-      do i_s=1,vbase%n_s
-         if (valid(i_s)) then
-            vtmp%n_s = vtmp%n_s+1
-            vtmp%row(vtmp%n_s) = vbase%row(i_s)
-            vtmp%col(vtmp%n_s) = vbase%col(i_s)
-            vtmp%S(vtmp%n_s) = vbase%S(i_s)
-         end if
-      end do
-
-      ! Add missing levels to the interpolation
-      ndata%v(il0i)%n_s = vtmp%n_s+(il0i-maxval(vtmp%col))
-      call linop_alloc(ndata%v(il0i))
-      ndata%v(il0i)%row(1:vtmp%n_s) = vtmp%row
-      ndata%v(il0i)%col(1:vtmp%n_s) = vtmp%col
-      ndata%v(il0i)%S(1:vtmp%n_s) = vtmp%S
-      do jl0=maxval(vtmp%col)+1,il0i
-         vtmp%n_s = vtmp%n_s+1
-         ndata%v(il0i)%row(vtmp%n_s) = jl0
-         ndata%v(il0i)%col(vtmp%n_s) = jl0
-         ndata%v(il0i)%S(vtmp%n_s) = 1.0
-      end do
-
-      ! Release memory
-      call linop_dealloc(vtmp)
-   end if
-
-   ! Conversion
-   ndata%v(il0i)%col = ndata%il0_to_il1(ndata%v(il0i)%col)
-
-   ! Reorder linear operator
-   call linop_reorder(ndata%v(il0i))
-end do
-
-! Release memory
-call linop_dealloc(vbase)
-deallocate(valid)
-
-! Find the bottom for each point of S1
-allocate(ndata%vbot(ndata%nc1))
-!$omp parallel do private(ic1,ic0,il0)
-do ic1=1,ndata%nc1
-   ic0 = ndata%ic1_to_ic0(ic1)
-   il0 = 1
-   do while (ndata%geom%mask(ic0,il0).and.(il0<ndata%nl0))
-      il0 = il0+1
-   end do
-   ndata%vbot(ic1) = min(il0,ndata%nl0i)
-end do
-!$omp end parallel do
+! Reorder linear operator
+call linop_reorder(ndata%v)
 
 end subroutine compute_interp_v
 
@@ -302,21 +253,20 @@ end subroutine compute_interp_v
 ! Subroutine: compute_interp_s
 !> Purpose: compute horizontal subsampling interpolation
 !----------------------------------------------------------------------
-subroutine compute_interp_s(ndata)
+subroutine compute_interp_s(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
-integer :: ic1,ic2,il1,i_s,ibnd,il0,ic0,jc2,jc1,jc0,progint
-integer :: iproc,i_s_s(mpl%nproc),i_s_e(mpl%nproc),n_s_loc(mpl%nproc),i_s_loc
+integer :: ic1,ic2,il1,i_s
 integer,allocatable :: mask_ctree(:)
 real(kind_real) :: dum(1)
 real(kind_real) :: renorm(ndata%nc1)
-real(kind_real),allocatable :: v1(:),v2(:),va(:),vp(:),t(:)
-logical,allocatable :: done(:),valid(:),validg(:,:),missing(:)
+logical,allocatable :: valid(:),missing(:)
 type(linoptype) :: stmp
 type(ctreetype) :: ctree
 
@@ -352,7 +302,7 @@ do il1=1,ndata%nl1
    
       ! Check mask boundaries
       if (nam%mask_check) then
-         call check_mask_bnd(ndata,stmp,valid,ndata%il1_to_il0(il1), &
+         call check_mask_bnd(nam,ndata,stmp,valid,ndata%il1_to_il0(il1), &
        & row_to_ic0=ndata%ic1_to_ic0,col_to_ic0=ndata%ic1_to_ic0(ndata%ic2il1_to_ic1(1:ndata%nc2(il1),il1)))
       else
          write(mpl%unit,'(a10,a,i3)') '','Level ',nam%levs(ndata%il1_to_il0(il1))
@@ -446,11 +396,12 @@ end subroutine compute_interp_s
 ! Subroutine: check_mask_bnd
 !> Purpose: check mask boundaries for interpolations
 !----------------------------------------------------------------------
-subroutine check_mask_bnd(ndata,interp,valid,il0,row_to_ic0,col_to_ic0)
+subroutine check_mask_bnd(nam,ndata,interp,valid,il0,row_to_ic0,col_to_ic0)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata          !< Sampling data
 type(linoptype),intent(inout) :: interp          !< Interpolation
 logical,intent(inout) :: valid(interp%n_s)   !< Valid vector
@@ -458,13 +409,10 @@ integer,intent(in),optional :: row_to_ic0(interp%n_dst) !< Conversion from row t
 integer,intent(in),optional :: col_to_ic0(interp%n_src) !< Conversion from col to ic0 (identity if missing)
 
 ! Local variables
-integer :: ic0,ic1,i_s,ibnd,jc0,jc1,progint,il0
+integer :: ic0,i_s,ibnd,jc0,jc1,progint,il0
 integer :: iproc,i_s_s(mpl%nproc),i_s_e(mpl%nproc),n_s_loc(mpl%nproc),i_s_loc
-integer,allocatable :: mask_ctree(:)
-real(kind_real) :: dum(1)
-real(kind_real) :: renorm(ndata%nc0)
 real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
-logical,allocatable :: done(:),missing(:)
+logical,allocatable :: done(:)
 
 ! MPI splitting
 do iproc=1,mpl%nproc

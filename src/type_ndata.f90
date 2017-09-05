@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_ndata
 
-use module_namelist, only: nam,namncwrite
+use module_namelist, only: namtype,namncwrite
 use netcdf
 use tools_const, only: rad2deg
 use tools_display, only: msgerror
@@ -49,11 +49,12 @@ type ndatatype
    ! Level-related
    integer :: nl0i                         !< Number of independent levels
    integer,allocatable :: vbot(:)          !< Bottom level
+   integer,allocatable :: vtop(:)          !< Top level
 
    ! Linear operators
    type(linoptype) :: c                    !< Convolution
    type(linoptype),allocatable :: h(:)     !< Horizontal interpolation
-   type(linoptype),allocatable :: v(:)     !< Vertical interpolation
+   type(linoptype) :: v     !< Vertical interpolation
    type(linoptype),allocatable :: s(:)     !< Subsample interpolation
 
    ! Normalization
@@ -89,6 +90,7 @@ type ndataloctype
    integer :: nl1                        !< Number of levels in subset Sl1
    integer :: nl0i                       !< Number of independent levels
    integer,allocatable :: vbot(:)        !< Bottom level
+   integer,allocatable :: vtop(:)        !< Bottom level
    integer,allocatable :: nc2b(:)        !< Number of points in subset Sc2 on halo B
    integer :: nsa                        !< Number of subgrid nodes on halo A
    integer :: nsb                        !< Number of subgrid nodes on halo B
@@ -102,7 +104,7 @@ type ndataloctype
    ! Linear operators
    type(linoptype) :: c                  !< Convolution
    type(linoptype),allocatable :: h(:)   !< Horizontal interpolation
-   type(linoptype),allocatable :: v(:)   !< Vertical interpolation
+   type(linoptype) :: v   !< Vertical interpolation
    type(linoptype),allocatable :: s(:)   !< Subsample interpolation
 
    ! Copy conversions
@@ -146,6 +148,7 @@ if (allocated(ndataloc%isa_to_isb)) deallocate(ndataloc%isa_to_isb)
 if (allocated(ndataloc%isa_to_isc)) deallocate(ndataloc%isa_to_isc)
 if (allocated(ndataloc%isb_to_isc)) deallocate(ndataloc%isb_to_isc)
 if (allocated(ndataloc%vbot)) deallocate(ndataloc%vbot)
+if (allocated(ndataloc%vtop)) deallocate(ndataloc%vtop)
 call linop_dealloc(ndataloc%c)
 if (allocated(ndataloc%h)) then
    do il0i=1,ndataloc%nl0i
@@ -153,12 +156,7 @@ if (allocated(ndataloc%h)) then
    end do
    deallocate(ndataloc%h)
 end if
-if (allocated(ndataloc%v)) then
-   do il0i=1,ndataloc%nl0i
-      call linop_dealloc(ndataloc%v(il0i))
-   end do
-   deallocate(ndataloc%v)
-end if
+call linop_dealloc(ndataloc%v)
 if (allocated(ndataloc%s)) then
    do il1=1,ndataloc%nl1
       call linop_dealloc(ndataloc%s(il1))
@@ -178,11 +176,12 @@ end subroutine ndataloc_dealloc
 ! Subroutine: ndataloc_copy
 !> Purpose: linear operator copy
 !----------------------------------------------------------------------
-subroutine ndataloc_copy(ndataloc_in,ndataloc_out)
+subroutine ndataloc_copy(nam,ndataloc_in,ndataloc_out)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(in) :: ndataloc_in     !< Input linear operator
 type(ndataloctype),intent(inout) :: ndataloc_out !< Output linear operator
 
@@ -204,12 +203,12 @@ call ndataloc_dealloc(ndataloc_out)
 
 ! Allocation
 allocate(ndataloc_out%vbot(ndataloc_out%nc1b))
+allocate(ndataloc_out%vtop(ndataloc_out%nc1b))
 allocate(ndataloc_out%nc2b(ndataloc_out%nl1))
 allocate(ndataloc_out%isa_to_isb(ndataloc_out%nsa))
 allocate(ndataloc_out%isa_to_isc(ndataloc_out%nsa))
 allocate(ndataloc_out%isb_to_isc(ndataloc_out%nsa))
 allocate(ndataloc_out%h(ndataloc_out%nl0i))
-allocate(ndataloc_out%v(ndataloc_out%nl0i))
 allocate(ndataloc_out%s(ndataloc_out%nl1))
 allocate(ndataloc_out%isb_to_ic2b(ndataloc_out%nsb))
 allocate(ndataloc_out%isb_to_il1(ndataloc_out%nsb))
@@ -218,6 +217,7 @@ if (nam%lsqrt) allocate(ndataloc_out%norm_sqrt(ndataloc_out%nsb))
 
 ! Copy
 ndataloc_out%vbot = ndataloc_in%vbot
+ndataloc_out%vtop = ndataloc_in%vtop
 ndataloc_out%nc2b = ndataloc_in%nc2b
 ndataloc_out%isa_to_isb = ndataloc_in%isa_to_isb
 ndataloc_out%isa_to_isc = ndataloc_in%isa_to_isc
@@ -226,9 +226,7 @@ ndataloc_out%c = ndataloc_in%c
 do il0i=1,ndataloc_out%nl0i
    call linop_copy(ndataloc_in%h(il0i),ndataloc_out%h(il0i))
 end do
-do il0i=1,ndataloc_out%nl0i
-   call linop_copy(ndataloc_in%v(il0i),ndataloc_out%v(il0i))
-end do
+call linop_copy(ndataloc_in%v,ndataloc_out%v)
 do il1=1,ndataloc_out%nl1
    call linop_copy(ndataloc_in%s(il1),ndataloc_out%s(il1))
 end do
@@ -245,17 +243,18 @@ end subroutine ndataloc_copy
 ! Subroutine: ndata_read_param
 !> Purpose: read ndata object
 !----------------------------------------------------------------------
-subroutine ndata_read_param(ndata)
+subroutine ndata_read_param(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
 integer :: ncid
 integer :: nc0_id,nl0_id,nc1_id,nl1_id,ns_id
-integer :: vbot_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
+integer :: vbot_id,vtop_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
 integer :: ic2il1_to_is_id,ic1_to_ic0_id,il1_to_il0_id,ic0_to_ic1_id,il0_to_il1_id,ic2il1_to_ic1_id
 integer :: ic1il1_to_is_id,norm_id,norm_sqrt_id
 character(len=1024) :: filename
@@ -278,6 +277,7 @@ call ncerr(subr,nf90_inquire_dimension(ncid,ns_id,len=ndata%ns))
 
 ! Allocation
 allocate(ndata%vbot(ndata%nc1))
+allocate(ndata%vtop(ndata%nc1))
 allocate(ndata%nc2(ndata%nl1))
 allocate(ndata%is_to_ic1(ndata%ns))
 allocate(ndata%is_to_il1(ndata%ns))
@@ -296,6 +296,7 @@ if (nam%lsqrt) allocate(ndata%norm_sqrt(ndata%ns))
 
 ! Read data
 call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
+call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
 call ncerr(subr,nf90_inq_varid(ncid,'nc2',nc2_id))
 call ncerr(subr,nf90_inq_varid(ncid,'is_to_ic1',is_to_ic1_id))
 call ncerr(subr,nf90_inq_varid(ncid,'is_to_il1',is_to_il1_id))
@@ -312,6 +313,7 @@ call ncerr(subr,nf90_inq_varid(ncid,'ic1il1_to_is',ic1il1_to_is_id))
 call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
 if (nam%lsqrt) call ncerr(subr,nf90_inq_varid(ncid,'norm_sqrt',norm_sqrt_id))
 call ncerr(subr,nf90_get_var(ncid,vbot_id,ndata%vbot))
+call ncerr(subr,nf90_get_var(ncid,vtop_id,ndata%vtop))
 call ncerr(subr,nf90_get_var(ncid,nc2_id,ndata%nc2))
 call ncerr(subr,nf90_get_var(ncid,is_to_ic1_id,ndata%is_to_ic1))
 call ncerr(subr,nf90_get_var(ncid,is_to_il1_id,ndata%is_to_il1))
@@ -343,17 +345,18 @@ end subroutine ndata_read_param
 ! Subroutine: ndata_read_mpi
 !> Purpose: read ndata object
 !----------------------------------------------------------------------
-subroutine ndata_read_mpi(ndataloc)
+subroutine ndata_read_mpi(nam,ndataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
 
 ! Local variables
 integer :: ncid,info
 integer :: nc0a_id,nl0_id,nc1b_id,nl1_id,nsa_id,nsb_id
-integer :: vbot_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
+integer :: vbot_id,vtop_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
 integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
 integer :: norm_id
 character(len=1) :: mpicomchar
@@ -396,6 +399,7 @@ call ncerr(subr,nf90_get_att(ncid,nf90_global,'nsc',ndataloc%nsc))
 
 ! Allocation
 if (ndataloc%nc1b>0) allocate(ndataloc%vbot(ndataloc%nc1b))
+if (ndataloc%nc1b>0) allocate(ndataloc%vtop(ndataloc%nc1b))
 allocate(ndataloc%nc2b(ndataloc%nl1))
 if (ndataloc%nsb>0) allocate(ndataloc%isb_to_ic2b(ndataloc%nsb))
 if (ndataloc%nsb>0) allocate(ndataloc%isb_to_il1(ndataloc%nsb))
@@ -406,6 +410,7 @@ allocate(ndataloc%norm(ndataloc%nc0a,ndataloc%nl0))
 
 ! Read data
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
 call ncerr(subr,nf90_inq_varid(ncid,'nc2b',nc2b_id))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_ic2b',isb_to_ic2b_id))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_il1',isb_to_il1_id))
@@ -414,6 +419,7 @@ if (ndataloc%nsa>0) call ncerr(subr,nf90_inq_varid(ncid,'isa_to_isc',isa_to_isc_
 if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_isc',isb_to_isc_id))
 call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vbot_id,ndataloc%vbot))
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vtop_id,ndataloc%vtop))
 call ncerr(subr,nf90_get_var(ncid,nc2b_id,ndataloc%nc2b))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_ic2b_id,ndataloc%isb_to_ic2b))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_il1_id,ndataloc%isb_to_il1))
@@ -423,8 +429,8 @@ if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_isc_id,ndataloc%isb
 call ncerr(subr,nf90_get_var(ncid,norm_id,ndataloc%norm))
 
 ! Read communications
-call com_read(ncid,'AB',ndataloc%AB)
-call com_read(ncid,'AC',ndataloc%AC)
+call com_read(nam,ncid,'AB',ndataloc%AB)
+call com_read(nam,ncid,'AC',ndataloc%AC)
 
 ! Read linear operators
 call linop_read(ncid,'c',ndataloc%c)
@@ -441,17 +447,18 @@ end subroutine ndata_read_mpi
 ! Subroutine: ndata_write_param
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write_param(ndata)
+subroutine ndata_write_param(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
 integer :: ncid
 integer :: nc0_id,nc1_id,nl0_id,nl1_id,ns_id
-integer :: vbot_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
+integer :: vbot_id,vtop_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
 integer :: ic2il1_to_is_id,ic1_to_ic0_id,il1_to_il0_id,ic0_to_ic1_id,il0_to_il1_id,ic2il1_to_ic1_id
 integer :: ic1il1_to_is_id,norm_id,norm_sqrt_id
 character(len=1024) :: filename
@@ -465,7 +472,7 @@ filename = trim(nam%prefix)//'_param.nc'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Write namelist parameters
-call namncwrite(ncid)
+call namncwrite(nam,ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nc0',ndata%nc0,nc0_id))
@@ -477,6 +484,7 @@ call ncerr(subr,nf90_def_dim(ncid,'ns',ndata%ns,ns_id))
 
 ! Define variables
 call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1_id/),vbot_id))
+call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1_id/),vtop_id))
 call ncerr(subr,nf90_def_var(ncid,'nc2',nf90_int,(/nl1_id/),nc2_id))
 call ncerr(subr,nf90_def_var(ncid,'is_to_ic1',nf90_int,(/ns_id/),is_to_ic1_id))
 call ncerr(subr,nf90_def_var(ncid,'is_to_il1',nf90_int,(/ns_id/),is_to_il1_id))
@@ -496,6 +504,7 @@ call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
 call ncerr(subr,nf90_put_var(ncid,vbot_id,ndata%vbot))
+call ncerr(subr,nf90_put_var(ncid,vtop_id,ndata%vtop))
 call ncerr(subr,nf90_put_var(ncid,nc2_id,ndata%nc2))
 call ncerr(subr,nf90_put_var(ncid,is_to_ic1_id,ndata%is_to_ic1))
 call ncerr(subr,nf90_put_var(ncid,is_to_il1_id,ndata%is_to_il1))
@@ -527,19 +536,18 @@ end subroutine ndata_write_param
 ! Subroutine: ndata_write_mpi
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write_mpi(ndataloc)
+subroutine ndata_write_mpi(nam,ndataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
-integer :: iproc,il0i,il1,h_sum,s_sum
 integer :: ncid
 integer :: nc0a_id,nl0_id,nc1b_id,nl1_id,nsa_id,nsb_id
-integer :: vbot_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
-integer :: c_n_s_id,h_n_s_id,s_n_s_id
+integer :: vbot_id,vtop_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
 integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
 integer :: norm_id
 character(len=1) :: mpicomchar
@@ -557,7 +565,7 @@ filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'-'//myproccha
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Write namelist parameters
-call namncwrite(ncid)
+call namncwrite(nam,ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nc0a',ndataloc%nc0a,nc0a_id))
@@ -571,6 +579,7 @@ call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndataloc%nsc))
 
 ! Define variables
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1b_id/),vbot_id))
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1b_id/),vtop_id))
 call ncerr(subr,nf90_def_var(ncid,'nc2b',nf90_int,(/nl1_id/),nc2b_id))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_ic2b',nf90_int,(/nsb_id/),isb_to_ic2b_id))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_il1',nf90_int,(/nsb_id/),isb_to_il1_id))
@@ -586,6 +595,7 @@ call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vbot_id,ndataloc%vbot))
+if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vtop_id,ndataloc%vtop))
 call ncerr(subr,nf90_put_var(ncid,nc2b_id,ndataloc%nc2b))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_ic2b_id,ndataloc%isb_to_ic2b))
 if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_il1_id,ndataloc%isb_to_il1))
@@ -595,8 +605,8 @@ if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc%isb
 call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc%norm))
 
 ! Write communications
-call com_write(ncid,ndataloc%AB)
-call com_write(ncid,ndataloc%AC)
+call com_write(nam,ncid,ndataloc%AB)
+call com_write(nam,ncid,ndataloc%AC)
 
 ! Write linear operators
 call linop_write(ncid,ndataloc%c)
@@ -613,11 +623,12 @@ end subroutine ndata_write_mpi
 ! Subroutine: ndata_write_mpi_summary
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write_mpi_summary(ndata)
+subroutine ndata_write_mpi_summary(nam,ndata)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata !< Sampling data
 
 ! Local variables
@@ -625,7 +636,7 @@ integer :: ncid
 integer :: nc0_id
 integer :: lon_id,lat_id,ic0_to_iproc_id,halo_id
 character(len=1) :: mpicomchar
-character(len=4) :: nprocchar,iprocchar
+character(len=4) :: nprocchar
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndata_write_mpi_summary'
 
@@ -643,7 +654,7 @@ filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'_summary.nc'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Write namelist parameters
-call namncwrite(ncid)
+call namncwrite(nam,ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nc0',ndata%nc0,nc0_id))

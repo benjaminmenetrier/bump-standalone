@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module module_parameters_convol
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: pi,req,deg2rad,rad2deg,sphere_dist,vector_product,vector_triple_product
 use tools_display, only: prog_init,prog_print,msgerror
@@ -36,11 +36,12 @@ contains
 ! Subroutine: compute_convol_network
 !> Purpose: compute convolution with a network approach
 !----------------------------------------------------------------------
-subroutine compute_convol_network(ndata,rh0,rv0)
+subroutine compute_convol_network(nam,ndata,rh0,rv0)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata                 !< Sampling data
 real(kind_real),intent(in) :: rh0(ndata%nc0,ndata%nl0) !< Scaled horizontal support radius
 real(kind_real),intent(in) :: rv0(ndata%nc0,ndata%nl0) !< Scaled vertical support radius
@@ -54,7 +55,7 @@ real(kind_real) :: distnorm,disttest,S_test
 real(kind_real),allocatable :: dist(:,:)
 logical :: add_to_front
 logical,allocatable :: done(:),valid(:,:)
-type(linoptype) :: c(mpl%nthread),ctmp(mpl%nthread)
+type(linoptype) :: c(mpl%nthread)
 
 ! MPI splitting
 do iproc=1,mpl%nproc
@@ -165,7 +166,7 @@ do is_loc=1,ns_loc(mpl%myproc)
 
                if (distnorm<1.0) then
                   ! Gaspari-Cohn (1999) function
-                  S_test = gc99(distnorm)
+                  S_test = gc99(nam,distnorm)
 
                   ! Check convolution value
                   call check_convol(is,js,S_test,c_n_s(ithread),c(ithread))
@@ -207,11 +208,12 @@ end subroutine compute_convol_network
 ! Subroutine: compute_convol_distance
 !> Purpose: compute convolution with a distance approach
 !----------------------------------------------------------------------
-subroutine compute_convol_distance(ndata,rhs,rvs)
+subroutine compute_convol_distance(nam,ndata,rhs,rvs)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata             !< Sampling data
 real(kind_real),intent(in) :: rhs(ndata%ns)        !< Scaled horizontal support radius
 real(kind_real),intent(in) :: rvs(ndata%ns)        !< Scaled vertical support radius
@@ -363,7 +365,7 @@ do is_loc=1,ns_loc(mpl%myproc)
 
                if (distnorm<1.0) then
                   ! Gaspari-Cohn (1999) function
-                  S_test = gc99(distnorm)
+                  S_test = gc99(nam,distnorm)
 
                   ! Check convolution value
                   call check_convol(is,js,S_test,c_n_s(ithread),c(ithread))
@@ -402,9 +404,10 @@ end subroutine compute_convol_distance
 ! Function: gc99
 !> Purpose: Gaspari and Cohn (1999) function, with the support radius as a parameter
 !----------------------------------------------------------------------
-function gc99(distnorm)
+function gc99(nam,distnorm)
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 real(kind_real),intent(in) :: distnorm
 
 ! Returned variable
@@ -497,6 +500,8 @@ type(linoptype),intent(inout) :: cout          !< Gathered linear operator
 integer :: ithread,offset,iproc
 integer :: csum_n_sg(mpl%nproc)
 type(linoptype) :: csum
+
+write(mpl%unit,'(a10,a)') '','Gather convolution weights'
 
 ! Allocation
 csum%n_s = sum(c_n_s)

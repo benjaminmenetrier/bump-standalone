@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_geom
 
-use module_namelist, only: nam
+use module_namelist, only: namtype
 use netcdf
 use tools_const, only: req,sphere_dist,vector_product
 use tools_display, only: msgerror
@@ -100,34 +100,29 @@ end subroutine geom_alloc
 ! Subroutine: compute_grid_mesh
 !> Purpose: compute grid mesh
 !----------------------------------------------------------------------
-subroutine compute_grid_mesh(geom)
+subroutine compute_grid_mesh(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
-! Local variables
-integer :: nc0,info,ic0,jc0,kc0,i,ibnd,il0,nt,it
-integer,allocatable :: ltri(:,:),ic0_bnd(:,:,:)
-real(kind_real) :: area,frac,latbnd(2),lonbnd(2),v1(3),v2(3)
-logical :: init
-
 ! Create mesh
-if ((.not.all(geom%area>0.0)).or.nam%mask_check.or.nam%network) &
+if ((.not.all(geom%area>0.0)).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
  & call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call compute_area(geom)
 
 ! Compute mask boundaries
-if (nam%mask_check) call compute_mask_boundaries(geom)
+if (nam%new_param.and.nam%mask_check) call compute_mask_boundaries(geom)
 
 ! Find grid neighbors
-if (nam%network.and..not.allocated(geom%net_nnb)) call find_grid_neighbors(geom)
+if (nam%new_param.and.nam%network.and..not.allocated(geom%net_nnb)) call find_grid_neighbors(geom)
    
 ! Compute distances between neighbors
-if (nam%network) call compute_grid_neighbors_distances(geom)
+if (nam%new_param.and.nam%network) call compute_grid_neighbors_distances(geom)
 
 end subroutine compute_grid_mesh
 
@@ -143,10 +138,9 @@ implicit none
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: nc0,info,ic0,jc0,kc0,i,ibnd,il0,nt,it
-integer,allocatable :: ltri(:,:),ic0_bnd(:,:,:)
-real(kind_real) :: area,frac,latbnd(2),lonbnd(2),v1(3),v2(3)
-logical :: init
+integer :: info,il0,nt,it
+integer,allocatable :: ltri(:,:)
+real(kind_real) :: area,frac
 
 ! Allocation
 allocate(ltri(6,2*(geom%mesh%nnr-2)))
@@ -183,9 +177,9 @@ implicit none
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: nc0,info,ic0,jc0,kc0,i,ibnd,il0,nt,it
-integer,allocatable :: ltri(:,:),ic0_bnd(:,:,:)
-real(kind_real) :: area,frac,latbnd(2),lonbnd(2),v1(3),v2(3)
+integer :: ic0,jc0,kc0,i,ibnd,il0
+integer,allocatable :: ic0_bnd(:,:,:)
+real(kind_real) :: latbnd(2),lonbnd(2),v1(3),v2(3)
 logical :: init
 
 ! Allocation
@@ -251,9 +245,7 @@ implicit none
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: nc0,info,ic0,jc0,kc0,i,ibnd,il0,nt,it
-integer,allocatable :: ltri(:,:),ic0_bnd(:,:,:)
-real(kind_real) :: area,frac,latbnd(2),lonbnd(2),v1(3),v2(3)
+integer :: ic0,i
 logical :: init
 
 ! Allocation
@@ -309,10 +301,7 @@ implicit none
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: nc0,info,ic0,jc0,kc0,i,ibnd,il0,nt,it
-integer,allocatable :: ltri(:,:),ic0_bnd(:,:,:)
-real(kind_real) :: area,frac,latbnd(2),lonbnd(2),v1(3),v2(3)
-logical :: init
+integer :: ic0,i
 
 
 ! Allocation
@@ -333,11 +322,12 @@ end subroutine compute_grid_neighbors_distances
 ! Subroutine: geom_read_local
 !> Purpose: read local distribution
 !----------------------------------------------------------------------
-subroutine geom_read_local(geom)
+subroutine geom_read_local(nam,geom)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
@@ -485,7 +475,7 @@ type(geomtype),intent(in) :: geom       !< Sampling data
 real(kind_real),allocatable,intent(inout) :: fld(:,:)        !< Field
 
 ! Local variables
-integer :: ic0,ic0a,iproc,jproc,nc0a
+integer :: ic0,ic0a,iproc,jproc
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 
 ! Allocation

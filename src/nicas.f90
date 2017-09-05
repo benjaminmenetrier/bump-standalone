@@ -11,7 +11,7 @@
 program nicas
 
 use model_interface, only: model_coord
-use module_namelist, only: nam,namread,namcheck
+use module_namelist, only: namtype,namread,namcheck
 use module_driver, only: nicas_driver,obsop_driver
 use tools_display, only: listing_setup
 use type_geom, only: geomtype
@@ -25,6 +25,7 @@ implicit none
 
 ! Local variables
 type(geomtype),target :: geom
+type(namtype) :: nam
 type(ndataloctype) :: ndataloc
 type(odataloctype) :: odataloc
 type(timertype) :: timer
@@ -45,7 +46,7 @@ call timer_start(timer)
 ! Read namelist
 !----------------------------------------------------------------------
 
-call namread
+call namread(nam)
 
 !----------------------------------------------------------------------
 ! Setup display
@@ -67,7 +68,7 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 ! Check namelist
 !----------------------------------------------------------------------
 
-call namcheck
+call namcheck(nam)
 
 !----------------------------------------------------------------------
 ! Parallel setup
@@ -82,7 +83,7 @@ write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI task
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i5,a)') '--- Initialize random number generator'
    
-rng = create_randgen()
+rng = create_randgen(nam)
 
 !----------------------------------------------------------------------
 ! Initialize coordinates
@@ -91,9 +92,9 @@ rng = create_randgen()
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i5,a)') '--- Initialize coordinates'
 
-call model_coord(geom)
+call model_coord(nam,geom)
 
-if (.false.) then
+if (.true.) then
    !----------------------------------------------------------------------
    ! Call NICAS driver
    !----------------------------------------------------------------------
@@ -101,7 +102,7 @@ if (.false.) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Call NICAS driver'
 
-   call nicas_driver(geom,ndataloc)
+   call nicas_driver(nam,geom,ndataloc)
 else
    !----------------------------------------------------------------------
    ! Call observation operator driver
@@ -110,7 +111,7 @@ else
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
-   call obsop_driver(geom,odataloc)   
+   call obsop_driver(nam,geom,odataloc)   
 end if
 
 !----------------------------------------------------------------------
