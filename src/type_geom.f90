@@ -18,6 +18,7 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsi
 use tools_nc, only: ncerr
 use tools_stripack, only: areas,trans,trlist
+use type_ctree, only: ctreetype,create_ctree
 use type_mesh, only: meshtype,create_mesh
 use type_mpl, only: mpl,mpl_recv,mpl_send
 use type_randgen, only: rng
@@ -36,6 +37,7 @@ type geomtype
    ! Number of points and levels
    integer :: nc0                          !< Number of points in subset Sc0
    integer :: nl0                          !< Number of levels in subset Sl0
+   integer :: nl0i                         !< Number of independent levels in subset Sl0
 
    ! Vector coordinates
    real(kind_real),allocatable :: lon(:)              !< Cells longitude
@@ -46,8 +48,12 @@ type geomtype
    ! Mesh
    type(meshtype) :: mesh
 
+
+   ! Cover tree
+   type(ctreetype) :: ctree
+
    ! Boundary nodes
-   integer,allocatable :: nbnd(:)          !< Number of boundary nodes
+   integer,allocatable :: nbnd(:)                     !< Number of boundary nodes
    real(kind_real),allocatable :: xbnd(:,:,:)         !< Boundary nodes, x-coordinate
    real(kind_real),allocatable :: ybnd(:,:,:)         !< Boundary nodes, y-coordinate
    real(kind_real),allocatable :: zbnd(:,:,:)         !< Boundary nodes, z-coordinate
@@ -108,9 +114,17 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
+! Local variables
+integer :: il0
+logical :: same_mask
+
 ! Create mesh
 if ((.not.all(geom%area>0.0)).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
  & call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
+
+! Create cover tree
+! TODO: if (...) 
+if (nam%check_dirac) geom%ctree = create_ctree(geom%nc0,geom%lon,geom%lat,any(geom%mask,dim=2))
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call compute_area(geom)
@@ -123,6 +137,21 @@ if (nam%new_param.and.nam%network.and..not.allocated(geom%net_nnb)) call find_gr
    
 ! Compute distances between neighbors
 if (nam%new_param.and.nam%network) call compute_grid_neighbors_distances(geom)
+
+! Check whether the mask is the same for all levels
+same_mask = .true.
+do il0=2,geom%nl0
+   same_mask = same_mask.and.(all((geom%mask(:,il0).and.geom%mask(:,1)) &
+             & .or.(.not.geom%mask(:,il0).and..not.geom%mask(:,1))))
+end do
+
+! Define number of independent levels
+if (same_mask) then
+   geom%nl0i = 1
+else
+   geom%nl0i = geom%nl0
+end if
+write(mpl%unit,'(a7,a,i3)') '','Number of independent levels: ',geom%nl0i
 
 end subroutine compute_grid_mesh
 
@@ -312,7 +341,7 @@ do ic0=1,geom%nc0
    do i=1,geom%net_nnb(ic0)
       call sphere_dist(geom%lon(ic0),geom%lat(ic0),geom%lon(geom%net_inb(i,ic0)), &
     & geom%lat(geom%net_inb(i,ic0)),geom%net_dnb(i,ic0))
-      geom%net_dnb(i,ic0) = (geom%net_dnb(i,ic0)/req)**2
+      geom%net_dnb(i,ic0) = geom%net_dnb(i,ic0)/req
    end do
 end do
 

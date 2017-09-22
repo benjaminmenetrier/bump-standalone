@@ -13,6 +13,7 @@ module model_ifs
 use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,deg2rad,ps
+use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
@@ -105,7 +106,7 @@ end subroutine model_ifs_coord
 ! Subroutine: model_ifs_read
 !> Purpose: read IFS field
 !----------------------------------------------------------------------
-subroutine model_ifs_read(nam,ncid,varname,geom,fld)
+subroutine model_ifs_read(nam,ncid,varname,time,geom,fld)
 
 implicit none
 
@@ -113,13 +114,15 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
 integer :: il0
 integer :: fld_id
-real(kind=4) :: fld_loc(geom%nlon,geom%nlat)
+real(kind=4) :: profile(geom%nlev),fld_loc(geom%nlon,geom%nlat)
+logical :: l3d
 character(len=1024) :: subr = 'model_ifs_read'
 
 ! Initialize field
@@ -128,11 +131,26 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
+! Check whether it is a 2d or 3d variable
+call ncerr(subr,nf90_get_var(ncid,fld_id,profile,(/1,1,1,1/),(/1,1,geom%nlev,1/)))
+if (isallnotmsr(real(profile(2:geom%nlev),kind_real))) then
+   l3d = .true.
+else
+   l3d = .false.
+end if
+
 ! Read variable
-do il0=1,geom%nl0
-   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),1/),(/geom%nlon,geom%nlat,1,1/)))
-   fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
-end do
+if (l3d) then
+   ! 3d variable
+   do il0=1,geom%nl0
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),time/),(/geom%nlon,geom%nlat,1,1/)))
+      fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
+   end do
+else
+   ! 2d variable
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
+   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+end if
 
 end subroutine model_ifs_read
 

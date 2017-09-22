@@ -69,10 +69,22 @@ type(ctreetype) :: create_ctree      !< Cover tree object
 integer,intent(in) :: n              !< Number of points
 real(kind_real),intent(in) :: lon(n) !< Points longitudes
 real(kind_real),intent(in) :: lat(n) !< Points latitudes
-integer,intent(in) :: mask(n)        !< Mask
+logical,intent(in) :: mask(n)        !< Mask
+
+! Local variable
+integer :: i,imask(n)
+
+! Convert mask
+do i=1,n
+   if (mask(i)) then
+      imask(i) = 1
+   else
+      imask(i) = 0
+   end if
+end do
 
 ! Call C++ function
-create_ctree%ptr = create_ctree_c(n,lon,lat,mask)
+create_ctree%ptr = create_ctree_c(n,lon,lat,imask)
 
 end function create_ctree
 

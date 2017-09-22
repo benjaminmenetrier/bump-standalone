@@ -10,6 +10,7 @@
 !----------------------------------------------------------------------
 module type_odata
 
+use module_namelist, only: namtype
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_com, only: comtype
@@ -21,12 +22,13 @@ implicit none
 
 ! Observation operator data derived type
 type odatatype
+   ! Namelist
+   type(namtype),pointer :: nam                    !< Namelist
+
    ! Geometry
    type(geomtype),pointer :: geom                  !< Geometry
 
-   ! Number of points
-   integer :: nc0
-   integer :: nl0
+   ! Number of observations
    integer :: nobs
 
    ! Interpolation data
@@ -40,10 +42,17 @@ end type odatatype
 
 ! Local observation operator data derived type
 type odataloctype
+   ! Namelist
+   type(namtype),pointer :: nam                    !< Namelist
+
+   ! Geometry
+   type(geomtype),pointer :: geom                  !< Geometry
+
    ! Number of points
    integer :: nc0a
    integer :: nc0b
-   integer :: nl0
+
+   ! Number of observations
    integer :: nobsa
 
    ! Interpolation data
@@ -74,11 +83,14 @@ real(kind_real),allocatable,intent(inout) :: yobs(:,:)        !< Field
 integer :: iobs,iobsa,iproc,jproc
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 
+! Associate
+associate(geom=>odata%geom)
+
 ! Communication
 if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
-      allocate(sbuf(odata%iproc_to_nobsa(iproc)*odata%nl0))
+      allocate(sbuf(odata%iproc_to_nobsa(iproc)*geom%nl0))
 
       ! Initialization
       call msr(sbuf)
@@ -88,19 +100,19 @@ if (mpl%main) then
          jproc = odata%iobs_to_iproc(iobs)
          if (jproc==iproc) then
             iobsa = odata%iobs_to_iobsa(iobs)
-            sbuf((iobsa-1)*odata%nl0+1:iobsa*odata%nl0) = yobs(iobs,:)
+            sbuf((iobsa-1)*geom%nl0+1:iobsa*geom%nl0) = yobs(iobs,:)
          end if
       end do
 
       if (iproc==mpl%ioproc) then
          ! Allocation
-         allocate(rbuf(odata%iproc_to_nobsa(iproc)*odata%nl0))
+         allocate(rbuf(odata%iproc_to_nobsa(iproc)*geom%nl0))
 
          ! Copy data
          rbuf = sbuf
       else
          ! Send data to iproc
-         call mpl_send(odata%iproc_to_nobsa(iproc)*odata%nl0,sbuf,iproc,mpl%tag)
+         call mpl_send(odata%iproc_to_nobsa(iproc)*geom%nl0,sbuf,iproc,mpl%tag)
       end if
 
       ! Release memory
@@ -108,21 +120,24 @@ if (mpl%main) then
    end do
 else
    ! Allocation
-   allocate(rbuf(odata%iproc_to_nobsa(mpl%myproc)*odata%nl0))
+   allocate(rbuf(odata%iproc_to_nobsa(mpl%myproc)*geom%nl0))
 
    ! Receive data from ioproc
-   call mpl_recv(odata%iproc_to_nobsa(mpl%myproc)*odata%nl0,rbuf,mpl%ioproc,mpl%tag)
+   call mpl_recv(odata%iproc_to_nobsa(mpl%myproc)*geom%nl0,rbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
 ! Rellocation
 if (allocated(yobs)) deallocate(yobs)
-allocate(yobs(odata%iproc_to_nobsa(mpl%myproc),odata%nl0))
+allocate(yobs(odata%iproc_to_nobsa(mpl%myproc),geom%nl0))
 
 ! Copy from buffer
 do iobsa=1,odata%iproc_to_nobsa(mpl%myproc)
-   yobs(iobsa,:) = rbuf((iobsa-1)*odata%nl0+1:iobsa*odata%nl0)
+   yobs(iobsa,:) = rbuf((iobsa-1)*geom%nl0+1:iobsa*geom%nl0)
 end do
+
+! End associate
+end associate
 
 end subroutine yobs_com_gl
 
@@ -142,12 +157,15 @@ real(kind_real),allocatable,intent(inout) :: yobs(:,:)        !< Field
 integer :: iobs,iobsa,iproc,jproc
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 
+! Associate
+associate(geom=>odata%geom)
+
 ! Allocation
-allocate(sbuf(odata%iproc_to_nobsa(mpl%myproc)*odata%nl0))
+allocate(sbuf(odata%iproc_to_nobsa(mpl%myproc)*geom%nl0))
 
 ! Prepare buffer
 do iobsa=1,odata%iproc_to_nobsa(mpl%myproc)
-   sbuf((iobsa-1)*odata%nl0+1:iobsa*odata%nl0) = yobs(iobsa,:)
+   sbuf((iobsa-1)*geom%nl0+1:iobsa*geom%nl0) = yobs(iobsa,:)
 end do
 
 ! Release memory
@@ -156,18 +174,18 @@ deallocate(yobs)
 ! Communication
 if (mpl%main) then
    ! Allocation
-   allocate(yobs(odata%nobs,odata%nl0))
+   allocate(yobs(odata%nobs,geom%nl0))
 
    do iproc=1,mpl%nproc
       ! Allocation
-      allocate(rbuf(odata%iproc_to_nobsa(iproc)*odata%nl0))
+      allocate(rbuf(odata%iproc_to_nobsa(iproc)*geom%nl0))
 
       if (iproc==mpl%ioproc) then
          ! Copy data
          rbuf = sbuf
       else
          ! Receive data from iproc
-         call mpl_recv(odata%iproc_to_nobsa(iproc)*odata%nl0,rbuf,iproc,mpl%tag)
+         call mpl_recv(odata%iproc_to_nobsa(iproc)*geom%nl0,rbuf,iproc,mpl%tag)
       end if
 
       ! Copy from buffer
@@ -175,7 +193,7 @@ if (mpl%main) then
          jproc = odata%iobs_to_iproc(iobs)
          if (jproc==iproc) then
             iobsa = odata%iobs_to_iobsa(iobs)
-            yobs(iobs,:) = rbuf((iobsa-1)*odata%nl0+1:iobsa*odata%nl0)
+            yobs(iobs,:) = rbuf((iobsa-1)*geom%nl0+1:iobsa*geom%nl0)
          end if
       end do
 
@@ -184,9 +202,12 @@ if (mpl%main) then
    end do
 else
    ! Sending data to iproc
-   call mpl_send(odata%iproc_to_nobsa(mpl%myproc)*odata%nl0,sbuf,mpl%ioproc,mpl%tag)
+   call mpl_send(odata%iproc_to_nobsa(mpl%myproc)*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
+
+! End associate
+end associate
 
 end subroutine yobs_com_lg
 

@@ -21,7 +21,7 @@ class randGen {
         void rand_real(double binf, double bsup, double *rr) const;
 
         // Sampling initialization
-        void initialize_sampling(int n, double lon[], double lat[], int mask[], double L[], int ntry, int nrep, int ns, int nfor, int ifor[], int ihor[]) const;
+        void initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) const;
     private:
         // Mersenne Twister 19937 generator
         std::mt19937 *gen;

@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_normalization
 
-use module_namelist, only: namtype
 use omp_lib
 use tools_display, only: msgerror,ddis,prog_init,prog_print
 use tools_kinds,only: kind_real
@@ -30,12 +29,11 @@ contains
 ! Subroutine: compute_normalization
 !> Purpose: compute normalization
 !----------------------------------------------------------------------
-subroutine compute_normalization(nam,ndata)
+subroutine compute_normalization(ndata)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
 
 ! Local variables
@@ -49,19 +47,22 @@ real(kind_real),allocatable :: S_list(:),S_list_tmp(:)
 logical :: conv
 logical,allocatable :: done(:),valid_list_tmp(:)
 
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
+
 ! Compute horizontal interpolation inverse mapping
-allocate(ineh(ndata%nc0,ndata%nl0i))
+allocate(ineh(geom%nc0,geom%nl0i))
 ineh = 0
-do il0i=1,ndata%nl0i
+do il0i=1,geom%nl0i
    do i_s=1,ndata%h(il0i)%n_s
       ic0 = ndata%h(il0i)%row(i_s)
       ineh(ic0,il0i) = ineh(ic0,il0i)+1
    end do
 end do
-allocate(interp_h(maxval(ineh),ndata%nc0,ndata%nl0i))
-allocate(interp_h_S(maxval(ineh),ndata%nc0,ndata%nl0i))
+allocate(interp_h(maxval(ineh),geom%nc0,geom%nl0i))
+allocate(interp_h_S(maxval(ineh),geom%nc0,geom%nl0i))
 ineh = 0
-do il0i=1,ndata%nl0i
+do il0i=1,geom%nl0i
    do i_s=1,ndata%h(il0i)%n_s
       ic0 = ndata%h(il0i)%row(i_s)
       ineh(ic0,il0i) = ineh(ic0,il0i)+1
@@ -71,14 +72,14 @@ do il0i=1,ndata%nl0i
 end do
 
 ! Compute vertical interpolation inverse mapping
-allocate(inev(ndata%nl0))
+allocate(inev(geom%nl0))
 inev = 0
 do i_s=1,ndata%v%n_s
    il0 = ndata%v%row(i_s)
    inev(il0) = inev(il0)+1
 end do
-allocate(interp_v(maxval(inev),ndata%nl0))
-allocate(interp_v_S(maxval(inev),ndata%nl0))
+allocate(interp_v(maxval(inev),geom%nl0))
+allocate(interp_v_S(maxval(inev),geom%nl0))
 inev = 0
 do i_s=1,ndata%v%n_s
    il0 = ndata%v%row(i_s)
@@ -183,29 +184,29 @@ end if
 
 ! MPI splitting
 do iproc=1,mpl%nproc
-   ic0_s(iproc) = (iproc-1)*(ndata%nc0/mpl%nproc+1)+1
-   ic0_e(iproc) = min(iproc*(ndata%nc0/mpl%nproc+1),ndata%nc0)
+   ic0_s(iproc) = (iproc-1)*(geom%nc0/mpl%nproc+1)+1
+   ic0_e(iproc) = min(iproc*(geom%nc0/mpl%nproc+1),geom%nc0)
    nc0_loc(iproc) = ic0_e(iproc)-ic0_s(iproc)+1
 end do
 
 ! Allocation
-allocate(ndata%norm(ndata%nc0,ndata%nl0))
-allocate(done(nc0_loc(mpl%myproc)*ndata%nl0))
+allocate(ndata%norm(geom%nc0,geom%nl0))
+allocate(done(nc0_loc(mpl%myproc)))
 call msr(ndata%norm)
 
 ! Compute normalization weights
-write(mpl%unit,'(a7,a)',advance='no') '','Compute normalization weights: '
-call prog_init(progint,done)
-do il0=1,ndata%nl0
-   il0i = min(il0,ndata%nl0i)
-
+do il0=1,geom%nl0
+   il0i = min(il0,geom%nl0i)
+   write(mpl%unit,'(a7,a,i3,a)',advance='no') '','Level ',il0,': '
+   call prog_init(progint,done)
+ 
    !$omp parallel do private(ic0_loc,ic0,is_list,order,S_list,S_list_tmp,valid_list_tmp,nlr) &
    !$omp&            private(is_add,S_add,ih,ic1,iv,il1,is,ilr,conv,ic,jlr,js)
    do ic0_loc=1,nc0_loc(mpl%myproc)
       ! MPI offset
       ic0 = ic0_s(mpl%myproc)+ic0_loc-1
 
-      if (ndata%geom%mask(ic0,il0)) then
+      if (geom%mask(ic0,il0)) then
          ! Allocation
          allocate(is_list(ineh(ic0,il0i)*inev(il0)*maxval(ines)))
          allocate(order(ineh(ic0,il0i)*inev(il0)*maxval(ines)))
@@ -315,7 +316,7 @@ do il0=1,ndata%nl0
          end if
 
          ! Print progression
-         done((il0-1)*nc0_loc(mpl%myproc)+ic0_loc) = .true.
+         done(ic0_loc) = .true.
          call prog_print(progint,done)
 
          ! Release memory
@@ -327,6 +328,7 @@ do il0=1,ndata%nl0
       end if
    end do
    !$omp end parallel do
+   write(mpl%unit,'(a)') '100%'
 
    ! Communication
    if (mpl%main) then 
@@ -345,10 +347,12 @@ do il0=1,ndata%nl0
    ! Broadcast data
    call mpl_bcast(ndata%norm(:,il0),mpl%ioproc)
 end do
-write(mpl%unit,'(a)') '100%'
 
 ! Release memory
 deallocate(done)
+
+! End associate
+end associate
 
 end subroutine compute_normalization
 

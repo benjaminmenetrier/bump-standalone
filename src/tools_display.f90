@@ -18,14 +18,21 @@ implicit none
 
 ! Display colors
 character(len=1024) :: black     !< Black color code
+character(len=1024) :: green     !< Green color code
+character(len=1024) :: peach     !< Peach color code
+character(len=1024) :: aqua      !< Aqua color code
+character(len=1024) :: purple    !< Purple color code
 character(len=1024) :: err       !< Error color code
 character(len=1024) :: wng       !< Warning color code
+
+! Vertical unit
+character(len=1024) :: vunitchar !< Vertical unit
 
 ! Progression display
 integer :: ddis                  !< Progression display step
 
 private
-public :: black,err,wng,ddis
+public :: black,green,peach,aqua,purple,err,wng,vunitchar,ddis
 public :: listing_setup,msgerror,msgwarning,prog_init,prog_print
 
 contains
@@ -34,12 +41,13 @@ contains
 ! Subroutine: listing_setup
 !> Purpose: setup listing
 !----------------------------------------------------------------------
-subroutine listing_setup(colorlog)
+subroutine listing_setup(colorlog,logpres)
 
 implicit none
 
 ! Passed variables
 logical,intent(in) :: colorlog !< Color listing flag
+logical,intent(in) :: logpres  !< Vertical unit flag
 
 ! Local variables
 character(len=4) :: myprocchar
@@ -47,14 +55,29 @@ character(len=4) :: myprocchar
 ! Setup display colors
 if (colorlog) then
    black = char(27)//'[0;0m'
+   green = char(27)//'[0;32m'
+   peach = char(27)//'[1;91m'
+   aqua = char(27)//'[1;36m'
+   purple = char(27)//'[1;35m'
    err = char(27)//'[0;37;41;1m'
    wng = char(27)//'[0;37;42;1m'
 else
    black = ' '
+   green = ' '
+   peach = ' '
+   aqua = ' '
+   purple = ' '
    err = ' '
    wng = ' '
 end if
 ddis = 5
+
+! Vertical unit
+if (logpres) then
+   vunitchar = 'log(Pa)'
+else
+   vunitchar = 'lev.'
+end if
 
 ! Open listing files
 write(myprocchar,'(i4.4)') mpl%myproc-1
@@ -134,7 +157,7 @@ real(kind_real) :: prog
 ! Print message
 prog = 100.0*float(count(done))/float(size(done))
 if (int(prog)>progint) then
-   write(mpl%unit,'(i3,a)',advance='no') int(progint),'% '
+   if (progint<100) write(mpl%unit,'(i3,a)',advance='no') progint,'% '
    progint = progint+ddis
 end if
 

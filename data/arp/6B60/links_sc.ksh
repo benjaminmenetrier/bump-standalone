@@ -6,6 +6,19 @@
 # Copyright © 2017 METEO-FRANCE
 # ----------------------------------------------------------------------
 
+# Link members (converted into NetCDF using EPyGrAM)
+i=1
+typeset -RZ4 i
+while [[ ${i} -le 1000 ]] ; do
+   i3=$i
+   if [ $i -lt 1000 ] ; then
+     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i3}/ICMSHARPE+0006.nc member_${i}.nc
+   else
+     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i4}/ICMSHARPE+0006.nc member_${i}.nc
+   fi
+   let i=i+1
+done
+
 # Generate grid.nc with EPyGrAM
 ORIGIN_FILE="/scratch/work/menetrie/data/ARPEGE/6B60/20160928H00A/4dupd1/ICMSHARPE+0000"
 rm -f grid.nc

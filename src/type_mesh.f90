@@ -11,9 +11,10 @@
 module type_mesh
 
 use omp_lib
+use tools_const, only: vector_product
 use tools_display, only: msgerror,prog_init,prog_print
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,msr,isnotmsi,isnotmsr
+use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr
 use tools_stripack, only: trans,trmesh
 use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast
 use type_randgen, only: randgentype,rand_integer
@@ -35,7 +36,7 @@ end type meshtype
 
 private
 public :: meshtype
-public :: create_mesh,mesh_dealloc
+public :: create_mesh,mesh_dealloc,check_mesh
 
 contains
 
@@ -195,5 +196,80 @@ deallocate(mesh%lend)
 deallocate(mesh%order)
 
 end subroutine mesh_dealloc
+
+!----------------------------------------------------------------------
+! Subroutine: check_mesh
+!> Purpose: check whether the mesh is made of counter-clockwise triangles
+!----------------------------------------------------------------------
+subroutine check_mesh(n,lon,lat,nt,ltri,valid)
+
+implicit none
+
+! Passed variables
+integer,intent(in) :: n   !< Number of vertices
+real(kind_real),intent(in) :: lon(n)       !< Mesh longitudes
+real(kind_real),intent(in) :: lat(n)       !< Mesh latitudes
+integer,intent(in) :: nt         !< Number of triangles
+integer,intent(in) :: ltri(3,nt) !< Mesh structure
+real(kind_real),intent(out) :: valid(n)    !< 1.0 if the vertex ic1 valid, else 0.0
+
+! Local variables
+integer :: it
+real(kind_real) :: x(n),y(n),z(n)
+real(kind_real),allocatable :: a(:),b(:),c(:),cd(:),v1(:),v2(:),cp(:)
+logical :: validt(nt)
+
+! Transform to cartesian coordinates
+call trans(n,lat,lon,x,y,z)
+
+!$omp parallel do private(it,a,b,c,cd,v1,v2,cp)
+do it=1,nt
+   ! Check vertices status
+   if (isallnotmsr(x(ltri(:,it))).and.isallnotmsr(y(ltri(:,it))).and.isallnotmsr(z(ltri(:,it)))) then
+      ! Allocation
+      allocate(a(3))
+      allocate(b(3))
+      allocate(c(3))
+      allocate(cd(3))
+      allocate(v1(3))
+      allocate(v2(3))
+      allocate(cp(3))
+
+      ! Vertices
+      a = (/x(ltri(1,it)),y(ltri(1,it)),z(ltri(1,it))/)
+      b = (/x(ltri(2,it)),y(ltri(2,it)),z(ltri(2,it))/)
+      c = (/x(ltri(3,it)),y(ltri(3,it)),z(ltri(3,it))/)
+
+      ! Cross-product (c-b)x(a-b)
+      call vector_product(c-b,a-b,cp)
+
+      ! Centroid
+      cd = (a+b+c)/3.0
+
+      ! Compare the directions
+      validt(it) = dot_product(cp,cd)>0.0
+
+      ! Release memory
+      deallocate(a)
+      deallocate(b)
+      deallocate(c)
+      deallocate(cd)
+      deallocate(v1)
+      deallocate(v2)
+      deallocate(cp)
+   else
+      ! At least one vertex ic1 ms
+      validt(it) = .false.
+   end if
+end do
+!$omp end parallel do
+
+! Check vertices
+valid = 1.0
+do it=1,nt
+   if (.not.validt(it)) valid(ltri(:,it)) = 0.0
+end do
+
+end subroutine check_mesh
 
 end module type_mesh

@@ -13,6 +13,7 @@ module model_nemo
 use module_namelist, only: namtype
 use netcdf
 use tools_const, only: req,deg2rad,sphere_dist
+use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
@@ -136,7 +137,7 @@ end subroutine model_nemo_coord
 ! Subroutine: model_nemo_read
 !> Purpose: read NEMO field
 !----------------------------------------------------------------------
-subroutine model_nemo_read(nam,ncid,varname,geom,fld)
+subroutine model_nemo_read(nam,ncid,varname,time,geom,fld)
 
 implicit none
 
@@ -144,13 +145,15 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0
+integer :: il0,nd
 integer :: fld_id
-real(kind=8) :: fld_loc(geom%nlon,geom%nlat)
+real(kind=8) :: fld_tmp(geom%nlon,geom%nlat),fld_loc(geom%nlon,geom%nlat)
+logical :: l3d
 character(len=1024) :: subr = 'model_nemo_read'
 
 ! Initialize field
@@ -159,11 +162,39 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
+! Check whether it is a 2d or 3d variable
+call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
+if (nd==3) then
+   l3d = .false.
+elseif (nd==4) then
+   l3d = .true.
+else
+   l3d = .false.
+   call msgerror('wrong number of dimensions')
+end if
+
 ! Read variable
-do il0=1,geom%nl0
-   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),1/),(/geom%nlon,geom%nlat,1,1/)))
-   fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
-end do
+if (l3d) then
+   ! 3d variable
+   do il0=1,geom%nl0
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/1,1,nam%levs(il0),time/),(/geom%nlon,geom%nlat,1,1/)))
+      select case (trim(varname))
+      case ('un')
+         fld_loc(:,1) = 0.5*(fld_tmp(geom%nlon,:)+fld_tmp(:,1))
+         fld_loc(2:geom%nlon,:) = 0.5*(fld_tmp(1:geom%nlon-1,:)+fld_tmp(2:geom%nlon,:))
+      case ('vn')
+         fld_loc(:,1) = 0.5*(fld_tmp(:,geom%nlat)+fld_tmp(:,1))
+         fld_loc(:,2:geom%nlat) = 0.5*(fld_tmp(:,1:geom%nlat-1)+fld_tmp(:,2:geom%nlat))
+      case default
+         fld_loc = fld_tmp
+      end select
+      fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
+   end do
+else
+   ! 2d variable
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
+   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+end if
 
 end subroutine model_nemo_read
 

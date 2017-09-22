@@ -11,10 +11,9 @@
 module module_parameters_obsop
 
 use tools_display, only: msgerror
-use tools_interp, only: interp_horiz
+use tools_interp, only: compute_interp_bilin
 use tools_kinds, only: kind_real
 use type_ctree, only: ctreetype,create_ctree
-use type_geom, only: geomtype
 use type_linop, only: linop_reorder
 use type_mesh, only: create_mesh
 use type_mpl, only: mpl
@@ -40,13 +39,15 @@ implicit none
 type(odatatype),intent(inout) :: odata
 
 ! Local variables
-integer,allocatable :: mask_ctree(:)
 real(kind_real),allocatable :: lonobs(:),latobs(:)
-logical,allocatable :: maskobs(:)
+logical,allocatable :: mask_ctree(:),maskobs(:)
 type(ctreetype) :: ctree
 
+! Associate
+associate(geom=>odata%geom)
+
 ! Define number of observations
-odata%nobs = int(1.0e-2*float(odata%nc0))
+odata%nobs = int(1.0e-2*float(geom%nc0))
 
 ! Allocation
 allocate(lonobs(odata%nobs))
@@ -59,25 +60,28 @@ call rand_real(rng,-90.0_kind_real,90.0_kind_real,.true.,latobs)
 maskobs = .true.
 
 ! Create mesh
-call create_mesh(rng,odata%nc0,odata%geom%lon,odata%geom%lat,.false.,odata%geom%mesh)
+call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.false.,geom%mesh)
 
 ! Compute cover tree
-allocate(mask_ctree(odata%geom%mesh%nnr))
-mask_ctree = 1
-ctree = create_ctree(odata%geom%mesh%nnr,dble(odata%geom%lon(odata%geom%mesh%order)), &
- & dble(odata%geom%lat(odata%geom%mesh%order)),mask_ctree)
+allocate(mask_ctree(geom%mesh%nnr))
+mask_ctree = .true.
+ctree = create_ctree(geom%mesh%nnr,dble(geom%lon(geom%mesh%order)), &
+ & dble(geom%lat(geom%mesh%order)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Compute interpolation
 odata%interp%prefix = 'o'
 write(mpl%unit,'(a7,a)') '','Single level:'
-call interp_horiz(odata%geom%mesh,ctree,odata%nc0,any(odata%geom%mask,dim=2),odata%nobs,lonobs,latobs,maskobs,odata%interp)
+call compute_interp_bilin(geom%mesh,ctree,geom%nc0,any(geom%mask,dim=2),odata%nobs,lonobs,latobs,maskobs,odata%interp)
 
 ! Reorder interpolation
 call linop_reorder(odata%interp)
 
 ! Print results
 write(mpl%unit,'(a7,a,i8)') '','Number of observations: ',odata%nobs
+
+! End associate
+end associate
 
 end subroutine compute_parameters_obsop
 

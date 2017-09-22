@@ -51,7 +51,7 @@ void randGen::rand_real(double binf, double bsup, double *rr) const{
 }
 
 // Sampling initialization
-void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[], double L[], int ntry, int nrep, int ns, int nfor, int ifor[], int ihor[]) const{
+void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) const{
     // Initialize uniform distribution
     std::uniform_int_distribution<int> dis(0,n-1);
 
@@ -68,14 +68,6 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
     CoverTree<CoverTreePoint> cTree(1.0e10);
     int is=0;
 
-    // Include forced points
-    for(int i=0;i<nfor;i++) {
-        ihor[is]=ifor[i];
-        cTree.insert(CoverTreePoint(is,lon[ihor[is]-1],lat[ihor[is]-1]));
-        mask_copy[ifor[i]-1]=0;
-        is++;
-    }
-
     // Fill the tree
     while(is<ns) {
         // Find new point
@@ -91,7 +83,7 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
                     vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(-999,lon[ir],lat[ir]),1));
 
                     // Check distance
-                    double dist=neighbors[0].getDist()/sqrt(0.5*(pow(L[neighbors[0].getIndex()],2.0)+pow(L[ir],2.0)));
+                    double dist=neighbors[0].getDist()/sqrt(0.5*(pow(rh[neighbors[0].getIndex()],2.0)+pow(rh[ir],2.0)));
                     if(dist>distmax) {
                         distmax=dist;
                         irmax=ir;
@@ -115,9 +107,9 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
 
     // Get minimum distance
     double distmininit=HUGE_VAL;
-    for(int is=nfor;is<ns;is++) {
+    for(int is=0;is<ns;is++) {
         vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(is,lon[ihor[is]-1],lat[ihor[is]-1]),2));
-        double dist=neighbors[1].getDist()/sqrt(0.5*(pow(L[neighbors[1].getIndex()],2.0)+pow(L[ihor[is]-1],2.0)));
+        double dist=neighbors[1].getDist()/sqrt(0.5*(pow(rh[neighbors[1].getIndex()],2.0)+pow(rh[ihor[is]-1],2.0)));
         if(dist<distmininit) {
             distmininit=dist;
         }
@@ -130,9 +122,9 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
             // Get minimum distance
             double distmin=HUGE_VAL;
             int ismin=0;
-            for(int is=nfor;is<ns;is++) {
+            for(int is=0;is<ns;is++) {
                 vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(is,lon[ihor[is]-1],lat[ihor[is]-1]),2));
-                double dist=neighbors[1].getDist()/sqrt(0.5*(pow(L[neighbors[1].getIndex()],2.0)+pow(L[ihor[is]-1],2.0)));
+                double dist=neighbors[1].getDist()/sqrt(0.5*(pow(rh[neighbors[1].getIndex()],2.0)+pow(rh[ihor[is]-1],2.0)));
                 if(dist<distmin) {
                     distmin=dist;
                     ismin=is;
@@ -154,7 +146,7 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
                     vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(-999,lon[ir],lat[ir]),1));
 
                     // Check distance
-                    double dist=neighbors[0].getDist()/sqrt(0.5*(pow(L[neighbors[0].getIndex()],2.0)+pow(L[ir],2.0)));
+                    double dist=neighbors[0].getDist()/sqrt(0.5*(pow(rh[neighbors[0].getIndex()],2.0)+pow(rh[ir],2.0)));
                     if((dist>distmax) && (dist>distmininit)) {
                         distmax=dist;
                         irmax=ir;
@@ -179,9 +171,9 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
 
         // Find final minimum distance
         double distmin=HUGE_VAL;
-        for(int is=nfor;is<ns;is++) {
+        for(int is=0;is<ns;is++) {
             vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(is,lon[ihor[is]-1],lat[ihor[is]-1]),2));
-            double dist=neighbors[1].getDist()/sqrt(0.5*(pow(L[neighbors[1].getIndex()],2.0)+pow(L[ihor[is]-1],2.0)));
+            double dist=neighbors[1].getDist()/sqrt(0.5*(pow(rh[neighbors[1].getIndex()],2.0)+pow(rh[ihor[is]-1],2.0)));
             if(dist<distmin) {
                 distmin=dist;
             }

@@ -13,6 +13,7 @@ module model_mpas
 use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,deg2rad,rad2deg
+use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
@@ -92,7 +93,7 @@ end subroutine model_mpas_coord
 ! Subroutine: model_mpas_read
 !> Purpose: read MPAS field
 !----------------------------------------------------------------------
-subroutine model_mpas_read(nam,ncid,varname,geom,fld)
+subroutine model_mpas_read(nam,ncid,varname,time,geom,fld)
 
 implicit none
 
@@ -100,13 +101,15 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0
+integer :: il0,nd
 integer :: fld_id
 real(kind=4) :: fld_loc(geom%nc0)
+logical :: l3d
 character(len=1024) :: subr = 'model_mpas_read'
 
 ! Initialize field
@@ -115,11 +118,29 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
+! Check whether it is a 2d or 3d variable
+call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
+if (nd==2) then
+   l3d = .false.
+elseif (nd==3) then
+   l3d = .true.
+else
+   l3d = .false.
+   call msgerror('wrong number of dimensions')
+end if
+
 ! Read variable
-do il0=1,geom%nl0
-   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/nam%levs(il0),1,1/),(/1,geom%nc0,1/)))
-   fld(:,il0) = real(fld_loc,kind_real)
-end do
+if (l3d) then
+   ! 3d variable
+   do il0=1,geom%nl0
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/nam%levs(il0),1,time/),(/1,geom%nc0,1/)))
+      fld(:,il0) = real(fld_loc,kind_real)
+   end do
+else
+   ! 2d variable
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nc0,1/)))
+   fld(:,1) = real(fld_loc,kind_real)
+end if
 
 end subroutine model_mpas_read
 

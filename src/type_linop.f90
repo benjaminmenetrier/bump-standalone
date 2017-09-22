@@ -41,7 +41,7 @@ interface linop_write
   module procedure linop_write_array
 end interface
 
-logical :: check_data = .false. !< Activate data check for all linear operations
+logical :: check_data = .true. !< Activate data check for all linear operations
 
 private
 public :: linoptype
@@ -373,7 +373,7 @@ type(linoptype),allocatable,intent(inout) :: linop(:) !< Linear operators
 
 ! Local variables
 integer :: info,narr,n_s_max,iarr
-integer :: n_s_max_id,narr_id,n_s_id,row_id,col_id,S_id
+integer :: n_s_max_id,narr_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_read_array'
 
 ! Get maximum operator size
@@ -398,6 +398,8 @@ if ((narr>0).and.(n_s_max>0)) then
 
    ! Get variables id
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_n_s',n_s_id))
+   call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_n_src',n_src_id))
+   call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_n_dst',n_dst_id))
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_row',row_id))
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_col',col_id))
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_S',S_id))
@@ -408,14 +410,12 @@ if ((narr>0).and.(n_s_max>0)) then
 
       ! Get operator size
       call ncerr(subr,nf90_get_var(ncid,n_s_id,linop(iarr)%n_s,(/iarr/)))
+      call ncerr(subr,nf90_get_var(ncid,n_src_id,linop(iarr)%n_src,(/iarr/)))
+      call ncerr(subr,nf90_get_var(ncid,n_dst_id,linop(iarr)%n_dst,(/iarr/)))
 
       if (linop(iarr)%n_s>0) then
          ! Allocation
          call linop_alloc(linop(iarr))
-
-         ! Get source/destination dimensions
-         call ncerr(subr,nf90_get_att(ncid,nf90_global,trim(prefix)//'_n_src',linop(iarr)%n_src))
-         call ncerr(subr,nf90_get_att(ncid,nf90_global,trim(prefix)//'_n_dst',linop(iarr)%n_dst))
 
          ! Get variables
          call ncerr(subr,nf90_get_var(ncid,row_id,linop(iarr)%row,(/1,iarr/),(/linop(iarr)%n_s,1/)))
@@ -484,7 +484,7 @@ type(linoptype),intent(in) :: linop(:) !< Linear operator
 
 ! Local variables
 integer :: narr,iarr,n_s_max
-integer :: n_s_max_id,narr_id,n_s_id,row_id,col_id,S_id
+integer :: n_s_max_id,narr_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_write_array'
 
 ! Array size
@@ -504,12 +504,10 @@ if ((narr>0).and.(n_s_max>0)) then
    call ncerr(subr,nf90_def_dim(ncid,trim(linop(1)%prefix)//'_n_s_max',n_s_max,n_s_max_id))
    call ncerr(subr,nf90_def_dim(ncid,trim(linop(1)%prefix)//'_narr',narr,narr_id))
 
-   ! Write source/destination dimensions
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(linop(1)%prefix)//'_n_src',linop(1)%n_src))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(linop(1)%prefix)//'_n_dst',linop(1)%n_dst))
-
    ! Define variables
    call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_n_s',nf90_int,(/narr_id/),n_s_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_n_src',nf90_int,(/narr_id/),n_src_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_n_dst',nf90_int,(/narr_id/),n_dst_id))
    call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_row',nf90_int,(/n_s_max_id,narr_id/),row_id))
    call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_col',nf90_int,(/n_s_max_id,narr_id/),col_id))
    call ncerr(subr,nf90_def_var(ncid,trim(linop(1)%prefix)//'_S',ncfloat,(/n_s_max_id,narr_id/),S_id))
@@ -520,6 +518,8 @@ if ((narr>0).and.(n_s_max>0)) then
    do iarr=1,narr
       ! Put variables
       call ncerr(subr,nf90_put_var(ncid,n_s_id,linop(iarr)%n_s,(/iarr/)))
+      call ncerr(subr,nf90_put_var(ncid,n_src_id,linop(iarr)%n_src,(/iarr/)))
+      call ncerr(subr,nf90_put_var(ncid,n_dst_id,linop(iarr)%n_dst,(/iarr/)))
       call ncerr(subr,nf90_put_var(ncid,row_id,linop(iarr)%row,(/1,iarr/),(/linop(iarr)%n_s,1/)))
       call ncerr(subr,nf90_put_var(ncid,col_id,linop(iarr)%col,(/1,iarr/),(/linop(iarr)%n_s,1/)))
       call ncerr(subr,nf90_put_var(ncid,S_id,linop(iarr)%S,(/1,iarr/),(/linop(iarr)%n_s,1/)))

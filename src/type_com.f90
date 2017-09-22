@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module type_com
 
-use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
@@ -74,12 +73,12 @@ end subroutine com_dealloc
 ! Subroutine: com_copy
 !> Purpose: communications object copyment
 !----------------------------------------------------------------------
-subroutine com_copy(nam,com_in,com_out)
+subroutine com_copy(nproc,com_in,com_out)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
+integer,intent(in) :: nproc !< Number of MPI tasks
 type(comtype),intent(in) :: com_in     !< Input linear operator
 type(comtype),intent(inout) :: com_out !< Output linear operator
 
@@ -94,11 +93,11 @@ com_out%nexcl = com_in%nexcl
 call com_dealloc(com_out)
 
 ! Allocation
-allocate(com_out%ired_to_iext(nam%nproc))
-allocate(com_out%jhalocounts(nam%nproc))
-allocate(com_out%jexclcounts(nam%nproc))
-allocate(com_out%jhalodispl(nam%nproc))
-allocate(com_out%jexcldispl(nam%nproc))
+allocate(com_out%ired_to_iext(nproc))
+allocate(com_out%jhalocounts(nproc))
+allocate(com_out%jexclcounts(nproc))
+allocate(com_out%jhalodispl(nproc))
+allocate(com_out%jexcldispl(nproc))
 allocate(com_out%halo(com_out%nhalo))
 allocate(com_out%excl(com_out%nexcl))
 
@@ -117,27 +116,27 @@ end subroutine com_copy
 ! Subroutine: com_setup
 !> Purpose: setup communications
 !----------------------------------------------------------------------
-subroutine com_setup(nam,com)
+subroutine com_setup(nproc,com)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(comtype),intent(inout) :: com(nam%nproc) !< Communication
+integer,intent(in) :: nproc !< Number of MPI tasks
+type(comtype),intent(inout) :: com(nproc) !< Communication
 
 ! Local variables
 integer :: iproc,jproc,i
 
 ! Allocation
-do iproc=1,nam%nproc
-   allocate(com(iproc)%jhalocounts(nam%nproc))
-   allocate(com(iproc)%jexclcounts(nam%nproc))
-   allocate(com(iproc)%jhalodispl(nam%nproc))
-   allocate(com(iproc)%jexcldispl(nam%nproc))
+do iproc=1,nproc
+   allocate(com(iproc)%jhalocounts(nproc))
+   allocate(com(iproc)%jexclcounts(nproc))
+   allocate(com(iproc)%jhalodispl(nproc))
+   allocate(com(iproc)%jexcldispl(nproc))
 end do
 
 ! Initialization
-do iproc=1,nam%nproc
+do iproc=1,nproc
    com(iproc)%jhalocounts = 0
    com(iproc)%jexclcounts = 0
    com(iproc)%jhalodispl = 0
@@ -145,7 +144,7 @@ do iproc=1,nam%nproc
 end do
 
 ! Compute counts
-do iproc=1,nam%nproc
+do iproc=1,nproc
    do i=1,com(iproc)%next
       jproc = com(iproc)%iext_to_iproc(i)
       if (jproc/=iproc) then
@@ -159,17 +158,17 @@ do iproc=1,nam%nproc
 end do
 
 ! Compute displacement
-do iproc=1,nam%nproc
+do iproc=1,nproc
    com(iproc)%jhalodispl(1) = 0
    com(iproc)%jexcldispl(1) = 0
-   do jproc=2,nam%nproc
+   do jproc=2,nproc
       com(iproc)%jhalodispl(jproc) = com(iproc)%jhalodispl(jproc-1)+com(iproc)%jhalocounts(jproc-1)
       com(iproc)%jexcldispl(jproc) = com(iproc)%jexcldispl(jproc-1)+com(iproc)%jexclcounts(jproc-1)
    end do
 end do
 
 ! Allocation
-do iproc=1,nam%nproc
+do iproc=1,nproc
    com(iproc)%nhalo = sum(com(iproc)%jhalocounts)
    com(iproc)%nexcl = sum(com(iproc)%jexclcounts)
    allocate(com(iproc)%halo(com(iproc)%nhalo))
@@ -177,10 +176,10 @@ do iproc=1,nam%nproc
 end do
 
 ! Fill halo array
-do iproc=1,nam%nproc
+do iproc=1,nproc
    com(iproc)%jhalocounts = 0
 end do
-do iproc=1,nam%nproc
+do iproc=1,nproc
    do i=1,com(iproc)%next
       ! Check for halo points
       jproc = com(iproc)%iext_to_iproc(i)
@@ -195,9 +194,9 @@ do iproc=1,nam%nproc
 end do
 
 ! Fill excl array
-do jproc=1,nam%nproc
+do jproc=1,nproc
    ! Loop over processors sending data to JPROC
-   do iproc=1,nam%nproc
+   do iproc=1,nproc
       do i=1,com(iproc)%jhalocounts(jproc)
          ! Local index of points received on JPROC from IPROC
          com(jproc)%excl(com(jproc)%jexcldispl(iproc)+i) = &
@@ -223,27 +222,29 @@ real(kind_real),allocatable,intent(inout) :: vec(:)    !< Subgrid variable
 ! Local variables
 real(kind_real) :: sbuf(com%nexcl),rbuf(com%nhalo),vec_tmp(com%nred)
 
-! Check input vector size
-if (size(vec)/=com%nred) call msgerror('vector size inconsistent in com_ext')
+if (com%nexcl>0) then
+   ! Check input vector size
+   if (size(vec)/=com%nred) call msgerror('vector size inconsistent in com_ext')
 
-! Prepare buffers to send
-sbuf = vec(com%excl)
+   ! Prepare buffers to send
+   sbuf = vec(com%excl)
 
-! Communication
-call mpl_alltoallv(com%nexcl,sbuf,com%jexclcounts,com%jexcldispl,com%nhalo,rbuf,com%jhalocounts,com%jhalodispl)
+   ! Communication
+   call mpl_alltoallv(com%nexcl,sbuf,com%jexclcounts,com%jexcldispl,com%nhalo,rbuf,com%jhalocounts,com%jhalodispl)
 
-! Copy
-vec_tmp = vec
+   ! Copy
+   vec_tmp = vec
 
-! Reallocation
-deallocate(vec)
-allocate(vec(com%next))
+   ! Reallocation
+   deallocate(vec)
+   allocate(vec(com%next))
 
-! Copy zone A into zone B
-vec(com%ired_to_iext) = vec_tmp
+   ! Copy zone A into zone B
+   vec(com%ired_to_iext) = vec_tmp
 
-! Copy halo into zone B
-vec(com%halo) = rbuf
+   ! Copy halo into zone B
+   vec(com%halo) = rbuf
+end if
 
 end subroutine com_ext
 
@@ -265,24 +266,26 @@ real(kind_real) :: sbuf(com%nhalo),rbuf(com%nexcl),vec_tmp(com%next)
 ! Check input vector size
 if (size(vec)/=com%next) call msgerror('vector size inconsistent in com_red')
 
-! Prepare buffers to send
-sbuf = vec(com%halo)
+if (com%nhalo>0) then
+   ! Prepare buffers to send
+   sbuf = vec(com%halo)
 
-! Communication
-call mpl_alltoallv(com%nhalo,sbuf,com%jhalocounts,com%jhalodispl,com%nexcl,rbuf,com%jexclcounts,com%jexcldispl)
+   ! Communication
+   call mpl_alltoallv(com%nhalo,sbuf,com%jhalocounts,com%jhalodispl,com%nexcl,rbuf,com%jexclcounts,com%jexcldispl)
 
-! Copy
-vec_tmp = vec
+   ! Copy
+   vec_tmp = vec
 
-! Reallocation
-deallocate(vec)
-allocate(vec(com%nred))
+   ! Reallocation
+   deallocate(vec)
+   allocate(vec(com%nred))
 
-! Copy zone B into zone A
-vec = vec_tmp(com%ired_to_iext)
+   ! Copy zone B into zone A
+   vec = vec_tmp(com%ired_to_iext)
 
-! Copy halo into zone B
-vec(com%excl) = vec(com%excl)+rbuf
+   ! Copy halo into zone B
+   vec(com%excl) = vec(com%excl)+rbuf
+end if
 
 end subroutine com_red
 
@@ -290,12 +293,12 @@ end subroutine com_red
 ! Subroutine: com_read
 !> Purpose: read communications from a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_read(nam,ncid,prefix,com)
+subroutine com_read(nproc,ncid,prefix,com)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
+integer,intent(in) :: nproc !< Number of MPI tasks
 integer,intent(in) :: ncid            !< NetCDF file id
 character(len=*),intent(in) :: prefix !< Communication prefix
 type(comtype),intent(inout) :: com    !< Communication
@@ -337,10 +340,10 @@ end if
 
 ! Allocation
 allocate(com%ired_to_iext(com%nred))
-allocate(com%jhalocounts(nam%nproc))
-allocate(com%jexclcounts(nam%nproc))
-allocate(com%jhalodispl(nam%nproc))
-allocate(com%jexcldispl(nam%nproc))
+allocate(com%jhalocounts(nproc))
+allocate(com%jexclcounts(nproc))
+allocate(com%jhalodispl(nproc))
+allocate(com%jexcldispl(nproc))
 if (com%nhalo>0) allocate(com%halo(com%nhalo))
 if (com%nexcl>0) allocate(com%excl(com%nexcl))
 
@@ -368,12 +371,12 @@ end subroutine com_read
 ! Subroutine: com_write
 !> Purpose: write communications to a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_write(nam,ncid,com)
+subroutine com_write(nproc,ncid,com)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
+integer,intent(in) :: nproc !< Number of MPI tasks
 integer,intent(in) :: ncid      !< NetCDF file id
 type(comtype),intent(in) :: com !< Communication
 
@@ -388,7 +391,7 @@ call ncerr(subr,nf90_redef(ncid))
 
 ! Define dimensions
 info = nf90_inq_dimid(ncid,'nproc',nproc_id)
-if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nproc',nam%nproc,nproc_id))
+if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nproc',nproc,nproc_id))
 call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nred',com%nred,nred_id))
 call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_next',com%next,next_id))
 if (com%nhalo>0) call ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nhalo',com%nhalo,nhalo_id))

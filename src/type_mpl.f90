@@ -43,6 +43,7 @@ interface mpl_bcast
   module procedure mpl_bcast_logical_array_1d
   module procedure mpl_bcast_logical_array_2d
   module procedure mpl_bcast_string
+  module procedure mpl_bcast_string_array_1d
 end interface
 
 interface mpl_recv
@@ -501,6 +502,31 @@ call mpl_check(info)
 call mpl_barrier
 
 end subroutine mpl_bcast_string
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_bcast_string_array_1d
+!> Purpose: broadcast 1d string array
+!----------------------------------------------------------------------
+subroutine mpl_bcast_string_array_1d(var,root)
+
+implicit none
+
+! Passed variables
+character(len=*),dimension(:),intent(in) :: var !< Logical array, 1d
+integer,intent(in) :: root             !< Root task
+
+! Local variable
+integer :: i
+
+! Broadcast one string at a time
+do i=1,size(var)
+   call mpl_bcast_string(var(i),root)
+end do
+
+! Wait
+call mpl_barrier
+
+end subroutine mpl_bcast_string_array_1d
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_recv_integer

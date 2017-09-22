@@ -1,40 +1,108 @@
 &general_param
 datadir = "../data/arp/6B60",
 prefix = "arp_6B60",
-colorlog = .true.,
 model = "arp",
-nl = 3,
-levs = 1,2,3,
-new_param = .true.,
+colorlog = .true.,
+sam_default_seed = .true.,
+/
+
+&driver_param
+new_hdiag = .false.,
+method = "loc",
+new_param = .false.,
 new_mpi = .true.,
 check_adjoints = .true.,
 check_pos_def = .false.,
 check_mpi = .true.,
 check_dirac = .true.,
-check_perf = .true.,
-ndir = 3,
-levdir = 1,
-londir = -1.2,147.0,-79.8,
-latdir = -31.7,10.7,21.7,
+check_perf = .false.,
+/
+
+&model_param
+nl = 3,
+levs = 60,70,80,
+logpres = .true.,
+nv = 2,
+ne = 200,
+/
+
+&ens1_param
+ens1_ne = 50,
+ens1_ne_offset = 0,
+ens1_nsub = 1,
+ens1_input = "member_P00_","member_P00_","member_P00_","member_P00_",
+ens1_varname = "TEMPERATURE","HUMI_SPECIFI","HUMI_SPECIFI","HUMI_SPECIFI",
+ens1_time = 1,1,1,1,
+/
+
+&ens2_param
+ens2_ne = 50,
+ens2_ne_offset = 0,
+ens2_nsub = 1,
+ens2_input = "member_P03_","member_P06_","member_P03_","member_P06_",
+ens2_varname = "TEMPERATURE","TEMPERATURE","HUMI_SPECIFI","HUMI_SPECIFI",
+ens2_time = 1,1,1,1,
 /
 
 &sampling_param
-sam_default_seed = .true.,
-mask_check = .false,
+sam_write = .false.,
+sam_read = .true.,
+mask_type = "none",
+mask_th = 0,
+mask_check = .false.,
+nc1 = 2500,
 ntry = 3,
 nrep = 2,
-logpres = .true.,
+nc = 25,
+dc = 100.0e3,
+/
+
+&diag_param
+gau_approx = .false.,
+cross_diag = .false.,
+full_var = .false.,
+local_diag = .true.,
+local_rad = 1000.0e3,
+displ_diag = .false.,
+displ_rad = 0.0,
+displ_explicit = .false.,
+displ_niter = 0,
+displ_rhflt = 0.0,
+displ_tol = 0.0,
+/
+
+&fit_param
+fit_type = "full",
+fit_wgt = .true.,
+lhomh = .false.,
+lhomv = .false.,
+rvflt = 0.0,
+/
+
+&output_param
+norm_loc = .false.,
+spectrum = .false.,
+nldwh = 0,
+il_ldwh = 1,2,3,4,5,6,7,8,9,10,
+ic_ldwh = 1,1,1,1,1,1,1,1,1,1,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+flt_type = "average",
+diag_rhflt = 1000.0e3,
 /
 
 &nicas_param
 lsqrt = .false.,
-Lbh_file = "none",!"arp_6B60_Lh_circle.nc",
-Lbh = 1000.0e3,1500.0e3,2000.0e3,,
-Lbv_file = "none",
-Lbv = 2.0,2.0,2.0,
-resol = 10.0,
+rh = 3500.0e3,5500.0e3,7500.0e3,,
+rv = 2.0,2.0,2.0,
+resol = 6.0,
 network = .false.,
-nproc = 4,
+nproc = 2,
 mpicom = 2,
+ndir = 12,
+levdir = 60,
+londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
+latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
 /
 

@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_apply_interp
 
-use module_namelist, only: namtype
 use omp_lib
 use tools_kinds,only: kind_real
 use tools_missing, only: msr
@@ -38,20 +37,22 @@ contains
 ! Subroutine: interp_global
 !> Purpose: interpolation, global
 !----------------------------------------------------------------------
-subroutine interp_global(nam,ndata,alpha,fld)
+subroutine interp_global(ndata,alpha,fld)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata !< Sampling data
 real(kind_real),intent(in) :: alpha(ndata%ns) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndata%nc0,ndata%nl0)  !< Field
+real(kind_real),intent(out) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
 
 ! Local variables
 integer :: is,il1,ic1,il0
-real(kind_real) :: beta(ndata%nc1,ndata%nl1),gamma(ndata%nc1,ndata%nl1),delta(ndata%nc1,ndata%nl0)
-real(kind_real) :: gammaT(ndata%nl1,ndata%nc1),deltaT(ndata%nl0,ndata%nc1)
+real(kind_real) :: beta(ndata%nc1,ndata%nl1),gamma(ndata%nc1,ndata%nl1),delta(ndata%nc1,ndata%geom%nl0)
+real(kind_real) :: gammaT(ndata%nl1,ndata%nc1),deltaT(ndata%geom%nl0,ndata%nc1)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 !$omp parallel do private(is)
 do is=1,ndata%ns
@@ -87,13 +88,16 @@ delta = transpose(deltaT)
 
 ! Horizontal interpolation
 !$omp parallel do private(il0)
-do il0=1,ndata%nl0
-   call apply_linop(ndata%h(min(il0,ndata%nl0i)),delta(:,il0),fld(:,il0))
+do il0=1,geom%nl0
+   call apply_linop(ndata%h(min(il0,geom%nl0i)),delta(:,il0),fld(:,il0))
 end do
 !$omp end parallel do
 
 ! Normalization
 fld = fld*ndata%norm
+
+! End associate
+end associate
 
 end subroutine interp_global
 
@@ -101,20 +105,22 @@ end subroutine interp_global
 ! Subroutine: interp_local
 !> Purpose: interpolation, local
 !----------------------------------------------------------------------
-subroutine interp_local(nam,ndataloc,alpha,fld)
+subroutine interp_local(ndataloc,alpha,fld)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 real(kind_real),intent(in) :: alpha(ndataloc%nsb) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndataloc%nc0a,ndataloc%nl0)  !< Field
+real(kind_real),intent(out) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)  !< Field
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
-real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%nl0)
-real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%nl0,ndataloc%nc1b)
+real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%geom%nl0)
+real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%geom%nl0,ndataloc%nc1b)
+
+! Associate
+associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 !$omp parallel do private(isb)
 do isb=1,ndataloc%nsb
@@ -150,13 +156,16 @@ delta = transpose(deltaT)
 
 ! Horizontal interpolation
 !$omp parallel do private(il0)
-do il0=1,ndataloc%nl0
-   call apply_linop(ndataloc%h(min(il0,ndataloc%nl0i)),delta(:,il0),fld(:,il0))
+do il0=1,geom%nl0
+   call apply_linop(ndataloc%h(min(il0,geom%nl0i)),delta(:,il0),fld(:,il0))
 end do
 !$omp end parallel do
 
 ! Normalization
 fld = fld*ndataloc%norm
+
+! End associate
+end associate
 
 end subroutine interp_local
 
@@ -164,29 +173,31 @@ end subroutine interp_local
 ! Subroutine: interp_ad_global
 !> Purpose: interpolation adjoint, global
 !----------------------------------------------------------------------
-subroutine interp_ad_global(nam,ndata,fld,alpha)
+subroutine interp_ad_global(ndata,fld,alpha)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata    !< Sampling data
-real(kind_real),intent(in) :: fld(ndata%nc0,ndata%nl0)  !< Field
+real(kind_real),intent(in) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndata%ns) !< Subgrid variable
 
 ! Local variables
 integer :: is,il1,ic1,il0
-real(kind_real) :: beta(ndata%nc1,ndata%nl1),gamma(ndata%nc1,ndata%nl1),delta(ndata%nc1,ndata%nl0)
-real(kind_real) :: gammaT(ndata%nl1,ndata%nc1),deltaT(ndata%nl0,ndata%nc1)
-real(kind_real) :: fld_tmp(ndata%nc0,ndata%nl0)
+real(kind_real) :: beta(ndata%nc1,ndata%nl1),gamma(ndata%nc1,ndata%nl1),delta(ndata%nc1,ndata%geom%nl0)
+real(kind_real) :: gammaT(ndata%nl1,ndata%nc1),deltaT(ndata%geom%nl0,ndata%nc1)
+real(kind_real) :: fld_tmp(ndata%geom%nc0,ndata%geom%nl0)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Normalization
 fld_tmp = fld*ndata%norm
 
 ! Horizontal interpolation
 !$omp parallel do private(il0)
-do il0=1,ndata%nl0
-   call apply_linop_ad(ndata%h(min(il0,ndata%nl0i)),fld_tmp(:,il0),delta(:,il0))
+do il0=1,geom%nl0
+   call apply_linop_ad(ndata%h(min(il0,geom%nl0i)),fld_tmp(:,il0),delta(:,il0))
 end do
 !$omp end parallel do
 
@@ -222,35 +233,40 @@ do is=1,ndata%ns
 end do
 !$omp end parallel do
 
+! End associate
+end associate
+
 end subroutine interp_ad_global
 
 !----------------------------------------------------------------------
 ! Subroutine: interp_ad_local
 !> Purpose: interpolation adjoint, local
 !----------------------------------------------------------------------
-subroutine interp_ad_local(nam,ndataloc,fld,alpha)
+subroutine interp_ad_local(ndataloc,fld,alpha)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(in) :: ndataloc  !< Sampling data
-real(kind_real),intent(in) :: fld(ndataloc%nc0a,ndataloc%nl0)  !< Field
+real(kind_real),intent(in) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndataloc%nsb) !< Subgrid variable
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
-real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%nl0)
-real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%nl0,ndataloc%nc1b)
-real(kind_real) :: fld_tmp(ndataloc%nc0a,ndataloc%nl0)
+real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%geom%nl0)
+real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%geom%nl0,ndataloc%nc1b)
+real(kind_real) :: fld_tmp(ndataloc%nc0a,ndataloc%geom%nl0)
+
+! Associate
+associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 ! Normalization
 fld_tmp = fld*ndataloc%norm
 
 ! Horizontal interpolation
 !$omp parallel do private(il0)
-do il0=1,ndataloc%nl0
-   call apply_linop_ad(ndataloc%h(min(il0,ndataloc%nl0i)),fld_tmp(:,il0),delta(:,il0))
+do il0=1,geom%nl0
+   call apply_linop_ad(ndataloc%h(min(il0,geom%nl0i)),fld_tmp(:,il0),delta(:,il0))
 end do
 !$omp end parallel do
 
@@ -285,6 +301,9 @@ do isb=1,ndataloc%nsb
    end if
 end do
 !$omp end parallel do
+
+! End associate
+end associate
 
 end subroutine interp_ad_local
 

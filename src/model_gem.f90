@@ -111,7 +111,7 @@ end subroutine model_gem_coord
 ! Subroutine: model_gem_read
 !> Purpose: read GEM field
 !----------------------------------------------------------------------
-subroutine model_gem_read(nam,ncid,varname,geom,fld)
+subroutine model_gem_read(nam,ncid,varname,time,geom,fld)
 
 implicit none
 
@@ -119,15 +119,17 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0,xt
+integer :: il0,xt,nd,dum
 integer :: fld_id
 integer,allocatable :: fld_loc_int(:,:)
 real(kind_real) :: add_offset,scale_factor
 real(kind_real),allocatable :: fld_loc(:,:)
+logical :: l3d
 character(len=1024) :: subr = 'model_gem_read'
 
 ! Initialize field
@@ -136,8 +138,8 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
-! Check variable type
-call ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt))
+! Check variable type and whether it is a 2d or 3d variable
+call ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt,ndims=nd))
 if (xt==nf90_short) then
    allocate(fld_loc_int(geom%nlon,geom%nlat))
 elseif (xt==nf90_double) then
@@ -145,21 +147,48 @@ elseif (xt==nf90_double) then
 else
    call msgerror('wrong variable type')
 end if
+if (nd==2) then
+   l3d = .false.
+elseif (nd==3) then
+   l3d = .true.
+else
+   l3d = .false.
+   call msgerror('wrong number of dimensions')
+end if
 
 ! Read variable
-do il0=1,geom%nl0
+if (l3d) then
+   ! 3d variable
+   do il0=1,geom%nl0
+      if (xt==nf90_short) then
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+         call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
+         call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
+         fld(:,il0) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
+      elseif (xt==nf90_double) then
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+         fld(:,il0) = pack(fld_loc,mask=.true.)
+      else
+         call msgerror('wrong netcdf variable type')
+      end if
+   end do
+else
+   ! 2d variable
    if (xt==nf90_short) then
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1/),(/geom%nlon,geom%nlat/)))
       call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
       call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
-      fld(:,il0) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
+      fld(:,1) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
    elseif (xt==nf90_double) then
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-      fld(:,il0) = pack(fld_loc,mask=.true.)
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
+      fld(:,1) = pack(fld_loc,mask=.true.)
    else
       call msgerror('wrong netcdf variable type')
    end if
-end do
+end if
+
+! Use time to avoid warning
+dum = time
 
 end subroutine model_gem_read
 

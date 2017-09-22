@@ -6,18 +6,18 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/esmf/ESMF_regridding.ncl"
 
 begin
 
-;model = "arp"
-;filedir = "arp/6B60"
-;filename = "arp_6B60"
+model = "arp"
+filedir = "arp/6B60"
+filename = "arp_6B60"
 ;model = "aro"
 ;filedir = "aro/5840"
 ;filename = "aro_5840"
 ;model = "mpas"
 ;filedir = "mpas"
 ;filename = "mpas"
-model = "qg"
-filedir = "../../OOPS/build/oops/qg/test"
-filename = "qg"
+;model = "qg"
+;filedir = "../../OOPS/build/oops/qg/test"
+;filename = "qg"
 suffix = ""
 ilplot = 1
 

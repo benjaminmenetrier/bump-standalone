@@ -27,9 +27,15 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr
 use tools_nc, only: ncfloat,ncerr
 use type_geom, only: geomtype
+use type_mom, only: momtype
 use type_mpl, only: mpl
 
 implicit none
+
+interface model_read
+   module procedure model_read_fld
+   module procedure model_read_from_mom
+end interface
 
 private
 public :: model_coord,model_read,model_write
@@ -79,10 +85,10 @@ end if
 end subroutine model_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_read
+! Subroutine: model_read_fld
 !> Purpose: read model field
 !----------------------------------------------------------------------
-subroutine model_read(nam,filename,varname,geom,fld)
+subroutine model_read_fld(nam,filename,varname,time,geom,fld)
 
 implicit none
 
@@ -90,37 +96,38 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 character(len=*),intent(in) :: filename                 !< File name
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
 integer :: ncid
-character(len=1024) :: subr = 'model_read'
+character(len=1024) :: subr = 'model_read_fld'
 
 ! Open file
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
 ! Select model
 if (trim(nam%model)=='aro') then
-   call model_aro_read(nam,ncid,varname,geom,fld)
+   call model_aro_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='arp') then
-   call model_arp_read(nam,ncid,varname,geom,fld)
+   call model_arp_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='gem') then
-   call model_gem_read(nam,ncid,varname,geom,fld)
+   call model_gem_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='geos') then
-   call model_geos_read(nam,ncid,varname,geom,fld)
+   call model_geos_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='gfs') then
-   call model_gfs_read(nam,ncid,varname,geom,fld)
+   call model_gfs_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='ifs') then
-   call model_ifs_read(nam,ncid,varname,geom,fld)
+   call model_ifs_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='mpas') then
-   call model_mpas_read(nam,ncid,varname,geom,fld)
+   call model_mpas_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='nemo') then
-   call model_nemo_read(nam,ncid,varname,geom,fld)
+   call model_nemo_read(nam,ncid,varname,time,geom,fld)
 elseif (trim(nam%model)=='oops') then
    call msgerror('not implemented yet')
 elseif (trim(nam%model)=='wrf') then
-   call model_wrf_read(nam,ncid,varname,geom,fld)
+   call model_wrf_read(nam,ncid,varname,time,geom,fld)
 else
    call msgerror('wrong model')
 end if
@@ -128,26 +135,71 @@ end if
 ! Close file
 call ncerr(subr,nf90_close(ncid))
 
-end subroutine model_read
+end subroutine model_read_fld
+
+!----------------------------------------------------------------------
+! Subroutine: model_read_from_mom
+!> Purpose: read model field
+!----------------------------------------------------------------------
+subroutine model_read_from_mom(nam,mom,ie,isub,geom,fld)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam                   !< Namelist
+type(momtype),intent(inout) :: mom                !< Moments
+integer,intent(in) :: ie                          !< Ensemble member index
+integer,intent(in) :: isub                        !< Sub-ensemble index
+type(geomtype),intent(inout) :: geom              !< Sampling data
+real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Read field
+
+! Local variables
+integer :: iv
+real(kind_real) :: fld_loc(geom%nc0,geom%nl0)
+character(len=4) :: iechar,isubchar
+
+! Initialization
+call msr(fld)
+
+do iv=1,nam%nv
+   ! Open file
+   write(iechar,'(i4.4)') mom%ne_offset+ie
+
+   ! Read field
+   if (mom%nsub==1) then
+      call model_read_fld(nam,trim(mom%input(iv))//iechar//'.nc',mom%varname(iv), &
+    & mom%time(iv),geom,fld_loc)
+   else
+      write(isubchar,'(i4.4)') isub
+      call model_read_fld(nam,trim(mom%input(iv))//isubchar//'_'//iechar//'.nc',mom%varname(iv), &
+    & mom%time(iv),geom,fld)
+   end if
+
+   ! Copy array
+   fld(:,:,iv) = fld_loc
+end do
+
+end subroutine model_read_from_mom
 
 !----------------------------------------------------------------------
 ! Subroutine: model_write
 !> Purpose: write model field
 !----------------------------------------------------------------------
-subroutine model_write(nam,filename,varname,geom,fld)
+subroutine model_write(nam,geom,filename,varname,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                    !< Sampling data
 character(len=*),intent(in) :: filename                !< File name
 character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
-real(kind_real),intent(inout) :: fld(geom%nc0,geom%nl0) !< Written field
+real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
 integer :: ic0,il0,ierr
 integer :: ncid
+real(kind_real) :: fld_loc(geom%nc0,geom%nl0)
 character(len=1024) :: subr = 'model_write'
 
 ! Processor verification
@@ -156,7 +208,11 @@ if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 ! Apply mask
 do il0=1,geom%nl0
    do ic0=1,geom%nc0
-      if (.not.geom%mask(ic0,il0)) call msr(fld(ic0,il0))
+      if (geom%mask(ic0,il0)) then
+         fld_loc(ic0,il0) = fld(ic0,il0)
+      else
+         call msr(fld_loc(ic0,il0))
+      end if
    end do
 end do
 
@@ -171,25 +227,25 @@ call ncerr(subr,nf90_enddef(ncid))
 
 ! Select model
 if (trim(nam%model)=='aro') then
-   call model_aro_write(ncid,varname,geom,fld)
+   call model_aro_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='arp') then
-   call model_arp_write(ncid,varname,geom,fld)
+   call model_arp_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='gem') then
-   call model_gem_write(ncid,varname,geom,fld)
+   call model_gem_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='sgeos') then
-   call model_geos_write(ncid,varname,geom,fld)
+   call model_geos_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='gfs') then
-   call model_gfs_write(ncid,varname,geom,fld)
+   call model_gfs_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='ifs') then
-   call model_ifs_write(ncid,varname,geom,fld)
+   call model_ifs_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='mpas') then
-   call model_mpas_write(ncid,varname,geom,fld)
+   call model_mpas_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='nemo') then
-   call model_nemo_write(ncid,varname,geom,fld)
+   call model_nemo_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='oops') then
-   call model_oops_write(ncid,varname,geom,fld)
+   call model_oops_write(ncid,varname,geom,fld_loc)
 elseif (trim(nam%model)=='wrf') then
-   call model_wrf_write(ncid,varname,geom,fld)
+   call model_wrf_write(ncid,varname,geom,fld_loc)
 else
    call msgerror('wrong model')
 end if

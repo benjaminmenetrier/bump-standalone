@@ -13,6 +13,7 @@ module model_arp
 use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,req,deg2rad,ps,rad2deg
+use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr,isnotmsr,isnotmsi
 use tools_nc, only: ncerr,ncfloat
@@ -127,7 +128,7 @@ end subroutine model_arp_coord
 ! Subroutine: model_arp_read
 !> Purpose: read ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_read(nam,ncid,varname,geom,fld)
+subroutine model_arp_read(nam,ncid,varname,time,geom,fld)
 
 implicit none
 
@@ -135,30 +136,63 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
+integer,intent(in) :: time                            !< Time
 type(geomtype),intent(in) :: geom                     !< Sampling data
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0
-integer :: fld_id
-real(kind_real) :: fld_loc(geom%nlon,geom%nlat,geom%nl0)
+integer :: il0,dum
+integer :: info,fld_id
+real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
+logical :: l3d
+character(len=3) :: ilchar
 character(len=1024) :: subr = 'model_arp_read'
 
 ! Initialize field
 call msr(fld)
 
-! Get variable id
-call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
+! Get variable id and check whether it is a 2d or 3d variable
+info = nf90_inq_varid(ncid,trim(varname),fld_id)
+if (info==nf90_noerr) then
+   l3d = .false.
+else
+   l3d = .true.
+end if
 
-! Read data
-do il0=1,geom%nl0
-   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc(:,:,il0),(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-end do
+if (l3d) then
+   do il0=1,geom%nl0
+      write(ilchar,'(i3.3)') nam%levs(il0)
 
-! Pack data
-do il0=1,geom%nl0
-   fld(:,il0) = pack(real(fld_loc(:,:,il0),kind_real),mask=geom%rgmask)
-end do
+      ! Check variable existence
+      info = nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id)
+
+      if (info==nf90_noerr) then
+         ! Get variable id
+         call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
+
+         ! Read data
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+         fld(:,il0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
+      else
+         ! Get variable id
+         call ncerr(subr,nf90_inq_varid(ncid,'SURFPRESSION',fld_id))
+
+         ! Read data
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+         fld(:,il0) = pack(real(exp(fld_loc),kind_real),mask=.true.)
+      end if
+   end do
+else
+   ! 2d variable
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+
+   ! Variable change for surface pressure
+   if (trim(varname)=='SURFPRESSION') fld(:,1) = exp(fld(:,1))
+end if
+
+! Use time to avoid warning
+dum = time
 
 end subroutine model_arp_read
 
@@ -177,23 +211,23 @@ type(geomtype),intent(in) :: geom                    !< Sampling data
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
-integer :: il0,ierr,ilon,ilat
+integer :: il0,info,ilon,ilat
 integer :: nlon_id,nlat_id,nlev_id,fld_id,lat_id,lon_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
 character(len=1024) :: subr = 'model_arp_write'
 
 ! Get variable id
-ierr = nf90_inq_varid(ncid,trim(varname),fld_id)
+info = nf90_inq_varid(ncid,trim(varname),fld_id)
 
 ! Define dimensions and variable if necessary
-if (ierr/=nf90_noerr) then
+if (info/=nf90_noerr) then
    call ncerr(subr,nf90_redef(ncid))
-   ierr = nf90_inq_dimid(ncid,'longitude',nlon_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'longitude',geom%nlon,nlon_id))
-   ierr = nf90_inq_dimid(ncid,'latitude',nlat_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'latitude',geom%nlat,nlat_id))
-   ierr = nf90_inq_dimid(ncid,'level',nlev_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'level',geom%nl0,nlev_id))
+   info = nf90_inq_dimid(ncid,'longitude',nlon_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'longitude',geom%nlon,nlon_id))
+   info = nf90_inq_dimid(ncid,'latitude',nlat_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'latitude',geom%nlat,nlat_id))
+   info = nf90_inq_dimid(ncid,'level',nlev_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'level',geom%nl0,nlev_id))
    call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
    call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
    call ncerr(subr,nf90_enddef(ncid))
@@ -209,8 +243,8 @@ do il0=1,geom%nl0
 end do
 
 ! Write coordinates
-ierr = nf90_inq_varid(ncid,'longitude',lon_id)
-if (ierr/=nf90_noerr) then
+info = nf90_inq_varid(ncid,'longitude',lon_id)
+if (info/=nf90_noerr) then
    call ncerr(subr,nf90_redef(ncid))
    call ncerr(subr,nf90_def_var(ncid,'longitude',ncfloat,(/nlon_id,nlat_id/),lon_id))
    call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))

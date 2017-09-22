@@ -351,7 +351,7 @@ use tools_kinds, only: kind_real
 implicit none
 
 private
-public :: areas,trans,trfind,trlist,trmesh
+public :: areas,bnodes,scoord,trans,trfind,trlist,trmesh
 
 contains
 
@@ -902,6 +902,141 @@ subroutine bdyadd ( kk, i1, i2, list, lptr, lend, lnew )
   lptr(lnew) = lsav
   lend(k) = lnew
   lnew = lnew + 1
+
+  return
+end
+subroutine bnodes ( n, list, lptr, lend, nodes, nb, na, nt )
+
+!*****************************************************************************80
+!
+!! BNODES returns the boundary nodes of a triangulation.
+!
+!  Discussion:
+!
+!    Given a triangulation of N nodes on the unit sphere created by TRMESH,
+!    this subroutine returns an array containing the indexes (if any) of
+!    the counterclockwise sequence of boundary nodes, that is, the nodes on
+!    the boundary of the convex hull of the set of nodes.  The
+!    boundary is empty if the nodes do not lie in a single
+!    hemisphere.  The numbers of boundary nodes, arcs, and
+!    triangles are also returned.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:
+!
+!    Robert Renka,
+!    Algorithm 772: STRIPACK,
+!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
+!    ACM Transactions on Mathematical Software,
+!    Volume 23, Number 3, September 1997, pages 416-434.
+!
+!  Parameters:
+!
+!    Input, integer N, the number of nodes in the triangulation.
+!    3 <= N.
+!
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the
+!    data structure defining the triangulation, created by TRMESH.
+!
+!    Output, integer NODES(*), the ordered sequence of NB boundary
+!    node indexes in the range 1 to N.  For safety, the dimension of NODES
+!    should be N.
+!
+!    Output, integer NB, the number of boundary nodes.
+!
+!    Output, integer NA, NT, the number of arcs and triangles,
+!    respectively, in the triangulation.
+!
+!  Local parameters:
+!
+!    K =   NODES index
+!    LP =  LIST pointer
+!    N0 =  Boundary node to be added to NODES
+!    NN =  Local copy of N
+!    NST = First element of nodes (arbitrarily chosen to be
+!          the one with smallest index)
+!
+  implicit none
+
+  integer n
+
+  integer i
+  integer k
+  integer lend(n)
+  integer list(6*(n-2))
+  integer lp
+  integer lptr(6*(n-2))
+  integer n0
+  integer na
+  integer nb
+  integer nn
+  integer nodes(*)
+  integer nst
+  integer nt
+
+  nn = n
+!
+!  Search for a boundary node.
+!
+  nst = 0
+
+  do i = 1, nn
+
+    lp = lend(i)
+
+    if ( list(lp) < 0 ) then
+      nst = i
+      exit
+    end if
+
+  end do
+!
+!  The triangulation contains no boundary nodes.
+!
+  if ( nst == 0 ) then
+    nb = 0
+    na = 3 * ( nn - 2 )
+    nt = 2 * ( nn - 2 )
+    return
+  end if
+!
+!  NST is the first boundary node encountered.
+!
+!  Initialize for traversal of the boundary.
+!
+  nodes(1) = nst
+  k = 1
+  n0 = nst
+!
+!  Traverse the boundary in counterclockwise order.
+!
+  do
+
+    lp = lend(n0)
+    lp = lptr(lp)
+    n0 = list(lp)
+
+    if ( n0 == nst ) then
+      exit
+    end if
+
+    k = k + 1
+    nodes(k) = n0
+
+  end do
+!
+!  Store the counts.
+!
+  nb = k
+  nt = 2 * n - nb - 2
+  na = nt + n - 1
 
   return
 end
@@ -2038,6 +2173,70 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 
   al = acos ( dsr )
   nearnd = nr
+
+  return
+end
+subroutine scoord ( px, py, pz, plat, plon, pnrm )
+
+!*****************************************************************************80
+!
+!! SCOORD converts from Cartesian to spherical coordinates.
+!
+!  Discussion:
+!
+!    This subroutine converts a point P from Cartesian (X,Y,Z) coordinates
+!    to spherical ( LATITUDE, LONGITUDE, RADIUS ) coordinates.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:
+!
+!    Robert Renka,
+!    Algorithm 772: STRIPACK,
+!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
+!    ACM Transactions on Mathematical Software,
+!    Volume 23, Number 3, September 1997, pages 416-434.
+!
+!  Parameters:
+!
+!    Input, real PX, PY, PZ, the coordinates of P.
+!
+!    Output, real PLAT, the latitude of P in the range -PI/2
+!    to PI/2, or 0 if PNRM = 0.
+!
+!    Output, real PLON, the longitude of P in the range -PI to PI,
+!    or 0 if P lies on the Z-axis.
+!
+!    Output, real PNRM, the magnitude (Euclidean norm) of P.
+!
+  implicit none
+
+  real(kind_real) plat
+  real(kind_real) plon
+  real(kind_real) pnrm
+  real(kind_real) px
+  real(kind_real) py
+  real(kind_real) pz
+
+  pnrm = sqrt ( px * px + py * py + pz * pz )
+
+  if ( abs(px)>0.0 .or. abs(py)>0.0 ) then
+    plon = atan2 ( py, px )
+  else
+    plon = 0.0
+  end if
+
+  if ( abs(pnrm)>0.0 ) then
+    plat = asin ( pz / pnrm )
+  else
+    plat = 0.0
+  end if
 
   return
 end

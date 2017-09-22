@@ -1,0 +1,209 @@
+!----------------------------------------------------------------------
+! Module: type_bdata
+!> Purpose: sample data derived type
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-B license
+!> <br>
+!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!----------------------------------------------------------------------
+module type_bdata
+
+use module_namelist, only: namtype
+use netcdf
+use tools_display, only: msgwarning,msgerror
+use tools_kinds, only: kind_real
+use tools_missing, only: msvalr,msr,isnotmsr
+use tools_nc, only: ncerr,ncfloat
+use type_geom, only: geomtype
+implicit none
+
+! B data derived type
+type bdatatype
+   ! Namelist
+   type(namtype),pointer :: nam                    !< Namelist
+
+   ! Geometry
+   type(geomtype),pointer :: geom                  !< Geometry
+
+   ! Data
+   character(len=1024) :: cname                  !< B name
+   real(kind_real),allocatable :: coef_ens(:,:)  !< Ensemble coefficient
+   real(kind_real),allocatable :: rh0(:,:)       !< Fit support radius
+   real(kind_real),allocatable :: rv0(:,:)       !< Fit support radius
+   real(kind_real),allocatable :: coef_sta(:)    !< Static coefficient
+end type bdatatype
+
+private
+public :: bdatatype
+public :: bdata_alloc,bdata_dealloc,bdata_read,bdata_write
+
+contains
+
+!----------------------------------------------------------------------
+! Subroutine: bdata_alloc
+!> Purpose: bdata object allocation
+!----------------------------------------------------------------------
+subroutine bdata_alloc(bdata)
+
+implicit none
+
+! Passed variables
+type(bdatatype),intent(inout) :: bdata !< Sampling data
+
+! Associate
+associate(nam=>bdata%nam,geom=>bdata%geom)
+
+! Allocation
+allocate(bdata%coef_ens(geom%nc0,geom%nl0))
+allocate(bdata%rh0(geom%nc0,geom%nl0))
+allocate(bdata%rv0(geom%nc0,geom%nl0))
+allocate(bdata%coef_sta(geom%nc0))
+
+! Initialization
+call msr(bdata%coef_ens)
+call msr(bdata%rh0)
+call msr(bdata%rv0)
+call msr(bdata%coef_sta)
+
+! End associate
+end associate
+
+end subroutine bdata_alloc
+
+!----------------------------------------------------------------------
+! Subroutine: bdata_dealloc
+!> Purpose: bdata object deallocation
+!----------------------------------------------------------------------
+subroutine bdata_dealloc(bdata)
+
+implicit none
+
+! Passed variables
+type(bdatatype),intent(inout) :: bdata !< Sampling data
+
+! Release memory
+deallocate(bdata%coef_ens)
+deallocate(bdata%rh0)
+deallocate(bdata%rv0)
+deallocate(bdata%coef_sta)
+
+end subroutine bdata_dealloc
+
+!----------------------------------------------------------------------
+! Subroutine: bdata_read
+!> Purpose: read bdata object
+!----------------------------------------------------------------------
+subroutine bdata_read(bdata)
+
+implicit none
+
+! Passed variables
+type(bdatatype),intent(inout) :: bdata !< Sampling data
+
+! Local variables
+integer :: nc0_test,nl0_test,il0
+integer :: info,ncid,nc0_id,nl0_id
+integer :: coef_ens_id,rh0_id,rv0_id,coef_sta_id
+character(len=1024) :: subr = 'bdata_read'
+
+! Associate
+associate(nam=>bdata%nam,geom=>bdata%geom)
+
+! Open file
+info = nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_'//trim(bdata%cname)//'.nc',nf90_nowrite,ncid)
+if (info==nf90_noerr) then
+   ! Check dimensions
+   call ncerr(subr,nf90_inq_dimid(ncid,'nc0',nc0_id))
+   call ncerr(subr,nf90_inquire_dimension(ncid,nc0_id,len=nc0_test))
+   call ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
+   call ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
+   if ((geom%nc0/=nc0_test).or.(geom%nl0/=nl0_test)) call msgerror('wrong dimension when reading B')
+   
+   ! Get arrays ID
+   call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
+   call ncerr(subr,nf90_inq_varid(ncid,'rh0',rh0_id))
+   call ncerr(subr,nf90_inq_varid(ncid,'rv0',rv0_id))
+   call ncerr(subr,nf90_inq_varid(ncid,'coef_sta',coef_sta_id))
+   
+   ! Read arrays
+   call ncerr(subr,nf90_get_var(ncid,coef_ens_id,bdata%coef_ens))
+   call ncerr(subr,nf90_get_var(ncid,rh0_id,bdata%rh0))
+   call ncerr(subr,nf90_get_var(ncid,rv0_id,bdata%rv0))
+   call ncerr(subr,nf90_get_var(ncid,coef_sta_id,bdata%coef_sta))
+   
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
+else
+   call msgwarning('cannot find B data to read, use namelist values')
+   bdata%coef_ens = 1.0
+   do il0=1,geom%nl0
+      bdata%rh0(:,il0) = nam%rh(il0)
+      bdata%rv0(:,il0) = nam%rv(il0)
+   end do
+   bdata%coef_sta = 0.0
+end if
+
+! Check
+if (any((bdata%rh0<0.0).and.isnotmsr(bdata%rh0))) call msgerror('rh0 should be positive')
+if (any((bdata%rv0<0.0).and.isnotmsr(bdata%rv0))) call msgerror('rv0 should be positive')
+
+! End associate
+end associate
+
+end subroutine bdata_read
+
+!----------------------------------------------------------------------
+! Subroutine: bdata_write
+!> Purpose: write bdata object
+!----------------------------------------------------------------------
+subroutine bdata_write(bdata)
+
+implicit none
+
+! Passed variables
+type(bdatatype),intent(in) :: bdata !< Sampling data
+
+! Local variables
+integer :: ncid,nc0_id,nl0_id
+integer :: coef_ens_id,rh0_id,rv0_id,coef_sta_id
+character(len=1024) :: subr = 'bdata_write'
+
+! Associate
+associate(nam=>bdata%nam,geom=>bdata%geom)
+
+! Create file
+call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_'//trim(bdata%cname)//'.nc', &
+ & or(nf90_clobber,nf90_64bit_offset),ncid))
+
+! Define dimensions
+call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
+call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
+
+! Define arrays
+call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0_id,nl0_id/),coef_ens_id))
+call ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',msvalr))
+call ncerr(subr,nf90_def_var(ncid,'rh0',ncfloat,(/nc0_id,nl0_id/),rh0_id))
+call ncerr(subr,nf90_put_att(ncid,rh0_id,'_FillValue',msvalr))
+call ncerr(subr,nf90_def_var(ncid,'rv0',ncfloat,(/nc0_id,nl0_id/),rv0_id))
+call ncerr(subr,nf90_put_att(ncid,rv0_id,'_FillValue',msvalr))
+call ncerr(subr,nf90_def_var(ncid,'coef_sta',ncfloat,(/nc0_id/),coef_sta_id))
+call ncerr(subr,nf90_put_att(ncid,coef_sta_id,'_FillValue',msvalr))
+call ncerr(subr,nf90_enddef(ncid))
+
+! Write arrays
+call ncerr(subr,nf90_put_var(ncid,coef_ens_id,bdata%coef_ens))
+call ncerr(subr,nf90_put_var(ncid,rh0_id,bdata%rh0))
+call ncerr(subr,nf90_put_var(ncid,rv0_id,bdata%rv0))
+call ncerr(subr,nf90_put_var(ncid,coef_sta_id,bdata%coef_sta))
+
+! Close file
+call ncerr(subr,nf90_close(ncid))
+
+! End associate
+end associate
+
+end subroutine bdata_write
+
+end module type_bdata

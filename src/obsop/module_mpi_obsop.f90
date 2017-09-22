@@ -33,22 +33,24 @@ contains
 ! Subroutine: compute_mpi_obsop
 !> Purpose: compute observation operator MPI distribution
 !----------------------------------------------------------------------
-subroutine compute_mpi_obsop(nam,odata,odataloc)
+subroutine compute_mpi_obsop(odata,odataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam
 type(odatatype),intent(inout) :: odata
 type(odataloctype),intent(inout) :: odataloc
 
 ! Local variables
 integer :: iobs,jobs,iobsa,iproc,nobsa,i_s,ic0,ic0b,i,jproc,ic0a,nc0a,nc0b
-integer :: ic0_to_ic0b(odata%nc0)
+integer :: ic0_to_ic0b(odata%geom%nc0)
 integer,allocatable :: iop(:),srcproc(:,:),srcic0(:,:),order(:)
 real(kind_real),allocatable :: list(:)
-logical :: lcheck_nc0b(odata%nc0)
-type(comtype) :: comobs(nam%nproc)
+logical :: lcheck_nc0b(odata%geom%nc0)
+type(comtype) :: comobs(odata%nam%nproc)
+
+! Associate
+associate(nam=>odata%nam,geom=>odata%geom)
 
 ! Allocation
 allocate(iop(odata%nobs))
@@ -65,7 +67,7 @@ call msi(srcproc)
 call msi(srcic0) 
 do i_s=1,odata%interp%n_s
    ic0 = odata%interp%col(i_s)
-   iproc = odata%geom%ic0_to_iproc(ic0)
+   iproc = geom%ic0_to_iproc(ic0)
    iobs = odata%interp%row(i_s)
    iop(iobs) = iop(iobs)+1
    srcproc(iop(iobs),iobs) = iproc
@@ -127,8 +129,8 @@ end do
 do iproc=1,nam%nproc
    ! Count halo points
    lcheck_nc0b = .false.
-   do ic0=1,odata%nc0
-      jproc = odata%geom%ic0_to_iproc(ic0)
+   do ic0=1,geom%nc0
+      jproc = geom%ic0_to_iproc(ic0)
       if (iproc==jproc) lcheck_nc0b(ic0) = .true.
    end do
    do iobs=1,odata%nobs
@@ -140,7 +142,7 @@ do iproc=1,nam%nproc
          end do
       end if
    end do
-   nc0a = count(odata%geom%ic0_to_iproc==iproc)
+   nc0a = count(geom%ic0_to_iproc==iproc)
    nc0b = count(lcheck_nc0b)
 
    ! Communication
@@ -156,13 +158,13 @@ do iproc=1,nam%nproc
    ! Define halo origin
    call msi(ic0_to_ic0b)
    ic0b = 0
-   do ic0=1,odata%nc0
+   do ic0=1,geom%nc0
       if (lcheck_nc0b(ic0)) then
          ic0b = ic0b+1
-         comobs(iproc)%iext_to_iproc(ic0b) = odata%geom%ic0_to_iproc(ic0)
-         ic0a = odata%geom%ic0_to_ic0a(ic0)
+         comobs(iproc)%iext_to_iproc(ic0b) = geom%ic0_to_iproc(ic0)
+         ic0a = geom%ic0_to_ic0a(ic0)
          comobs(iproc)%iext_to_ired(ic0b) = ic0a
-         jproc = odata%geom%ic0_to_iproc(ic0)
+         jproc = geom%ic0_to_iproc(ic0)
          if (iproc==jproc) comobs(iproc)%ired_to_iext(ic0a) = ic0b
          ic0_to_ic0b(ic0) = ic0b
       end if
@@ -172,7 +174,6 @@ do iproc=1,nam%nproc
       ! Parameters
       odataloc%nc0a = nc0a
       odataloc%nc0b = nc0b
-      odataloc%nl0 = odata%nl0
       odataloc%nobsa = odata%iproc_to_nobsa(iproc)
 
       ! Split interpolation data
@@ -195,10 +196,10 @@ do iproc=1,nam%nproc
 end do
 
 ! Communications setup
-call com_setup(nam,comobs)
+call com_setup(nam%nproc,comobs)
 
 ! Communications copy
-call com_copy(nam,comobs(mpl%myproc),odataloc%com)
+call com_copy(nam%nproc,comobs(mpl%myproc),odataloc%com)
 odataloc%com%prefix = 'o'
 
 ! Print results
@@ -213,6 +214,9 @@ do iproc=1,nam%nproc
    write(mpl%unit,'(a10,a,i3,a,i8,a,i8,a,i8)') '','Task ',iproc,': ', &
  & comobs(iproc)%nred,' / ',comobs(iproc)%next,' / ',comobs(iproc)%nhalo
 end do
+
+! End associate
+end associate
 
 end subroutine compute_mpi_obsop
 

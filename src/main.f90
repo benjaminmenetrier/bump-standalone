@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Program: nicas
-!> Purpose: compute NICAS correlation model parameters
+! Program: main
+!> Purpose: initialization, drivers, finalization
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,13 +8,16 @@
 !> <br>
 !> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
-program nicas
+program main
 
+use driver_hdiag, only: hdiag
+use driver_nicas, only: nicas
+use driver_obsop, only: obsop
 use model_interface, only: model_coord
 use module_namelist, only: namtype,namread,namcheck
-use module_driver, only: nicas_driver,obsop_driver
-use tools_display, only: listing_setup
-use type_geom, only: geomtype
+use tools_display, only: listing_setup,msgerror
+use type_bdata, only: bdatatype,bdata_alloc,bdata_read,bdata_write
+use type_geom, only: geomtype,compute_grid_mesh
 use type_mpl, only: mpl,mpl_start,mpl_end
 use type_ndata, only: ndataloctype
 use type_odata, only: odataloctype
@@ -24,11 +27,16 @@ use type_timer, only: timertype,timer_start,timer_display
 implicit none
 
 ! Local variables
+integer :: iv
+character(len=6) :: ivchar
 type(geomtype),target :: geom
-type(namtype) :: nam
-type(ndataloctype) :: ndataloc
+type(namtype),target :: nam
+type(bdatatype),allocatable :: bdata(:)
+type(ndataloctype),allocatable :: ndataloc(:)
 type(odataloctype) :: odataloc
 type(timertype) :: timer
+
+logical :: univariate=.true.
 
 !----------------------------------------------------------------------
 ! Initialize MPL
@@ -52,7 +60,7 @@ call namread(nam)
 ! Setup display
 !----------------------------------------------------------------------
 
-call listing_setup(nam%colorlog)
+call listing_setup(nam%colorlog,nam%logpres)
 
 !----------------------------------------------------------------------
 ! Header
@@ -94,16 +102,83 @@ write(mpl%unit,'(a,i5,a)') '--- Initialize coordinates'
 
 call model_coord(nam,geom)
 
-if (.true.) then
+!----------------------------------------------------------------------
+! Compute grid mesh
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a,i5,a)') '--- Compute grid mesh'
+
+! Compute grid mesh
+call compute_grid_mesh(nam,geom)
+
+! Allocate B data
+allocate(bdata(nam%nvp))
+do iv=1,nam%nvp
+   bdata(iv)%nam => nam
+   bdata(iv)%geom => geom
+   if (iv<=nam%nv) then
+      write(ivchar,'(i2.2)') iv
+   else
+      ivchar = 'common'
+   end if
+   bdata(iv)%cname = 'bdata_'//trim(ivchar)
+   call bdata_alloc(bdata(iv))
+end do
+
+if (nam%new_hdiag) then
    !----------------------------------------------------------------------
-   ! Call NICAS driver
+   ! Call hybrid_diag driver
    !----------------------------------------------------------------------
 
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Call NICAS driver'
+   write(mpl%unit,'(a,i5,a)') '--- Call hybrid_diag driver'
 
-   call nicas_driver(nam,geom,ndataloc)
+   call hdiag(nam,geom,bdata)
+
+   !----------------------------------------------------------------------
+   ! Write B data
+   !----------------------------------------------------------------------
+
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a,i5,a)') '--- Write B data'
+
+   do iv=1,nam%nvp
+      call bdata_write(bdata(iv))
+   end do
 else
+   !----------------------------------------------------------------------
+   ! Call hybrid_diag driver
+   !----------------------------------------------------------------------
+
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a,i5,a)') '--- Read B data'
+
+   do iv=1,nam%nvp
+      call bdata_read(bdata(iv))
+   end do
+end if
+
+!----------------------------------------------------------------------
+! Call NICAS driver
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a,i5,a)',advance='no') '--- Call NICAS driver '
+
+if (univariate) then ! TODO: nam%univariate
+   allocate(ndataloc(1))
+   write(mpl%unit,'(a)') 'for common diagnostic'
+   call nicas(nam,geom,bdata(nam%nvp),ndataloc(1))
+else
+   allocate(ndataloc(nam%nv))
+   write(mpl%unit,'(a)') 'for all variables'
+   do iv=1,nam%nv
+      call nicas(nam,geom,bdata(iv),ndataloc(iv))
+   end do
+end if
+
+if (.false.) then
    !----------------------------------------------------------------------
    ! Call observation operator driver
    !----------------------------------------------------------------------
@@ -111,7 +186,7 @@ else
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
-   call obsop_driver(nam,geom,odataloc)   
+   call obsop(nam,geom,odataloc)   
 end if
 
 !----------------------------------------------------------------------
@@ -137,4 +212,4 @@ if ((mpl%main.and..not.nam%colorlog).or..not.mpl%main) close(unit=mpl%unit)
 
 call mpl_end
 
-end program nicas
+end program main

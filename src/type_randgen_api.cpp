@@ -30,6 +30,6 @@ void rand_real(const RANDGEN* randgen, double binf, double bsup, double *rr) {
 }
 
 // Sampling initialization
-void initialize_sampling(const RANDGEN* randgen, int n, double lon[], double lat[], int mask[], double L[], int ntry, int nrep, int ns, int nfor, int ifor[], int ihor[]) {
-    randgen->initialize_sampling( n, lon, lat, mask, L, ntry, nrep, ns, nfor, ifor, ihor);
+void initialize_sampling(const RANDGEN* randgen, int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) {
+    randgen->initialize_sampling( n, lon, lat, mask, rh, ntry, nrep, ns, ihor);
 }

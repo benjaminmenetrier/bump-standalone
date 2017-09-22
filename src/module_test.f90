@@ -18,11 +18,11 @@ use module_apply_nicas_sqrt, only: apply_nicas_sqrt,apply_nicas_sqrt_ad
 use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: deg2rad,rad2deg,sphere_dist
-use tools_dirac, only: setup_dirac_points
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
 use type_com, only: com_ext,com_red
+use type_ctree, only: find_nearest_neighbors
 use type_geom, only: fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype
@@ -40,12 +40,11 @@ contains
 ! Subroutine: test_adjoints
 !> Purpose: test adjoints accuracy
 !----------------------------------------------------------------------
-subroutine test_adjoints(nam,ndata)
+subroutine test_adjoints(ndata)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata !< Sampling data
 
 ! Local variables
@@ -53,17 +52,20 @@ real(kind_real) :: sum1,sum2
 real(kind_real) :: alpha(ndata%ns),alpha_save(ndata%ns)
 real(kind_real) :: alpha1(ndata%ns),alpha1_save(ndata%ns)
 real(kind_real) :: alpha2(ndata%ns),alpha2_save(ndata%ns)
-real(kind_real) :: fld(ndata%nc0,ndata%nl0),fld_save(ndata%nc0,ndata%nl0)
-real(kind_real) :: fld1(ndata%nc0,ndata%nl0),fld1_save(ndata%nc0,ndata%nl0)
-real(kind_real) :: fld2(ndata%nc0,ndata%nl0),fld2_save(ndata%nc0,ndata%nl0)
+real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_save(ndata%geom%nc0,ndata%geom%nl0)
+real(kind_real) :: fld1(ndata%geom%nc0,ndata%geom%nl0),fld1_save(ndata%geom%nc0,ndata%geom%nl0)
+real(kind_real) :: fld2(ndata%geom%nc0,ndata%geom%nl0),fld2_save(ndata%geom%nc0,ndata%geom%nl0)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Initialization
 call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha_save)
 call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_save)
 
 ! Adjoint test
-call interp(nam,ndata,alpha_save,fld)
-call interp_ad(nam,ndata,fld_save,alpha)
+call interp(ndata,alpha_save,fld)
+call interp_ad(ndata,fld_save,alpha)
 
 ! Print result
 sum1 = sum(alpha*alpha_save)
@@ -95,11 +97,11 @@ fld2 = fld2_save
 
 ! Adjoint test
 if (nam%lsqrt) then
-   call apply_nicas_from_sqrt(nam,ndata,fld1)
-   call apply_nicas_from_sqrt(nam,ndata,fld2)
+   call apply_nicas_from_sqrt(ndata,fld1)
+   call apply_nicas_from_sqrt(ndata,fld2)
 else
-   call apply_nicas(nam,ndata,fld1)
-   call apply_nicas(nam,ndata,fld2)
+   call apply_nicas(ndata,fld1)
+   call apply_nicas(ndata,fld2)
 end if
 
 ! Print result
@@ -108,18 +110,20 @@ sum2 = sum(fld2*fld1_save)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test:         ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
+! End associate
+end associate
+
 end subroutine test_adjoints
 
 !----------------------------------------------------------------------
 ! Subroutine: test_pos_def
 !> Purpose: test positive_definiteness
 !----------------------------------------------------------------------
-subroutine test_pos_def(nam,ndata)
+subroutine test_pos_def(ndata)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata !< Sampling data
 
 ! Local variables
@@ -127,7 +131,10 @@ real(kind_real),parameter :: tol = 1.0e-3
 integer,parameter :: nitermax = 1
 integer :: iter
 real(kind_real) :: norm,egvmax,egvmax_prev,egvmin,egvmin_prev
-real(kind_real) :: fld(ndata%nc0,ndata%nl0),fld_prev(ndata%nc0,ndata%nl0)
+real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_prev(ndata%geom%nc0,ndata%geom%nl0)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Power method to find the largest eigenvalue
 call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
@@ -141,9 +148,9 @@ do while (iter<=nitermax)
 
    ! Apply C
    if (nam%lsqrt) then
-      call apply_nicas_from_sqrt(nam,ndata,fld)
+      call apply_nicas_from_sqrt(ndata,fld)
    else
-      call apply_nicas(nam,ndata,fld)
+      call apply_nicas(ndata,fld)
    end if
 
    ! Compute Rayleigh quotient
@@ -175,9 +182,9 @@ do while (iter<=nitermax)
 
    ! Apply C
    if (nam%lsqrt) then
-      call apply_nicas_from_sqrt(nam,ndata,fld)
+      call apply_nicas_from_sqrt(ndata,fld)
    else
-      call apply_nicas(nam,ndata,fld)
+      call apply_nicas(ndata,fld)
    end if
    fld = fld-egvmax*fld_prev
 
@@ -204,29 +211,34 @@ end do
 if (iter==nitermax+1) write(mpl%unit,'(a7,a,e15.8,a,i4,a,e15.8)') '','NICAS seems to be positive definite: difference ', &
  & egvmax+egvmin,' after ',nitermax,' iterations for a tolerance ',tol
 
+! End associate
+end associate
+
 end subroutine test_pos_def
 
 !----------------------------------------------------------------------
 ! Subroutine: test_mpi
 !> Purpose: test global/local equivalence
 !----------------------------------------------------------------------
-subroutine test_mpi(nam,ndata,ndataloc)
+subroutine test_mpi(ndata,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata       !< Sampling data
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
 real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
 
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
+
 ! Allocation
 if (mpl%main) then
    ! Allocation
-   allocate(fld(ndata%nc0,ndata%nl0))
-   allocate(fldloc(ndata%nc0,ndata%nl0))
+   allocate(fld(geom%nc0,geom%nl0))
+   allocate(fldloc(geom%nc0,geom%nl0))
 
    ! Initialization
    call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
@@ -234,29 +246,32 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(ndata%geom,fldloc)
+call fld_com_gl(geom,fldloc)
 
 if (nam%lsqrt) then
    ! Global
-   if (mpl%main) call apply_nicas_from_sqrt(nam,ndata,fld)
+   if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
 
    ! Local
-   call apply_nicas_from_sqrt(nam,ndataloc,fldloc)
+   call apply_nicas_from_sqrt(ndataloc,fldloc)
 else
    ! Global
-   if (mpl%main) call apply_nicas(nam,ndata,fld)
+   if (mpl%main) call apply_nicas(ndata,fld)
 
    ! Local
-   call apply_nicas(nam,ndataloc,fldloc)
+   call apply_nicas(ndataloc,fldloc)
 end if
 
 ! Local to global
-call fld_com_lg(ndata%geom,fldloc)
+call fld_com_lg(geom,fldloc)
 
 ! Print difference
 if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
- & sqrt(sum(fld**2)/float(ndata%nc0*ndata%nl0)),' / ',sqrt(sum(fldloc**2)/float(ndata%nc0*ndata%nl0)), &
- & ' / ',sqrt(sum((fld-fldloc)**2)/float(ndata%nc0*ndata%nl0))
+ & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
+ & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
+
+! End associate
+end associate
 
 end subroutine test_mpi
 
@@ -264,31 +279,37 @@ end subroutine test_mpi
 ! Subroutine: test_dirac
 !> Purpose: apply NICAS to Diracs
 !----------------------------------------------------------------------
-subroutine test_dirac(nam,ndata,ndataloc)
+subroutine test_dirac(ndata,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(in) :: ndata          !< Sampling data
 type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
 
 ! Local variables
-integer :: il0,il0dir,ic0dir(nam%ndir),idir
+integer :: il0,il0dir,ic0dir(ndata%nam%ndir),idir
+real(kind_real) :: dum(1)
 real(kind_real),allocatable :: fld(:,:)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Find level index
 call msi(il0dir)
-do il0=1,ndata%nl0
+do il0=1,geom%nl0
    if (nam%levs(il0)==nam%levdir) il0dir = il0
 end do
 
 if (mpl%main) then
    ! Setup dirac field
-   call setup_dirac_points(ndata%nc0,ndata%geom%lon,ndata%geom%lat,ndata%geom%mask(:,il0dir),nam%ndir,nam%londir,nam%latdir,ic0dir)
+   do idir=1,nam%ndir
+      call find_nearest_neighbors(geom%ctree,dble(nam%londir(idir)*deg2rad), &
+    & dble(nam%latdir(idir)*deg2rad),1,ic0dir(idir:idir),dum)
+   end do
 
    ! Allocation
-   allocate(fld(ndata%nc0,ndata%nl0))
+   allocate(fld(geom%nc0,geom%nl0))
 
    ! Generate diracs field
    fld = 0.0
@@ -298,22 +319,22 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(ndata%geom,fld)
+call fld_com_gl(geom,fld)
 
 ! Apply NICAS method
 if (nam%lsqrt) then
-   call apply_nicas_from_sqrt(nam,ndataloc,fld)
+   call apply_nicas_from_sqrt(ndataloc,fld)
 else
-   call apply_nicas(nam,ndataloc,fld)
+   call apply_nicas(ndataloc,fld)
 end if
 
 ! Local to global
-call fld_com_lg(ndata%geom,fld)
+call fld_com_lg(geom,fld)
 
 if (mpl%main) then
    ! Write field
    call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
-   call model_write(nam,trim(nam%prefix)//'_dirac.nc','hr',ndata%geom,fld)
+   call model_write(nam,geom,trim(nam%prefix)//'_dirac.nc','hr',fld)
 
    ! Print results
    write(mpl%unit,'(a7,a)') '','Normalization:'
@@ -321,8 +342,11 @@ if (mpl%main) then
       write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',fld(ic0dir(idir),il0dir)
    end do
    write(mpl%unit,'(a7,a,f10.7,a,f10.7)') '','Min - max: ', &
- & minval(fld(:,il0dir),mask=ndata%geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=ndata%geom%mask(:,il0dir))
+ & minval(fld(:,il0dir),mask=geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=geom%mask(:,il0dir))
 end if
+
+! End associate
+end associate
 
 end subroutine test_dirac
 
@@ -330,18 +354,20 @@ end subroutine test_dirac
 ! Subroutine: test_perf
 !> Purpose: test NICAS performance
 !----------------------------------------------------------------------
-subroutine test_perf(nam,ndataloc)
+subroutine test_perf(ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 
 ! Local variables
-real(kind_real) :: fld(ndataloc%nc0a,ndataloc%nl0)
+real(kind_real) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)
 real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
 type(timertype) :: timer_interp_ad,timer_com_1,timer_convol,timer_com_2,timer_interp
+
+! Associate
+associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
@@ -351,7 +377,7 @@ call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,fld)
 
 ! Adjoint interpolation
 call timer_start(timer_interp_ad)
-call interp_ad(nam,ndataloc,fld,alpha)
+call interp_ad(ndataloc,fld,alpha)
 call timer_end(timer_interp_ad)
 
 ! Communication
@@ -415,7 +441,7 @@ call timer_end(timer_com_2)
 
 ! Interpolation
 call timer_start(timer_interp)
-call interp(nam,ndataloc,alpha,fld)
+call interp(ndataloc,alpha,fld)
 call timer_end(timer_interp)
 
 ! Release memory
@@ -428,6 +454,9 @@ write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 1    : ',timer_com_1%elapse
 write(mpl%unit,'(a10,a,f6.1,a)') '','Convolution          : ',timer_convol%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 2    : ',timer_com_2%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Interpolation        : ',timer_interp%elapsed,' s'
+
+! End associate
+end associate
 
 end subroutine test_perf
 

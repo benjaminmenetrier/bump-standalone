@@ -60,7 +60,7 @@ interface
    end subroutine rand_real_c
 end interface
 interface
-   subroutine initialize_sampling_c(randgen,n,lon,lat,mask,L,ntry,nrep,ns,nfor,ifor,ihor) bind(C,name="initialize_sampling")
+   subroutine initialize_sampling_c(randgen,n,lon,lat,mask,rh,ntry,nrep,ns,ihor) bind(C,name="initialize_sampling")
    use iso_c_binding
    implicit none
    type(c_ptr),value :: randgen
@@ -68,12 +68,10 @@ interface
    real(c_double) :: lon(*)
    real(c_double) :: lat(*)
    integer(c_int) :: mask(*)
-   real(c_double) :: L(*)
+   real(c_double) :: rh(*)
    integer(c_int),value :: ntry
    integer(c_int),value :: nrep
    integer(c_int),value :: ns
-   integer(c_int),value :: nfor
-   integer(c_int) :: ifor(*)
    integer(c_int) :: ihor(*)
    end subroutine initialize_sampling_c
 end interface
@@ -287,7 +285,7 @@ end subroutine rand_real_2d
 ! Subroutine: initialize_sampling
 !> Purpose: intialize sampling
 !----------------------------------------------------------------------
-subroutine initialize_sampling(this,n,lon,lat,mask,L,ntry,nrep,ns,nfor,ifor,ihor)
+subroutine initialize_sampling(this,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
 
 implicit none
 
@@ -297,17 +295,15 @@ integer,intent(in) :: n               !< Number of grid points
 real(kind_real),intent(in) :: lon(n)  !< Grid points longitude
 real(kind_real),intent(in) :: lat(n)  !< Grid points latitude
 integer,intent(in) :: mask(n)         !< Grid mask
-real(kind_real),intent(in) :: L(n)    !< Grid length-scale
+real(kind_real),intent(in) :: rh(n)   !< Horizontal support radius
 integer,intent(in) :: ntry            !< Number of tries
 integer,intent(in) :: nrep            !< Number of replacements
 integer,intent(in) :: ns              !< Number of samplings points
-integer,intent(in) :: nfor            !< Number of boundary points
-integer,intent(in) :: ifor(nfor)      !< Boudary points
 integer,intent(out) :: ihor(ns)       !< Horizontal sampling index
 
 if (mpl%main) then
    ! Call C++ function
-   call initialize_sampling_c(this%ptr,n,lon,lat,mask,L,ntry,nrep,ns,nfor,ifor,ihor)
+   call initialize_sampling_c(this%ptr,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
 end if
 
 ! Broadcast

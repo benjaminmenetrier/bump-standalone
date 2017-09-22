@@ -12,7 +12,7 @@ module module_parameters_convol
 
 use module_namelist, only: namtype
 use omp_lib
-use tools_const, only: pi,req,deg2rad,rad2deg,sphere_dist,vector_product,vector_triple_product
+use tools_const, only: pi,req,deg2rad,rad2deg,sphere_dist,vector_product,vector_triple_product,gc99
 use tools_display, only: prog_init,prog_print,msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
@@ -36,26 +36,28 @@ contains
 ! Subroutine: compute_convol_network
 !> Purpose: compute convolution with a network approach
 !----------------------------------------------------------------------
-subroutine compute_convol_network(nam,ndata,rh0,rv0)
+subroutine compute_convol_network(ndata,rh0,rv0)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata                 !< Sampling data
-real(kind_real),intent(in) :: rh0(ndata%nc0,ndata%nl0) !< Scaled horizontal support radius
-real(kind_real),intent(in) :: rv0(ndata%nc0,ndata%nl0) !< Scaled vertical support radius
+real(kind_real),intent(in) :: rh0(ndata%geom%nc0,ndata%geom%nl0) !< Scaled horizontal support radius
+real(kind_real),intent(in) :: rv0(ndata%geom%nc0,ndata%geom%nl0) !< Scaled vertical support radius
 
 ! Local variables
 integer :: n_s_max,progint,ithread,is,ic1,il1,ic0,il0,np,np_new,ip,jc0,jl0,kc0,kl0,jp,i,js
 integer :: iproc,is_s(mpl%nproc),is_e(mpl%nproc),ns_loc(mpl%nproc),is_loc
 integer :: c_n_s(mpl%nthread)
 integer,allocatable :: plist(:,:),plist_new(:,:)
-real(kind_real) :: distnorm,disttest,S_test
+real(kind_real) :: rh0sq,rv0sq,distnorm,disttest,S_test
 real(kind_real),allocatable :: dist(:,:)
 logical :: add_to_front
 logical,allocatable :: done(:),valid(:,:)
 type(linoptype) :: c(mpl%nthread)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! MPI splitting
 do iproc=1,mpl%nproc
@@ -65,7 +67,7 @@ do iproc=1,mpl%nproc
 end do
 
 ! Allocation
-n_s_max = 100*nint(float(ndata%nc0*ndata%nl0)/float(mpl%nthread*mpl%nproc))
+n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))
 do ithread=1,mpl%nthread
    c(ithread)%n_s = n_s_max
    call linop_alloc(c(ithread))
@@ -77,7 +79,7 @@ write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
 call prog_init(progint,done)
 c_n_s = 0
 !$omp parallel do private(is_loc,is,ithread,ic1,il1,ic0,il0,plist,plist_new,dist,valid,np,np_new), &
-!$omp&            private(ip,jc0,jl0,i,kc0,kl0,distnorm,disttest,add_to_front,jp,js)
+!$omp&            private(ip,jc0,jl0,i,kc0,kl0,rh0sq,rv0sq,distnorm,disttest,add_to_front,jp,js)
 do is_loc=1,ns_loc(mpl%myproc)
    ! Indices
    is = is_s(mpl%myproc)+is_loc-1
@@ -88,16 +90,16 @@ do is_loc=1,ns_loc(mpl%myproc)
    il0 = ndata%il1_to_il0(il1)
 
    ! Allocation
-   allocate(plist(ndata%nc0*ndata%nl0,2))
-   allocate(plist_new(ndata%nc0*ndata%nl0,2))
-   allocate(dist(ndata%nc0,ndata%nl0))
-   allocate(valid(ndata%nc0,ndata%nl0))
+   allocate(plist(geom%nc0*geom%nl0,2))
+   allocate(plist_new(geom%nc0*geom%nl0,2))
+   allocate(dist(geom%nc0,geom%nl0))
+   allocate(valid(geom%nc0,geom%nl0))
 
    ! Initialize the front
    np = 1
    plist(1,1) = ic0
    plist(1,2) = il0
-   dist = 2.0
+   dist = 1.0
    dist(ic0,il0) = 0.0
    valid = .false.
    valid(ic0,il0) = .true.
@@ -112,12 +114,16 @@ do is_loc=1,ns_loc(mpl%myproc)
          jl0 = plist(ip,2)
 
          ! Loop over neighbors
-         do i=1,ndata%geom%net_nnb(jc0)
-            kc0 = ndata%geom%net_inb(i,jc0)
-            do kl0=max(jl0-1,1),min(jl0+1,ndata%nl0)
-               if (ndata%geom%mask(kc0,kl0)) then
-                  distnorm = sqrt(ndata%geom%net_dnb(i,jc0)/(0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)) &
-                           & +abs(ndata%geom%vunit(jl0)-ndata%geom%vunit(kl0))/(0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)))
+         do i=1,geom%net_nnb(jc0)
+            kc0 = geom%net_inb(i,jc0)
+            do kl0=max(jl0-1,1),min(jl0+1,geom%nl0)
+               if (geom%mask(kc0,kl0)) then
+                  rh0sq = 0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)            
+                  rv0sq = 0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)
+                  distnorm = 0.0
+                  if (rh0sq>0.0) distnorm = distnorm+geom%net_dnb(i,jc0)**2/rh0sq
+                  if (rv0sq>0.0) distnorm = distnorm+(geom%vunit(jl0)-geom%vunit(kl0))**2/rv0sq
+                  distnorm = sqrt(distnorm)
                   disttest = dist(jc0,jl0)+distnorm
                   if (disttest<1.0) then
                      ! Point is inside the support
@@ -154,8 +160,8 @@ do is_loc=1,ns_loc(mpl%myproc)
    end do
 
    ! Count convolution operations
-   do il0=1,ndata%nl0
-      do ic0=1,ndata%nc0
+   do il0=1,geom%nl0
+      do ic0=1,geom%nc0
          if (valid(ic0,il0)) then
             js = ndata%ic0il0_to_is(ic0,il0)
 
@@ -165,8 +171,14 @@ do is_loc=1,ns_loc(mpl%myproc)
                distnorm = dist(ic0,il0)
 
                if (distnorm<1.0) then
+                  ! Distance deformation
+                  distnorm = distnorm+deform*sin(pi*distnorm)
+
+                  ! Square-root
+                  if (nam%lsqrt) distnorm = distnorm*sqrt(2.0)
+
                   ! Gaspari-Cohn (1999) function
-                  S_test = gc99(nam,distnorm)
+                  S_test = gc99(distnorm)
 
                   ! Check convolution value
                   call check_convol(is,js,S_test,c_n_s(ithread),c(ithread))
@@ -202,18 +214,20 @@ do ithread=1,mpl%nthread
    call linop_dealloc(c(ithread))
 end do
 
+! End associate
+end associate
+
 end subroutine compute_convol_network
 
 !----------------------------------------------------------------------
 ! Subroutine: compute_convol_distance
 !> Purpose: compute convolution with a distance approach
 !----------------------------------------------------------------------
-subroutine compute_convol_distance(nam,ndata,rhs,rvs)
+subroutine compute_convol_distance(ndata,rhs,rvs)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
 type(ndatatype),intent(inout) :: ndata             !< Sampling data
 real(kind_real),intent(in) :: rhs(ndata%ns)        !< Scaled horizontal support radius
 real(kind_real),intent(in) :: rvs(ndata%ns)        !< Scaled vertical support radius
@@ -223,15 +237,17 @@ integer :: ms,n_s_max,progint,ithread,is,ic1,il1,il0,jc1,jl1,jl0,js,i,iproc
 integer :: is_s(mpl%nproc),is_e(mpl%nproc),ns_loc(mpl%nproc),is_loc
 integer :: ic1_s(mpl%nproc),ic1_e(mpl%nproc),nc1_loc(mpl%nproc),ic1_loc
 integer :: c_n_s(mpl%nthread)
-integer,allocatable :: mask_ctree(:),nn_index(:,:)
-integer,allocatable :: rbuf_index(:),sbuf_index(:)
+integer,allocatable :: nn_index(:,:),rbuf_index(:),sbuf_index(:)
 real(kind_real) :: distnorm,S_test
 real(kind_real),allocatable :: nn_dist(:,:)
 real(kind_real),allocatable :: rbuf_dist(:),sbuf_dist(:)
 logical :: submask(ndata%nc1,ndata%nl1)
-logical,allocatable :: done(:)
+logical,allocatable :: mask_ctree(:),done(:)
 type(ctreetype) :: ctree
 type(linoptype) :: c(mpl%nthread)
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Define submask
 submask = .false.
@@ -244,8 +260,8 @@ end do
 ! Compute cover tree
 write(mpl%unit,'(a10,a)') '','Compute cover tree'
 allocate(mask_ctree(ndata%nc1))
-mask_ctree = 1
-ctree = create_ctree(ndata%nc1,dble(ndata%geom%lon(ndata%ic1_to_ic0)),dble(ndata%geom%lat(ndata%ic1_to_ic0)),mask_ctree)
+mask_ctree = .true.
+ctree = create_ctree(ndata%nc1,dble(geom%lon(ndata%ic1_to_ic0)),dble(geom%lat(ndata%ic1_to_ic0)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Number of neighbors
@@ -267,8 +283,8 @@ allocate(nn_dist(ms,ndata%nc1))
 write(mpl%unit,'(a10,a)') '','Compute nearest neighbors'
 do ic1_loc=1,nc1_loc(mpl%myproc)
    ic1 = ic1_s(mpl%myproc)+ic1_loc-1
-   call find_nearest_neighbors(ctree,dble(ndata%geom%lon(ndata%ic1_to_ic0(ic1))), &
- & dble(ndata%geom%lat(ndata%ic1_to_ic0(ic1))),ms,nn_index(:,ic1),nn_dist(:,ic1))
+   call find_nearest_neighbors(ctree,dble(geom%lon(ndata%ic1_to_ic0(ic1))), &
+ & dble(geom%lat(ndata%ic1_to_ic0(ic1))),ms,nn_index(:,ic1),nn_dist(:,ic1))
 end do
 
 ! Communication
@@ -329,7 +345,7 @@ do iproc=1,mpl%nproc
 end do
 
 ! Allocation
-n_s_max = 100*nint(float(ndata%nc0*ndata%nl0)/float(mpl%nthread*mpl%nproc))
+n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))
 do ithread=1,mpl%nthread
    c(ithread)%n_s = n_s_max
    call linop_alloc(c(ithread))
@@ -361,11 +377,17 @@ do is_loc=1,ns_loc(mpl%myproc)
             if (is>js) then
                ! Normalized distance
                distnorm = sqrt(nn_dist(i,ic1)**2/(0.5*(rhs(is)**2+rhs(js)**2)) &
-                        & +(ndata%geom%vunit(il0)-ndata%geom%vunit(jl0))**2/(0.5*(rvs(is)**2+rvs(js)**2)))
+                        & +(geom%vunit(il0)-geom%vunit(jl0))**2/(0.5*(rvs(is)**2+rvs(js)**2)))
 
                if (distnorm<1.0) then
+                  ! Distance deformation
+                  distnorm = distnorm+deform*sin(pi*distnorm)
+
+                  ! Square-root
+                  if (nam%lsqrt) distnorm = distnorm*sqrt(2.0)
+
                   ! Gaspari-Cohn (1999) function
-                  S_test = gc99(nam,distnorm)
+                  S_test = gc99(distnorm)
 
                   ! Check convolution value
                   call check_convol(is,js,S_test,c_n_s(ithread),c(ithread))
@@ -398,44 +420,10 @@ do ithread=1,mpl%nthread
    call linop_dealloc(c(ithread))
 end do
 
+! End associate
+end associate
+
 end subroutine compute_convol_distance
-
-!----------------------------------------------------------------------
-! Function: gc99
-!> Purpose: Gaspari and Cohn (1999) function, with the support radius as a parameter
-!----------------------------------------------------------------------
-function gc99(nam,distnorm)
-
-! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-real(kind_real),intent(in) :: distnorm
-
-! Returned variable
-real(kind_real) :: gc99
-
-! Local variable
-real(kind_real) :: d
-
-! Distance deformation
-d = distnorm+deform*sin(pi*distnorm)
-
-! Distance check bound
-if (.not.(d>0.0)) call msgerror('negative normalized distance')
-
-! Square-root
-if (nam%lsqrt) d = d*sqrt(2.0)
-
-if (d<0.5) then
-   gc99 = 1.0-8.0*d**5+8.0*d**4+5.0*d**3-20.0/3.0*d**2
-else if (d<1.0) then
-   gc99 = 8.0/3.0*d**5-8.0*d**4+5.0*d**3+20.0/3.0*d**2-10.0*d+4.0-1.0/(3.0*d)
-else
-   gc99 = 0.0
-end if
-
-return
-
-end function gc99
 
 !----------------------------------------------------------------------
 ! Subroutine: check_convol
