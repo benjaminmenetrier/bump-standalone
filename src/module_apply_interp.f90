@@ -112,7 +112,7 @@ implicit none
 ! Passed variables
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 real(kind_real),intent(in) :: alpha(ndataloc%nsb) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(out) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
@@ -248,14 +248,14 @@ implicit none
 
 ! Passed variables
 type(ndataloctype),intent(in) :: ndataloc  !< Sampling data
-real(kind_real),intent(in) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(in) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndataloc%nsb) !< Subgrid variable
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
 real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%geom%nl0)
 real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%geom%nl0,ndataloc%nc1b)
-real(kind_real) :: fld_tmp(ndataloc%nc0a,ndataloc%geom%nl0)
+real(kind_real) :: fld_tmp(ndataloc%geom%nc0a,ndataloc%geom%nl0)
 
 ! Associate
 associate(nam=>ndataloc%nam,geom=>ndataloc%geom)

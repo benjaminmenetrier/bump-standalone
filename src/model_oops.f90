@@ -196,14 +196,15 @@ end subroutine model_oops_coord
 ! Subroutine: model_oops_write
 !> Purpose: write OOPS field
 !----------------------------------------------------------------------
-subroutine model_oops_write(ncid,varname,geom,fld)
+subroutine model_oops_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables

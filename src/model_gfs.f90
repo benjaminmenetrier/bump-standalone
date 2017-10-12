@@ -113,23 +113,23 @@ end subroutine model_gfs_coord
 ! Subroutine: model_gfs_read
 !> Purpose: read GFS field
 !----------------------------------------------------------------------
-subroutine model_gfs_read(nam,ncid,varname,time,geom,fld)
+subroutine model_gfs_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0,nd,dum
+integer :: il0,dum
 integer :: fld_id
 real(kind=4) :: fld_loc(geom%nlon,geom%nlat)
-logical :: l3d
 character(len=1024) :: subr = 'model_gfs_read'
 
 ! Initialize field
@@ -138,34 +138,21 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
-! Check whether it is a 2d or 3d variable
-call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
-if (nd==2) then
-   l3d = .false.
-elseif (nd==3) then
-   l3d = .true.
-else
-   l3d = .false.
-   call msgerror('wrong number of dimensions')
-end if
-
 ! Read variable
-if (l3d) then
+if (var3d) then
    ! 3d variable
-   do il0=1,geom%nl0
+   do il0=1,nam%nl
       call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
       fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
    end do
 else
    ! 2d variable
-   do il0=1,geom%nl0
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
-      fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
-   end do
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
+   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=.true.)
 end if
 
-! Use time to avoid warning
-dum = time
+! Use timeslot to avoid warning
+dum = timeslot
 
 end subroutine model_gfs_read
 
@@ -173,14 +160,15 @@ end subroutine model_gfs_read
 ! Subroutine: model_gfs_write
 !> Purpose: write GFS field
 !----------------------------------------------------------------------
-subroutine model_gfs_write(ncid,varname,geom,fld)
+subroutine model_gfs_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables

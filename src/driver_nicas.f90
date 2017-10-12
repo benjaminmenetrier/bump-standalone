@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: driver_nicas
-!> Purpose: nicas drive
+!> Purpose: nicas driver
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -14,12 +14,12 @@ use module_mpi, only: compute_mpi
 use module_namelist, only: namtype
 use module_normalization, only: compute_normalization
 use module_parameters, only: compute_parameters
-use module_test, only: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf
+use module_test, only: test_adjoints,test_pos_def,test_mpi
 use tools_const, only: eigen_init,pi
 use tools_display, only: msgerror
 use type_bdata, only: bdatatype
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
-use type_geom, only: geomtype,geom_read_local
+use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype,ndata_read_param,ndata_read_mpi, &
   & ndata_write_param,ndata_write_mpi,ndata_write_mpi_summary
@@ -48,13 +48,9 @@ type(ndataloctype),intent(inout) :: ndataloc !< Sampling data,local
 ! Local variables
 type(ndatatype) :: ndata
 
-! Set namelist
+! Set namelist and geometry
 ndata%nam => nam
-ndataloc%nam => nam
-
-! Set geometry
 ndata%geom => geom
-ndataloc%geom => geom
 
 if (nam%new_param) then
    ! Compute NICAS parameters
@@ -80,13 +76,6 @@ else
    call ndata_read_param(ndata)
 end if
 call flush(mpl%unit)
-
-! Read local distribution
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Read local distribution'
-call geom_read_local(nam,geom)
-call flush(mpl%unit)
-
 
 if (nam%new_mpi) then
    ! Compute NICAS MPI distribution
@@ -134,22 +123,6 @@ if (nam%check_mpi.and.(nam%nproc>0)) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
    call test_mpi(ndata,ndataloc)
-   call flush(mpl%unit)
-end if
-
-if (nam%check_dirac) then
-   ! Apply NICAS to diracs
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
-   call test_dirac(ndata,ndataloc)
-   call flush(mpl%unit)
-end if
-
-if (nam%check_perf) then
-   ! Test NICAS performance
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS performance'
-   call test_perf(ndataloc)
    call flush(mpl%unit)
 end if
 

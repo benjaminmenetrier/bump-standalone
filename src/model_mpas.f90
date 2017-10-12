@@ -93,23 +93,23 @@ end subroutine model_mpas_coord
 ! Subroutine: model_mpas_read
 !> Purpose: read MPAS field
 !----------------------------------------------------------------------
-subroutine model_mpas_read(nam,ncid,varname,time,geom,fld)
+subroutine model_mpas_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0,nd
+integer :: il0
 integer :: fld_id
 real(kind=4) :: fld_loc(geom%nc0)
-logical :: l3d
 character(len=1024) :: subr = 'model_mpas_read'
 
 ! Initialize field
@@ -118,28 +118,17 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
-! Check whether it is a 2d or 3d variable
-call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
-if (nd==2) then
-   l3d = .false.
-elseif (nd==3) then
-   l3d = .true.
-else
-   l3d = .false.
-   call msgerror('wrong number of dimensions')
-end if
-
 ! Read variable
-if (l3d) then
+if (var3d) then
    ! 3d variable
-   do il0=1,geom%nl0
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/nam%levs(il0),1,time/),(/1,geom%nc0,1/)))
+   do il0=1,nam%nl
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/nam%levs(il0),1,timeslot/),(/1,geom%nc0,1/)))
       fld(:,il0) = real(fld_loc,kind_real)
    end do
 else
    ! 2d variable
    call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nc0,1/)))
-   fld(:,1) = real(fld_loc,kind_real)
+   fld(:,geom%nl0) = real(fld_loc,kind_real)
 end if
 
 end subroutine model_mpas_read
@@ -148,19 +137,20 @@ end subroutine model_mpas_read
 ! Subroutine: model_mpas_write
 !> Purpose: write MPAS field
 !----------------------------------------------------------------------
-subroutine model_mpas_write(ncid,varname,geom,fld)
+subroutine model_mpas_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
 integer :: il0,ierr
-integer :: nc0_id,nlev_id,nt_id,fld_id,lon_id,lat_id
+integer :: nc0_id,nlev_id,fld_id,lon_id,lat_id
 character(len=1024) :: subr = 'model_mpas_write'
 
 ! Get variable id
@@ -173,9 +163,7 @@ if (ierr/=nf90_noerr) then
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
    ierr = nf90_inq_dimid(ncid,'nVertLevels',nlev_id)
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nVertLevels',geom%nl0,nlev_id))
-   ierr = nf90_inq_dimid(ncid,'Time',nt_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Time',1,nt_id))
-   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlev_id,nc0_id,nt_id/),fld_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlev_id,nc0_id/),fld_id))
    call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
    call ncerr(subr,nf90_enddef(ncid))
 end if
@@ -183,7 +171,7 @@ end if
 ! Write data
 do il0=1,geom%nl0
    if (isanynotmsr(fld(:,il0))) then
-      call ncerr(subr,nf90_put_var(ncid,fld_id,fld(:,il0),(/il0,1,1/),(/1,geom%nc0,1/)))
+      call ncerr(subr,nf90_put_var(ncid,fld_id,fld(:,il0),(/il0,1/),(/1,geom%nc0/)))
    end if
 end do
 

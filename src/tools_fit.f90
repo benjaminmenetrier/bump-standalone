@@ -14,6 +14,7 @@ use tools_const, only:  gc99
 use tools_display, only: msgerror,msgwarning
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isanynotmsr
+use type_mpl, only: mpl
 implicit none
 
 integer,parameter :: niter = 50 !< Maximum number of iterations for the threshold definition
@@ -103,7 +104,7 @@ if (isnotmsr(fit_r)) then
    ! Normalize
    fit_r = fit_r/thinv
 else
-   call msgerror('fast fit failed')
+   fit_r = 0.0
 end if
 
 end subroutine fast_fit

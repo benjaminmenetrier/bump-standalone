@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_diag_tools
 
-use model_interface,only: model_write
 use netcdf
 use omp_lib
 use tools_const, only: req,sphere_dist,rad2deg,gc99,median

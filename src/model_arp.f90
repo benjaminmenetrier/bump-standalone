@@ -105,15 +105,13 @@ geom%area = 4.0*pi
 
 ! Vertical unit
 if (nam%logpres) then
-   do il0=1,geom%nl0
-      if (nam%levs(il0)<=geom%nlev) then
-         geom%vunit(il0) = log(0.5*(a(nam%levs(il0))+a(nam%levs(il0)+1))+0.5*(b(nam%levs(il0))+b(nam%levs(il0)+1))*ps)
-      else
-         geom%vunit(il0) = log(ps)
-      end if
+   do il0=1,nam%nl
+      geom%vunit(il0) = log(0.5*(a(nam%levs(il0))+a(nam%levs(il0)+1))+0.5*(b(nam%levs(il0))+b(nam%levs(il0)+1))*ps)
    end do
+   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = log(ps)  
 else
-   geom%vunit = float(nam%levs(1:geom%nl0))
+   geom%vunit(1:nam%nl) = float(nam%levs(1:nam%nl))
+   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = float(maxval(nam%levs(1:nam%nl)))+1
 end if
 
 ! Release memory
@@ -128,71 +126,57 @@ end subroutine model_arp_coord
 ! Subroutine: model_arp_read
 !> Purpose: read ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_read(nam,ncid,varname,time,geom,fld)
+subroutine model_arp_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
 integer :: il0,dum
 integer :: info,fld_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
-logical :: l3d
 character(len=3) :: ilchar
 character(len=1024) :: subr = 'model_arp_read'
 
 ! Initialize field
 call msr(fld)
 
-! Get variable id and check whether it is a 2d or 3d variable
-info = nf90_inq_varid(ncid,trim(varname),fld_id)
-if (info==nf90_noerr) then
-   l3d = .false.
-else
-   l3d = .true.
-end if
-
-if (l3d) then
-   do il0=1,geom%nl0
+if (var3d) then
+   ! 3d variable
+   do il0=1,nam%nl
+      ! Get id
       write(ilchar,'(i3.3)') nam%levs(il0)
+      call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
 
-      ! Check variable existence
-      info = nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id)
-
-      if (info==nf90_noerr) then
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-         fld(:,il0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
-      else
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,'SURFPRESSION',fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-         fld(:,il0) = pack(real(exp(fld_loc),kind_real),mask=.true.)
-      end if
+      ! Read data
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+      fld(:,il0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
    end do
 else
    ! 2d variable
+
+   ! Get id
+   call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
+
+   ! Read data
    call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
 
    ! Variable change for surface pressure
-   if (trim(varname)=='SURFPRESSION') fld(:,1) = exp(fld(:,1))
+   if (trim(varname)=='SURFPRESSION') fld(:,geom%nl0) = exp(fld(:,geom%nl0))
 end if
 
-! Use time to avoid warning
-dum = time
+
+! Use timeslot to avoid warning
+dum = timeslot
 
 end subroutine model_arp_read
 
@@ -200,14 +184,15 @@ end subroutine model_arp_read
 ! Subroutine: model_arp_write
 !> Purpose: write ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_write(ncid,varname,geom,fld)
+subroutine model_arp_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables

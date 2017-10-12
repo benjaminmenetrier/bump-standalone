@@ -82,8 +82,6 @@ type ndataloctype
    type(geomtype),pointer :: geom                  !< Geometry
 
    ! Number of points
-   integer :: nc0a                       !< Number of points in subset Sc0 on halo A
-   integer :: nl0                        !< Number of levels in subset Sl0
    integer :: nc1b                       !< Number of points in subset Sc1 on halo B
    integer :: nl1                        !< Number of levels in subset Sl1
    integer :: nl0i                       !< Number of independent levels
@@ -259,7 +257,7 @@ write(myprocchar,'(i4.4)') mpl%myproc
 filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'-'//myprocchar//'.nc'
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 call ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
-call ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=ndataloc%nc0a))
+call ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=geom%nc0a))
 info = nf90_inq_dimid(ncid,'nc1b',nc1b_id)
 if (info==nf90_noerr) then
    call ncerr(subr,nf90_inquire_dimension(ncid,nc1b_id,len=ndataloc%nc1b))
@@ -291,7 +289,7 @@ if (ndataloc%nsb>0) allocate(ndataloc%isb_to_il1(ndataloc%nsb))
 if (ndataloc%nsa>0) allocate(ndataloc%isa_to_isb(ndataloc%nsa))
 if (ndataloc%nsa>0) allocate(ndataloc%isa_to_isc(ndataloc%nsa))
 if (ndataloc%nsb>0) allocate(ndataloc%isb_to_isc(ndataloc%nsb))
-allocate(ndataloc%norm(ndataloc%nc0a,geom%nl0))
+allocate(ndataloc%norm(geom%nc0a,geom%nl0))
 
 ! Read data
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
@@ -463,7 +461,7 @@ call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobb
 call namncwrite(nam,ncid)
 
 ! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nc0a',ndataloc%nc0a,nc0a_id))
+call ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
 call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
 call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
 if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndataloc%nc1b,nc1b_id))

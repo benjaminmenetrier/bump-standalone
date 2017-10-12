@@ -29,7 +29,7 @@ contains
 ! Subroutine: compute_dualens
 !> Purpose: compute dual-ensemble hybridization formulae
 !----------------------------------------------------------------------
-subroutine compute_dualens(hdata,avg,avg_lr,loc_deh,loc_deh_lr)
+subroutine compute_dualens(hdata,avg,avg_lr,lfit,loc_deh,loc_deh_lr)
 
 implicit none
 
@@ -37,47 +37,44 @@ implicit none
 type(hdatatype),intent(in) :: hdata                  !< Sampling data
 type(avgtype),intent(in) :: avg                      !< Averaged statistics
 type(avgtype),intent(in) :: avg_lr                   !< Low-resolution averaged statistics
-type(curvetype),intent(inout) :: loc_deh(hdata%nam%nvp)    !< Adapted high-resolution localizations
-type(curvetype),intent(inout) :: loc_deh_lr(hdata%nam%nvp) !< Adapted low-resolution localizations
+logical,intent(in) :: lfit
+type(curvetype),intent(inout) :: loc_deh    !< Adapted high-resolution localizations
+type(curvetype),intent(inout) :: loc_deh_lr !< Adapted low-resolution localizations
 
 ! Local variables
-integer :: iv,il0,jl0,ic
+integer :: il0,jl0,ic
 real(kind_real) :: num(hdata%nam%nc),num_lr(hdata%nam%nc),den(hdata%nam%nc)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Compute raw dual-ensemble hybridization
-do iv=1,nam%nvp
-   do jl0=1,geom%nl0
-      do il0=1,geom%nl0
-         do ic=1,nam%nc
-            if (isnotmsr(avg%m11asysq(ic,il0,jl0,iv)).and.isnotmsr(avg%m11sq(ic,il0,jl0,iv)) &
-          & .and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0,iv)).and.isnotmsr(avg_lr%m11lrm11(ic,il0,jl0,iv)) &
-          & .and.isnotmsr(avg_lr%m11sq(ic,il0,jl0,iv)).and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0,iv))) then
-               num(ic) = avg%m11asysq(ic,il0,jl0,iv)*avg_lr%m11sq(ic,il0,jl0,iv) &
-                       & -avg_lr%m11lrm11asy(ic,il0,jl0,iv)*avg_lr%m11lrm11(ic,il0,jl0,iv)
-               num_lr(ic) = avg_lr%m11lrm11asy(ic,il0,jl0,iv)*avg%m11sq(ic,il0,jl0,iv) &
-                          & -avg%m11asysq(ic,il0,jl0,iv)*avg_lr%m11lrm11(ic,il0,jl0,iv)
-               den(ic) = avg%m11sq(ic,il0,jl0,iv)*avg_lr%m11sq(ic,il0,jl0,iv)-avg_lr%m11lrm11(ic,il0,jl0,iv)**2
-               if ((num(ic)>0.0).and.(den(ic)>0.0)) then
-                  loc_deh(iv)%raw(ic,il0,jl0) = num(ic)/den(ic)
-                  loc_deh_lr(iv)%raw(ic,il0,jl0) = num_lr(ic)/den(ic)
-               end if
+do jl0=1,geom%nl0
+   do il0=1,geom%nl0
+      do ic=1,nam%nc
+         if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(avg%m11sq(ic,il0,jl0)) &
+       & .and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0)).and.isnotmsr(avg_lr%m11lrm11(ic,il0,jl0)) &
+       & .and.isnotmsr(avg_lr%m11sq(ic,il0,jl0)).and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0))) then
+            num(ic) = avg%m11asysq(ic,il0,jl0)*avg_lr%m11sq(ic,il0,jl0) &
+                    & -avg_lr%m11lrm11asy(ic,il0,jl0)*avg_lr%m11lrm11(ic,il0,jl0)
+            num_lr(ic) = avg_lr%m11lrm11asy(ic,il0,jl0)*avg%m11sq(ic,il0,jl0) &
+                       & -avg%m11asysq(ic,il0,jl0)*avg_lr%m11lrm11(ic,il0,jl0)
+            den(ic) = avg%m11sq(ic,il0,jl0)*avg_lr%m11sq(ic,il0,jl0)-avg_lr%m11lrm11(ic,il0,jl0)**2
+            if ((num(ic)>0.0).and.(den(ic)>0.0)) then
+               loc_deh%raw(ic,il0,jl0) = num(ic)/den(ic)
+               loc_deh_lr%raw(ic,il0,jl0) = num_lr(ic)/den(ic)
             end if
-         end do
+         end if
       end do
    end do
 end do
 
 ! Compute dual-ensemble hybridization fits
-if (trim(nam%fit_type)/='none') then
+if (lfit) then
    ! Compute fit weight
    if (nam%fit_wgt) then
-      do iv=1,nam%nvp
-         loc_deh(iv)%fit_wgt = abs(avg%cor(:,:,:,iv))
-         loc_deh_lr(iv)%fit_wgt = abs(avg_lr%cor(:,:,:,iv))
-      end do
+      loc_deh%fit_wgt = abs(avg%cor)
+      loc_deh_lr%fit_wgt = abs(avg_lr%cor)
    end if
 
    ! Compute initial fit

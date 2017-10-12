@@ -21,6 +21,7 @@ use tools_missing, only: msr,isnotmsr
 use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_min, only: mintype
+use type_mpl, only: mpl
 implicit none
 
 real(kind_real),parameter :: epsilon = 1.0e-6 !< Small parameter to compute the Jacobian
@@ -41,141 +42,142 @@ implicit none
 ! Passed variables
 type(namtype),pointer,intent(in) :: nam
 type(geomtype),pointer,intent(in) :: geom
-type(curvetype),intent(inout) :: curve(nam%nvp)              !< Curve
+type(curvetype),intent(inout) :: curve              !< Curve
 real(kind_real),intent(in),optional :: norm            !< Normalization
 
 ! Local variables
-integer :: iv,il0,jl0,info,offset
-real(kind_real) :: distv(geom%nl0,geom%nl0),raw(geom%nl0)
+integer :: il0,jl0,ic,offset
+real(kind_real) :: raw(nam%nc,geom%nl0,geom%nl0),rawv(geom%nl0)
 type(mintype) :: mindata
 
 ! Check
 if (trim(nam%fit_type)=='none') call msgerror('cannot compute fit if fit_type = none')
 
-! Vertical distance
+! Initialization
+call msr(curve%fit_coef_ens)
+call msr(curve%fit_rh)
+call msr(curve%fit_rv)
+call msr(curve%fit)
+
+! Diagonal values
+do jl0=1,geom%nl0
+   if (curve%raw(1,jl0,jl0)>0.0) then
+      curve%fit_coef_ens(jl0) = curve%raw(1,jl0,jl0)
+   else
+      call msgerror('non-positive diagonal value in fit')
+   end if
+end do
+
+! Pseudo-normalization
+call msr(raw)
 do jl0=1,geom%nl0
    do il0=1,geom%nl0
-      distv(il0,jl0) = abs(geom%vunit(jl0)-geom%vunit(il0))
+      do ic=1,nam%nc
+         if (isnotmsr(curve%raw(ic,il0,jl0)).and.(curve%fit_coef_ens(jl0)*curve%fit_coef_ens(il0)>0.0)) &
+       & raw(ic,il0,jl0) = curve%raw(ic,il0,jl0)/sqrt(curve%fit_coef_ens(jl0)*curve%fit_coef_ens(il0))
+      end do
    end do
 end do
 
-! Allocation
-mindata%nam => nam
-mindata%geom => geom
-mindata%lnorm = present(norm)
-if (mindata%lnorm) then
-   mindata%nx = 0
-else
-   mindata%nx = geom%nl0
-end if
-if (nam%lhomh) then
-   mindata%nx = mindata%nx+1
-else
-   mindata%nx = mindata%nx+geom%nl0
-end if
-if (nam%lhomv) then
-   mindata%nx = mindata%nx+1
-else
-   mindata%nx = mindata%nx+geom%nl0
-end if
-mindata%ny = nam%nc*geom%nl0**2
-allocate(mindata%guess(mindata%nx))
-allocate(mindata%binf(mindata%nx))
-allocate(mindata%bsup(mindata%nx))
-allocate(mindata%obs(mindata%ny))
-allocate(mindata%wgt(mindata%ny))
+! Fast fit
+do jl0=1,geom%nl0  
+   ! Horizontal fast fit
+  call fast_fit(nam%nc,1,nam%disth,raw(:,jl0,jl0),curve%fit_rh(jl0))
 
-! Fill mindata
-mindata%binf = 0.0
-mindata%wgt = 1.0
+   ! Vertical fast fit
+   rawv = raw(1,:,jl0)
+   call fast_fit(geom%nl0,jl0,geom%distv(:,jl0),rawv,curve%fit_rv(jl0))
+end do
+if (nam%lhomh) curve%fit_rh = sum(curve%fit_rh)/float(geom%nl0)
+if (nam%lhomv) curve%fit_rv = sum(curve%fit_rv)/float(geom%nl0)
 
-do iv=1,nam%nvp
-   ! Initialization
-   call msr(curve(iv)%fit_coef_ens)
-   call msr(curve(iv)%fit_rh)
-   call msr(curve(iv)%fit_rv)
-   call msr(curve(iv)%fit)
+if (trim(nam%fit_type)=='full') then
+   ! Allocation
+   mindata%nam => nam
+   mindata%geom => geom
+   mindata%lnorm = present(norm)
+   if (mindata%lnorm) then
+      mindata%nx = 0
+   else
+      mindata%nx = geom%nl0
+   end if
+   if (nam%lhomh) then
+      mindata%nx = mindata%nx+1
+   else
+      mindata%nx = mindata%nx+geom%nl0
+   end if
+   if (nam%lhomv) then
+      mindata%nx = mindata%nx+1
+   else
+      mindata%nx = mindata%nx+geom%nl0
+   end if
+   mindata%ny = nam%nc*geom%nl0**2
+   allocate(mindata%guess(mindata%nx))
+   allocate(mindata%binf(mindata%nx))
+   allocate(mindata%bsup(mindata%nx))
+   allocate(mindata%obs(mindata%ny))
+   allocate(mindata%wgt(mindata%ny))
 
-   ! Fast fit
-   do jl0=1,geom%nl0
-      if (isnotmsr(curve(iv)%raw(1,jl0,jl0))) then
-         ! Diagonal values
-         curve(iv)%fit_coef_ens(jl0) = curve(iv)%raw(1,jl0,jl0)
-
-         ! Horizontal fast fit
-         call fast_fit(nam%nc,1,nam%disth,curve(iv)%raw(:,jl0,jl0)/curve(iv)%raw(1,jl0,jl0),curve(iv)%fit_rh(jl0))
-
-         ! Vertical fast fit
-         do il0=1,geom%nl0
-            if (isnotmsr(curve(iv)%raw(1,il0,il0))) raw(il0) = curve(iv)%raw(1,il0,jl0) &
-          & /sqrt(curve(iv)%raw(1,jl0,jl0)*curve(iv)%raw(1,il0,il0))
-         end do
-         call fast_fit(geom%nl0,jl0,distv(:,jl0),raw,curve(iv)%fit_rv(jl0))
-      else
-         call msgerror('missing zero separation value')
-      end if
-   end do
-   if (nam%lhomh) curve(iv)%fit_rh = sum(curve(iv)%fit_rh)/float(geom%nl0)
-   if (nam%lhomv) curve(iv)%fit_rv = sum(curve(iv)%fit_rv)/float(geom%nl0)
-
-   if (trim(nam%fit_type)=='full') then
-      ! Iterative fit
-      offset = 0
-      if (.not.mindata%lnorm) then
-         mindata%guess(offset+1:offset+geom%nl0) = curve(iv)%fit_coef_ens
-         offset = offset+geom%nl0
-      end if
-      if (nam%lhomh) then
-         mindata%guess(offset+1) = curve(iv)%fit_rh(1)
-         offset = offset+1
-      else
-         mindata%guess(offset+1:offset+geom%nl0) = curve(iv)%fit_rh
-         offset = offset+geom%nl0
-      end if
-      if (nam%lhomv) then
-         mindata%guess(offset+1) = curve(iv)%fit_rv(1)
-         offset = offset+1
-      else
-         mindata%guess(offset+1:offset+geom%nl0) = curve(iv)%fit_rv
-         offset = offset+geom%nl0
-      end if
-      mindata%bsup = 3.0*mindata%guess
-      mindata%obs = pack(curve(iv)%raw,mask=.true.)
-      info = minim(mindata,func,jacobian)
-      offset = 0
-      if (mindata%lnorm) then
-         curve(iv)%fit_coef_ens = norm
-      else
-         curve(iv)%fit_coef_ens = mindata%x(offset+1:offset+geom%nl0)
-         offset = offset+geom%nl0
-      end if
-      if (nam%lhomh) then
-         curve(iv)%fit_rh = mindata%x(offset+1)
-         offset = offset+1
-      else
-         curve(iv)%fit_rh = mindata%x(offset+1:offset+geom%nl0)
-         offset = offset+geom%nl0
-      end if
-      if (nam%lhomv) then
-         curve(iv)%fit_rv = mindata%x(offset+1)
-         offset = offset+1
-      else
-         curve(iv)%fit_rv = mindata%x(offset+1:offset+geom%nl0)
-         offset = offset+geom%nl0
-      end if
-
-      ! Dummy call to avoid warnings
-      call dummy(mindata)
+   ! Fill mindata
+   mindata%binf = 0.0
+   mindata%wgt = 1.0
+   
+   ! Iterative fit
+   offset = 0
+   if (.not.mindata%lnorm) then
+      mindata%guess(offset+1:offset+geom%nl0) = curve%fit_coef_ens
+      offset = offset+geom%nl0
+   end if
+   if (nam%lhomh) then
+      mindata%guess(offset+1) = curve%fit_rh(1)
+      offset = offset+1
+   else
+      mindata%guess(offset+1:offset+geom%nl0) = curve%fit_rh
+      offset = offset+geom%nl0
+   end if
+   if (nam%lhomv) then
+      mindata%guess(offset+1) = curve%fit_rv(1)
+      offset = offset+1
+   else
+      mindata%guess(offset+1:offset+geom%nl0) = curve%fit_rv
+      offset = offset+geom%nl0
+   end if
+   mindata%bsup = 3.0*mindata%guess
+   mindata%obs = pack(curve%raw,mask=.true.)
+   call minim(mindata,func,jacobian)
+   offset = 0
+   if (mindata%lnorm) then
+      curve%fit_coef_ens = norm
+   else
+      curve%fit_coef_ens = mindata%x(offset+1:offset+geom%nl0)
+      offset = offset+geom%nl0
+   end if
+   if (nam%lhomh) then
+      curve%fit_rh = mindata%x(offset+1)
+      offset = offset+1
+   else
+      curve%fit_rh = mindata%x(offset+1:offset+geom%nl0)
+      offset = offset+geom%nl0
+   end if
+   if (nam%lhomv) then
+      curve%fit_rv = mindata%x(offset+1)
+      offset = offset+1
+   else
+      curve%fit_rv = mindata%x(offset+1:offset+geom%nl0)
+      offset = offset+geom%nl0
    end if
 
-   ! Smooth vertically
-   call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve(iv)%fit_coef_ens)
-   call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve(iv)%fit_rh)
-   call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve(iv)%fit_rv)
+   ! Dummy call to avoid warnings
+   call dummy(mindata)
+end if
 
-   ! Rebuild fit
-   call define_fit(nam,geom,curve(iv)%fit_coef_ens,curve(iv)%fit_rh,curve(iv)%fit_rv,curve(iv)%fit)
-end do
+! Smooth vertically
+call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_coef_ens)
+call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_rh)
+call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_rv)
+
+! Rebuild fit
+call define_fit(nam,geom,curve%fit_coef_ens,curve%fit_rh,curve%fit_rv,curve%fit)
 
 end subroutine compute_fit
 
@@ -233,8 +235,16 @@ do jl0=1,geom%nl0
                Dhsq = 0.5*(Dh(il0)**2+Dh(kl0)**2)              
                Dvsq = 0.5*(Dv(il0)**2+Dv(kl0)**2)
                distnorm = 0.0
-               if (Dhsq>0.0) distnorm = distnorm+(nam%disth(kc)-nam%disth(ic))**2/Dhsq
-               if (Dvsq>0.0) distnorm = distnorm+(geom%vunit(jl0)-geom%vunit(kl0))**2/Dvsq
+               if (Dhsq>0.0) then
+                  distnorm = distnorm+(nam%disth(kc)-nam%disth(ic))**2/Dhsq
+               else
+                  distnorm = huge(1.0)
+               end if 
+               if (Dvsq>0.0) then
+                  distnorm = distnorm+geom%distv(kl0,il0)**2/Dvsq
+               elseif (kl0/=il0) then
+                  distnorm = huge(1.0)
+               end if
                distnorm = sqrt(distnorm)
                disttest = dist(ic,il0)+distnorm
                if (disttest<1.0) then
@@ -318,25 +328,28 @@ do il0=1,geom%nl0
       Dhm = Dh
       Dvp = Dv
       Dvm = Dv
+      call msr(delta)
       select case (offset)
       case(1)
-         delta = epsilon*coef(il0)
+         if (coef(il0)>0.0) delta = epsilon*coef(il0)
          coefp(il0) = coef(il0)+delta
          coefm(il0) = coef(il0)-delta
       case(2)
-         delta = epsilon*Dh(il0)
+         if (Dh(il0)>0.0) delta = epsilon*Dh(il0)
          Dhp(il0) = Dh(il0)+delta
          Dhm(il0) = Dh(il0)-delta
       case(3)
-         delta = epsilon*Dv(il0)
+         if (Dv(il0)>0.0) delta = epsilon*Dv(il0)
          Dvp(il0) = Dv(il0)+delta
          Dvm(il0) = Dv(il0)-delta
-      case default
-         delta = 1.0
       end select
-      call define_fit(nam,geom,coefp,Dhp,Dvp,fitp)
-      call define_fit(nam,geom,coefm,Dhm,Dvm,fitm)
-      Jfit(:,:,:,(offset-1)*geom%nl0+il0) = (fitp-fitm)/(2.0*delta)
+      if (isnotmsr(delta)) then
+         call define_fit(nam,geom,coefp,Dhp,Dvp,fitp)
+         call define_fit(nam,geom,coefm,Dhm,Dvm,fitm)
+         Jfit(:,:,:,(offset-1)*geom%nl0+il0) = (fitp-fitm)/(2.0*delta)
+      else
+         Jfit(:,:,:,(offset-1)*geom%nl0+il0) = huge(1.0)
+      end if
    end do
 end do
 

@@ -17,7 +17,7 @@ use module_test_obsop, only: test_adjoint_obsop,test_mpi_obsop,test_mpi_obsop_ad
 use tools_const, only: eigen_init,pi
 use tools_display, only: msgerror
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
-use type_geom, only: geomtype,geom_read_local
+use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_odata, only: odatatype,odataloctype
 
@@ -70,12 +70,6 @@ odataloc%geom => geom
 !   write(mpl%unit,'(a)') '--- Read observation operator parameters'
 !   call odata_read_param(odata)
 !end if
-call flush(mpl%unit)
-
-! Read local distribution
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Read local distribution'
-call geom_read_local(nam,geom)
 call flush(mpl%unit)
 
 !if (nam%new_mpi) then

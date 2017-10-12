@@ -101,23 +101,23 @@ end subroutine model_wrf_coord
 ! Subroutine: model_wrf_read
 !> Purpose: read WRF field
 !----------------------------------------------------------------------
-subroutine model_wrf_read(nam,ncid,varname,time,geom,fld)
+subroutine model_wrf_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0,nd
+integer :: il0
 integer :: fld_id
 real(kind=4),allocatable :: fld_loc(:,:)
-logical :: l3d
 character(len=1024) :: subr = 'model_wrf_read'
 
 ! Initialize field
@@ -135,44 +135,24 @@ end if
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
-! Check whether it is a 2d or 3d variable
-call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
-if (nd==3) then
-   l3d = .false.
-elseif (nd==4) then
-   l3d = .true.
-else
-   l3d = .false.
-   call msgerror('wrong number of dimensions')
-end if
-
 ! Read variable
-if (l3d) then
+if (var3d) then
    ! 3d variable
-   do il0=1,geom%nl0
+   do il0=1,nam%nl
       if (trim(varname)=='U') then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),time/),(/geom%nlon+1,geom%nlat,1,1/)))
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),timeslot/),(/geom%nlon+1,geom%nlat,1,1/)))
          fld(:,il0) = pack(real(0.5*(fld_loc(1:geom%nlon,:)+fld_loc(2:geom%nlon+1,:)),kind_real),mask=.true.)
       elseif (trim(varname)=='V') then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),time/),(/geom%nlon,geom%nlat+1,1,1/)))
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),timeslot/),(/geom%nlon,geom%nlat+1,1,1/)))
          fld(:,il0) = pack(real(0.5*(fld_loc(:,1:geom%nlat)+fld_loc(:,2:geom%nlat+1)),kind_real),mask=.true.)
       else
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),time/),(/geom%nlon,geom%nlat,1,1/)))
+         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),timeslot/),(/geom%nlon,geom%nlat,1,1/)))
          fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
       end if
    end do
 else
-   ! 2d variable
-   if (trim(varname)=='U') then
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,time/),(/geom%nlon+1,geom%nlat,1/)))
-      fld(:,1) = pack(real(0.5*(fld_loc(1:geom%nlon,:)+fld_loc(2:geom%nlon+1,:)),kind_real),mask=.true.)
-   elseif (trim(varname)=='V') then
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,time/),(/geom%nlon,geom%nlat+1,1/)))
-      fld(:,1) = pack(real(0.5*(fld_loc(:,1:geom%nlat)+fld_loc(:,2:geom%nlat+1)),kind_real),mask=.true.)
-   else
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,time/),(/geom%nlon,geom%nlat,1/)))
-      fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
-   end if
+   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,timeslot/),(/geom%nlon,geom%nlat,1/)))
+   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=.true.)
 end if
 
 ! Release memory
@@ -184,19 +164,20 @@ end subroutine model_wrf_read
 ! Subroutine: model_wrf_write
 !> Purpose: write WRF field
 !----------------------------------------------------------------------
-subroutine model_wrf_write(ncid,varname,geom,fld)
+subroutine model_wrf_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
 integer :: il0,ierr
-integer :: nlon_id,nlat_id,nlev_id,nt_id,fld_id
+integer :: nlon_id,nlat_id,nlev_id,fld_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
 logical :: mask_unpack(geom%nlon,geom%nlat)
 character(len=1024) :: subr = 'model_wrf_write'
@@ -216,9 +197,7 @@ if (ierr/=nf90_noerr) then
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'south_north',geom%nlat,nlat_id))
    ierr = nf90_inq_dimid(ncid,'bottom_top',nlev_id)
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'bottom_top',geom%nl0,nlev_id))
-   ierr = nf90_inq_dimid(ncid,'Time',nt_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Time',1,nt_id))
-   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id,nt_id/),fld_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
    call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
    call ncerr(subr,nf90_enddef(ncid))
 end if
@@ -228,7 +207,7 @@ do il0=1,geom%nl0
    if (isanynotmsr(fld(:,il0))) then
       call msr(fld_loc)
       fld_loc = unpack(fld(:,il0),mask=mask_unpack,field=fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0,1/),(/geom%nlon,geom%nlat,1,1/)))
+      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
    end if
 end do
 

@@ -11,10 +11,10 @@
 module module_test
 
 use model_interface, only: model_write
+use module_apply_bens, only: apply_bens
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
-use module_apply_nicas, only: apply_nicas,apply_nicas_from_sqrt
-use module_apply_nicas_sqrt, only: apply_nicas_sqrt,apply_nicas_sqrt_ad
+use module_apply_nicas, only: apply_nicas,apply_nicas_sqrt,apply_nicas_sqrt_ad,apply_nicas_from_sqrt
 use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: deg2rad,rad2deg,sphere_dist
@@ -23,6 +23,7 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
 use type_com, only: com_ext,com_red
 use type_ctree, only: find_nearest_neighbors
+use type_ens, only: enstype
 use type_geom, only: fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype
@@ -32,7 +33,7 @@ use type_timer, only: timertype,timer_start,timer_end
 implicit none
 
 private
-public :: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf
+public :: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf,test_dirac_bens
 
 contains
 
@@ -277,44 +278,42 @@ end subroutine test_mpi
 
 !----------------------------------------------------------------------
 ! Subroutine: test_dirac
-!> Purpose: apply NICAS to Diracs
+!> Purpose: apply NICAS to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac(ndata,ndataloc)
+subroutine test_dirac(blockname,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata          !< Sampling data
-type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
+character(len=*),intent(in) :: blockname !< Block name
+type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
-integer :: il0,il0dir,ic0dir(ndata%nam%ndir),idir
+integer :: il0,il0dir(ndataloc%nam%ndir),ic0dir(ndataloc%nam%ndir),idir
 real(kind_real) :: dum(1)
 real(kind_real),allocatable :: fld(:,:)
 
 ! Associate
-associate(nam=>ndata%nam,geom=>ndata%geom)
-
-! Find level index
-call msi(il0dir)
-do il0=1,geom%nl0
-   if (nam%levs(il0)==nam%levdir) il0dir = il0
-end do
+associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 if (mpl%main) then
-   ! Setup dirac field
-   do idir=1,nam%ndir
-      call find_nearest_neighbors(geom%ctree,dble(nam%londir(idir)*deg2rad), &
-    & dble(nam%latdir(idir)*deg2rad),1,ic0dir(idir:idir),dum)
-   end do
-
    ! Allocation
    allocate(fld(geom%nc0,geom%nl0))
 
    ! Generate diracs field
    fld = 0.0
    do idir=1,nam%ndir
-      fld(ic0dir(idir),il0dir) = 1.0
+      ! Find level index
+      do il0=1,geom%nl0
+          if (nam%levs(il0)==nam%levdir(idir)) il0dir(idir) = il0
+      end do
+
+      ! Find nearest neighbor
+      call find_nearest_neighbors(geom%ctree(min(il0dir(idir),geom%nl0i)),dble(nam%londir(idir)*deg2rad), &
+    & dble(nam%latdir(idir)*deg2rad),1,ic0dir(idir:idir),dum)
+
+      ! Dirac value
+      fld(ic0dir(idir),il0dir(idir)) = 1.0
    end do
 end if
 
@@ -333,13 +332,12 @@ call fld_com_lg(geom,fld)
 
 if (mpl%main) then
    ! Write field
-   call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
-   call model_write(nam,geom,trim(nam%prefix)//'_dirac.nc','hr',fld)
+   call model_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac',fld)
 
    ! Print results
-   write(mpl%unit,'(a7,a)') '','Normalization:'
+   write(mpl%unit,'(a7,a)') '','Normalization for block: '//trim(blockname)
    do idir=1,nam%ndir
-      write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',fld(ic0dir(idir),il0dir)
+      write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',fld(ic0dir(idir),il0dir(idir))
    end do
    write(mpl%unit,'(a7,a,f10.7,a,f10.7)') '','Min - max: ', &
  & minval(fld(:,il0dir),mask=geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=geom%mask(:,il0dir))
@@ -354,15 +352,16 @@ end subroutine test_dirac
 ! Subroutine: test_perf
 !> Purpose: test NICAS performance
 !----------------------------------------------------------------------
-subroutine test_perf(ndataloc)
+subroutine test_perf(blockname,ndataloc)
 
 implicit none
 
 ! Passed variables
+character(len=*),intent(in) :: blockname !< Block name
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 
 ! Local variables
-real(kind_real) :: fld(ndataloc%nc0a,ndataloc%geom%nl0)
+real(kind_real) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)
 real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
 type(timertype) :: timer_interp_ad,timer_com_1,timer_convol,timer_com_2,timer_interp
 
@@ -448,7 +447,7 @@ call timer_end(timer_interp)
 deallocate(alpha)
 
 ! Print results
-write(mpl%unit,'(a7,a)') '','Performance results (elapsed time):'
+write(mpl%unit,'(a7,a)') '','Performance results (elapsed time) for block: '//trim(blockname)
 write(mpl%unit,'(a10,a,f6.1,a)') '','Adjoint interpolation: ',timer_interp_ad%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 1    : ',timer_com_1%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Convolution          : ',timer_convol%elapsed,' s'
@@ -459,5 +458,71 @@ write(mpl%unit,'(a10,a,f6.1,a)') '','Interpolation        : ',timer_interp%elaps
 end associate
 
 end subroutine test_perf
+
+!----------------------------------------------------------------------
+! Subroutine: test_dirac_bens
+!> Purpose: apply Bens to diracs
+!----------------------------------------------------------------------
+subroutine test_dirac_bens(ndataloc,ens)
+
+implicit none
+
+! Passed variables
+type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+type(enstype),intent(in) :: ens
+
+! Local variables
+integer :: il0,il0dir(ndataloc(1)%nam%ndir),ic0dir(ndataloc(1)%nam%ndir),idir,iv,its
+real(kind_real) :: dum(1)
+real(kind_real),allocatable :: fld(:,:,:,:)
+character(len=2) :: itschar
+
+! Associate
+associate(nam=>ndataloc(1)%nam,geom=>ndataloc(1)%geom)
+
+if (mpl%main) then
+   ! Allocation
+   allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
+
+   ! Generate diracs field
+   fld = 0.0
+   do idir=1,nam%ndir
+      ! Find level index
+      do il0=1,geom%nl0
+          if (nam%levs(il0)==nam%levdir(idir)) il0dir(idir) = il0
+      end do
+
+      ! Find nearest neighbor
+      call find_nearest_neighbors(geom%ctree(min(il0dir(idir),geom%nl0i)),dble(nam%londir(idir)*deg2rad), &
+    & dble(nam%latdir(idir)*deg2rad),1,ic0dir(idir:idir),dum)
+
+      ! Dirac value
+      fld(ic0dir(idir),il0dir(idir),nam%ivdir(idir),nam%itsdir(idir)) = 1.0
+   end do
+end if
+
+! Global to local
+call fld_com_gl(nam,geom,fld)
+
+! Apply Bens
+call apply_bens(ndataloc,ens,fld)
+
+! Local to global
+call fld_com_lg(nam,geom,fld)
+
+if (mpl%main) then
+   ! Write field
+   do its=1,nam%nts
+      write(itschar,'(i2.2)') its
+      do iv=1,nam%nv
+         call model_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(nam%varname(iv))//'_'//itschar,fld(:,:,iv,its))
+      end do
+   end do
+end if
+
+! End associate
+end associate
+
+end subroutine test_dirac_bens
 
 end module module_test

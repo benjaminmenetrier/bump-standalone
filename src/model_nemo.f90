@@ -137,23 +137,23 @@ end subroutine model_nemo_coord
 ! Subroutine: model_nemo_read
 !> Purpose: read NEMO field
 !----------------------------------------------------------------------
-subroutine model_nemo_read(nam,ncid,varname,time,geom,fld)
+subroutine model_nemo_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
-integer :: il0,nd
+integer :: il0
 integer :: fld_id
 real(kind=8) :: fld_tmp(geom%nlon,geom%nlat),fld_loc(geom%nlon,geom%nlat)
-logical :: l3d
 character(len=1024) :: subr = 'model_nemo_read'
 
 ! Initialize field
@@ -162,22 +162,11 @@ call msr(fld)
 ! Get variable id
 call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
-! Check whether it is a 2d or 3d variable
-call ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=nd))
-if (nd==3) then
-   l3d = .false.
-elseif (nd==4) then
-   l3d = .true.
-else
-   l3d = .false.
-   call msgerror('wrong number of dimensions')
-end if
-
 ! Read variable
-if (l3d) then
+if (var3d) then
    ! 3d variable
-   do il0=1,geom%nl0
-      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/1,1,nam%levs(il0),time/),(/geom%nlon,geom%nlat,1,1/)))
+   do il0=1,nam%nl
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/1,1,nam%levs(il0),timeslot/),(/geom%nlon,geom%nlat,1,1/)))
       select case (trim(varname))
       case ('un')
          fld_loc(:,1) = 0.5*(fld_tmp(geom%nlon,:)+fld_tmp(:,1))
@@ -193,7 +182,7 @@ if (l3d) then
 else
    ! 2d variable
    call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
-   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=.true.)
 end if
 
 end subroutine model_nemo_read
@@ -202,19 +191,20 @@ end subroutine model_nemo_read
 ! Subroutine: model_nemo_write
 !> Purpose: write NEMO field
 !----------------------------------------------------------------------
-subroutine model_nemo_write(ncid,varname,geom,fld)
+subroutine model_nemo_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
 integer :: il0,ic0,ierr
-integer :: nlon_id,nlat_id,nlev_id,nt_id,fld_id
+integer :: nlon_id,nlat_id,nlev_id,fld_id
 real(kind_real) :: fld_tmp(geom%nc0),fld_loc(geom%nlon,geom%nlat)
 logical :: mask_unpack(geom%nlon,geom%nlat)
 character(len=1024) :: subr = 'model_nemo_write'
@@ -234,9 +224,7 @@ if (ierr/=nf90_noerr) then
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'y',geom%nlat,nlat_id))
    ierr = nf90_inq_dimid(ncid,'z',nlev_id)
    if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'z',geom%nl0,nlev_id))
-   ierr = nf90_inq_dimid(ncid,'t',nt_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'t',1,nt_id))
-   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id,nt_id/),fld_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
    call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
    call ncerr(subr,nf90_enddef(ncid))
 end if
@@ -249,7 +237,7 @@ do il0=1,geom%nl0
          if (geom%mask(ic0,il0)) fld_tmp(ic0) = fld(ic0,il0)
       end do
       fld_loc = unpack(fld_tmp,mask=mask_unpack,field=fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0,1/),(/geom%nlon,geom%nlat,1,1/)))
+      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
    end if
 end do
 

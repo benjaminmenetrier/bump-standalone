@@ -93,15 +93,13 @@ geom%area = float(geom%nlon*geom%nlat)*dx*dy/req**2
 
 ! Vertical unit
 if (nam%logpres) then
-   do il0=1,geom%nl0
-      if (nam%levs(il0)<=geom%nlev) then
-         geom%vunit(il0) = log(0.5*(a(nam%levs(il0))+a(nam%levs(il0)+1))+0.5*(b(nam%levs(il0))+b(nam%levs(il0)+1))*ps)
-      else
-         geom%vunit(il0) = log(ps)
-      end if
+   do il0=1,nam%nl
+      geom%vunit(il0) = log(0.5*(a(nam%levs(il0))+a(nam%levs(il0)+1))+0.5*(b(nam%levs(il0))+b(nam%levs(il0)+1))*ps)
    end do
+   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = log(ps)  
 else
-   geom%vunit = float(nam%levs(1:geom%nl0))
+   geom%vunit(1:nam%nl) = float(nam%levs(1:nam%nl))
+   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = float(maxval(nam%levs(1:nam%nl)))+1
 end if
 
 ! Release memory
@@ -117,71 +115,56 @@ end subroutine model_aro_coord
 ! Subroutine: model_aro_read
 !> Purpose: read AROME field
 !----------------------------------------------------------------------
-subroutine model_aro_read(nam,ncid,varname,time,geom,fld)
+subroutine model_aro_read(nam,geom,ncid,varname,var3d,timeslot,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
 character(len=*),intent(in) :: varname                  !< Variable name
-integer,intent(in) :: time                            !< Time
-type(geomtype),intent(in) :: geom                     !< Sampling data
+logical,intent(in) :: var3d                  !< 3D variable
+integer,intent(in) :: timeslot                            !< Timeslot
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
 
 ! Local variables
 integer :: il0,dum
 integer :: info,fld_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
-logical :: l3d
 character(len=3) :: ilchar
 character(len=1024) :: subr = 'model_aro_read'
 
 ! Initialize field
 call msr(fld)
 
-! Get variable id and check whether it is a 2d or 3d variable
-info = nf90_inq_varid(ncid,trim(varname),fld_id)
-if (info==nf90_noerr) then
-   l3d = .false.
-else
-   l3d = .true.
-end if
-
-if (l3d) then
-   do il0=1,geom%nl0
+if (var3d) then
+   ! 3d variable
+   do il0=1,nam%nl
+      ! Get id
       write(ilchar,'(i3.3)') nam%levs(il0)
+      call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
 
-      ! Check variable existence
-      info = nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id)
-
-      if (info==nf90_noerr) then
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-         fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
-      else
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,'SURFPRESSION',fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-         fld(:,il0) = pack(real(exp(fld_loc),kind_real),mask=.true.)
-      end if
+      ! Read data
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+      fld(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
    end do
 else
    ! 2d variable
+
+   ! Get id
+   call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
+
+   ! Read data
    call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-   fld(:,1) = pack(real(fld_loc,kind_real),mask=.true.)
+   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=.true.)
 
    ! Variable change for surface pressure
-   if (trim(varname)=='SURFPRESSION') fld(:,1) = exp(fld(:,1))
+   if (trim(varname)=='SURFPRESSION') fld(:,geom%nl0) = exp(fld(:,geom%nl0))
 end if
 
-! Use time to avoid warning
-dum = time
+! Use timeslot to avoid warning
+dum = timeslot
 
 end subroutine model_aro_read
 
@@ -189,14 +172,15 @@ end subroutine model_aro_read
 ! Subroutine: model_aro_write
 !> Purpose: write AROME field
 !----------------------------------------------------------------------
-subroutine model_aro_write(ncid,varname,geom,fld)
+subroutine model_aro_write(nam,geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                             !< NetCDF file ID
-character(len=*),intent(in) :: varname                 !< Variable name
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom                     !< Sampling data
+integer,intent(in) :: ncid                              !< NetCDF file ID
+character(len=*),intent(in) :: varname                  !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
@@ -209,31 +193,31 @@ character(len=1024) :: subr = 'model_aro_write'
 ! Initialization
 mask_unpack = .true.
 
-   ! Get variable id
-   info = nf90_inq_varid(ncid,trim(varname),fld_id)
+! Get variable id
+info = nf90_inq_varid(ncid,trim(varname),fld_id)
 
-   ! Define dimensions and variable if necessary
-   if (info/=nf90_noerr) then
-      call ncerr(subr,nf90_redef(ncid))
-      info = nf90_inq_dimid(ncid,'X',nlon_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'X',geom%nlon,nlon_id))
-      info = nf90_inq_dimid(ncid,'Y',nlat_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Y',geom%nlat,nlat_id))
-      info = nf90_inq_dimid(ncid,'Z',nlev_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Z',geom%nl0,nlev_id))
-      call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
-      call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_enddef(ncid))
+! Define dimensions and variable if necessary
+if (info/=nf90_noerr) then
+   call ncerr(subr,nf90_redef(ncid))
+   info = nf90_inq_dimid(ncid,'X',nlon_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'X',geom%nlon,nlon_id))
+   info = nf90_inq_dimid(ncid,'Y',nlat_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Y',geom%nlat,nlat_id))
+   info = nf90_inq_dimid(ncid,'Z',nlev_id)
+   if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'Z',geom%nl0,nlev_id))
+   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
+   call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
+   call ncerr(subr,nf90_enddef(ncid))
+end if
+
+! Write data
+do il0=1,geom%nl0
+   if (isanynotmsr(fld(:,il0))) then
+      call msr(fld_loc)
+      fld_loc = unpack(fld(:,il0),mask=mask_unpack,field=fld_loc)
+      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
    end if
-
-   ! Write data
-   do il0=1,geom%nl0
-      if (isanynotmsr(fld(:,il0))) then
-         call msr(fld_loc)
-         fld_loc = unpack(fld(:,il0),mask=mask_unpack,field=fld_loc)
-         call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
-      end if
-   end do
+end do
 
 ! Write coordinates
 info = nf90_inq_varid(ncid,'longitude',lon_id)

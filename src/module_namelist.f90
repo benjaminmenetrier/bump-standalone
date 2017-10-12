@@ -23,113 +23,124 @@ implicit none
 
 ! Namelist parameters maximum sizes
 integer,parameter :: nvmax = 20                      !< Maximum number of variables
+integer,parameter :: ntsmax = 20                      !< Maximum number of time slots
 integer,parameter :: nlmax = 200                     !< Maximum number of levels
 integer,parameter :: ncmax = 1000                    !< Maximum number of classes
 integer,parameter :: nldwvmax = 100                  !< Maximum number of local diagnostic profiles
 integer,parameter :: ndirmax = 100 !< Maximum number of diracs
 
 type namtype
-! general_param
-character(len=1024) :: datadir     !< Data directory
-character(len=1024) :: prefix      !< Files prefix
-character(len=1024) :: model       !< Model name ('aro','arp','gem','geos','gfs','ifs','mpas','nemo' or 'wrf')
-logical :: colorlog                !< Add colors to the log (for display on terminal)
-logical :: sam_default_seed        !< Default seed for random numbers
-
-! driver_param
-logical :: new_hdiag               !< Compute new hybrid_diag parameters (if false, read file)
-character(len=1024) :: method      !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
-logical :: new_param               !< Compute new parameters (if false, read file)
-logical :: new_mpi                 !< Compute new mpi splitting (if false, read file)
-logical :: check_adjoints          !< Test adjoints
-logical :: check_pos_def           !< Test positive definiteness
-logical :: check_mpi               !< Test single proc/multi-procs equivalence
-logical :: check_dirac             !< Test NICAS application on diracs
-logical :: check_perf              !< Test NICAS performance
-
-! model_param
-integer :: nl                      !< Number of levels
-integer :: levs(nlmax)             !< Levels
-logical :: logpres                                   !< Use pressure logarithm as vertical coordinate (model level if .false.)
-integer :: nv                                        !< Number of variables
-integer :: ne                                !< Ensemble sizes
-
-! ens1_param
-integer :: ens1_ne                                   !< Ensemble 1 size
-integer :: ens1_ne_offset                            !< Ensemble 1 index offset
-integer :: ens1_nsub                                 !< Ensemble 1 sub-ensembles number
-character(len=1024),dimension(nvmax) :: ens1_input   !< Ensemble 1 file prefixes (full name should be ${input}nnnn, where nnnn is a 4-digit index)
-character(len=1024),dimension(nvmax) :: ens1_varname !< Ensemble 1 variables to read
-integer,dimension(nvmax) :: ens1_time                !< Ensemble 1 time for the variables to read
-
-! ens2_param
-integer :: ens2_ne                                   !< Ensemble 2 size
-integer :: ens2_ne_offset                            !< Ensemble 2 index offset
-integer :: ens2_nsub                                 !< Ensemble 2 sub-ensembles number
-character(len=1024),dimension(nvmax) :: ens2_input   !< Ensemble 2 file prefixes (full name should be ${input}nnnn, where nnnn is a 4-digit index)
-character(len=1024),dimension(nvmax) :: ens2_varname !< Ensemble 2 variables to read
-integer,dimension(nvmax) :: ens2_time                !< Ensemble 2 time for the variables to read
-
-! sampling_param
-logical :: sam_write                                 !< Write sampling
-logical :: sam_read                                  !< Read sampling
-character(len=1024) :: mask_type                     !< Mask restriction type
-real(kind_real) ::  mask_th                                      !< Mask threshold
-logical :: mask_check                                !< Check that sampling couples and interpolations do not cross mask boundaries
-integer :: nc1                                        !< Number of sampling points
-integer :: ntry                                      !< Number of tries to get the most separated point for the zero-separation sampling
-integer :: nrep                                      !< Number of replacement to improve homogeneity of the zero-separation sampling
-integer :: nc                                        !< Number of classes
-real(kind_real) ::  dc                                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
-
-! diag_param
-logical :: gau_approx                                !< Gaussian approximation for asymptotic quantities
-logical :: full_var                                  !< Compute full variances
-logical :: cross_diag                                !< Activate cross-ensembles diagnostics (ensembles 1 & 2)
-logical :: local_diag                                !< Activate local diagnostics
-real(kind_real) ::  local_rad                                    !< Local diagnostics calculation radius
-logical :: displ_diag                                !< Activate displacement diagnostics
-real(kind_real) ::  displ_rad                                    !< Displacement calculation radius
-logical :: displ_explicit                            !< Filtering with explicit support radius
-integer :: displ_niter                               !< Number of iteration for the displacement filtering (for displ_diag = .true.)
-real(kind_real) ::  displ_rhflt                                   !< Displacement initial filtering support radius (for displ_diag = .true.)
-real(kind_real) ::  displ_tol                                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
-
-! fit_param
-character(len=1024) :: fit_type                      !< Fit type ('none', 'fast' or 'full')
-logical :: fit_wgt                                   !< Apply a fit weight given by the curve on which localization is applied
-logical :: lhomh                                     !< Vertically homogenous horizontal support radius
-logical :: lhomv                                     !< Vertically homogenous vertical support radius
-real(kind_real) ::  rvflt                                      !< Vertical smoother support radius
-
-! output_param
-logical :: norm_loc                                  !< Normalize localization functions
-logical :: spectrum                                  !< Compute eigenspectrum
-integer :: nldwh                                     !< Number of local diagnostics fields to write (for local_diag = .true.)
-integer :: il_ldwh(nlmax*ncmax)                      !< Levels of local diagnostics fields to write (for local_diag = .true.)
-integer :: ic_ldwh(nlmax*ncmax)                      !< Classes of local diagnostics fields to write (for local_diag = .true.)
-integer :: nldwv                                     !< Number of local diagnostics profiles to write (for local_diag = .true.)
-real(kind_real) ::  lon_ldwv(nldwvmax)                           !< Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-real(kind_real) ::  lat_ldwv(nldwvmax)                           !< Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-character(len=1024) :: flt_type                      !< Diagnostics filtering type ('none', 'average', 'gc99', 'median')
-real(kind_real) ::  diag_rhflt                                        !< Diagnostics filtering radius
-
-! nicas_param
-logical :: lsqrt                   !< Square-root formulation
-real(kind_real) :: rh(nlmax)      !< Default horizontal support radius
-real(kind_real) :: rv(nlmax)      !< Default vertical support radius
-real(kind_real) :: resol           !< Resolution
-logical :: network                 !< Network-base convolution calculation (distance-based if false)
-integer :: nproc                   !< Number of tasks
-integer :: mpicom                  !< Number of communication steps
-integer :: ndir                    !< Number of Diracs
-integer :: levdir                  !< Diracs level
-real(kind_real) :: londir(ndirmax) !< Diracs longitudes
-real(kind_real) :: latdir(ndirmax) !< Diracs latitudes
-
-! Unread parameter
-integer :: nvp                                       !< Number of variables plus one for common diagnostics (potentially)
-real(kind_real) :: disth(ncmax)
+   ! general_param
+   character(len=1024) :: datadir     !< Data directory
+   character(len=1024) :: prefix      !< Files prefix
+   character(len=1024) :: model       !< Model name ('aro', 'arp', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
+   logical :: colorlog                !< Add colors to the log (for display on terminal)
+   logical :: sam_default_seed        !< Default seed for random numbers
+   
+   ! driver_param
+   character(len=1024) :: method      !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
+   character(len=1024) :: strategy    !< Localization strategy ('common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
+   logical :: new_hdiag               !< Compute new hybrid_diag parameters (if false, read file)
+   logical :: new_param               !< Compute new parameters (if false, read file)
+   logical :: new_mpi                 !< Compute new mpi splitting (if false, read file)
+   logical :: check_adjoints          !< Test adjoints
+   logical :: check_pos_def           !< Test positive definiteness
+   logical :: check_mpi               !< Test single proc/multi-procs equivalence
+   logical :: check_dirac             !< Test NICAS application on diracs
+   logical :: check_perf              !< Test NICAS performance
+   
+   ! model_param
+   integer :: nl                      !< Number of levels
+   integer :: levs(nlmax)             !< Levels
+   logical :: logpres                                   !< Use pressure logarithm as vertical coordinate (model level if .false.)
+   integer :: nv                                        !< Number of variables
+   character(len=1024),dimension(nvmax) :: varname !< Variables names
+   logical,dimension(nvmax) :: var3d !< 3D variable
+   integer :: nts                                      !< Number of time slots
+   integer,dimension(ntsmax) :: timeslot ! < Time slots
+   
+   ! ens1_param
+   integer :: ens1_ne                                   !< Ensemble 1 size
+   integer :: ens1_ne_offset                            !< Ensemble 1 index offset
+   integer :: ens1_nsub                                 !< Ensemble 1 sub-ensembles number
+   
+   ! ens2_param
+   integer :: ens2_ne                                   !< Ensemble 2 size
+   integer :: ens2_ne_offset                            !< Ensemble 2 index offset
+   integer :: ens2_nsub                                 !< Ensemble 2 sub-ensembles number
+   
+   ! sampling_param
+   logical :: sam_write                                 !< Write sampling
+   logical :: sam_read                                  !< Read sampling
+   character(len=1024) :: mask_type                     !< Mask restriction type
+   real(kind_real) ::  mask_th                                      !< Mask threshold
+   logical :: mask_check                                !< Check that sampling couples and interpolations do not cross mask boundaries
+   integer :: nc1                                        !< Number of sampling points
+   integer :: ntry                                      !< Number of tries to get the most separated point for the zero-separation sampling
+   integer :: nrep                                      !< Number of replacement to improve homogeneity of the zero-separation sampling
+   integer :: nc                                        !< Number of classes
+   real(kind_real) ::  dc                                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
+   
+   ! diag_param
+   integer :: ne                                        !< Ensemble sizes
+   logical :: limited_memory                            !< Limited memory: ensemble members are not stored for diagnostics
+   logical :: gau_approx                                !< Gaussian approximation for asymptotic quantities
+   logical :: full_var                                  !< Compute full variances
+   logical :: local_diag                                !< Activate local diagnostics
+   real(kind_real) ::  local_rad                                    !< Local diagnostics calculation radius
+   logical :: displ_diag                                !< Activate displacement diagnostics
+   real(kind_real) ::  displ_rad                                    !< Displacement calculation radius
+   logical :: displ_explicit                            !< Filtering with explicit support radius
+   integer :: displ_niter                               !< Number of iteration for the displacement filtering (for displ_diag = .true.)
+   real(kind_real) ::  displ_rhflt                                   !< Displacement initial filtering support radius (for displ_diag = .true.)
+   real(kind_real) ::  displ_tol                                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
+   
+   ! fit_param
+   character(len=1024) :: fit_type                      !< Fit type ('none', 'fast' or 'full')
+   logical :: fit_wgt                                   !< Apply a fit weight given by the curve on which localization is applied
+   logical :: lhomh                                     !< Vertically homogenous horizontal support radius
+   logical :: lhomv                                     !< Vertically homogenous vertical support radius
+   real(kind_real) ::  rvflt                                      !< Vertical smoother support radius
+   
+   ! output_param
+   logical :: norm_loc                                  !< Normalize localization functions
+   logical :: spectrum                                  !< Compute eigenspectrum
+   integer :: nldwh                                     !< Number of local diagnostics fields to write (for local_diag = .true.)
+   integer :: il_ldwh(nlmax*ncmax)                      !< Levels of local diagnostics fields to write (for local_diag = .true.)
+   integer :: ic_ldwh(nlmax*ncmax)                      !< Classes of local diagnostics fields to write (for local_diag = .true.)
+   integer :: nldwv                                     !< Number of local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lon_ldwv(nldwvmax)                           !< Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lat_ldwv(nldwvmax)                           !< Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
+   character(len=1024) :: flt_type                      !< Diagnostics filtering type ('none', 'average', 'gc99', 'median')
+   real(kind_real) ::  diag_rhflt                                        !< Diagnostics filtering radius
+   
+   ! nicas_param
+   logical :: lsqrt                   !< Square-root formulation
+   real(kind_real) :: rh(nlmax)      !< Default horizontal support radius
+   real(kind_real) :: rv(nlmax)      !< Default vertical support radius
+   real(kind_real) :: resol           !< Resolution
+   logical :: network                 !< Network-base convolution calculation (distance-based if false)
+   integer :: nproc                   !< Number of tasks
+   integer :: mpicom                  !< Number of communication steps
+   integer :: ndir                    !< Number of Diracs
+   real(kind_real) :: londir(ndirmax) !< Diracs longitudes
+   real(kind_real) :: latdir(ndirmax) !< Diracs latitudes
+   integer :: levdir(ndirmax)         !< Diracs level
+   integer :: ivdir(ndirmax)          !< Diracs variable
+   integer :: itsdir(ndirmax)         !< Diracs timeslot
+   
+   ! Unread parameters
+   integer :: nb
+   character(len=11),allocatable :: blockname(:)
+   logical,allocatable :: diag_block(:)
+   logical,allocatable :: avg_block(:)
+   logical,allocatable :: fit_block(:)
+   logical,allocatable :: nicas_block(:)
+   integer,allocatable :: ib_to_iv(:)
+   integer,allocatable :: ib_to_jv(:)
+   integer,allocatable :: ib_to_its(:)
+   integer,allocatable :: ib_to_jts(:)
+   real(kind_real) :: disth(ncmax)
 end type namtype
 
 interface namncwrite_param
@@ -159,15 +170,14 @@ implicit none
 type(namtype),intent(out) :: nam !< Namelist variables
 
 ! Local variables
-integer :: iv,ic
+integer :: iv
 
 ! Namelist variables
-integer :: nl,levs(nlmax),nv,ne,ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
-integer,dimension(nvmax) :: ens1_time,ens2_time
+integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 logical :: colorlog,sam_default_seed,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
-logical :: logpres ,sam_write,sam_read,spectrum
-character(len=1024) :: datadir,prefix,model,method,mask_type  
-character(len=1024),dimension(nvmax) :: ens1_input,ens1_varname,ens2_input,ens2_varname
+logical :: logpres,var3d(nvmax),sam_write,sam_read,spectrum
+character(len=1024) :: datadir,prefix,model,strategy,method,mask_type  
+character(len=1024),dimension(nvmax) :: varname
 
 ! TODO
 real(kind_real) ::  mask_th                                      !< Mask threshold
@@ -177,9 +187,10 @@ integer :: ntry                                      !< Number of tries to get t
 integer :: nrep                                      !< Number of replacement to improve homogeneity of the zero-separation sampling
 integer :: nc                                        !< Number of classes
 real(kind_real) ::  dc                                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
+integer :: ne
+logical :: limited_memory
 logical :: gau_approx                                !< Gaussian approximation for asymptotic quantities
 logical :: full_var                                  !< Compute full variances
-logical :: cross_diag                                !< Activate cross-ensembles diagnostics (ensembles 1 & 2)
 logical :: local_diag                                !< Activate local diagnostics
 real(kind_real) ::  local_rad                                    !< Local diagnostics calculation radius
 logical :: displ_diag                                !< Activate displacement diagnostics
@@ -209,22 +220,24 @@ logical :: network                 !< Network-base convolution calculation (dist
 integer :: nproc                   !< Number of tasks
 integer :: mpicom                  !< Number of communication steps
 integer :: ndir                    !< Number of Diracs
-integer :: levdir                  !< Diracs level
 real(kind_real) :: londir(ndirmax) !< Diracs longitudes
 real(kind_real) :: latdir(ndirmax) !< Diracs latitudes
+integer :: levdir(ndirmax)                  !< Diracs level
+integer :: ivdir(ndirmax)          !< Diracs variable
+integer :: itsdir(ndirmax)         !< Diracs 
 
 ! Namelist blocks
 namelist/general_param/datadir,prefix,model,colorlog,sam_default_seed
-namelist/driver_param/new_hdiag,method,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
-namelist/model_param/nl,levs,logpres,nv,ne
-namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub,ens1_input,ens1_varname,ens1_time
-namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub,ens2_input,ens2_varname,ens2_time
+namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
+namelist/model_param/nl,levs,logpres,nv,varname,var3d,nts,timeslot
+namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
+namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc
-namelist/diag_param/gau_approx,cross_diag,full_var,local_diag,local_rad, &
+namelist/diag_param/ne,limited_memory,gau_approx,full_var,local_diag,local_rad, &
  & displ_diag,displ_rad,displ_explicit,displ_niter,displ_rhflt,displ_tol
 namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt
 namelist/output_param/norm_loc,spectrum,nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
-namelist/nicas_param/lsqrt,rh,rv,resol,network,nproc,mpicom,ndir,levdir,londir,latdir
+namelist/nicas_param/lsqrt,rh,rv,resol,network,nproc,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
 
 ! Default initialization
 
@@ -236,8 +249,9 @@ colorlog = .false.
 sam_default_seed = .false.
 
 ! driver_param default
-new_hdiag = .false.
 method = ''
+strategy = ''
+new_hdiag = .false.
 new_param = .false.
 new_mpi = .false.
 check_adjoints = .false.
@@ -251,27 +265,22 @@ call msi(nl)
 call msi(levs)
 logpres = .false.
 call msi(nv)
-call msi(ne)
+do iv=1,nvmax
+   varname = ''
+end do
+var3d = .true.
+call msi(nts)
+call msi(timeslot)
 
 ! ens1_param default
 call msi(ens1_ne)
 call msi(ens1_ne_offset)
 call msi(ens1_nsub)
-do iv=1,nvmax
-   ens1_input(iv) = ''
-   ens1_varname = ''
-   call msi(ens1_time)
-end do
 
 ! ens2_param default
 call msi(ens2_ne)
 call msi(ens2_ne_offset)
 call msi(ens2_nsub)
-do iv=1,nvmax
-   ens2_input(iv) = ''
-   ens2_varname = ''
-   call msi(ens2_time)
-end do
 
 ! sampling_param default
 sam_write = .false.
@@ -286,6 +295,8 @@ call msi(nc)
 call msr(dc)
 
 ! solver_param default
+call msi(ne)
+limited_memory = .false.
 gau_approx = .false.
 local_diag = .false.
 call msr(local_rad)
@@ -324,9 +335,11 @@ network = .false.
 call msi(nproc)
 call msi(mpicom)
 call msi(ndir)
-call msi(levdir)
 call msr(londir)
 call msr(latdir)
+call msi(levdir)
+call msi(ivdir)
+call msi(itsdir)
 
 if (mpl%main) then
    ! Read namelist and copy into derived type
@@ -341,8 +354,9 @@ if (mpl%main) then
 
    ! driver_param
    read(*,nml=driver_param)
-   nam%new_hdiag = new_hdiag
    nam%method = method
+   nam%strategy = strategy
+   nam%new_hdiag = new_hdiag
    nam%new_param = new_param
    nam%new_mpi = new_mpi
    nam%check_adjoints = check_adjoints
@@ -357,25 +371,22 @@ if (mpl%main) then
    nam%levs = levs
    nam%logpres = logpres
    nam%nv = nv
-   nam%ne = ne
+   nam%varname = varname
+   nam%var3d = var3d
+   nam%nts = nts
+   nam%timeslot = timeslot
 
    ! ens1_param
    read(*,nml=ens1_param)
    nam%ens1_ne = ens1_ne
    nam%ens1_ne_offset = ens1_ne_offset
    nam%ens1_nsub = ens1_nsub
-   nam%ens1_input = ens1_input
-   nam%ens1_varname = ens1_varname
-   nam%ens1_time = ens1_time
 
    ! ens2_param
    read(*,nml=ens2_param)
    nam%ens2_ne = ens2_ne
    nam%ens2_ne_offset = ens2_ne_offset
    nam%ens2_nsub = ens2_nsub
-   nam%ens2_input = ens2_input
-   nam%ens2_varname = ens2_varname
-   nam%ens2_time = ens2_time
 
    ! sampling_param
    read(*,nml=sampling_param)
@@ -392,8 +403,9 @@ if (mpl%main) then
 
    ! diag_param
    read(*,nml=diag_param)
+   nam%ne = ne
+   nam%limited_memory = limited_memory
    nam%gau_approx = gau_approx
-   nam%cross_diag = cross_diag
    nam%full_var = full_var
    nam%local_diag = local_diag
    nam%local_rad = local_rad/req
@@ -435,19 +447,11 @@ if (mpl%main) then
    nam%nproc = nproc
    nam%mpicom = mpicom
    nam%ndir = ndir
-   nam%levdir = levdir
    nam%londir = londir
    nam%latdir = latdir
-
-   ! Unread parameters
-   if (nam%nv==1) then
-      nam%nvp = 1
-   else
-      nam%nvp = nam%nv+1
-   end if
-   do ic=1,nam%nc
-      nam%disth(ic) = float(ic-1)*nam%dc
-   end do
+   nam%levdir = levdir
+   nam%ivdir = ivdir
+   nam%itsdir = itsdir
 end if
 
 ! Broadcast parameters
@@ -460,8 +464,9 @@ call mpl_bcast(nam%colorlog,mpl%ioproc)
 call mpl_bcast(nam%sam_default_seed,mpl%ioproc)
 
 ! driver_param
-call mpl_bcast(nam%new_hdiag,mpl%ioproc)
 call mpl_bcast(nam%method,mpl%ioproc)
+call mpl_bcast(nam%strategy,mpl%ioproc)
+call mpl_bcast(nam%new_hdiag,mpl%ioproc)
 call mpl_bcast(nam%new_param,mpl%ioproc)
 call mpl_bcast(nam%new_mpi,mpl%ioproc)
 call mpl_bcast(nam%check_adjoints,mpl%ioproc)
@@ -475,23 +480,20 @@ call mpl_bcast(nam%nl,mpl%ioproc)
 call mpl_bcast(nam%levs,mpl%ioproc)
 call mpl_bcast(nam%logpres,mpl%ioproc)
 call mpl_bcast(nam%nv,mpl%ioproc)
-call mpl_bcast(nam%ne,mpl%ioproc)
+call mpl_bcast(nam%varname,mpl%ioproc)
+call mpl_bcast(nam%var3d,mpl%ioproc)
+call mpl_bcast(nam%nts,mpl%ioproc)
+call mpl_bcast(nam%timeslot,mpl%ioproc)
 
 ! ens1_param
 call mpl_bcast(nam%ens1_ne,mpl%ioproc)
 call mpl_bcast(nam%ens1_ne_offset,mpl%ioproc)
 call mpl_bcast(nam%ens1_nsub,mpl%ioproc)
-call mpl_bcast(nam%ens1_input,mpl%ioproc)
-call mpl_bcast(nam%ens1_varname,mpl%ioproc)
-call mpl_bcast(nam%ens1_time,mpl%ioproc)
 
 ! ens2_param
 call mpl_bcast(nam%ens2_ne,mpl%ioproc)
 call mpl_bcast(nam%ens2_ne_offset,mpl%ioproc)
 call mpl_bcast(nam%ens2_nsub,mpl%ioproc)
-call mpl_bcast(nam%ens2_input,mpl%ioproc)
-call mpl_bcast(nam%ens2_varname,mpl%ioproc)
-call mpl_bcast(nam%ens2_time,mpl%ioproc)
 
 ! sampling_param
 call mpl_bcast(nam%sam_write,mpl%ioproc)
@@ -506,8 +508,9 @@ call mpl_bcast(nam%nc,mpl%ioproc)
 call mpl_bcast(nam%dc,mpl%ioproc)
 
 ! diag_param
+call mpl_bcast(nam%ne,mpl%ioproc)
+call mpl_bcast(nam%limited_memory,mpl%ioproc)
 call mpl_bcast(nam%gau_approx,mpl%ioproc)
-call mpl_bcast(nam%cross_diag,mpl%ioproc)
 call mpl_bcast(nam%full_var,mpl%ioproc)
 call mpl_bcast(nam%local_diag,mpl%ioproc)
 call mpl_bcast(nam%local_rad,mpl%ioproc)
@@ -546,13 +549,11 @@ call mpl_bcast(nam%network,mpl%ioproc)
 call mpl_bcast(nam%nproc,mpl%ioproc)
 call mpl_bcast(nam%mpicom,mpl%ioproc)
 call mpl_bcast(nam%ndir,mpl%ioproc)
-call mpl_bcast(nam%levdir,mpl%ioproc)
 call mpl_bcast(nam%londir,mpl%ioproc)
 call mpl_bcast(nam%latdir,mpl%ioproc)
-
-! Unread parameters
-call mpl_bcast(nam%nvp,mpl%ioproc)
-call mpl_bcast(nam%disth,mpl%ioproc)
+call mpl_bcast(nam%levdir,mpl%ioproc)
+call mpl_bcast(nam%ivdir,mpl%ioproc)
+call mpl_bcast(nam%itsdir,mpl%ioproc)
 
 end subroutine namread
 
@@ -568,7 +569,7 @@ implicit none
 type(namtype),intent(inout) :: nam !< Namelist variables
 
 ! Local variables
-integer :: iv,il,idir
+integer :: ib,iv,jv,its,jts,il,idir,ic
 character(len=2) :: ivchar
 
 ! Check general_param
@@ -581,6 +582,16 @@ case default
 end select
 
 ! Check driver_param
+select case (trim(nam%method))
+case ('cor','loc','hyb-avg','hyb-rnd','dual-ens')
+case default
+   call msgerror('wrong method')
+end select
+select case (trim(nam%strategy))
+case ('common','specific_univariate','specific_multivariate','common_weighted')
+case default
+   call msgerror('wrong strategy')
+end select
 if (nam%new_param.and.(.not.nam%new_mpi)) then
    call msgwarning('new parameters calculation implies new MPI splitting, resetting new_mpi to .true.')
    nam%new_mpi = .true.
@@ -601,34 +612,28 @@ if (nam%logpres) then
    end select
 end if
 if (nam%nv<=0) call msgerror('nv should be positive')
-if (nam%ne<=3) call msgerror('ne should be larger than 3')
+do iv=1,nam%nv
+   write(ivchar,'(i2.2)') iv
+   if (trim(nam%varname(iv))=='') call msgerror('varname not specified for variable '//ivchar)
+end do
+do its=1,nam%nts
+   if (nam%timeslot(its)<0) call msgerror('timeslot should be non-negative')
+end do
 
 ! Check ens1_param
-   if (nam%ens1_ne_offset<0) call msgerror('ens1_ne_offset should be non-negative')
-   if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
-   if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call msgerror('ens1_nsub should be a divider of ens1_ne')
-   if (nam%ens1_ne/nam%ens1_nsub<=3) call msgerror('ens1_ne/ens1_nsub should be larger than 3')
-   do iv=1,nam%nv
-      write(ivchar,'(i2.2)') iv
-      if (trim(nam%ens1_input(iv))=='') call msgerror('ens1_input not specified for variable '//ivchar)
-      if (trim(nam%ens1_varname(iv))=='') call msgerror('ens1_varname not specified for variable '//ivchar)
-      if (nam%ens1_time(iv)==0) call msgerror('ens1_time not specified for variable '//ivchar)
-   end do
+if (nam%ens1_ne_offset<0) call msgerror('ens1_ne_offset should be non-negative')
+if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
+if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call msgerror('ens1_nsub should be a divider of ens1_ne')
+if (nam%ens1_ne/nam%ens1_nsub<=3) call msgerror('ens1_ne/ens1_nsub should be larger than 3')
 
 ! Check ens2_param
-   select case (trim(nam%method))
-   case ('hyb-rnd','dual-ens')
-      if (nam%ens2_ne_offset<0) call msgerror('ens2_ne_offset should be non-negative')
-      if (nam%ens2_nsub<1) call msgerror('ens2_nsub should be non-negative')
-      if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call msgerror('ens2_nsub should be a divider of ens2_ne')
-      if (nam%ens2_ne/nam%ens2_nsub<=3) call msgerror('ens2_ne/ens2_nsub should be larger than 3')
-      do iv=1,nam%nv
-         write(ivchar,'(i2.2)') iv
-         if (trim(nam%ens2_input(iv))=='') call msgerror('ens2_input not specified for variable '//ivchar)
-         if (trim(nam%ens2_varname(iv))=='') call msgerror('ens2_varname not specified for variable '//ivchar)
-         if (nam%ens2_time(iv)==0) call msgerror('ens2_time not specified for variable '//ivchar)
-      end do
-   end select
+select case (trim(nam%method))
+case ('hyb-rnd','dual-ens')
+   if (nam%ens2_ne_offset<0) call msgerror('ens2_ne_offset should be non-negative')
+   if (nam%ens2_nsub<1) call msgerror('ens2_nsub should be non-negative')
+   if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call msgerror('ens2_nsub should be a divider of ens2_ne')
+   if (nam%ens2_ne/nam%ens2_nsub<=3) call msgerror('ens2_ne/ens2_nsub should be larger than 3')
+end select
 
 ! Check sampling_param
 if (nam%sam_write.and.nam%sam_read) call msgerror('sam_write and sam_read are both true')
@@ -638,26 +643,12 @@ if (nam%nrep<0) call msgerror('nrep should be non-negative')
 if (nam%nc<=0) call msgerror('nc should be positive')
 if (nam%dc<0.0) call msgerror('dc should be positive')
 
-! Check solver_param
-select case (trim(nam%method))
-case ('cor','loc')
-case ('hyb-avg','hyb-rnd','dual-ens')
-   if (nam%cross_diag) call msgerror('cross_diag is only available with localization')
-   if (nam%displ_diag) call msgerror('displ_diag is only available with localization')
-case default
-   call msgerror('wrong method')
-end select
-if (nam%cross_diag) then
-   if (nam%ens1_ne/=nam%ens2_ne) call msgerror('ens1_ne and ens2_ne should be equal for cross_diag')
-   if (nam%ens1_nsub/=nam%ens2_nsub) call msgerror('ens1_nsub and ens2_nsub should be equal for cross_diag')
-   if (nam%displ_diag) call msgwarning('cross_diag superseded by displ_diag')
-end if
+! Check diag_param
+if (nam%ne<=3) call msgerror('ne should be larger than 3')
 if (nam%local_diag) then
    if (nam%local_rad<0.0) call msgerror('local_rad should be non-negative')
 end if
 if (nam%displ_diag) then
-   if (nam%ens1_ne/=nam%ens2_ne) call msgerror('ens1_ne and ens2_ne should be equal for displ_diag')
-   if (nam%ens1_nsub/=nam%ens2_nsub) call msgerror('ens1_nsub and ens2_nsub should be equal for displ_diag')
    if (nam%displ_rad<0.0) call msgerror('displ_rad should be non-negative')
    if (nam%displ_niter<0) call msgerror('displ_niter should be positive')
    if (nam%displ_rhflt<0.0) call msgerror('displ_rhflt should be non-negative')
@@ -696,16 +687,18 @@ end if
 ! Check nicas_param
 if (.not.(nam%resol>0.0)) call msgerror('resol should be positive')
 if (nam%nproc<1) call msgerror('nproc should be positive')
-if (nam%check_mpi.or.nam%check_dirac) then
-   if (nam%nproc/=mpl%nproc) call msgerror('nam%nproc should be equal to mpl%nproc for parallel tests')
+if (nam%new_mpi.or.nam%check_mpi.or.nam%check_dirac) then
+   if (nam%nproc/=mpl%nproc) call msgerror('nam%nproc should be equal to mpl%nproc')
 end if
 if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call msgerror('mpicom should be 1 or 2')
 if (nam%check_dirac) then
    if (nam%ndir<1) call msgerror('ndir should be positive')
-   if (.not.any(nam%levdir==nam%levs(1:nam%nl))) call msgerror('wrong level for a Dirac')
    do idir=1,nam%ndir
       if ((nam%londir(idir)<-180.0).or.(nam%londir(idir)>180.0)) call msgerror('Dirac longitude should lie between -180 and 180')
       if ((nam%latdir(idir)<-90.0).or.(nam%latdir(idir)>90.0)) call msgerror('Dirac latitude should lie between -90 and 90')
+      if (.not.any(nam%levdir(idir)==nam%levs(1:nam%nl))) call msgerror('wrong level for a Dirac')
+      if ((nam%ivdir(idir)<1).or.(nam%ivdir(idir)>nam%nv)) call msgerror('wrong variable for a Dirac')
+      if ((nam%itsdir(idir)<1).or.(nam%itsdir(idir)>nam%nts)) call msgerror('wrong timeslot for a Dirac')
    end do
 end if
 
@@ -714,6 +707,76 @@ if (trim(nam%method)/='cor') then
    if (nam%ne>nam%ens1_ne) call msgwarning('ensemble size larger than ens1_ne (might enhance sampling noise)')
    if (nam%ne>nam%ens2_ne) call msgwarning('ensemble size larger than ens2_ne (might enhance sampling noise)')
 end if
+
+! Check OOPS
+if (trim(nam%model)=='oops') then
+   if (nam%limited_memory) call msgerror('limited memory not compatible with OOPS')
+end if
+
+
+! Build unread parameters
+nam%nb = nam%nv**2*nam%nts**2
+allocate(nam%diag_block(nam%nb+1))
+allocate(nam%avg_block(nam%nb+1))
+allocate(nam%fit_block(nam%nb+1))
+allocate(nam%nicas_block(nam%nb+1))
+allocate(nam%blockname(nam%nb+1))
+allocate(nam%ib_to_iv(nam%nb))
+allocate(nam%ib_to_jv(nam%nb))
+allocate(nam%ib_to_its(nam%nb))
+allocate(nam%ib_to_jts(nam%nb))
+ib = 1
+do iv=1,nam%nv
+   do jv=1,nam%nv
+      do its=1,nam%nts
+         do jts=1,nam%nts
+            ! Select diagnostic blocks
+            select case (nam%strategy)
+            case ('common')
+               nam%diag_block(ib) = (iv==jv).and.(its==1)
+               nam%avg_block(ib) = (iv==jv).and.(its==1)
+               nam%nicas_block(ib) = .false.
+            case ('specific_univariate','specific_multivariate')
+               nam%diag_block(ib) = (iv==jv).and.(its==1)
+               nam%avg_block(ib) = .false.
+               nam%nicas_block(ib) = (iv==jv).and.(its==1)
+            case ('common_weighted')
+               nam%diag_block(ib) = (its==1)
+               nam%avg_block(ib) = (iv==jv).and.(its==1)
+               nam%nicas_block(ib) = .false.
+            end select
+            nam%fit_block(ib) = nam%diag_block(ib).and.(iv==jv).and.(its==jts).and.(trim(nam%fit_type)/='none')
+
+            ! Blocks information
+            write(nam%blockname(ib),'(i2.2,a,i2.2,a,i2.2,a,i2.2)') iv,'_',jv,'_',its,'_',jts
+            nam%ib_to_iv(ib) = iv
+            nam%ib_to_jv(ib) = jv
+            nam%ib_to_its(ib) = its
+            nam%ib_to_jts(ib) = jts
+
+            ib = ib+1
+         end do
+      end do
+   end do
+end do
+select case (nam%strategy)
+case ('common','common_weighted')
+   nam%diag_block(nam%nb+1) = .true. 
+   nam%avg_block(nam%nb+1) = .false. 
+   nam%nicas_block(nam%nb+1) = .true.
+case ('specific_univariate','specific_multivariate')
+   nam%diag_block(nam%nb+1) = .false.
+   nam%avg_block(nam%nb+1) = .false. 
+   nam%nicas_block(nam%nb+1) = .false. 
+end select
+nam%fit_block(nam%nb+1) = nam%diag_block(nam%nb+1).and.(trim(nam%fit_type)/='none')
+nam%blockname(nam%nb+1) = 'common'
+do ic=1,nam%nc
+   nam%disth(ic) = float(ic-1)*nam%dc
+end do
+
+! Clean files
+if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
 
 end subroutine namcheck
 

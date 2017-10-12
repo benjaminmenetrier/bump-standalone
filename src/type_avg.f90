@@ -19,19 +19,19 @@ implicit none
 type avgtype
    integer :: ne                                !< Ensemble size
    integer :: nsub                              !< Sub-ensembles number
-   real(kind_real),allocatable :: m11(:,:,:,:)               !< Covariance average
-   real(kind_real),allocatable :: m11m11(:,:,:,:,:,:)        !< Product of covariances average
-   real(kind_real),allocatable :: m2m2(:,:,:,:,:,:)          !< Product of variances average
-   real(kind_real),allocatable :: m22(:,:,:,:,:)             !< Fourth-order centered moment average
-   real(kind_real),allocatable :: cor(:,:,:,:)               !< Correlation average
-   real(kind_real),allocatable :: m11asysq(:,:,:,:)          !< Squared asymptotic covariance average
-   real(kind_real),allocatable :: m2m2asy(:,:,:,:)           !< Product of asymptotic variances average
-   real(kind_real),allocatable :: m22asy(:,:,:,:)            !< Asymptotic fourth-order centered moment average
-   real(kind_real),allocatable :: m11sq(:,:,:,:)             !< Squared covariance average for several ensemble sizes
-   real(kind_real),allocatable :: m11sta(:,:,:,:)            !< Ensemble covariance/static covariance product
-   real(kind_real),allocatable :: stasq(:,:,:,:)             !< Squared static covariance
-   real(kind_real),allocatable :: m11lrm11(:,:,:,:)          !< LR covariance/HR covariance product average
-   real(kind_real),allocatable :: m11lrm11asy(:,:,:,:)       !< LR covariance/HR asymptotic covariance product average
+   real(kind_real),allocatable :: m11(:,:,:)               !< Covariance average
+   real(kind_real),allocatable :: m11m11(:,:,:,:,:)        !< Product of covariances average
+   real(kind_real),allocatable :: m2m2(:,:,:,:,:)          !< Product of variances average
+   real(kind_real),allocatable :: m22(:,:,:,:)             !< Fourth-order centered moment average
+   real(kind_real),allocatable :: cor(:,:,:)               !< Correlation average
+   real(kind_real),allocatable :: m11asysq(:,:,:)          !< Squared asymptotic covariance average
+   real(kind_real),allocatable :: m2m2asy(:,:,:)           !< Product of asymptotic variances average
+   real(kind_real),allocatable :: m22asy(:,:,:)            !< Asymptotic fourth-order centered moment average
+   real(kind_real),allocatable :: m11sq(:,:,:)             !< Squared covariance average for several ensemble sizes
+   real(kind_real),allocatable :: m11sta(:,:,:)            !< Ensemble covariance/static covariance product
+   real(kind_real),allocatable :: stasq(:,:,:)             !< Squared static covariance
+   real(kind_real),allocatable :: m11lrm11(:,:,:)          !< LR covariance/HR covariance product average
+   real(kind_real),allocatable :: m11lrm11asy(:,:,:)       !< LR covariance/HR asymptotic covariance product average
 end type avgtype
 
 private
@@ -56,22 +56,22 @@ type(avgtype),intent(inout) :: avg !< Averaged statistics
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Allocation
-allocate(avg%m11(nam%nc,geom%nl0,geom%nl0,nam%nv))
-allocate(avg%m11m11(nam%nc,geom%nl0,geom%nl0,nam%nv,avg%nsub,avg%nsub))
-allocate(avg%m2m2(nam%nc,geom%nl0,geom%nl0,nam%nv,avg%nsub,avg%nsub))
-allocate(avg%m22(nam%nc,geom%nl0,geom%nl0,nam%nv,avg%nsub))
-allocate(avg%cor(nam%nc,geom%nl0,geom%nl0,nam%nvp))
-allocate(avg%m11asysq(nam%nc,geom%nl0,geom%nl0,nam%nvp))
-allocate(avg%m2m2asy(nam%nc,geom%nl0,geom%nl0,nam%nv))
-allocate(avg%m22asy(nam%nc,geom%nl0,geom%nl0,nam%nv))
-allocate(avg%m11sq(nam%nc,geom%nl0,geom%nl0,nam%nvp))
+allocate(avg%m11(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m11m11(nam%nc,geom%nl0,geom%nl0,avg%nsub,avg%nsub))
+allocate(avg%m2m2(nam%nc,geom%nl0,geom%nl0,avg%nsub,avg%nsub))
+allocate(avg%m22(nam%nc,geom%nl0,geom%nl0,avg%nsub))
+allocate(avg%cor(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m11asysq(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m2m2asy(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m22asy(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m11sq(nam%nc,geom%nl0,geom%nl0))
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
-   allocate(avg%m11sta(nam%nc,geom%nl0,geom%nl0,nam%nvp))
-   allocate(avg%stasq(nam%nc,geom%nl0,geom%nl0,nam%nvp))
+   allocate(avg%m11sta(nam%nc,geom%nl0,geom%nl0))
+   allocate(avg%stasq(nam%nc,geom%nl0,geom%nl0))
 case ('dual-ens')
-   allocate(avg%m11lrm11(nam%nc,geom%nl0,geom%nl0,nam%nvp))
-   allocate(avg%m11lrm11asy(nam%nc,geom%nl0,geom%nl0,nam%nvp))
+   allocate(avg%m11lrm11(nam%nc,geom%nl0,geom%nl0))
+   allocate(avg%m11lrm11asy(nam%nc,geom%nl0,geom%nl0))
 end select
 
 ! Initialization

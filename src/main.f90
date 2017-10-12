@@ -13,10 +13,11 @@ program main
 use driver_hdiag, only: hdiag
 use driver_nicas, only: nicas
 use driver_obsop, only: obsop
+use driver_test, only: test
 use model_interface, only: model_coord
 use module_namelist, only: namtype,namread,namcheck
 use tools_display, only: listing_setup,msgerror
-use type_bdata, only: bdatatype,bdata_alloc,bdata_read,bdata_write
+use type_bdata, only: bdatatype
 use type_geom, only: geomtype,compute_grid_mesh
 use type_mpl, only: mpl,mpl_start,mpl_end
 use type_ndata, only: ndataloctype
@@ -27,16 +28,13 @@ use type_timer, only: timertype,timer_start,timer_display
 implicit none
 
 ! Local variables
-integer :: iv
-character(len=6) :: ivchar
+integer :: ib
 type(geomtype),target :: geom
 type(namtype),target :: nam
 type(bdatatype),allocatable :: bdata(:)
 type(ndataloctype),allocatable :: ndataloc(:)
 type(odataloctype) :: odataloc
 type(timertype) :: timer
-
-logical :: univariate=.true.
 
 !----------------------------------------------------------------------
 ! Initialize MPL
@@ -89,7 +87,7 @@ write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI task
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Initialize random number generator'
+write(mpl%unit,'(a)') '--- Initialize random number generator'
    
 rng = create_randgen(nam)
 
@@ -98,7 +96,7 @@ rng = create_randgen(nam)
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Initialize coordinates'
+write(mpl%unit,'(a)') '--- Initialize coordinates'
 
 call model_coord(nam,geom)
 
@@ -107,76 +105,38 @@ call model_coord(nam,geom)
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Compute grid mesh'
+write(mpl%unit,'(a)') '--- Compute grid mesh'
 
 ! Compute grid mesh
 call compute_grid_mesh(nam,geom)
 
-! Allocate B data
-allocate(bdata(nam%nvp))
-do iv=1,nam%nvp
-   bdata(iv)%nam => nam
-   bdata(iv)%geom => geom
-   if (iv<=nam%nv) then
-      write(ivchar,'(i2.2)') iv
-   else
-      ivchar = 'common'
-   end if
-   bdata(iv)%cname = 'bdata_'//trim(ivchar)
-   call bdata_alloc(bdata(iv))
-end do
+!----------------------------------------------------------------------
+! Call hybrid_diag driver
+!----------------------------------------------------------------------
 
-if (nam%new_hdiag) then
-   !----------------------------------------------------------------------
-   ! Call hybrid_diag driver
-   !----------------------------------------------------------------------
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Call hybrid_diag driver'
 
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Call hybrid_diag driver'
-
-   call hdiag(nam,geom,bdata)
-
-   !----------------------------------------------------------------------
-   ! Write B data
-   !----------------------------------------------------------------------
-
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Write B data'
-
-   do iv=1,nam%nvp
-      call bdata_write(bdata(iv))
-   end do
-else
-   !----------------------------------------------------------------------
-   ! Call hybrid_diag driver
-   !----------------------------------------------------------------------
-
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Read B data'
-
-   do iv=1,nam%nvp
-      call bdata_read(bdata(iv))
-   end do
-end if
+call hdiag(nam,geom,bdata)
 
 !----------------------------------------------------------------------
 ! Call NICAS driver
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)',advance='no') '--- Call NICAS driver '
+write(mpl%unit,'(a)') '--- Call NICAS driver'
 
-if (univariate) then ! TODO: nam%univariate
-   allocate(ndataloc(1))
-   write(mpl%unit,'(a)') 'for common diagnostic'
-   call nicas(nam,geom,bdata(nam%nvp),ndataloc(1))
-else
-   allocate(ndataloc(nam%nv))
-   write(mpl%unit,'(a)') 'for all variables'
-   do iv=1,nam%nv
-      call nicas(nam,geom,bdata(iv),ndataloc(iv))
-   end do
-end if
+allocate(ndataloc(nam%nb+1))
+do ib=1,nam%nb+1
+   ! Set namelist and geometry
+   ndataloc(ib)%nam => nam
+   ndataloc(ib)%geom => geom
+
+   if (nam%nicas_block(ib)) then
+      write(mpl%unit,'(a7,a)') '','Block: '//trim(nam%blockname(ib))
+      call nicas(nam,geom,bdata(ib),ndataloc(ib))
+   end if
+end do
 
 if (.false.) then
    !----------------------------------------------------------------------
@@ -188,6 +148,15 @@ if (.false.) then
 
    call obsop(nam,geom,odataloc)   
 end if
+
+!----------------------------------------------------------------------
+! Call test driver
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Call test driver'
+
+call test(ndataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats

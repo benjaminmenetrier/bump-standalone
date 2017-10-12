@@ -29,41 +29,36 @@ contains
 ! Subroutine: compute_localization
 !> Purpose: compute localization
 !----------------------------------------------------------------------
-subroutine compute_localization(hdata,avg,loc)
+subroutine compute_localization(hdata,avg,lfit,loc)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata           !< Sampling data
 type(avgtype),intent(in) :: avg               !< Averaged statistics
-type(curvetype),intent(inout) :: loc(hdata%nam%nvp) !< Localizations
+logical,intent(in) :: lfit
+type(curvetype),intent(inout) :: loc !< Localizations
 
 ! Local variables
-integer :: iv,il0,jl0,ic
+integer :: il0,jl0,ic
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Compute raw localization
-do iv=1,nam%nvp
-   do jl0=1,geom%nl0
-      do il0=1,geom%nl0
-         do ic=1,nam%nc
-            if (isnotmsr(avg%m11asysq(ic,il0,jl0,iv)).and.isnotmsr(avg%m11sq(ic,il0,jl0,iv))) &
-          & loc(iv)%raw(ic,il0,jl0) = avg%m11asysq(ic,il0,jl0,iv)/avg%m11sq(ic,il0,jl0,iv)
-         end do
+do jl0=1,geom%nl0
+   do il0=1,geom%nl0
+      do ic=1,nam%nc
+         if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(avg%m11sq(ic,il0,jl0))) &
+       & loc%raw(ic,il0,jl0) = avg%m11asysq(ic,il0,jl0)/avg%m11sq(ic,il0,jl0)
       end do
    end do
 end do
 
 ! Compute localization fits
-if (trim(nam%fit_type)/='none') then
+if (lfit) then
    ! Compute fit weight
-   if (nam%fit_wgt) then
-      do iv=1,nam%nvp
-         loc(iv)%fit_wgt = abs(avg%cor(:,:,:,iv))
-      end do
-   end if
+   if (nam%fit_wgt) loc%fit_wgt = abs(avg%cor)
 
    ! Compute initial fit
    call compute_fit(hdata%nam,hdata%geom,loc)

@@ -44,13 +44,13 @@ type geomtype
    real(kind_real),allocatable :: lat(:)              !< Cells latitude
    logical,allocatable :: mask(:,:)                !< Cells mask
    real(kind_real),allocatable :: vunit(:)            !< Vertical unit
+   real(kind_real),allocatable :: distv(:,:)         !< Vertical distance
 
    ! Mesh
    type(meshtype) :: mesh
 
-
    ! Cover tree
-   type(ctreetype) :: ctree
+   type(ctreetype),allocatable :: ctree(:)
 
    ! Boundary nodes
    integer,allocatable :: nbnd(:)                     !< Number of boundary nodes
@@ -65,10 +65,21 @@ type geomtype
    real(kind_real),allocatable :: net_dnb(:,:)       !< Neighbors distances on the full grid
 
    ! MPI distribution
+   integer :: nc0a !< Halo A size
    integer,allocatable :: ic0_to_iproc(:)    !< Subset Sc0 to local task
    integer,allocatable :: ic0_to_ic0a(:)     !< Subset Sc0, global to halo A
    integer,allocatable :: iproc_to_nc0a(:)     !< Halo A size for each proc
 end type geomtype
+
+interface fld_com_gl
+   module procedure fld_com_gl
+   module procedure fld_com_gl_multi
+end interface
+
+interface fld_com_lg
+   module procedure fld_com_lg
+   module procedure fld_com_lg_multi
+end interface
 
 private
 public :: geomtype
@@ -93,12 +104,14 @@ allocate(geom%lat(geom%nc0))
 allocate(geom%area(geom%nl0))
 allocate(geom%mask(geom%nc0,geom%nl0))
 allocate(geom%vunit(geom%nl0))
+allocate(geom%distv(geom%nl0,geom%nl0))
 
 ! Initialization
 call msr(geom%lon)
 call msr(geom%lat)
 geom%mask = .false.
 call msr(geom%vunit)
+call msr(geom%distv)
 
 end subroutine geom_alloc
 
@@ -115,16 +128,12 @@ type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: il0
+integer :: il0,il0i,jl0
 logical :: same_mask
 
 ! Create mesh
 if ((.not.all(geom%area>0.0)).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
  & call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
-
-! Create cover tree
-! TODO: if (...) 
-if (nam%check_dirac) geom%ctree = create_ctree(geom%nc0,geom%lon,geom%lat,any(geom%mask,dim=2))
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call compute_area(geom)
@@ -152,6 +161,24 @@ else
    geom%nl0i = geom%nl0
 end if
 write(mpl%unit,'(a7,a,i3)') '','Number of independent levels: ',geom%nl0i
+
+! Create cover tree
+if ((nam%new_hdiag.and.nam%displ_diag).or.nam%check_dirac) then
+   allocate(geom%ctree(geom%nl0i))
+   do il0i=1,geom%nl0i
+      geom%ctree(il0i) = create_ctree(geom%nc0,geom%lon,geom%lat,geom%mask(:,il0i))
+   end do
+end if
+
+! Vertical distance
+do jl0=1,geom%nl0
+   do il0=1,geom%nl0
+      geom%distv(il0,jl0) = abs(geom%vunit(jl0)-geom%vunit(il0))
+   end do
+end do
+
+! Read local distribution
+call geom_read_local(nam,geom)
 
 end subroutine compute_grid_mesh
 
@@ -414,12 +441,13 @@ if (.not.allocated(geom%ic0_to_iproc)) then
 end if
 
 ! Allocation
-allocate(geom%iproc_to_nc0a(geom%nc0))
+allocate(geom%iproc_to_nc0a(nam%nproc))
 
 ! Size of tiles
 do iproc=1,nam%nproc
    geom%iproc_to_nc0a(iproc) = count(geom%ic0_to_iproc==iproc)
 end do
+geom%nc0a = geom%iproc_to_nc0a(mpl%myproc)
 
 end subroutine geom_read_local
 
@@ -436,26 +464,31 @@ type(geomtype),intent(in) :: geom       !< Sampling data
 real(kind_real),allocatable,intent(inout) :: fld(:,:)        !< Field
 
 ! Local variables
-integer :: ic0,ic0a,iproc,jproc
-real(kind_real),allocatable :: sbuf(:),rbuf(:)
+integer :: il0,ic0,ic0a,iproc,jproc
+real(kind_real),allocatable :: fld_loc(:,:),sbuf(:),rbuf(:)
+logical :: mask_unpack(geom%nc0a,geom%nl0)
 
 ! Communication
 if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
+      allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0))
       allocate(sbuf(geom%iproc_to_nc0a(iproc)*geom%nl0))
 
       ! Initialization
       call msr(sbuf)
 
       ! Prepare buffer
-      do ic0=1,geom%nc0
-         jproc = geom%ic0_to_iproc(ic0)
-         if (jproc==iproc) then
-            ic0a = geom%ic0_to_ic0a(ic0)
-            sbuf((ic0a-1)*geom%nl0+1:ic0a*geom%nl0) = fld(ic0,:)
-         end if
+      do il0=1,geom%nl0
+         do ic0=1,geom%nc0
+            jproc = geom%ic0_to_iproc(ic0)
+            if (jproc==iproc) then
+               ic0a = geom%ic0_to_ic0a(ic0)
+               fld_loc(ic0a,il0) = fld(ic0,il0)
+            end if
+         end do
       end do
+      sbuf = pack(fld_loc,mask=.true.)
 
       if (iproc==mpl%ioproc) then
          ! Allocation
@@ -469,27 +502,105 @@ if (mpl%main) then
       end if
 
       ! Release memory
+      deallocate(fld_loc)
       deallocate(sbuf)
    end do
 else
    ! Allocation
-   allocate(rbuf(geom%iproc_to_nc0a(mpl%myproc)*geom%nl0))
+   allocate(rbuf(geom%nc0a*geom%nl0))
 
    ! Receive data from ioproc
-   call mpl_recv(geom%iproc_to_nc0a(mpl%myproc)*geom%nl0,rbuf,mpl%ioproc,mpl%tag)
+   call mpl_recv(geom%nc0a*geom%nl0,rbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
 ! Rellocation
 if (allocated(fld)) deallocate(fld)
-allocate(fld(geom%iproc_to_nc0a(mpl%myproc),geom%nl0))
+allocate(fld(geom%nc0a,geom%nl0))
 
 ! Copy from buffer
-do ic0a=1,geom%iproc_to_nc0a(mpl%myproc)
-   fld(ic0a,:) = rbuf((ic0a-1)*geom%nl0+1:ic0a*geom%nl0)
-end do
+mask_unpack = .true.
+fld = unpack(rbuf,mask=mask_unpack,field=fld)
 
 end subroutine fld_com_gl
+
+!----------------------------------------------------------------------
+! Subroutine: fld_com_gl_multi
+!> Purpose: communicate full field from global to local distribution
+!----------------------------------------------------------------------
+subroutine fld_com_gl_multi(nam,geom,fld)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam       !< Sampling data
+type(geomtype),intent(in) :: geom       !< Sampling data
+real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:)        !< Field
+
+! Local variables
+integer :: its,iv,il0,ic0,ic0a,iproc,jproc
+real(kind_real),allocatable :: fld_loc(:,:,:,:),sbuf(:),rbuf(:)
+logical :: mask_unpack(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+
+! Communication
+if (mpl%main) then
+   do iproc=1,mpl%nproc
+      ! Allocation
+      allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0,nam%nv,nam%nts))
+      allocate(sbuf(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts))
+
+      ! Initialization
+      call msr(sbuf)
+
+      ! Prepare buffer
+      do its=1,nam%nts
+         do iv=1,nam%nv
+            do il0=1,geom%nl0
+               do ic0=1,geom%nc0
+                  jproc = geom%ic0_to_iproc(ic0)
+                  if (jproc==iproc) then
+                     ic0a = geom%ic0_to_ic0a(ic0)
+                     fld_loc(ic0a,il0,iv,its) = fld(ic0,il0,iv,its)
+                  end if
+               end do
+            end do
+         end do
+      end do
+      sbuf = pack(fld_loc,mask=.true.)
+
+      if (iproc==mpl%ioproc) then
+         ! Allocation
+         allocate(rbuf(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts))
+
+         ! Copy data
+         rbuf = sbuf
+      else
+         ! Send data to iproc
+         call mpl_send(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts,sbuf,iproc,mpl%tag)
+      end if
+
+      ! Release memory
+      deallocate(fld_loc)
+      deallocate(sbuf)
+   end do
+else
+   ! Allocation
+   allocate(rbuf(geom%nc0a*geom%nl0*nam%nv*nam%nts))
+
+   ! Receive data from ioproc
+   call mpl_recv(geom%nc0a*geom%nl0*nam%nv*nam%nts,rbuf,mpl%ioproc,mpl%tag)
+end if
+mpl%tag = mpl%tag+1
+
+! Rellocation
+if (allocated(fld)) deallocate(fld)
+allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+
+! Copy from buffer
+mask_unpack = .true.
+fld = unpack(rbuf,mask=mask_unpack,field=fld)
+
+end subroutine fld_com_gl_multi
 
 !----------------------------------------------------------------------
 ! Subroutine: fld_com_lg
@@ -504,16 +615,15 @@ type(geomtype),intent(in) :: geom       !< Sampling data
 real(kind_real),allocatable,intent(inout) :: fld(:,:)        !< Field
 
 ! Local variables
-integer :: ic0,ic0a,iproc,jproc
-real(kind_real),allocatable :: sbuf(:),rbuf(:)
+integer :: il0,ic0,ic0a,iproc,jproc
+real(kind_real),allocatable :: fld_loc(:,:),sbuf(:),rbuf(:)
+logical :: mask_unpack(geom%nc0a,geom%nl0)
 
 ! Allocation
-allocate(sbuf(geom%iproc_to_nc0a(mpl%myproc)*geom%nl0))
+allocate(sbuf(geom%nc0a*geom%nl0))
 
 ! Prepare buffer
-do ic0a=1,geom%iproc_to_nc0a(mpl%myproc)
-   sbuf((ic0a-1)*geom%nl0+1:ic0a*geom%nl0) = fld(ic0a,:)
-end do
+sbuf = pack(fld,mask=.true.)
 
 ! Release memory
 deallocate(fld)
@@ -525,6 +635,7 @@ if (mpl%main) then
 
    do iproc=1,mpl%nproc
       ! Allocation
+      allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0))
       allocate(rbuf(geom%iproc_to_nc0a(iproc)*geom%nl0))
 
       if (iproc==mpl%ioproc) then
@@ -536,23 +647,102 @@ if (mpl%main) then
       end if
 
       ! Copy from buffer
-      do ic0=1,geom%nc0
-         jproc = geom%ic0_to_iproc(ic0)
-         if (jproc==iproc) then
-            ic0a = geom%ic0_to_ic0a(ic0)
-            fld(ic0,:) = rbuf((ic0a-1)*geom%nl0+1:ic0a*geom%nl0)
-         end if
+      mask_unpack = .true.
+      fld_loc = unpack(rbuf,mask=mask_unpack,field=fld_loc)
+      do il0=1,geom%nl0
+         do ic0=1,geom%nc0
+            jproc = geom%ic0_to_iproc(ic0)
+            if (jproc==iproc) then
+               ic0a = geom%ic0_to_ic0a(ic0)
+               fld(ic0,il0) = fld_loc(ic0a,il0)
+            end if
+         end do
       end do
 
       ! Release memory
+      deallocate(fld_loc)
       deallocate(rbuf)
    end do
 else
    ! Sending data to iproc
-   call mpl_send(geom%iproc_to_nc0a(mpl%myproc)*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
+   call mpl_send(geom%nc0a*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
 end subroutine fld_com_lg
+
+!----------------------------------------------------------------------
+! Subroutine: fld_com_lg_multi
+!> Purpose: communicate full field from local to global distribution
+!----------------------------------------------------------------------
+subroutine fld_com_lg_multi(nam,geom,fld)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam       !< Sampling data
+type(geomtype),intent(in) :: geom       !< Sampling data
+real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:)        !< Field
+
+! Local variables
+integer :: its,iv,il0,ic0,ic0a,iproc,jproc
+real(kind_real),allocatable :: fld_loc(:,:,:,:),sbuf(:),rbuf(:)
+logical :: mask_unpack(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+
+! Allocation
+allocate(sbuf(geom%nc0a*geom%nl0*nam%nv*nam%nts))
+
+! Prepare buffer
+sbuf = pack(fld,mask=.true.)
+
+! Release memory
+deallocate(fld)
+
+! Communication
+if (mpl%main) then
+   ! Allocation
+   allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
+
+   do iproc=1,mpl%nproc
+      ! Allocation
+      allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0,nam%nv,nam%nts))
+      allocate(rbuf(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts))
+
+      if (iproc==mpl%ioproc) then
+         ! Copy data
+         rbuf = sbuf
+      else
+         ! Receive data from iproc
+         call mpl_recv(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts,rbuf,iproc,mpl%tag)
+      end if
+
+      ! Copy from buffer
+      mask_unpack = .true.
+      fld_loc = unpack(rbuf,mask=mask_unpack,field=fld_loc)
+      do its=1,nam%nts
+         do iv=1,nam%nv
+            do il0=1,geom%nl0
+               do ic0=1,geom%nc0
+                  jproc = geom%ic0_to_iproc(ic0)
+                  if (jproc==iproc) then
+                     ic0a = geom%ic0_to_ic0a(ic0)
+                     fld(ic0,il0,iv,its) = fld_loc(ic0a,il0,iv,its)
+                  end if
+               end do
+            end do
+         end do
+      end do
+
+      ! Release memory
+      deallocate(fld_loc)
+      deallocate(rbuf)
+   end do
+else
+   ! Sending data to iproc
+   call mpl_send(geom%nc0a*geom%nl0*nam%nv*nam%nts,sbuf,mpl%ioproc,mpl%tag)
+end if
+mpl%tag = mpl%tag+1
+
+end subroutine fld_com_lg_multi
 
 end module type_geom

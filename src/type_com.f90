@@ -15,7 +15,7 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr
 use type_geom, only: geomtype
-use type_mpl, only: mpl_alltoallv
+use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_alltoallv
 use tools_nc, only: ncfloat,ncerr
 
 implicit none
@@ -43,7 +43,7 @@ end type comtype
 
 private
 public :: comtype
-public :: com_dealloc,com_copy,com_setup,com_ext,com_red,com_read,com_write
+public :: com_dealloc,com_bcast,com_setup,com_ext,com_red,com_read,com_write
 
 contains
 
@@ -68,49 +68,6 @@ if (allocated(com%halo)) deallocate(com%halo)
 if (allocated(com%excl)) deallocate(com%excl)
 
 end subroutine com_dealloc
-
-!----------------------------------------------------------------------
-! Subroutine: com_copy
-!> Purpose: communications object copyment
-!----------------------------------------------------------------------
-subroutine com_copy(nproc,com_in,com_out)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: nproc !< Number of MPI tasks
-type(comtype),intent(in) :: com_in     !< Input linear operator
-type(comtype),intent(inout) :: com_out !< Output linear operator
-
-! Copy attributes
-com_out%prefix = trim(com_in%prefix)
-com_out%nred = com_in%nred
-com_out%next = com_in%next
-com_out%nhalo = com_in%nhalo
-com_out%nexcl = com_in%nexcl
-
-! Deallocation
-call com_dealloc(com_out)
-
-! Allocation
-allocate(com_out%ired_to_iext(nproc))
-allocate(com_out%jhalocounts(nproc))
-allocate(com_out%jexclcounts(nproc))
-allocate(com_out%jhalodispl(nproc))
-allocate(com_out%jexcldispl(nproc))
-allocate(com_out%halo(com_out%nhalo))
-allocate(com_out%excl(com_out%nexcl))
-
-! Copy data
-com_out%ired_to_iext = com_in%ired_to_iext
-com_out%jhalocounts = com_in%jhalocounts
-com_out%jexclcounts = com_in%jexclcounts
-com_out%jhalodispl = com_in%jhalodispl
-com_out%jexcldispl = com_in%jexcldispl
-com_out%halo = com_in%halo
-com_out%excl = com_in%excl
-
-end subroutine com_copy
 
 !----------------------------------------------------------------------
 ! Subroutine: com_setup
@@ -206,6 +163,94 @@ do jproc=1,nproc
 end do
 
 end subroutine com_setup
+
+!----------------------------------------------------------------------
+! Subroutine: com_bcast
+!> Purpose: communications object broadcast
+!----------------------------------------------------------------------
+subroutine com_bcast(nproc,com_in,com_out)
+
+implicit none
+
+! Passed variables
+integer,intent(in) :: nproc !< Number of MPI tasks
+type(comtype),intent(in) :: com_in(nproc)     !< Input linear operator
+type(comtype),intent(inout) :: com_out !< Output linear operator
+
+! Local variables
+integer :: iproc
+
+! Communicate dimensions
+if (mpl%main) then
+   do iproc=1,mpl%nproc
+      if (iproc==mpl%ioproc) then
+         ! Copy dimensions
+         com_out%nred = com_in(iproc)%nred
+         com_out%next = com_in(iproc)%next
+         com_out%nhalo = com_in(iproc)%nhalo
+         com_out%nexcl = com_in(iproc)%nexcl
+      else
+         ! Send dimensions to iproc
+         call mpl_send(com_in(iproc)%nred,iproc,mpl%tag)
+         call mpl_send(com_in(iproc)%next,iproc,mpl%tag+1)
+         call mpl_send(com_in(iproc)%nhalo,iproc,mpl%tag+2)
+         call mpl_send(com_in(iproc)%nexcl,iproc,mpl%tag+3)
+      end if
+   end do
+else
+   ! Receive dimensions from ioproc
+   call mpl_recv(com_out%nred,mpl%ioproc,mpl%tag)
+   call mpl_recv(com_out%next,mpl%ioproc,mpl%tag+1)
+   call mpl_recv(com_out%nhalo,mpl%ioproc,mpl%tag+2)
+   call mpl_recv(com_out%nexcl,mpl%ioproc,mpl%tag+3)
+end if
+mpl%tag = mpl%tag+4
+
+! Allocation
+allocate(com_out%ired_to_iext(com_out%nred))
+allocate(com_out%jhalocounts(nproc))
+allocate(com_out%jexclcounts(nproc))
+allocate(com_out%jhalodispl(nproc))
+allocate(com_out%jexcldispl(nproc))
+allocate(com_out%halo(com_out%nhalo))
+allocate(com_out%excl(com_out%nexcl))
+
+! Communicate data
+if (mpl%main) then
+   do iproc=1,mpl%nproc
+      if (iproc==mpl%ioproc) then
+         ! Copy dimensions
+         com_out%ired_to_iext = com_in(iproc)%ired_to_iext
+         com_out%jhalocounts = com_in(iproc)%jhalocounts
+         com_out%jexclcounts = com_in(iproc)%jexclcounts
+         com_out%jhalodispl = com_in(iproc)%jhalodispl
+         com_out%jexcldispl = com_in(iproc)%jexcldispl
+         com_out%halo = com_in(iproc)%halo
+         com_out%excl = com_in(iproc)%excl
+      else
+         ! Send dimensions to iproc
+         call mpl_send(com_in(iproc)%nred,com_in(iproc)%ired_to_iext,iproc,mpl%tag)
+         call mpl_send(nproc,com_in(iproc)%jhalocounts,iproc,mpl%tag+1)
+         call mpl_send(nproc,com_in(iproc)%jexclcounts,iproc,mpl%tag+2)
+         call mpl_send(nproc,com_in(iproc)%jhalodispl,iproc,mpl%tag+3)
+         call mpl_send(nproc,com_in(iproc)%jexcldispl,iproc,mpl%tag+4)
+         call mpl_send(com_in(iproc)%nhalo,com_in(iproc)%halo,iproc,mpl%tag+5)
+         call mpl_send(com_in(iproc)%nexcl,com_in(iproc)%excl,iproc,mpl%tag+6)
+      end if
+   end do
+else
+   ! Receive dimensions from ioproc
+   call mpl_recv(com_out%nred,com_out%ired_to_iext,mpl%ioproc,mpl%tag)
+   call mpl_recv(nproc,com_out%jhalocounts,mpl%ioproc,mpl%tag+1)
+   call mpl_recv(nproc,com_out%jexclcounts,mpl%ioproc,mpl%tag+2)
+   call mpl_recv(nproc,com_out%jhalodispl,mpl%ioproc,mpl%tag+3)
+   call mpl_recv(nproc,com_out%jexcldispl,mpl%ioproc,mpl%tag+4)
+   call mpl_recv(com_out%nhalo,com_out%halo,mpl%ioproc,mpl%tag+5)
+   call mpl_recv(com_out%nexcl,com_out%excl,mpl%ioproc,mpl%tag+6)
+end if
+mpl%tag = mpl%tag+7
+
+end subroutine com_bcast
 
 !----------------------------------------------------------------------
 ! Subroutine: com_ext

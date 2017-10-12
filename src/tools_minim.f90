@@ -25,10 +25,10 @@ public :: minim
 contains
 
 !----------------------------------------------------------------------
-! function: minim
-!> Purpose: minimize ensuring positivity constraints
+! subroutine: minim
+!> Purpose: minimize ensuring bounds constraints
 !----------------------------------------------------------------------
-integer function minim(mindata,func,jacobian)
+subroutine minim(mindata,func,jacobian)
 
 implicit none
 
@@ -101,7 +101,7 @@ do iterout=1,niterout
       end do
    end do
 
-   ! Line-search to compute the new solution
+   ! Simple line-search to compute the new solution
    valid = .false.
    do iterin=1,niterin
       alpha = 2.0*float(iterin)/float(niterin)
@@ -132,11 +132,6 @@ end do
 ! Copy
 mindata%x = guess
 
-! TODO: change signal
-minim = 0
-
-return
-
-end function minim
+end subroutine minim
 
 end module tools_minim
