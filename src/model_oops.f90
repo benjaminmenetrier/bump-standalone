@@ -32,42 +32,32 @@ contains
 ! Subroutine: model_oops_coord
 !> Purpose: load OOPS coordinates
 !----------------------------------------------------------------------
-subroutine model_oops_coord(nam,lats,lons,areas,levs,mask3d,mask2d,glbind,geom)
+subroutine model_oops_coord(nam,geom,lats,lons,areas,levs,mask3d,mask2d,glbind)
 
 implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam !< Namelist variables
-real(kind_real),intent(in) :: lats(:)
-real(kind_real),intent(in) :: lons(:)
-real(kind_real),intent(in) :: areas(:)
-real(kind_real),intent(in) :: levs(:)
-integer,intent(in) :: mask3d(:)
-integer,intent(in) :: mask2d(:)
-integer,intent(in) :: glbind(:)
 type(geomtype),intent(inout) :: geom !< Sampling data
+real(kind_real),intent(in) :: lats(geom%nc0a)
+real(kind_real),intent(in) :: lons(geom%nc0a)
+real(kind_real),intent(in) :: areas(geom%nc0a)
+real(kind_real),intent(in) :: levs(geom%nlev)
+integer,intent(in) :: mask3d(geom%nc0a*geom%nlev)
+integer,intent(in) :: mask2d(geom%nc0a)
+integer,intent(in) :: glbind(geom%nc0a)
 
 ! Local variables
-integer :: nc0a,nc0ag(mpl%nproc),ic0,ic0a,il0,offset,iproc
+integer :: nc0ag(mpl%nproc),ic0,ic0a,il0,offset,iproc
 integer,allocatable :: glbindg(:),order(:)
 logical,allocatable :: lmask3d(:,:)
-
-! TODO: change that one day
-geom%nl0 = nam%nl
-
-! Local number of nodes and levels
-nc0a = size(lats)
-geom%nlev = size(levs)
-
-! Check TODO: check dimensions consistency of all arrays
-if (any(nam%levs>geom%nlev)) call msgerror('not enough levels in model_oops')
 
 ! Communication
 if (mpl%main) then
    do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
          ! Copy data
-         nc0ag(iproc) = nc0a
+         nc0ag(iproc) = geom%nc0a
       else
          ! Receive data on ioproc
          call mpl_recv(nc0ag(iproc),iproc,mpl%tag)
@@ -75,12 +65,18 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl_send(nc0a,mpl%ioproc,mpl%tag)
+   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
 ! Broadcast data
 call mpl_bcast(nc0ag,mpl%ioproc)
+
+! Number of levels
+geom%nl0 = nam%nl
+!do iv=1,nam%nv
+!   if (trim(nam%addvar2d(iv))/='') geom%nl0 = nam%nl+1
+!end do
 
 ! Global number of nodes
 geom%nc0 = sum(nc0ag)
@@ -89,8 +85,11 @@ geom%nc0 = sum(nc0ag)
 call geom_alloc(geom)
 allocate(geom%ic0_to_iproc(geom%nc0))
 allocate(geom%ic0_to_ic0a(geom%nc0))
-allocate(lmask3d(nc0a,geom%nl0))
+allocate(lmask3d(geom%nc0a,geom%nl0))
 allocate(glbindg(geom%nc0))
+
+! Check TODO: check dimensions consistency of all arrays
+if (any(nam%levs>geom%nlev)) call msgerror('not enough levels in model_oops')
 
 ! Define local index and MPI task
 ic0 = 0
@@ -104,8 +103,8 @@ end do
 
 ! Convert 3d mask
 do il0=1,geom%nl0
-   offset = (nam%levs(il0)-1)*nc0a
-   do ic0a=1,nc0a
+   offset = (nam%levs(il0)-1)*geom%nc0a
+   do ic0a=1,geom%nc0a
       if (mask3d(offset+ic0a)==0) then
          lmask3d(ic0a,il0) = .false.
       elseif (mask3d(offset+ic0a)==1) then
@@ -144,12 +143,12 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl_send(nc0a,lons*deg2rad,mpl%ioproc,mpl%tag)
-   call mpl_send(nc0a,lats*deg2rad,mpl%ioproc,mpl%tag+1)
+   call mpl_send(geom%nc0a,lons*deg2rad,mpl%ioproc,mpl%tag)
+   call mpl_send(geom%nc0a,lats*deg2rad,mpl%ioproc,mpl%tag+1)
    do il0=1,geom%nl0
-      call mpl_send(nc0a,lmask3d(:,il0),mpl%ioproc,mpl%tag+1+il0)
+      call mpl_send(geom%nc0a,lmask3d(:,il0),mpl%ioproc,mpl%tag+1+il0)
    end do
-   call mpl_send(nc0a,glbind,mpl%ioproc,mpl%tag+2+geom%nl0)
+   call mpl_send(geom%nc0a,glbind,mpl%ioproc,mpl%tag+2+geom%nl0)
 end if
 mpl%tag = mpl%tag+3+geom%nl0
 
@@ -184,7 +183,7 @@ end if
 
 ! Normalized area
 do il0=1,geom%nl0
-   call mpl_allreduce_sum(sum(areas,mask=lmask3d(:,il0))/req**2,geom%area(il0))
+   call mpl_allreduce_sum(sum(areas,mask=lmask3d(:,il0))/(float(count(lmask3d(:,il0)))*req**2),geom%area(il0))
 end do
 
 ! Vertical unit

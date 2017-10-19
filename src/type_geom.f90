@@ -398,15 +398,15 @@ if (.not.allocated(geom%ic0_to_iproc)) then
    allocate(geom%ic0_to_iproc(geom%nc0))
    allocate(geom%ic0_to_ic0a(geom%nc0))
 
-   if (nam%nproc==1) then
+   if (mpl%nproc==1) then
       ! All points on a single processor
       geom%ic0_to_iproc = 1
       do ic0=1,geom%nc0
          geom%ic0_to_ic0a(ic0) = ic0
       end do
-   elseif (nam%nproc>1) then
+   elseif (mpl%nproc>1) then
       ! Open file
-      write(nprocchar,'(i4.4)') nam%nproc
+      write(nprocchar,'(i4.4)') mpl%nproc
       filename = trim(nam%prefix)//'_distribution_'//nprocchar//'.nc'
       info = nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid)
    
@@ -419,11 +419,11 @@ if (.not.allocated(geom%ic0_to_iproc)) then
          call ncerr(subr,nf90_close(ncid))
 
          ! Check
-         if (maxval(geom%ic0_to_iproc)>nam%nproc) call msgerror('wrong distribution')
+         if (maxval(geom%ic0_to_iproc)>mpl%nproc) call msgerror('wrong distribution')
       else
          ! Generate a distribution (use METIS one day?)
-         nc0amax = geom%nc0/nam%nproc
-         if (nc0amax*nam%nproc<geom%nc0) nc0amax = nc0amax+1
+         nc0amax = geom%nc0/mpl%nproc
+         if (nc0amax*mpl%nproc<geom%nc0) nc0amax = nc0amax+1
          iproc = 1
          ic0a = 1
          do ic0=1,geom%nc0
@@ -441,10 +441,10 @@ if (.not.allocated(geom%ic0_to_iproc)) then
 end if
 
 ! Allocation
-allocate(geom%iproc_to_nc0a(nam%nproc))
+allocate(geom%iproc_to_nc0a(mpl%nproc))
 
 ! Size of tiles
-do iproc=1,nam%nproc
+do iproc=1,mpl%nproc
    geom%iproc_to_nc0a(iproc) = count(geom%ic0_to_iproc==iproc)
 end do
 geom%nc0a = geom%iproc_to_nc0a(mpl%myproc)

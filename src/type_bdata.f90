@@ -10,13 +10,16 @@
 !----------------------------------------------------------------------
 module type_bdata
 
+use module_diag_tools, only: diag_filter,diag_interpolation
 use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgwarning,msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isnotmsr
 use tools_nc, only: ncerr,ncfloat
+use type_curve, only: curvetype
 use type_geom, only: geomtype
+use type_hdata, only: hdatatype
 implicit none
 
 ! B data derived type
@@ -32,12 +35,17 @@ type bdatatype
    real(kind_real),allocatable :: coef_ens(:,:)  !< Ensemble coefficient
    real(kind_real),allocatable :: rh0(:,:)       !< Fit support radius
    real(kind_real),allocatable :: rv0(:,:)       !< Fit support radius
-   real(kind_real),allocatable :: coef_sta(:)    !< Static coefficient
+   real(kind_real),allocatable :: coef_sta(:,:)  !< Static coefficient
 end type bdatatype
+
+interface diag_to_bdata
+  module procedure diag_to_bdata
+  module procedure diag_nc2_to_bdata
+end interface
 
 private
 public :: bdatatype
-public :: bdata_alloc,bdata_dealloc,bdata_read,bdata_write
+public :: bdata_alloc,bdata_dealloc,diag_to_bdata,bdata_read,bdata_write
 
 contains
 
@@ -59,7 +67,7 @@ associate(nam=>bdata%nam,geom=>bdata%geom)
 allocate(bdata%coef_ens(geom%nc0,geom%nl0))
 allocate(bdata%rh0(geom%nc0,geom%nl0))
 allocate(bdata%rv0(geom%nc0,geom%nl0))
-allocate(bdata%coef_sta(geom%nc0))
+allocate(bdata%coef_sta(geom%nc0,geom%nl0))
 
 ! Initialization
 call msr(bdata%coef_ens)
@@ -90,6 +98,82 @@ deallocate(bdata%rv0)
 deallocate(bdata%coef_sta)
 
 end subroutine bdata_dealloc
+
+!----------------------------------------------------------------------
+! Subroutine: diag_to_bdata
+!> Purpose: copy diagnostics into bdata object
+!----------------------------------------------------------------------
+subroutine diag_to_bdata(diag,bdata)
+
+implicit none
+
+! Passed variables
+type(curvetype),intent(in) :: diag
+type(bdatatype),intent(inout) :: bdata !< Sampling data
+
+! Local variables
+integer :: il0
+
+! Associate
+associate(nam=>bdata%nam,geom=>bdata%geom)
+
+do il0=1,geom%nl0
+   bdata%coef_ens(:,il0) = diag%fit_coef_ens(il0)
+   bdata%rh0(:,il0) = diag%fit_rh(il0)
+   bdata%rv0(:,il0) = diag%fit_rv(il0)
+   bdata%coef_sta(:,il0) = diag%raw_coef_sta
+end do
+
+! End associate
+end associate
+
+end subroutine diag_to_bdata
+
+!----------------------------------------------------------------------
+! Subroutine: diag_nc2_to_bdata
+!> Purpose: copy local diagnostics into bdata object
+!----------------------------------------------------------------------
+subroutine diag_nc2_to_bdata(hdata,diag,bdata)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata
+type(curvetype),intent(in) :: diag(hdata%nc2)
+type(bdatatype),intent(inout) :: bdata !< Sampling data
+
+! Local variables
+integer :: ic2
+real(kind_real) :: fld_nc2(hdata%nc2,bdata%geom%nl0)
+
+! Associate
+associate(nam=>bdata%nam,geom=>bdata%geom)
+
+do ic2=1,hdata%nc2
+   fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+end do
+call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+call diag_interpolation(hdata,fld_nc2,bdata%coef_ens)
+do ic2=1,hdata%nc2
+   fld_nc2(ic2,:) = diag(ic2)%fit_rh
+end do
+call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+call diag_interpolation(hdata,fld_nc2,bdata%rh0)
+do ic2=1,hdata%nc2
+   fld_nc2(ic2,:) = diag(ic2)%fit_rv
+end do
+call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+call diag_interpolation(hdata,fld_nc2,bdata%rv0)
+do ic2=1,hdata%nc2
+   fld_nc2(ic2,:) = diag(ic2)%raw_coef_sta
+end do
+call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+call diag_interpolation(hdata,fld_nc2,bdata%coef_sta)
+
+! End associate
+end associate
+
+end subroutine diag_nc2_to_bdata
 
 !----------------------------------------------------------------------
 ! Subroutine: bdata_read
@@ -188,7 +272,7 @@ call ncerr(subr,nf90_def_var(ncid,'rh0',ncfloat,(/nc0_id,nl0_id/),rh0_id))
 call ncerr(subr,nf90_put_att(ncid,rh0_id,'_FillValue',msvalr))
 call ncerr(subr,nf90_def_var(ncid,'rv0',ncfloat,(/nc0_id,nl0_id/),rv0_id))
 call ncerr(subr,nf90_put_att(ncid,rv0_id,'_FillValue',msvalr))
-call ncerr(subr,nf90_def_var(ncid,'coef_sta',ncfloat,(/nc0_id/),coef_sta_id))
+call ncerr(subr,nf90_def_var(ncid,'coef_sta',ncfloat,(/nc0_id,nl0_id/),coef_sta_id))
 call ncerr(subr,nf90_put_att(ncid,coef_sta_id,'_FillValue',msvalr))
 call ncerr(subr,nf90_enddef(ncid))
 

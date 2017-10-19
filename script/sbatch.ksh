@@ -10,7 +10,7 @@
 nnodes=1
 ntasks_per_node=36
 nthreads=1
-let ntasks=nnodes*ntasks_per_nodes
+let ntasks=nnodes*ntasks_per_node
 let ncpus_per_node=nthreads*ntasks_per_node
 echo "Parallel setup:"
 echo "   Number of nodes:          "${nnodes}
@@ -72,7 +72,7 @@ cat<<EOFNAM >${workdir}/job_nicas.ksh
 #SBATCH -o ${workdir}/output
 
 module purge
-module load gnu netcdf openmpi ncl
+module load gcc netcdf openmpi
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}

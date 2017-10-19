@@ -241,10 +241,12 @@ if ((geom%nl0/=nl0_1_test).or.(geom%nl0/=nl0_2_test).or.(nam%nc/=nc_test).or.(na
    hdata_read = 1
    return
 end if
-if (hdata%nc2/=nc2_test) then
-   call msgwarning('wrong dimension when reading sampling, recomputing sampling')
-   nam%sam_write = .true.
-   hdata_read = 2
+if (nam%local_diag.or.nam%displ_diag) then
+   if (hdata%nc2/=nc2_test) then
+      call msgwarning('wrong dimension when reading sampling, recomputing sampling')
+      nam%sam_write = .true.
+      hdata_read = 2
+   end if
 end if
 
 write(mpl%unit,'(a7,a)') '','Read sampling'
@@ -371,7 +373,7 @@ type(hdatatype),intent(in) :: hdata !< Sampling data
 
 ! Local variables
 integer :: il0,il0i,ic1,ic,ic2
-integer :: ncid,nl0_1_id,nl0_2_id,nc1_id,nc2_1_id,nc2_2_id,nc_id,ndata_id
+integer :: ncid,nl0_1_id,nl0_2_id,nc1_id,nc2_1_id,nc2_2_id,nc_id
 integer :: lat_id,lon_id,smax_id,ic1_to_ic0_id,ic1il0_log_id,ic1icil0_to_ic0_id,ic1icil0_log_id,swgt_id
 integer :: ic2_to_ic1_id,ic2_to_ic0_id,local_mask_id,displ_mask_id,nn_nc2_index_id,nn_nc2_dist_id
 integer :: ic1il0_logint(hdata%nam%nc1,hdata%geom%nl0),ic1icil0_logint(hdata%nam%nc1,hdata%nam%nc,hdata%geom%nl0)
@@ -393,7 +395,6 @@ call ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
 call ncerr(subr,nf90_def_dim(ncid,'nc',nam%nc,nc_id))
 call ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
 if (nam%local_diag.or.nam%displ_diag) call ncerr(subr,nf90_def_dim(ncid,'nc2_1',hdata%nc2,nc2_1_id))
-call ncerr(subr,nf90_def_dim(ncid,'ndata',3,ndata_id))
 
 ! Define arrays
 call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc1_id,nc_id,nl0_1_id/),lat_id))

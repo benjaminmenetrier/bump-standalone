@@ -24,15 +24,15 @@ use type_odata, only: odatatype,odataloctype
 implicit none
 
 private
-public :: obsop
+public :: run_obsop
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: obsop
+! Subroutine: run_obsop
 !> Purpose: observation operator
 !----------------------------------------------------------------------
-subroutine obsop(nam,geom,odataloc)
+subroutine run_obsop(nam,geom,odataloc)
 
 implicit none
 
@@ -100,7 +100,7 @@ if (nam%check_adjoints) then
    call flush(mpl%unit)
 end if
 
-if (nam%check_mpi.and.(nam%nproc>0)) then
+if (nam%check_mpi.and.(mpl%nproc>0)) then
    ! Test single/multi-procs equivalence
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test observation operator single/multi-procs equivalence'
@@ -109,6 +109,6 @@ if (nam%check_mpi.and.(nam%nproc>0)) then
    call flush(mpl%unit)
 end if
 
-end subroutine obsop
+end subroutine run_obsop
 
 end module driver_obsop

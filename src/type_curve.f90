@@ -148,15 +148,9 @@ associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Get diagonal values
 do il0=1,geom%nl0
-   if (isnotmsr(curve%raw(1,il0,il0))) then
-       curve%raw_coef_ens(il0) = curve%raw(1,il0,il0)
-   else
-       call msgerror('missing raw value at zero separation')
-   end if
+   if (isnotmsr(curve%raw(1,il0,il0))) curve%raw_coef_ens(il0) = curve%raw(1,il0,il0)
    if (trim(nam%fit_type)/='none') then
       if (isnotmsr(curve%fit(1,il0,il0))) curve%fit_coef_ens(il0) = curve%fit(1,il0,il0)
-   else
-      call msgerror('missing fit value at zero separation')
    end if
 end do
 

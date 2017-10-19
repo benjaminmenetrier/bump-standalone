@@ -252,7 +252,7 @@ associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 ! Open file and get dimensions
 write(mpicomchar,'(i1)') nam%mpicom
-write(nprocchar,'(i4.4)') nam%nproc
+write(nprocchar,'(i4.4)') mpl%nproc
 write(myprocchar,'(i4.4)') mpl%myproc
 filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'-'//myprocchar//'.nc'
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
@@ -312,8 +312,8 @@ if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_isc_id,ndataloc%isb
 call ncerr(subr,nf90_get_var(ncid,norm_id,ndataloc%norm))
 
 ! Read communications
-call com_read(nam%nproc,ncid,'AB',ndataloc%AB)
-call com_read(nam%nproc,ncid,'AC',ndataloc%AC)
+call com_read(mpl%nproc,ncid,'AB',ndataloc%AB)
+call com_read(mpl%nproc,ncid,'AC',ndataloc%AC)
 
 ! Read linear operators
 call linop_read(ncid,'c',ndataloc%c)
@@ -450,7 +450,7 @@ associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 ! Filename suffix
 write(mpicomchar,'(i1)') nam%mpicom
-write(nprocchar,'(i4.4)') nam%nproc
+write(nprocchar,'(i4.4)') mpl%nproc
 
 ! Create file
 write(myprocchar,'(i4.4)') mpl%myproc
@@ -498,8 +498,8 @@ if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc%isb
 call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc%norm))
 
 ! Write communications
-call com_write(nam%nproc,ncid,ndataloc%AB)
-call com_write(nam%nproc,ncid,ndataloc%AC)
+call com_write(mpl%nproc,ncid,ndataloc%AB)
+call com_write(mpl%nproc,ncid,ndataloc%AC)
 
 ! Write linear operators
 call linop_write(ncid,ndataloc%c)
@@ -543,11 +543,11 @@ if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Filename suffix
 write(mpicomchar,'(i1)') nam%mpicom
-write(nprocchar,'(i4.4)') nam%nproc
+write(nprocchar,'(i4.4)') mpl%nproc
 
 ! Create summary file
 write(mpicomchar,'(i1)') nam%mpicom
-write(nprocchar,'(i4.4)') nam%nproc
+write(nprocchar,'(i4.4)') mpl%nproc
 filename = trim(nam%prefix)//'_mpi-'//mpicomchar//'_'//nprocchar//'_summary.nc'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 

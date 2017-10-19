@@ -47,7 +47,7 @@ integer :: ic0_to_ic0b(odata%geom%nc0)
 integer,allocatable :: iop(:),srcproc(:,:),srcic0(:,:),order(:),ic0b_to_ic0(:),ic0b_to_ic0_copy(:)
 real(kind_real),allocatable :: list(:)
 logical :: lcheck_nc0b(odata%geom%nc0)
-type(comtype) :: comobs(odata%nam%nproc)
+type(comtype) :: comobs(mpl%nproc)
 
 ! Associate
 associate(nam=>odata%nam,geom=>odata%geom)
@@ -59,7 +59,7 @@ allocate(srcic0(3,odata%nobs))
 allocate(order(odata%nobs))
 allocate(odata%iobs_to_iproc(odata%nobs))
 allocate(odata%iobs_to_iobsa(odata%nobs))
-allocate(odata%iproc_to_nobsa(nam%nproc))
+allocate(odata%iproc_to_nobsa(mpl%nproc))
 
 ! Find grid points origin
 iop = 0
@@ -79,8 +79,8 @@ if (.false.) then
    ! Random repartition
    call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,list)
    call qsort(odata%nobs,list,order)
-   nobsa = odata%nobs/nam%nproc
-   if (nobsa*nam%nproc<odata%nobs) nobsa = nobsa+1 
+   nobsa = odata%nobs/mpl%nproc
+   if (nobsa*mpl%nproc<odata%nobs) nobsa = nobsa+1 
    iproc = 1
    iobsa = 1
    do iobs=1,odata%nobs
@@ -220,7 +220,7 @@ if (mpl%main) then
    end do
 
    ! Communications setup
-   call com_setup(nam%nproc,comobs)
+   call com_setup(mpl%nproc,comobs)
 else
    ! Send dimensions to ioproc
    call mpl_send(odataloc%nc0a,mpl%ioproc,mpl%tag)
@@ -233,17 +233,17 @@ mpl%tag = mpl%tag+3
 
 ! Communications broadcast
 odataloc%com%prefix = 'o'
-call com_bcast(nam%nproc,comobs,odataloc%com)
+call com_bcast(mpl%nproc,comobs,odataloc%com)
 
 ! Print results
 write(mpl%unit,'(a7,a)') '','Number of observations per MPI task:'
-do iproc=1,nam%nproc
+do iproc=1,mpl%nproc
    write(mpl%unit,'(a10,a,i3,a,i8)') '','Task ',iproc,': ',count(odata%iobs_to_iproc==iproc)
 end do
 write(mpl%unit,'(a7,a,f5.1,a)') '','Observation repartition imbalance: ', &
- & 100.0*float(maxval(odata%iproc_to_nobsa)-minval(odata%iproc_to_nobsa))/(float(sum(odata%iproc_to_nobsa))/float(nam%nproc)),' %'
+ & 100.0*float(maxval(odata%iproc_to_nobsa)-minval(odata%iproc_to_nobsa))/(float(sum(odata%iproc_to_nobsa))/float(mpl%nproc)),' %'
 write(mpl%unit,'(a7,a)') '','Number of grid points, halo size and number of received values per MPI task:'
-do iproc=1,nam%nproc
+do iproc=1,mpl%nproc
    write(mpl%unit,'(a10,a,i3,a,i8,a,i8,a,i8)') '','Task ',iproc,': ', &
  & comobs(iproc)%nred,' / ',comobs(iproc)%next,' / ',comobs(iproc)%nhalo
 end do

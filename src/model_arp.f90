@@ -39,7 +39,7 @@ type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: ilon,ilat,il0
+integer :: ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,a_id,b_id
 real(kind=8),allocatable :: lon(:,:),lat(:,:),a(:),b(:)
 
@@ -105,13 +105,10 @@ geom%area = 4.0*pi
 
 ! Vertical unit
 if (nam%logpres) then
-   do il0=1,nam%nl
-      geom%vunit(il0) = log(0.5*(a(nam%levs(il0))+a(nam%levs(il0)+1))+0.5*(b(nam%levs(il0))+b(nam%levs(il0)+1))*ps)
-   end do
-   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = log(ps)  
+   geom%vunit(1:nam%nl) = log(0.5*(a(1:nam%nl)+a(2:nam%nl+1))+0.5*(b(1:nam%nl)+b(2:nam%nl+1))*ps)
+   if (geom%nl0>nam%nl) geom%vunit(geom%nl0) = log(ps)  
 else
-   geom%vunit(1:nam%nl) = float(nam%levs(1:nam%nl))
-   if (any(.not.nam%var3d(1:nam%nv))) geom%vunit(geom%nl0) = float(maxval(nam%levs(1:nam%nl)))+1
+   geom%vunit = float(nam%levs(1:geom%nl0))
 end if
 
 ! Release memory
@@ -126,7 +123,7 @@ end subroutine model_arp_coord
 ! Subroutine: model_arp_read
 !> Purpose: read ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_read(nam,geom,ncid,varname,var3d,timeslot,fld)
+subroutine model_arp_read(nam,geom,ncid,its,fld)
 
 implicit none
 
@@ -134,14 +131,12 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(in) :: geom                     !< Sampling data
 integer,intent(in) :: ncid                              !< NetCDF file ID
-character(len=*),intent(in) :: varname                  !< Variable name
-logical,intent(in) :: var3d                  !< 3D variable
-integer,intent(in) :: timeslot                            !< Timeslot
-real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0) !< Read field
+integer,intent(in) :: its                               !< Timeslot index
+real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Read field
 
 ! Local variables
-integer :: il0,dum
-integer :: info,fld_id
+integer :: iv,il0,dum
+integer :: fld_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
 character(len=3) :: ilchar
 character(len=1024) :: subr = 'model_arp_read'
@@ -149,34 +144,35 @@ character(len=1024) :: subr = 'model_arp_read'
 ! Initialize field
 call msr(fld)
 
-if (var3d) then
+do iv=1,nam%nv
    ! 3d variable
    do il0=1,nam%nl
       ! Get id
       write(ilchar,'(i3.3)') nam%levs(il0)
-      call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(varname),fld_id))
-
+      call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(nam%varname(iv)),fld_id))
+   
       ! Read data
       call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-      fld(:,il0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
+      fld(:,il0,iv) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
    end do
-else
-   ! 2d variable
 
-   ! Get id
-   call ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
-
-   ! Read data
-   call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
-   fld(:,geom%nl0) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
-
-   ! Variable change for surface pressure
-   if (trim(varname)=='SURFPRESSION') fld(:,geom%nl0) = exp(fld(:,geom%nl0))
-end if
-
+   if (trim(nam%addvar2d(iv))/='') then
+      ! 2d variable
+   
+      ! Get id
+      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+   
+      ! Read data
+      call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
+      fld(:,geom%nl0,iv) = pack(real(fld_loc,kind_real),mask=geom%rgmask)
+   
+      ! Variable change for surface pressure
+      if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld(:,geom%nl0,iv) = exp(fld(:,geom%nl0,iv))
+   end if
+end do
 
 ! Use timeslot to avoid warning
-dum = timeslot
+dum = its
 
 end subroutine model_arp_read
 

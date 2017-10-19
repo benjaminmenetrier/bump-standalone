@@ -11,9 +11,9 @@
 module module_test
 
 use model_interface, only: model_write
-use module_apply_bens, only: apply_bens
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
+use module_apply_localization, only: apply_localization
 use module_apply_nicas, only: apply_nicas,apply_nicas_sqrt,apply_nicas_sqrt_ad,apply_nicas_from_sqrt
 use module_namelist, only: namtype
 use omp_lib
@@ -23,7 +23,6 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
 use type_com, only: com_ext,com_red
 use type_ctree, only: find_nearest_neighbors
-use type_ens, only: enstype
 use type_geom, only: fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype,ndataloctype
@@ -32,8 +31,11 @@ use type_timer, only: timertype,timer_start,timer_end
 
 implicit none
 
+real(kind_real),parameter :: tol = 1.0e-3 !< Positive-definiteness test tolerance
+integer,parameter :: nitermax = 50        !< Nunmber of iterations for the positive-definiteness test
+
 private
-public :: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf,test_dirac_bens
+public :: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf,test_dirac_localization
 
 contains
 
@@ -128,8 +130,6 @@ implicit none
 type(ndatatype),intent(in) :: ndata !< Sampling data
 
 ! Local variables
-real(kind_real),parameter :: tol = 1.0e-3
-integer,parameter :: nitermax = 1
 integer :: iter
 real(kind_real) :: norm,egvmax,egvmax_prev,egvmin,egvmin_prev
 real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_prev(ndata%geom%nc0,ndata%geom%nl0)
@@ -235,41 +235,45 @@ real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
-! Allocation
-if (mpl%main) then
+if (mpl%nproc>0) then
    ! Allocation
-   allocate(fld(geom%nc0,geom%nl0))
-   allocate(fldloc(geom%nc0,geom%nl0))
-
-   ! Initialization
-   call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
-   fldloc = fld
-end if
-
-! Global to local
-call fld_com_gl(geom,fldloc)
-
-if (nam%lsqrt) then
-   ! Global
-   if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
-
-   ! Local
-   call apply_nicas_from_sqrt(ndataloc,fldloc)
+   if (mpl%main) then
+      ! Allocation
+      allocate(fld(geom%nc0,geom%nl0))
+      allocate(fldloc(geom%nc0,geom%nl0))
+   
+      ! Initialization
+      call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
+      fldloc = fld
+   end if
+   
+   ! Global to local
+   call fld_com_gl(geom,fldloc)
+   
+   if (nam%lsqrt) then
+      ! Global
+      if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
+   
+      ! Local
+      call apply_nicas_from_sqrt(ndataloc,fldloc)
+   else
+      ! Global
+      if (mpl%main) call apply_nicas(ndata,fld)
+   
+      ! Local
+      call apply_nicas(ndataloc,fldloc)
+   end if
+   
+   ! Local to global
+   call fld_com_lg(geom,fldloc)
+   
+   ! Print difference
+   if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
+    & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
+    & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
 else
-   ! Global
-   if (mpl%main) call apply_nicas(ndata,fld)
-
-   ! Local
-   call apply_nicas(ndataloc,fldloc)
+   write(mpl%unit,'(a7,a)') '','Only one proc used, no test'
 end if
-
-! Local to global
-call fld_com_lg(geom,fldloc)
-
-! Print difference
-if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
- & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
- & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
 
 ! End associate
 end associate
@@ -460,16 +464,15 @@ end associate
 end subroutine test_perf
 
 !----------------------------------------------------------------------
-! Subroutine: test_dirac_bens
-!> Purpose: apply Bens to diracs
+! Subroutine: test_dirac_localization
+!> Purpose: apply localization to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac_bens(ndataloc,ens)
+subroutine test_dirac_localization(ndataloc)
 
 implicit none
 
 ! Passed variables
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
-type(enstype),intent(in) :: ens
+type(ndataloctype),intent(inout) :: ndataloc(:) !< Sampling data, local
 
 ! Local variables
 integer :: il0,il0dir(ndataloc(1)%nam%ndir),ic0dir(ndataloc(1)%nam%ndir),idir,iv,its
@@ -504,8 +507,8 @@ end if
 ! Global to local
 call fld_com_gl(nam,geom,fld)
 
-! Apply Bens
-call apply_bens(ndataloc,ens,fld)
+! Apply localization
+call apply_localization(nam,geom,ndataloc,fld)
 
 ! Local to global
 call fld_com_lg(nam,geom,fld)
@@ -523,6 +526,6 @@ end if
 ! End associate
 end associate
 
-end subroutine test_dirac_bens
+end subroutine test_dirac_localization
 
 end module module_test

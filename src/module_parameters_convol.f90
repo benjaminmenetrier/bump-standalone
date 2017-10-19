@@ -122,7 +122,7 @@ do is_loc=1,ns_loc(mpl%myproc)
                   rv0sq = 0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)
                   distnorm = 0.0
                   if (rh0sq>0.0) distnorm = distnorm+geom%net_dnb(i,jc0)**2/rh0sq
-                  if (rv0sq>0.0) distnorm = distnorm+(geom%vunit(jl0)-geom%vunit(kl0))**2/rv0sq
+                  if (rv0sq>0.0) distnorm = distnorm+geom%distv(jl0,kl0)**2/rv0sq
                   distnorm = sqrt(distnorm)
                   disttest = dist(jc0,jl0)+distnorm
                   if (disttest<1.0) then
@@ -238,7 +238,7 @@ integer :: is_s(mpl%nproc),is_e(mpl%nproc),ns_loc(mpl%nproc),is_loc
 integer :: ic1_s(mpl%nproc),ic1_e(mpl%nproc),nc1_loc(mpl%nproc),ic1_loc
 integer :: c_n_s(mpl%nthread)
 integer,allocatable :: nn_index(:,:),rbuf_index(:),sbuf_index(:)
-real(kind_real) :: distnorm,S_test
+real(kind_real) :: rhssq,rvssq,distnorm,S_test
 real(kind_real),allocatable :: nn_dist(:,:)
 real(kind_real),allocatable :: rbuf_dist(:),sbuf_dist(:)
 logical :: submask(ndata%nc1,ndata%nl1)
@@ -376,8 +376,12 @@ do is_loc=1,ns_loc(mpl%myproc)
             ! Only half of the (symmetric) matrix coefficients should be stored
             if (is>js) then
                ! Normalized distance
-               distnorm = sqrt(nn_dist(i,ic1)**2/(0.5*(rhs(is)**2+rhs(js)**2)) &
-                        & +(geom%vunit(il0)-geom%vunit(jl0))**2/(0.5*(rvs(is)**2+rvs(js)**2)))
+               rhssq = 0.5*(rhs(is)**2+rhs(js)**2)
+               rvssq = 0.5*(rvs(is)**2+rvs(js)**2)
+               distnorm = 0.0
+               if (rhssq>0.0) distnorm = distnorm+nn_dist(i,ic1)**2/rhssq
+               if (rvssq>0.0) distnorm = distnorm+geom%distv(il0,jl0)**2/rvssq
+               distnorm = sqrt(distnorm)
 
                if (distnorm<1.0) then
                   ! Distance deformation

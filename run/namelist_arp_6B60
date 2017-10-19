@@ -7,8 +7,8 @@ sam_default_seed = .true.,
 /
 
 &driver_param
-method = "cor",
-strategy = "common_weighted",
+method = "loc",
+strategy = "common",
 new_hdiag = .true.,
 new_param = .false.,
 new_mpi = .false.,
@@ -21,17 +21,17 @@ check_perf = .false.,
 
 &model_param
 nl = 3,
-levs = 80,90,100,
+levs = 60,70,80,
 logpres = .true.,
 nv = 2,
-varname = "TEMPERATURE","S100TEMPERATURE",
-var3d = .true.,.false.,
+varname = "TEMPERATURE","HUMI_SPECIFI",
+addvar2d = "S100TEMPERATURE","",
 nts = 1,
 timeslot = 0,3,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 50,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
@@ -56,8 +56,7 @@ dc = 100.0e3,
 /
 
 &diag_param
-ne = 10,
-limited_memory = .true.,
+ne = 50,
 gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
@@ -71,7 +70,7 @@ displ_tol = 0.05,
 /
 
 &fit_param
-fit_type = "none",
+fit_type = "fast",
 fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
@@ -97,13 +96,12 @@ rh = 3500.0e3,5500.0e3,7500.0e3,,
 rv = 2.0,2.0,2.0,
 resol = 4.0,
 network = .false.,
-nproc = 2,
 mpicom = 2,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
 levdir = 60,60,60,60,60,60,60,60,60,60,60,60,
-ivdir = 2,2,2,2,2,2,2,2,2,2,2,2,
+ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
 

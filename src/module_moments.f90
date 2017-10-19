@@ -10,17 +10,16 @@
 !----------------------------------------------------------------------
 module module_moments
 
+use model_interface, only: model_read
 use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
-use tools_missing, only: msr,isnotmsr
-use type_ens, only: enstype,load_field
+use tools_missing, only: msi,msr,isnotmsr
+use type_geom, only: fld_com_lg
 use type_mom, only: momtype
-use type_mpl, only: mpl
+use type_mpl, only: mpl,mpl_bcast
 use type_hdata, only: hdatatype
 implicit none
-
-logical,parameter :: momtest = .false. !< Test recursive formulas
 
 private
 public :: compute_moments
@@ -31,78 +30,94 @@ contains
 ! Subroutine: compute_moments
 !> Purpose: compute centered moments (iterative formulae)
 !----------------------------------------------------------------------
-subroutine compute_moments(hdata,ens,ib,mom)
+subroutine compute_moments(hdata,filename,mom,ens1)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
-type(enstype),intent(in) :: ens
-integer,intent(in) :: ib
-type(momtype),intent(inout) :: mom     !< Moments
+character(len=*),intent(in) :: filename
+type(momtype),intent(inout) :: mom(hdata%nam%nb)     !< Moments
+real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne)
 
 ! Local variables
-integer :: ie,ic0,jc0,il0,jl0,isub,ic,ic1
+integer :: ne,ne_offset,nsub,ie,ic0,jc0,il0,jl0,isub,jsub,ic,ic1,ib,iv,jv,its,jts
 real(kind_real) :: fac1,fac2,fac3,fac4,fac5,fac6
-real(kind_real),allocatable :: fld_1(:,:),fld_2(:,:)
-real(kind_real),allocatable :: m21(:,:,:,:),m12(:,:,:,:)
-real(kind_real),allocatable :: m22test(:,:,:,:),m21test(:,:,:,:),m12test(:,:,:,:)
-real(kind_real),allocatable :: m11test(:,:,:,:),m2test(:,:,:,:),m2btest(:,:,:,:)
+real(kind_real),allocatable :: fld(:,:,:,:),fld_1(:,:,:,:),fld_2(:,:,:,:)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
-! Allocation
-mom%ne = ens%ne
-mom%nsub = ens%nsub
-allocate(mom%m1_1(geom%nc0,geom%nl0,mom%nsub))
-allocate(mom%m2_1(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom%nsub))
-allocate(mom%m1_2(geom%nc0,geom%nl0,mom%nsub))
-allocate(mom%m2_2(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom%nsub))
-if (nam%full_var) allocate(mom%m2full(geom%nc0,geom%nl0,mom%nsub))
-allocate(mom%m11(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom%nsub))
-if (.not.nam%gau_approx) then
-   allocate(m21(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   allocate(m12(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   allocate(mom%m22(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom%nsub))
-end if
-if (momtest) then
-   allocate(m2btest(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   allocate(m2test(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   allocate(m11test(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   if (.not.nam%gau_approx) then
-      allocate(m21test(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-      allocate(m12test(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-      allocate(m22test(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-   end if
-end if
+! Setup
+select case (trim(filename))
+case ('ens1')
+   ne = nam%ens1_ne
+   ne_offset = nam%ens1_ne_offset
+   nsub = nam%ens1_nsub
+case ('ens2')
+   ne = nam%ens2_ne
+   ne_offset = nam%ens2_ne_offset
+   nsub = nam%ens2_nsub
+case default
+   call msi(ne)
+   call msi(ne_offset)
+   call msi(nsub)
+   call msgerror('wrong filename in ens_read')
+end select
 
-! Initialization
-mom%m1_1 = 0.0
-mom%m2_1 = 0.0
-mom%m1_2 = 0.0
-mom%m2_2 = 0.0
-if (nam%full_var) mom%m2full = 0.0
-mom%m11 = 0.0
-if (.not.nam%gau_approx) mom%m22 = 0.0
+! Allocation
+allocate(fld_1(nam%nc1,nam%nc,geom%nl0,geom%nl0))
+allocate(fld_2(nam%nc1,nam%nc,geom%nl0,geom%nl0))
+
+do ib=1,nam%nb
+   if (nam%diag_block(ib)) then
+      ! Allocation
+      mom(ib)%ne = ne
+      mom(ib)%nsub = nsub
+      allocate(mom(ib)%m1_1(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m2_1(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m1_2(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m2_2(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m11(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      if (.not.nam%gau_approx) then
+         allocate(mom(ib)%m12(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m21(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m22(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      end if
+      if (nam%full_var) then
+         allocate(mom(ib)%m1full(geom%nc0,geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m2full(geom%nc0,geom%nl0,mom(ib)%nsub))
+      end if
+      
+      ! Initialization
+      mom(ib)%m1_1 = 0.0
+      mom(ib)%m2_1 = 0.0
+      mom(ib)%m1_2 = 0.0
+      mom(ib)%m2_2 = 0.0
+      mom(ib)%m11 = 0.0
+      if (.not.nam%gau_approx) then
+         mom(ib)%m12 = 0.0
+         mom(ib)%m21 = 0.0
+         mom(ib)%m22 = 0.0
+      end if
+      if (nam%full_var) then
+         mom(ib)%m1full = 0.0
+         mom(ib)%m2full = 0.0
+      end if
+   end if
+end do
 
 ! Loop on sub-ensembles
-do isub=1,ens%nsub
-   if (ens%nsub==1) then
+do isub=1,nsub
+   if (nsub==1) then
       write(mpl%unit,'(a10,a)',advance='no') '','Full ensemble, member:'
    else
       write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
    end if
 
-   ! Initialization
-   if (.not.nam%gau_approx) then
-      m21 = 0.0
-      m12 = 0.0
-   end if
-
    ! Compute centered moments iteratively
-   do ie=1,ens%ne/ens%nsub
-      write(mpl%unit,'(i4)',advance='no') ens%ne_offset+ie
+   do ie=1,ne/nsub
+      write(mpl%unit,'(i4)',advance='no') ne_offset+ie
 
       ! Computation factors
       fac1 = 2.0/float(ie)
@@ -112,187 +127,118 @@ do isub=1,ens%nsub
       fac5 = float((ie-1)*(ie-2))/float(ie**2)
       fac6 = float(ie-1)/float(ie)
 
-      ! Load fields
-      call load_field(nam,geom,ens,nam%ib_to_iv(ib),nam%ib_to_its(ib),ie,isub,.false.,fld_1)
-      call load_field(nam,geom,ens,nam%ib_to_jv(ib),nam%ib_to_jts(ib),ie,isub,.false.,fld_2)
 
-      ! Remove means
-      fld_1 = fld_1 - mom%m1_1(:,:,isub)
-      fld_2 = fld_2 - mom%m1_2(:,:,isub)
-
-      ! Update high-order moments
-      if (ie>1) then
-         do jl0=1,geom%nl0
-            do il0=1,geom%nl0
-               do ic=1,nam%nc
-                  !$omp parallel do private(ic1,ic0,jc0)
-                  do ic1=1,nam%nc1
-                     if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
-                        ! Indices
-                        ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
-                        jc0 = hdata%ic1_to_ic0(ic1)
-
-                        if (.not.nam%gau_approx) then
-                           ! Fourth-order moment
-                           mom%m22(ic1,ic,il0,jl0,isub) = mom%m22(ic1,ic,il0,jl0,isub) &
-                            & -fac1*(m21(ic1,ic,il0,jl0)*fld_2(ic0,il0)+m12(ic1,ic,il0,jl0)*fld_1(jc0,jl0)) &
-                            & +fac2*(4.0*mom%m11(ic1,ic,il0,jl0,isub)*fld_1(jc0,jl0)*fld_2(ic0,il0) &
-                            & +mom%m2_1(ic1,ic,il0,jl0,isub)*fld_2(ic0,il0)**2 & 
-                            & +mom%m2_2(ic1,ic,il0,jl0,isub)*fld_1(jc0,jl0)**2) &
-                            & +fac3*fld_1(jc0,jl0)**2*fld_2(ic0,il0)**2
-
-                           ! Third-order moments
-                           m21(ic1,ic,il0,jl0) = m21(ic1,ic,il0,jl0) &
-                            & -fac4*(2.0*mom%m11(ic1,ic,il0,jl0,isub)*fld_1(jc0,jl0) &
-                            & +mom%m2_1(ic1,ic,il0,jl0,isub)*fld_2(ic0,il0)) &
-                            & +fac5*fld_1(jc0,jl0)**2*fld_2(ic0,il0)
-
-                           m12(ic1,ic,il0,jl0) = m12(ic1,ic,il0,jl0) &
-                            & -fac4*(2.0*mom%m11(ic1,ic,il0,jl0,isub)*fld_2(ic0,il0) &
-                            & +mom%m2_2(ic1,ic,il0,jl0,isub)*fld_1(jc0,jl0)) &
-                            & +fac5*fld_2(ic0,il0)**2*fld_1(jc0,jl0)
-                        end if
-
-                        ! Covariance
-                        mom%m11(ic1,ic,il0,jl0,isub) = mom%m11(ic1,ic,il0,jl0,isub) &
-                                                        & +fac6*fld_1(jc0,jl0)*fld_2(ic0,il0)
-
-                        ! Variances
-                        mom%m2_1(ic1,ic,il0,jl0,isub) = mom%m2_1(ic1,ic,il0,jl0,isub)+fac6*fld_1(jc0,jl0)**2
-                        mom%m2_2(ic1,ic,il0,jl0,isub) = mom%m2_2(ic1,ic,il0,jl0,isub)+fac6*fld_2(ic0,il0)**2
-                     end if
-                  end do
-                  !$omp end parallel do
-               end do
-            end do
-         end do
-
-         ! Full variance
-         if (nam%full_var) then
-            do il0=1,geom%nl0
-               !$omp parallel do private(ic0)
-               do ic0=1,geom%nc0
-                  if (geom%mask(ic0,il0)) then
-                     mom%m2full(ic0,il0,isub) = mom%m2full(ic0,il0,isub)+fac6*fld_1(ic0,il0)**2
-                  end if
-               end do
-               !$omp end parallel do
-            end do
+      if (present(ens1)) then
+         ! Copy and broadcast field
+         if (allocated(fld)) deallocate(fld)
+         allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+         fld = ens1(:,:,:,:,ie+(isub-1)*nsub)
+         call fld_com_lg(nam,geom,fld)
+         call mpl_bcast(fld,mpl%ioproc)
+      else
+         ! Load field
+         if (allocated(fld)) deallocate(fld)
+         allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
+         if (nsub==1) then
+            jsub = 0
+         else
+            jsub = isub
          end if
+         call model_read(nam,geom,filename,ie,jsub,fld)
       end if
 
-      ! Update means
-      do il0=1,geom%nl0
-      !$omp parallel do private(ic0)
-         do ic0=1,geom%nc0
-            if (geom%mask(ic0,il0)) then
-               mom%m1_1(ic0,il0,isub) = mom%m1_1(ic0,il0,isub)+fac4*fld_1(ic0,il0)
-               mom%m1_2(ic0,il0,isub) = mom%m1_2(ic0,il0,isub)+fac4*fld_2(ic0,il0)
-            end if
-         end do
-         !$omp end parallel do
-      end do
+      do ib=1,nam%nb
+         if (nam%diag_block(ib)) then
+            ! Initialization
+            iv = nam%ib_to_iv(ib)
+            jv = nam%ib_to_jv(ib)
+            its = nam%ib_to_its(ib)
+            jts = nam%ib_to_jts(ib)
+            call msr(fld_1)
+            call msr(fld_2)
 
-      ! Release memory
-      deallocate(fld_1)
-      deallocate(fld_2)
+            ! Copy valid field points
+            do jl0=1,geom%nl0
+               do il0=1,geom%nl0
+                  do ic=1,nam%nc
+                     !$omp parallel do private(ic1,ic0,jc0)
+                     do ic1=1,nam%nc1
+                        if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
+                           ! Indices
+                           ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
+                           jc0 = hdata%ic1_to_ic0(ic1)
+
+                           ! Remove means
+                           fld_1(ic1,ic,il0,jl0) = fld(jc0,jl0,jv,jts) - mom(ib)%m1_1(ic1,ic,il0,jl0,isub)
+                           fld_2(ic1,ic,il0,jl0) = fld(ic0,il0,iv,its) - mom(ib)%m1_2(ic1,ic,il0,jl0,isub)
+                        end if
+                     end do
+                     !$omp end parallel do
+                  end do
+               end do
+            end do
+
+            ! Update high-order moments
+            if (ie>1) then
+               if (.not.nam%gau_approx) then
+                  ! Fourth-order moment
+                  mom(ib)%m22(:,:,:,:,isub) = mom(ib)%m22(:,:,:,:,isub) &
+                                            & -fac1*(mom(ib)%m12(:,:,:,:,isub)*fld_1+mom(ib)%m21(:,:,:,:,isub)*fld_2) &
+                                            & +fac2*(4.0*mom(ib)%m11(:,:,:,:,isub)*fld_1*fld_2 &
+                                            & +mom(ib)%m2_1(:,:,:,:,isub)*fld_2**2 & 
+                                            & +mom(ib)%m2_2(:,:,:,:,isub)*fld_1**2) &
+                                            & +fac3*fld_1**2*fld_2**2
+      
+                  ! Third-order moments
+                  mom(ib)%m12(:,:,:,:,isub) = mom(ib)%m12(:,:,:,:,isub) &
+                                            & -fac4*(2.0*mom(ib)%m11(:,:,:,:,isub)*fld_2 &
+                                            & +mom(ib)%m2_2(:,:,:,:,isub)*fld_1) &
+                                            & +fac5*fld_2**2*fld_1
+
+                  mom(ib)%m21(:,:,:,:,isub) = mom(ib)%m21(:,:,:,:,isub) &
+                                            & -fac4*(2.0*mom(ib)%m11(:,:,:,:,isub)*fld_1 &
+                                            & +mom(ib)%m2_1(:,:,:,:,isub)*fld_2) &
+                                            & +fac5*fld_1**2*fld_2
+               end if
+      
+               ! Covariance
+               mom(ib)%m11(:,:,:,:,isub) = mom(ib)%m11(:,:,:,:,isub)+fac6*fld_1*fld_2
+      
+               ! Variances
+               mom(ib)%m2_1(:,:,:,:,isub) = mom(ib)%m2_1(:,:,:,:,isub)+fac6*fld_1**2
+               mom(ib)%m2_2(:,:,:,:,isub) = mom(ib)%m2_2(:,:,:,:,isub)+fac6*fld_2**2
+      
+               ! Full variance
+               if (nam%full_var) mom(ib)%m2full(:,:,isub) = mom(ib)%m2full(:,:,isub) &
+                                                          & +fac6*(fld(:,:,jv,jts)-mom(ib)%m1full(:,:,isub))**2
+            end if
+      
+            ! Update means
+            mom(ib)%m1_1(:,:,:,:,isub) = mom(ib)%m1_1(:,:,:,:,isub)+fac4*fld_1
+            mom(ib)%m1_2(:,:,:,:,isub) = mom(ib)%m1_2(:,:,:,:,isub)+fac4*fld_2
+
+            ! Full mean
+            if (nam%full_var) mom(ib)%m1full(:,:,isub) = mom(ib)%m1full(:,:,isub)+fac4*(fld(:,:,jv,jts)-mom(ib)%m1full(:,:,isub))
+         end if
+      end do
    end do
    write(mpl%unit,'(a)') ''
 
-   if (momtest) then
-      ! Test recursive formulas
-      write(mpl%unit,'(a10,a)',advance='no') '','Test recursive formulas, member:'
-
-      ! Initialization
-      if (.not.nam%gau_approx) then
-         m22test = 0.0
-         m21test = 0.0
-         m12test = 0.0
+   do ib=1,nam%nb
+      if (nam%diag_block(ib)) then
+         ! Normalize
+         mom(ib)%m2_1(:,:,:,:,isub) = mom(ib)%m2_1(:,:,:,:,isub)/float(ne/nsub-1)
+         mom(ib)%m2_2(:,:,:,:,isub) = mom(ib)%m2_2(:,:,:,:,isub)/float(ne/nsub-1)
+         mom(ib)%m11(:,:,:,:,isub) = mom(ib)%m11(:,:,:,:,isub)/float(ne/nsub-1)
+         if (.not.nam%gau_approx) then
+            mom(ib)%m12(:,:,:,:,isub) = mom(ib)%m12(:,:,:,:,isub)/float(ne/nsub)
+            mom(ib)%m21(:,:,:,:,isub) = mom(ib)%m21(:,:,:,:,isub)/float(ne/nsub)
+            mom(ib)%m22(:,:,:,:,isub) = mom(ib)%m22(:,:,:,:,isub)/float(ne/nsub)
+         end if
+         if (nam%full_var) mom(ib)%m2full(:,:,isub) = mom(ib)%m2full(:,:,isub)/float(ne/nsub-1)
       end if
-      m11test = 0.0
-      m2test = 0.0
-      m2btest = 0.0
-
-      do ie=1,ens%ne/ens%nsub
-         write(mpl%unit,'(i4)',advance='no') ens%ne_offset+ie
-
-         ! Load fields
-         call load_field(nam,geom,ens,nam%ib_to_iv(ib),nam%ib_to_its(ib),ie,isub,.false.,fld_1)
-         call load_field(nam,geom,ens,nam%ib_to_jv(ib),nam%ib_to_jts(ib),ie,isub,.false.,fld_2)
-
-         ! Remove means
-         fld_1 = fld_1 - mom%m1_1(:,:,isub)
-         fld_2 = fld_2 - mom%m1_2(:,:,isub)
-
-         do jl0=1,geom%nl0
-            do il0=1,geom%nl0
-               do ic=1,nam%nc
-                  !$omp parallel do private(ic1,ic0,jc0)
-                  do ic1=1,nam%nc1
-                     if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
-                        ! Indices
-                        ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
-                        jc0 = hdata%ic1_to_ic0(ic1)
-
-                        ! Update moments
-                        if (.not.nam%gau_approx) then
-                           m22test(ic1,ic,il0,jl0) = m22test(ic1,ic,il0,jl0)+fld_1(jc0,jl0)**2*fld_2(ic0,il0)**2
-                           m21test(ic1,ic,il0,jl0) = m21test(ic1,ic,il0,jl0)+fld_1(jc0,jl0)**2*fld_2(ic0,il0)
-                           m12test(ic1,ic,il0,jl0) = m12test(ic1,ic,il0,jl0)+fld_1(jc0,jl0)*fld_2(ic0,il0)**2
-                        end if
-                        m11test(ic1,ic,il0,jl0) = m11test(ic1,ic,il0,jl0)+fld_1(jc0,jl0)*fld_2(ic0,il0)
-                        m2test(ic1,ic,il0,jl0) = m2test(ic1,ic,il0,jl0)+fld_2(ic0,il0)**2
-                        m2btest(ic1,ic,il0,jl0) = m2btest(ic1,ic,il0,jl0)+fld_1(jc0,jl0)**2
-                     end if
-                  end do
-                  !$omp end parallel do
-               end do
-            end do
-         end do
-
-         ! Release memory
-         deallocate(fld_1)
-         deallocate(fld_2)
-      end do
-      write(mpl%unit,'(a)') ''
-
-      ! Test
-      write(mpl%unit,'(a10,a)') '','Max and avg. relative RMS error between recursive and non-recursive formulas:'
-      if (.not.nam%gau_approx) then
-         write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m22: ',maxval(100.0*abs(mom%m22(:,:,:,:,isub)-m22test)/abs(m22test), &
-       & mask=abs(m22test)>0.0),' % / ',sum(100.0*abs(mom%m22(:,:,:,:,isub)-m22test)/abs(m22test), &
-       & mask=abs(m22test)>0.0)/float(count(abs(m22test)>0.0)),' %'
-         write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m21: ',maxval(100.0*abs(m21-m21test)/abs(m21test), &
-       & mask=abs(m21test)>0.0),' % / ',sum(100.0*abs(m21-m21test)/abs(m21test), &
-       & mask=abs(m21test)>0.0)/float(count(abs(m21test)>0.0)),' %'
-         write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m12: ',maxval(100.0*abs(m12-m12test)/abs(m12test), &
-       & mask=abs(m12test)>0.0),' % / ',sum(100.0*abs(m12-m12test)/abs(m12test), &
-       & mask=abs(m12test)>0.0)/float(count(abs(m12test)>0.0)),' %'
-      end if
-      write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m11: ',maxval(100.0*abs(mom%m11(:,:,:,:,isub)-m11test)/abs(m11test), &
-    & mask=abs(m11test)>0.0),' % / ',sum(100.0*abs(mom%m11(:,:,:,:,isub)-m11test)/abs(m11test), &
-    & mask=abs(m11test)>0.0)/float(count(abs(m11test)>0.0)),' %'
-      write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m2_1: ',maxval(100.0*abs(mom%m2_1(:,:,:,:,isub)-m2btest)/abs(m2btest), &
-    & mask=abs(m2btest)>0.0),' % / ',sum(100.0*abs(mom%m2_1(:,:,:,:,isub)-m2btest)/abs(m2btest), &
-    & mask=abs(m2btest)>0.0)/float(count(abs(m2btest)>0.0)),' %'
-      write(mpl%unit,'(a13,a,f9.3,a,f9.3,a)') '','m2_2: ',maxval(100.0*abs(mom%m2_2(:,:,:,:,isub)-m2test)/abs(m2test), &
-    & mask=abs(m2test)>0.0),' % / ',sum(100.0*abs(mom%m2_2(:,:,:,:,isub)-m2test)/abs(m2test), &
-    & mask=abs(m2test)>0.0)/float(count(abs(m2test)>0.0)),' %'
-   end if
-
-   ! Normalize
-   mom%m2_1(:,:,:,:,isub) = mom%m2_1(:,:,:,:,isub)/float(ens%ne/ens%nsub-1)
-   mom%m2_2(:,:,:,:,isub) = mom%m2_2(:,:,:,:,isub)/float(ens%ne/ens%nsub-1)
-   mom%m11(:,:,:,:,isub) = mom%m11(:,:,:,:,isub)/float(ens%ne/ens%nsub-1)
-   if (nam%full_var) mom%m2full(:,:,isub) = mom%m2full(:,:,isub)/float(ens%ne/ens%nsub-1)
-   if (.not.nam%gau_approx) mom%m22(:,:,:,:,isub) = mom%m22(:,:,:,:,isub)/float(ens%ne/ens%nsub)
+   end do
 end do
-
-! Release memory
-if (.not.nam%gau_approx) then
-   deallocate(m21)
-   deallocate(m12)
-end if
 
 ! End associate
 end associate

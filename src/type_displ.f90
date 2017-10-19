@@ -113,7 +113,6 @@ type(displtype),intent(in) :: displ !< Displacement data
 
 ! Local variables
 integer :: ncid,nb_id,nl0_1_id,na_id,two_id,displ_niter_id,vunit_id,larc_id,valid_id,dist_id,rhflt_id
-integer :: ib
 character(len=1024) :: subr = 'displ_write'
 
 ! Associate

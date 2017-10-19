@@ -64,16 +64,16 @@ do jl0=1,geom%nl0
    if (curve%raw(1,jl0,jl0)>0.0) then
       curve%fit_coef_ens(jl0) = curve%raw(1,jl0,jl0)
    else
-      call msgerror('non-positive diagonal value in fit')
+      call msr(curve%fit_coef_ens(jl0))
    end if
 end do
 
-! Pseudo-normalization
+! Normalization
 call msr(raw)
 do jl0=1,geom%nl0
    do il0=1,geom%nl0
       do ic=1,nam%nc
-         if (isnotmsr(curve%raw(ic,il0,jl0)).and.(curve%fit_coef_ens(jl0)*curve%fit_coef_ens(il0)>0.0)) &
+         if (isnotmsr(curve%raw(ic,il0,jl0)).and.isnotmsr(curve%fit_coef_ens(jl0)).and.isnotmsr(curve%fit_coef_ens(il0))) &
        & raw(ic,il0,jl0) = curve%raw(ic,il0,jl0)/sqrt(curve%fit_coef_ens(jl0)*curve%fit_coef_ens(il0))
       end do
    end do
@@ -82,7 +82,7 @@ end do
 ! Fast fit
 do jl0=1,geom%nl0  
    ! Horizontal fast fit
-  call fast_fit(nam%nc,1,nam%disth,raw(:,jl0,jl0),curve%fit_rh(jl0))
+   call fast_fit(nam%nc,1,nam%disth,raw(:,jl0,jl0),curve%fit_rh(jl0))
 
    ! Vertical fast fit
    rawv = raw(1,:,jl0)
@@ -208,89 +208,105 @@ logical :: add_to_front
 fit = 0.0
 
 do jl0=1,geom%nl0
-   ! Allocation
-   allocate(plist(nam%nc*geom%nl0,2))
-   allocate(plist_new(nam%nc*geom%nl0,2))
-   allocate(dist(nam%nc,geom%nl0))
-
-   ! Initialize the front
-   np = 1
-   plist(1,1) = 1
-   plist(1,2) = jl0
-   dist = 1.0
-   dist(1,jl0) = 0.0
-
-   do while (np>0)
-      ! Propagate the front
-      np_new = 0
-
-      do ip=1,np
-         ! Indices of the central point
-         ic = plist(ip,1)
-         il0 = plist(ip,2)
-
-         ! Loop over neighbors
-         do kc=max(ic-1,1),min(ic+1,nam%nc)
-            do kl0=max(jl0-1,1),min(jl0+1,geom%nl0)
-               Dhsq = 0.5*(Dh(il0)**2+Dh(kl0)**2)              
-               Dvsq = 0.5*(Dv(il0)**2+Dv(kl0)**2)
-               distnorm = 0.0
-               if (Dhsq>0.0) then
-                  distnorm = distnorm+(nam%disth(kc)-nam%disth(ic))**2/Dhsq
-               else
-                  distnorm = huge(1.0)
-               end if 
-               if (Dvsq>0.0) then
-                  distnorm = distnorm+geom%distv(kl0,il0)**2/Dvsq
-               elseif (kl0/=il0) then
-                  distnorm = huge(1.0)
-               end if
-               distnorm = sqrt(distnorm)
-               disttest = dist(ic,il0)+distnorm
-               if (disttest<1.0) then
-                  ! Point is inside the support
-                  if (disttest<dist(kc,kl0)) then
-                     ! Update distance
-                     dist(kc,kl0) = disttest
-
-                     ! Check if the point should be added to the front (avoid duplicates)
-                     add_to_front = .true.
-                     do jp=1,np_new
-                        if ((plist_new(jp,1)==kc).and.(plist_new(jp,1)==kl0)) then
-                           add_to_front = .false.
-                           exit
+   if (coef(jl0)>0.0) then
+      ! Allocation
+      allocate(plist(nam%nc*geom%nl0,2))
+      allocate(plist_new(nam%nc*geom%nl0,2))
+      allocate(dist(nam%nc,geom%nl0))
+   
+      ! Initialize the front
+      np = 1
+      plist(1,1) = 1
+      plist(1,2) = jl0
+      dist = 1.0
+      dist(1,jl0) = 0.0
+   
+      do while (np>0)
+         ! Propagate the front
+         np_new = 0
+   
+         do ip=1,np
+            ! Indices of the central point
+            ic = plist(ip,1)
+            il0 = plist(ip,2)
+   
+            ! Loop over neighbors
+            do kc=max(ic-1,1),min(ic+1,nam%nc)
+               do kl0=max(jl0-1,1),min(jl0+1,geom%nl0)
+                  if (isnotmsr(Dh(il0)).and.isnotmsr(Dh(kl0))) then
+                     Dhsq = 0.5*(Dh(il0)**2+Dh(kl0)**2)              
+                  else
+                     Dhsq = 0.0
+                  end if
+                  if (isnotmsr(Dv(il0)).and.isnotmsr(Dv(kl0))) then
+                     Dvsq = 0.5*(Dv(il0)**2+Dv(kl0)**2)
+                  else
+                     Dvsq = 0.0
+                  end if
+                  distnorm = 0.0
+                  if (Dhsq>0.0) then
+                     distnorm = distnorm+(nam%disth(kc)-nam%disth(ic))**2/Dhsq
+                  else
+                     distnorm = huge(1.0)
+                  end if 
+                  if (Dvsq>0.0) then
+                     distnorm = distnorm+geom%distv(kl0,il0)**2/Dvsq
+                  elseif (kl0/=il0) then
+                     distnorm = huge(1.0)
+                  end if
+                  distnorm = sqrt(distnorm)
+                  disttest = dist(ic,il0)+distnorm
+                  if (disttest<1.0) then
+                     ! Point is inside the support
+                     if (disttest<dist(kc,kl0)) then
+                        ! Update distance
+                        dist(kc,kl0) = disttest
+   
+                        ! Check if the point should be added to the front (avoid duplicates)
+                        add_to_front = .true.
+                        do jp=1,np_new
+                           if ((plist_new(jp,1)==kc).and.(plist_new(jp,1)==kl0)) then
+                              add_to_front = .false.
+                              exit
+                           end if
+                        end do
+   
+                        if (add_to_front) then
+                           ! Add point to the front
+                           np_new = np_new+1
+                           plist_new(np_new,1) = kc
+                           plist_new(np_new,2) = kl0
                         end if
-                     end do
-
-                     if (add_to_front) then
-                        ! Add point to the front
-                        np_new = np_new+1
-                        plist_new(np_new,1) = kc
-                        plist_new(np_new,2) = kl0
                      end if
                   end if
-               end if
+               end do
             end do
          end do
+   
+         ! Copy new front
+         np = np_new
+         plist(1:np,:) = plist_new(1:np,:)
       end do
-
-      ! Copy new front
-      np = np_new
-      plist(1:np,:) = plist_new(1:np,:)
-   end do
-
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
-         ! Gaspari-Cohn (1999) function
-         distnorm = dist(ic,il0)
-         if (distnorm<1.0) fit(ic,il0,jl0) = sqrt(coef(jl0)*coef(il0))*gc99(distnorm)
+   
+      do il0=1,geom%nl0
+         do ic=1,nam%nc
+            ! Gaspari-Cohn (1999) function
+            distnorm = dist(ic,il0)
+            if (coef(il0)>0.0) then
+               if (distnorm<1.0) fit(ic,il0,jl0) = sqrt(coef(jl0)*coef(il0))*gc99(distnorm)
+            else
+               call msr(fit(ic,il0,jl0))
+            end if
+         end do
       end do
-   end do
-
-   ! Release memory
-   deallocate(plist)
-   deallocate(plist_new)
-   deallocate(dist)
+   
+      ! Release memory
+      deallocate(plist)
+      deallocate(plist_new)
+      deallocate(dist)
+   else
+      call msr(fit(:,:,jl0))
+   end if
 end do
 
 end subroutine define_fit

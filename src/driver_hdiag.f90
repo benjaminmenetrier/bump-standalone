@@ -12,7 +12,6 @@ module driver_hdiag
 
 use model_interface, only: model_write
 use module_average, only: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwavg
-use module_diag_tools, only: diag_filter,diag_interpolation
 !use module_displacement, only: compute_displacement
 use module_dualens, only: compute_dualens
 use module_fit, only: compute_fit
@@ -28,10 +27,9 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,isnotmsi,isanynotmsr,msr
 use tools_nc, only: ncerr,ncfloat
 use type_avg, only: avgtype,avg_dealloc
-use type_bdata, only: bdatatype,bdata_alloc,bdata_read,bdata_write
+use type_bdata, only: bdatatype,bdata_alloc,diag_to_bdata,bdata_read,bdata_write
 use type_curve, only: curvetype,curve_alloc,curve_dealloc,curve_write,curve_write_all,curve_write_local
 use type_displ, only: displtype,displ_alloc,displ_dealloc,displ_write
-use type_ens, only: enstype,ens_read
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
 use type_mom, only: momtype,mom_dealloc
@@ -40,15 +38,15 @@ use type_mpl, only: mpl
 implicit none
 
 private
-public :: hdiag
+public :: run_hdiag
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: hdiag
+! Subroutine: run_hdiag
 !> Purpose: hybrid_diag
 !----------------------------------------------------------------------
-subroutine hdiag(nam,geom,bdata)
+subroutine run_hdiag(nam,geom,bdata,ens1)
 
 implicit none
 
@@ -56,10 +54,10 @@ implicit none
 type(namtype),target,intent(inout) :: nam !< Namelist variables
 type(geomtype),target,intent(in) :: geom    !< Sampling data
 type(bdatatype),allocatable,intent(inout) :: bdata(:) !< B data
+real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne)
 
 ! Local variables
 integer :: ib,il0,jl0,ic,ic2,ildw,progint
-real(kind_real),allocatable :: fld_nc2(:,:)
 logical,allocatable :: done(:)
 character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
@@ -71,7 +69,6 @@ type(curvetype) :: loc_1(nam%nb+1),loc_2(nam%nb+1)
 type(curvetype) :: loc_3(nam%nb+1),loc_4(nam%nb+1)
 type(curvetype),allocatable :: loc_1_nc2(:,:)
 type(displtype) :: displ
-type(enstype) :: ens1,ens2
 type(hdatatype) :: hdata
 type(momtype) :: mom_1(nam%nb),mom_2(nam%nb)
 
@@ -87,12 +84,10 @@ do ib=1,nam%nb+1
 end do
 
 if (nam%new_hdiag) then
-   ! Set namelist
+   ! Set namelist and geometry
    hdata%nam => nam
-   
-   ! Set geometry
    hdata%geom => geom
-   
+
    if (nam%spectrum) then
       ! Initialize eigendecomposition
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -101,21 +96,12 @@ if (nam%new_hdiag) then
       call eigen_init(nam%nc)
    end if
 
-   ! Read ensemble
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Read ensembles'
-   call ens_read(nam,geom,'ens1',ens1)
-   select case (trim(nam%method))
-   case ('hyb-rnd','dual-ens')
-      call ens_read(nam,geom,'ens2',ens2)
-   end select
-   
    ! Setup sampling
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
-   
+
    call setup_sampling(hdata)
-   
+
    if (nam%displ_diag) then
       ! Compute displacement diagnostic
       write(*,'(a)') '-------------------------------------------------------------------'
@@ -123,33 +109,33 @@ if (nam%new_hdiag) then
    
    !   call compute_displacement(hdata,displ)
    end if
-   
+
    ! Compute sample moments
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute sample moments'
    
    ! Compute ensemble 1 sample moments
    write(mpl%unit,'(a7,a,i4,a)') '','Ensemble 1:'
-   do ib=1,nam%nb
-      if (nam%diag_block(ib)) call compute_moments(hdata,ens1,ib,mom_1(ib))
-   end do
+   if (present(ens1)) then
+      call compute_moments(hdata,'ens1',mom_1,ens1)
+   else
+      call compute_moments(hdata,'ens1',mom_1)
+   end if
    
    if ((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens')) then
       ! Compute randomized sample moments
       write(mpl%unit,'(a7,a,i4,a)') '','Ensemble 2:'
-      do ib=1,nam%nb
-         if (nam%diag_block(ib)) call compute_moments(hdata,ens2,ib,mom_2(ib))
-      end do
+      call compute_moments(hdata,'ens2',mom_2)
    end if
-   
+
    ! Compute statistics
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute statistics'
    
    ! Allocation
    if (nam%local_diag) then
-      allocate(avg_1_nc2(nam%nb,hdata%nc2))
-      allocate(cor_1_nc2(nam%nb+1,hdata%nc2))
+      allocate(avg_1_nc2(nam%nb+1,hdata%nc2))
+      allocate(cor_1_nc2(hdata%nc2,nam%nb+1))
       allocate(done(hdata%nc2))
    end if
 
@@ -264,12 +250,12 @@ if (nam%new_hdiag) then
          if (nam%local_diag) then
             do ic2=1,hdata%nc2
                ! Allocation
-               call curve_alloc(hdata,trim(nam%blockname(ib))//'_cor_nc2',cor_1_nc2(ib,ic2))
+               call curve_alloc(hdata,trim(nam%blockname(ib))//'_cor_nc2',cor_1_nc2(ic2,ib))
       
                ! Copy
-               cor_1_nc2(ib,ic2)%raw = avg_1_nc2(ib,ic2)%cor
+               cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ib,ic2)%cor
                do il0=1,geom%nl0
-                  cor_1_nc2(ib,ic2)%raw_coef_ens(il0) = avg_1_nc2(ib,ic2)%m11(1,il0,il0)
+                  cor_1_nc2(ic2,ib)%raw_coef_ens(il0) = avg_1_nc2(ib,ic2)%m11(1,il0,il0)
                end do
             end do
          end if
@@ -294,7 +280,7 @@ if (nam%new_hdiag) then
                call prog_init(progint,done)
                !$omp parallel do private(ic2)
                do ic2=1,hdata%nc2
-                  call compute_fit(hdata%nam,hdata%geom,cor_1_nc2(ib,ic2),norm=1.0_kind_real)
+                  call compute_fit(hdata%nam,hdata%geom,cor_1_nc2(ic2,ib),norm=1.0_kind_real)
                   done(ic2) = .true.
                   call prog_print(progint,done)
                end do
@@ -342,7 +328,7 @@ if (nam%new_hdiag) then
       write(mpl%unit,'(a)') '--- Compute localization diagnostic and fit'
    
       ! Allocation
-      if (nam%local_diag) allocate(loc_1_nc2(nam%nb,hdata%nc2))
+      if (nam%local_diag) allocate(loc_1_nc2(nam%nb+1,hdata%nc2))
    
       do ib=1,nam%nb+1
          if (nam%diag_block(ib)) then
@@ -352,7 +338,7 @@ if (nam%new_hdiag) then
             call curve_alloc(hdata,trim(nam%blockname(ib))//'_loc',loc_1(ib))
             if (nam%local_diag) then
                do ic2=1,hdata%nc2
-                  call curve_alloc(hdata,trim(nam%blockname(ib))//'_loc_nc2',loc_1_nc2(ib,ic2))
+                  call curve_alloc(hdata,trim(nam%blockname(ib))//'_loc_nc2',loc_1_nc2(ic2,ib))
                end do
             end if
    
@@ -361,7 +347,7 @@ if (nam%new_hdiag) then
             if (nam%local_diag) then
                !$omp parallel do private(ic2)
                do ic2=1,hdata%nc2
-                  call compute_localization(hdata,avg_1_nc2(ib,ic2),nam%fit_block(ib),loc_1_nc2(ib,ic2))
+                  call compute_localization(hdata,avg_1_nc2(ic2,ib),nam%fit_block(ib),loc_1_nc2(ic2,ib))
                end do
                !$omp end parallel do
             end if
@@ -468,52 +454,34 @@ if (nam%new_hdiag) then
       end do
    end if
    
-   if (trim(nam%fit_type)/='none') then
+   if (nam%new_param.and.any(nam%nicas_block)) then
       ! Copy diagnostics into B data
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
    
-      ! Allocation
-      if (nam%local_diag) allocate(fld_nc2(hdata%nc2,geom%nl0))
-   
       select case (trim(nam%method))
       case ('cor')
-         if (nam%local_diag) then
-      ! TODO
-         else
-      ! TODO
-         end if
+         do ib=1,nam%nb+1
+            if (nam%nicas_block(ib)) then
+               if (nam%local_diag) then
+                  call diag_to_bdata(hdata,cor_1_nc2(:,ib),bdata(ib))
+               else
+                  call diag_to_bdata(cor_1(ib),bdata(ib))
+               end if
+            end if
+         end do
       case ('loc')
          do ib=1,nam%nb+1
             if (nam%nicas_block(ib)) then
                if (nam%local_diag) then
-                  do ic2=1,hdata%nc2
-                     fld_nc2(ic2,:) = loc_1_nc2(ib,ic2)%fit_coef_ens
-                  end do
-                  call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-                  call diag_interpolation(hdata,fld_nc2,bdata(ib)%coef_ens)
-                  do ic2=1,hdata%nc2
-                     fld_nc2(ic2,:) = loc_1_nc2(ib,ic2)%fit_rh
-                  end do
-                  call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-                  call diag_interpolation(hdata,fld_nc2,bdata(ib)%rh0)
-                  do ic2=1,hdata%nc2
-                     fld_nc2(ic2,:) = loc_1_nc2(ib,ic2)%fit_rv
-                  end do
-                  call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-                  call diag_interpolation(hdata,fld_nc2,bdata(ib)%rv0)
+                  call diag_to_bdata(hdata,loc_1_nc2(:,ib),bdata(ib))
                else
-                  do il0=1,geom%nl0
-                     bdata(ib)%coef_ens(:,il0) = loc_1(ib)%fit_coef_ens(il0)
-                     bdata(ib)%rh0(:,il0) = loc_1(ib)%fit_rh(il0)
-                     bdata(ib)%rv0(:,il0) = loc_1(ib)%fit_rv(il0)
-                  end do
+                  call diag_to_bdata(loc_1(ib),bdata(ib))
                end if
-               bdata(ib)%coef_sta = 0.0
             end if
          end do
       case default
-      ! TODO
+         call msgerror('bdata not implemented yet for this method')
       end select
 
       ! Write B data
@@ -568,7 +536,7 @@ if (nam%new_hdiag) then
          end if
       end do
    end if
-else
+elseif (nam%new_param.and.any(nam%nicas_block)) then
    ! Read B data
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Read B data'
@@ -578,6 +546,6 @@ else
    end do
 end if
 
-end subroutine hdiag
+end subroutine run_hdiag
 
 end module driver_hdiag

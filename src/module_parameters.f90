@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_parameters
 
-use model_interface, only: model_read
 use module_parameters_convol, only: compute_convol_network,compute_convol_distance
 use module_parameters_interp, only: compute_interp_h,compute_interp_v,compute_interp_s
 use netcdf

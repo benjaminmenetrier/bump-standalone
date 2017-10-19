@@ -54,7 +54,7 @@ logical :: lcheck_nc1b(ndata%nc1),lcheck_nc2b(ndata%nc1,ndata%nl1)
 logical :: lcheck_nsa(ndata%ns),lcheck_nsb(ndata%ns),lcheck_nsc(ndata%ns)
 logical :: lcheck_h(ndata%h(1)%n_s,ndata%geom%nl0i),lcheck_c(ndata%c%n_s)
 logical,allocatable :: lcheck_s(:,:)
-type(comtype) :: comAB(ndata%nam%nproc),comAC(ndata%nam%nproc)
+type(comtype) :: comAB(mpl%nproc),comAC(mpl%nproc)
 
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
@@ -435,7 +435,7 @@ if (mpl%main) then
    ! Allocation
    allocate(is_to_isa(ndata%ns))
 
-   do iproc=1,nam%nproc
+   do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
          ! Copy dimension
          nsa = ndataloc%nsa
@@ -551,8 +551,8 @@ if (mpl%main) then
    end do
 
    ! Communication setup
-   call com_setup(nam%nproc,comAB)
-   call com_setup(nam%nproc,comAC)
+   call com_setup(mpl%nproc,comAB)
+   call com_setup(mpl%nproc,comAC)
 
    ! Release memory
    deallocate(is_to_isa)
@@ -572,9 +572,9 @@ mpl%tag = mpl%tag+8
 
 ! Communication broadcast
 ndataloc%AB%prefix = 'AB'
-call com_bcast(nam%nproc,comAB,ndataloc%AB)
+call com_bcast(mpl%nproc,comAB,ndataloc%AB)
 ndataloc%AC%prefix = 'AC'
-call com_bcast(nam%nproc,comAC,ndataloc%AC)
+call com_bcast(mpl%nproc,comAC,ndataloc%AC)
 
 ! End associate
 end associate

@@ -39,6 +39,7 @@ interface mpl_bcast
   module procedure mpl_bcast_real_array_1d
   module procedure mpl_bcast_real_array_2d
   module procedure mpl_bcast_real_array_3d
+  module procedure mpl_bcast_real_array_4d
   module procedure mpl_bcast_logical
   module procedure mpl_bcast_logical_array_1d
   module procedure mpl_bcast_logical_array_2d
@@ -382,7 +383,7 @@ subroutine mpl_bcast_real_array_3d(var,root)
 implicit none
 
 ! Passed variables
-real(kind_real),dimension(:,:,:),intent(in) :: var !< Real array, 2d
+real(kind_real),dimension(:,:,:),intent(in) :: var !< Real array, 3d
 integer,intent(in) :: root                         !< Root task
 
 ! Local variable
@@ -398,6 +399,32 @@ call mpl_check(info)
 call mpl_barrier
 
 end subroutine mpl_bcast_real_array_3d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_bcast_real_array_4d
+!> Purpose: broadcast 4d real array
+!----------------------------------------------------------------------
+subroutine mpl_bcast_real_array_4d(var,root)
+
+implicit none
+
+! Passed variables
+real(kind_real),dimension(:,:,:,:),intent(in) :: var !< Real array, 4d
+integer,intent(in) :: root                         !< Root task
+
+! Local variable
+integer :: info
+
+! Broadcast
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+
+! Check
+call mpl_check(info)
+
+! Wait
+call mpl_barrier
+
+end subroutine mpl_bcast_real_array_4d
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_bcast_logical

@@ -10,10 +10,10 @@
 !----------------------------------------------------------------------
 program main
 
-use driver_hdiag, only: hdiag
-use driver_nicas, only: nicas
-use driver_obsop, only: obsop
-use driver_test, only: test
+use driver_hdiag, only: run_hdiag
+use driver_nicas, only: run_nicas
+use driver_obsop, only: run_obsop
+use driver_test, only: run_test
 use model_interface, only: model_coord
 use module_namelist, only: namtype,namread,namcheck
 use tools_display, only: listing_setup,msgerror
@@ -117,7 +117,7 @@ call compute_grid_mesh(nam,geom)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call hybrid_diag driver'
 
-call hdiag(nam,geom,bdata)
+call run_hdiag(nam,geom,bdata)
 
 !----------------------------------------------------------------------
 ! Call NICAS driver
@@ -128,13 +128,9 @@ write(mpl%unit,'(a)') '--- Call NICAS driver'
 
 allocate(ndataloc(nam%nb+1))
 do ib=1,nam%nb+1
-   ! Set namelist and geometry
-   ndataloc(ib)%nam => nam
-   ndataloc(ib)%geom => geom
-
    if (nam%nicas_block(ib)) then
       write(mpl%unit,'(a7,a)') '','Block: '//trim(nam%blockname(ib))
-      call nicas(nam,geom,bdata(ib),ndataloc(ib))
+      call run_nicas(nam,geom,bdata(ib),ndataloc(ib))
    end if
 end do
 
@@ -146,7 +142,7 @@ if (.false.) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
-   call obsop(nam,geom,odataloc)   
+   call run_obsop(nam,geom,odataloc)   
 end if
 
 !----------------------------------------------------------------------
@@ -154,9 +150,9 @@ end if
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Call test driver'
+write(mpl%unit,'(a)') '--- Call run_test driver'
 
-call test(ndataloc)
+call run_test(nam,geom,ndataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats

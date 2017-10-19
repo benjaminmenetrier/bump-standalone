@@ -17,20 +17,17 @@ implicit none
 ! Moments derived type
 type momtype
    integer :: ne                                 !< Ensemble size
-   integer :: ne_offset                          !< Ensemble index offset
    integer :: nsub                               !< Number of sub-ensembles
-   character(len=1024) :: filename  !< File name
-   character(len=1024) :: varname_1 !< Variable name 1
-   character(len=1024) :: varname_2 !< Variable name 2
-   integer :: timeslot_1           !< Time slot 1
-   integer :: timeslot_2           !< Time slot 2
-   real(kind_real),allocatable :: m1_1(:,:,:)              !< Mean
+   real(kind_real),allocatable :: m1_1(:,:,:,:,:)            !< Mean
    real(kind_real),allocatable :: m2_1(:,:,:,:,:)          !< Variance
-   real(kind_real),allocatable :: m1_2(:,:,:)              !< Mean
+   real(kind_real),allocatable :: m1_2(:,:,:,:,:)              !< Mean
    real(kind_real),allocatable :: m2_2(:,:,:,:,:)          !< Variance
-   real(kind_real),allocatable :: m2full(:,:,:)            !< Full variance
    real(kind_real),allocatable :: m11(:,:,:,:,:)            !< Covariance
+   real(kind_real),allocatable :: m12(:,:,:,:,:)            !< Third-order centered moment
+   real(kind_real),allocatable :: m21(:,:,:,:,:)            !< Third-order centered moment
    real(kind_real),allocatable :: m22(:,:,:,:,:)            !< Fourth-order centered moment
+   real(kind_real),allocatable :: m1full(:,:,:)            !< Full variance
+   real(kind_real),allocatable :: m2full(:,:,:)            !< Full variance
 end type momtype
 
 private
@@ -59,9 +56,16 @@ deallocate(mom%m1_1)
 deallocate(mom%m2_1)
 deallocate(mom%m1_2)
 deallocate(mom%m2_2)
-if (nam%full_var) deallocate(mom%m2full)
 deallocate(mom%m11)
-if (.not.nam%gau_approx) deallocate(mom%m22)
+if (.not.nam%gau_approx) then
+   deallocate(mom%m12)
+   deallocate(mom%m21)
+   deallocate(mom%m22)
+end if
+if (nam%full_var) then
+   deallocate(mom%m1full)
+   deallocate(mom%m2full)
+end if
 
 ! End associate
 end associate

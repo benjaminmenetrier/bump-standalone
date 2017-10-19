@@ -12,7 +12,7 @@ module module_sampling
 
 use omp_lib
 use tools_const, only: pi,req,deg2rad,sphere_dist,vector_product,vector_triple_product
-use tools_display, only: prog_init,prog_print,msgerror,black,green,peach
+use tools_display, only: prog_init,prog_print,msgerror,msgwarning,black,green,peach
 use tools_interp, only: compute_grid_interp_bilin
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,isnotmsi
@@ -52,6 +52,12 @@ type(ctreetype) :: ctree_diag
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
+
+! Check subsampling size
+if (nam%nc1>maxval(count(geom%mask,dim=1))) then
+   call msgwarning('nc1 is too large for then mask, reset nc1 to the largest possible value')
+   nam%nc1 = maxval(count(geom%mask,dim=1))
+end if
 
 if (nam%local_diag.or.nam%displ_diag) then
    ! Define nc2
@@ -229,7 +235,7 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< Sampling data
 
 ! Local variables
-integer :: ic0,il0
+integer :: ic0,ic1,il0
 integer :: mask_ind_col(hdata%geom%nc0)
 real(kind_real) :: rh0(hdata%geom%nc0)
 
@@ -247,8 +253,18 @@ rh0 = 1.0
 
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
-call initialize_sampling(rng,geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
+if (nam%nc1<maxval(count(geom%mask,dim=1))) then
+   call initialize_sampling(rng,geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
  & nam%nc1,hdata%ic1_to_ic0)
+else
+   ic1 = 0
+   do ic0=1,geom%nc0
+      if (any(geom%mask(ic0,:))) then
+         ic1 = ic1+1
+         hdata%ic1_to_ic0(ic1) = ic0
+      end if
+   end do
+end if
 
 ! Copy for all levels
 do il0=1,geom%nl0

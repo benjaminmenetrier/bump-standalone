@@ -11,8 +11,7 @@
 module driver_test
 
 use module_namelist, only: namtype
-use module_test, only: test_dirac,test_dirac_bens,test_perf
-use type_ens, only: enstype,ens_read
+use module_test, only: test_dirac,test_dirac_localization,test_perf
 use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_ndata, only: ndataloctype
@@ -20,32 +19,31 @@ use type_ndata, only: ndataloctype
 implicit none
 
 private
-public :: test
+public :: run_test
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: test
+! Subroutine: run_test
 !> Purpose: test NICAS method
 !----------------------------------------------------------------------
-subroutine test(ndataloc)
+subroutine run_test(nam,geom,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data,local
+type(namtype),target,intent(in) :: nam !< Namelist variables
+type(geomtype),target,intent(in) :: geom    !< Sampling data
+type(ndataloctype),intent(inout) :: ndataloc(:) !< Sampling data,local
 
 ! Local variables
 integer :: ib
-type(enstype) :: ens
 
-! Associate
-associate(nam=>ndataloc(1)%nam,geom=>ndataloc(1)%geom)
-
-! Read ensemble
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Read ensemble'
-call ens_read(nam,geom,'ens1',ens)
+! Set namelist and geometry
+do ib=1,nam%nb+1
+   ndataloc(ib)%nam => nam
+   ndataloc(ib)%geom => geom
+end do
 
 if (nam%check_dirac) then
    ! Apply NICAS to diracs
@@ -58,8 +56,8 @@ if (nam%check_dirac) then
 
    ! Apply NICAS to diracs
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Apply Bens to diracs'
-   call test_dirac_bens(ndataloc,ens)
+   write(mpl%unit,'(a)') '--- Apply localization to diracs'
+   call test_dirac_localization(ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -73,9 +71,6 @@ if (nam%check_perf) then
    call flush(mpl%unit)
 end if
 
-! End associate
-end associate
-
-end subroutine test
+end subroutine run_test
 
 end module driver_test

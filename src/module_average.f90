@@ -43,7 +43,7 @@ integer,intent(in) :: ic2_loc       !< Local index
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Local variables
-integer :: il0,jl0,ic,isub,jsub,ic1,nc1_eff,jc1
+integer :: il0,jl0,ic,isub,jsub,ic1,nc1max,jc1
 real(kind_real) :: m2m2
 real(kind_real),allocatable :: list_m11(:),list_m11m11(:,:,:),list_m2m2(:,:,:),list_m22(:,:),list_cor(:)
 logical :: valid
@@ -63,27 +63,25 @@ call avg_alloc(hdata,avg)
 ! Average
 do jl0=1,geom%nl0
    do il0=1,geom%nl0
-      do ic=1,nam%nc
-         ! Allocation of private arrays
-         if (ic2_loc>0) then
-            nc1_eff = count(hdata%local_mask(:,ic2_loc,min(il0,geom%nl0i)))
-         else
-            nc1_eff = count(hdata%ic1il0_log(:,il0))
-         end if
-         allocate(list_m11(nc1_eff))
-         allocate(list_m11m11(nc1_eff,mom%nsub,mom%nsub))
-         allocate(list_m2m2(nc1_eff,mom%nsub,mom%nsub))
-         allocate(list_m22(nc1_eff,mom%nsub))
-         allocate(list_cor(nc1_eff))
+      ! Allocation
+      if (ic2_loc>0) then
+         nc1max = count(hdata%local_mask(:,ic2_loc,min(il0,geom%nl0i)))
+      else
+         nc1max = nam%nc1
+      end if
+      allocate(list_m11(nc1max))
+      allocate(list_m11m11(nc1max,mom%nsub,mom%nsub))
+      allocate(list_m2m2(nc1max,mom%nsub,mom%nsub))
+      allocate(list_m22(nc1max,mom%nsub))
+      allocate(list_cor(nc1max))
 
+      do ic=1,nam%nc
          ! Fill lists
          jc1 = 0
          do ic1=1,nam%nc1
-            if (ic2_loc>0) then
-               valid = hdata%local_mask(ic1,ic2_loc,min(il0,geom%nl0i))
-            else
-               valid = hdata%ic1il0_log(ic1,jl0)
-            end if
+            ! Check validity
+            valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)
+            if (ic2_loc>0) valid = valid.and.hdata%local_mask(ic1,ic2_loc,min(il0,geom%nl0i))
 
             if (valid) then
                ! Update
@@ -104,36 +102,31 @@ do jl0=1,geom%nl0
                if (m2m2>0.0) then
                   list_cor(jc1) = list_m11(jc1)/sqrt(m2m2)
                else
-                  if (ic==1) then
-                     list_cor(jc1) = 1.0
-                  else
-                     list_cor(jc1) = 0.0
-                  end if
+                  call msr(list_cor(jc1))
                end if
             end if
          end do
 
          ! Average
-         avg%m11(ic,il0,jl0) = taverage(nc1_eff,list_m11)
+         avg%m11(ic,il0,jl0) = taverage(jc1,list_m11(1:jc1))
          do jsub=1,avg%nsub
             do isub=1,avg%nsub
-               avg%m11m11(ic,il0,jl0,isub,jsub) = taverage(nc1_eff,list_m11m11)
-               avg%m2m2(ic,il0,jl0,isub,jsub) = taverage(nc1_eff,list_m2m2)
+               avg%m11m11(ic,il0,jl0,isub,jsub) = taverage(jc1,list_m11m11(1:jc1,isub,jsub))
+               avg%m2m2(ic,il0,jl0,isub,jsub) = taverage(jc1,list_m2m2(1:jc1,isub,jsub))
             end do
-            if (.not.nam%gau_approx) avg%m22(ic,il0,jl0,jsub) = taverage(nc1_eff,list_m22)
+            if (.not.nam%gau_approx) avg%m22(ic,il0,jl0,jsub) = taverage(jc1,list_m22(1:jc1,jsub))
          end do
-         avg%cor(ic,il0,jl0) = taverage(nc1_eff,list_cor)
-
-         ! Release memory
-         deallocate(list_m11)
-         deallocate(list_m11m11)
-         deallocate(list_m2m2)
-         deallocate(list_m22)
-         deallocate(list_cor) 
+         avg%cor(ic,il0,jl0) = taverage(jc1,list_cor(1:jc1))
       end do
+
+      ! Release memory
+      deallocate(list_m11)
+      deallocate(list_m11m11)
+      deallocate(list_m2m2)
+      deallocate(list_m22)
+      deallocate(list_cor) 
    end do
 end do
-
 
 ! End associate
 end associate
@@ -153,7 +146,7 @@ integer,intent(in) :: n        !< Number of values
 real(kind_real),intent(in) :: list(n)     !< List values
 
 ! Local variable
-integer :: nrm
+integer :: nrm,nvalid
 integer :: order(n)
 real(kind_real) :: list_copy(n)
 
@@ -168,7 +161,12 @@ if (n-2*nrm>=ntrim) then
    call qsort(n,list_copy,order)
 
    ! Compute trimmed average
-   taverage = sum(list_copy(1+nrm:n-nrm))/float(n-2*nrm)
+   nvalid = count(isnotmsr(list_copy(1+nrm:n-nrm)))
+   if (nvalid>0) then
+      taverage = sum(list_copy(1+nrm:n-nrm),mask=isnotmsr(list_copy(1+nrm:n-nrm)))/float(nvalid)
+   else
+      call msr(taverage)
+   end if
 else
    ! Missing value
    call msr(taverage)
@@ -303,10 +301,10 @@ do jl0=1,geom%nl0
          if (.not.nam%gau_approx) avg%m22asy(ic,il0,jl0) = sum(m22asy)/float(avg%nsub)
 
          ! Check positivity
-         if (avg%m11asysq(ic,il0,jl0)<0.0) call msr(avg%m11asysq(ic,il0,jl0))
-         if (avg%m2m2asy(ic,il0,jl0)<0.0) call msr(avg%m2m2asy(ic,il0,jl0))
+         if (.not.(avg%m11asysq(ic,il0,jl0)>0.0)) call msr(avg%m11asysq(ic,il0,jl0))
+         if (.not.(avg%m2m2asy(ic,il0,jl0)>0.0)) call msr(avg%m2m2asy(ic,il0,jl0))
          if (.not.nam%gau_approx) then
-            if (avg%m22asy(ic,il0,jl0)<0.0) call msr(avg%m22asy(ic,il0,jl0))
+            if (.not.(avg%m22asy(ic,il0,jl0)>0.0)) call msr(avg%m22asy(ic,il0,jl0))
          end if
 
          ! Squared covariance average for several ensemble sizes

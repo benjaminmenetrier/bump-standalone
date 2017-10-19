@@ -7,13 +7,13 @@ src=${HOME}/codes/nicas/src
 dst=${HOME}/codes/OOPS/oops/src/oops/generic/nicas
 
 # Sync
-rsync -avh --delete --exclude "nicas.f90" ${src}/* ${dst}
+rsync -avh --delete --exclude "main.f90" tmp ${src}/* ${dst}
 
 # To copy in OOPS/oops/src/CMakeLists.txt
 echo
 echo "To copy in OOPS/oops/src/CMakeLists.txt:"
 for file in `ls ${HOME}/codes/nicas/src` ; do
-   if [ "${file}" != "nicas.f90" ]&&[ "${file}" != "external" ]&&[ "${file}" != "obsop" ] ; then
+   if [ "${file}" != "nicas.f90" ]&&[ "${file}" != "external" ]&&[ "${file}" != "obsop" ]&&[ "${file}" != "tmp" ] ; then
       echo oops/generic/nicas/${file}
    fi
 done

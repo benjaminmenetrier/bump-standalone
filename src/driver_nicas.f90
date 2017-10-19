@@ -27,15 +27,15 @@ use type_ndata, only: ndatatype,ndataloctype,ndata_read_param,ndata_read_mpi, &
 implicit none
 
 private
-public :: nicas
+public :: run_nicas
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: nicas
+! Subroutine: run_nicas
 !> Purpose: NICAS
 !----------------------------------------------------------------------
-subroutine nicas(nam,geom,bdata,ndataloc)
+subroutine run_nicas(nam,geom,bdata,ndataloc)
 
 implicit none
 
@@ -51,6 +51,8 @@ type(ndatatype) :: ndata
 ! Set namelist and geometry
 ndata%nam => nam
 ndata%geom => geom
+ndataloc%nam => nam
+ndataloc%geom => geom
 
 if (nam%new_param) then
    ! Compute NICAS parameters
@@ -69,7 +71,7 @@ if (nam%new_param) then
       write(mpl%unit,'(a)') '--- Write NICAS parameters'
       call ndata_write_param(ndata)
    end if
-else
+elseif (nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi) then
    ! Read NICAS parameters
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Read NICAS parameters'
@@ -88,13 +90,13 @@ if (nam%new_mpi) then
    write(mpl%unit,'(a)') '--- Write NICAS MPI distribution'
    call ndata_write_mpi(ndataloc)
 
-   if (mpl%main.and.(nam%nproc>1)) then
+   if (mpl%main.and.(mpl%nproc>1)) then
       ! Write NICAS MPI summary
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
       call ndata_write_mpi_summary(ndata)
    end if
-else
+elseif (nam%check_mpi.or.nam%check_dirac.or.nam%check_perf) then
    ! Read NICAS MPI distribution
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Read NICAS MPI distribution'
@@ -118,7 +120,7 @@ if (nam%check_pos_def) then
    call flush(mpl%unit)
 end if
 
-if (nam%check_mpi.and.(nam%nproc>0)) then
+if (nam%check_mpi) then
    ! Test single/multi-procs equivalence
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
@@ -126,6 +128,6 @@ if (nam%check_mpi.and.(nam%nproc>0)) then
    call flush(mpl%unit)
 end if
 
-end subroutine nicas
+end subroutine run_nicas
 
 end module driver_nicas
