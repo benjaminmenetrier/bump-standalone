@@ -419,6 +419,8 @@ if (nam%local_diag.or.nam%displ_diag) then
    call ncerr(subr,nf90_def_var(ncid,'ic2_to_ic0',nf90_int,(/nc2_1_id/),ic2_to_ic0_id))
    call ncerr(subr,nf90_put_att(ncid,ic2_to_ic0_id,'_FillValue',msvali))
 end if
+
+! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write arrays

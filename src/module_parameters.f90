@@ -47,10 +47,10 @@ type(ndatatype),intent(inout) :: ndata !< Sampling data
 integer :: il0,il0_prev,il1,ic0,ic1,ic2,is,il0i
 integer :: mask_ind_col(ndata%geom%nc0)
 integer,allocatable :: mask_ind(:,:)
-real(kind_real) :: distnorm
+real(kind_real) :: rh0minavg,rv1min,distnorm
 real(kind_real) :: rh0(ndata%geom%nc0,ndata%geom%nl0),rv0(ndata%geom%nc0,ndata%geom%nl0),rh0min(ndata%geom%nc0)
 real(kind_real),allocatable :: rh1(:,:),rv1(:,:),rh2(:,:),rv2(:,:),rhs(:),rvs(:)
-logical :: inside
+logical :: llev(ndata%geom%nl0),inside
 
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
@@ -67,8 +67,12 @@ write(mpl%unit,'(a10,a,a,f8.2,a,f8.2,a)') '','Average support radii (H/V): ', &
 
 ! Basic horizontal mesh defined with the minimum support radius
 rh0min = minval(rh0,dim=2)
-ndata%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*(sum(rh0min,mask=isnotmsr(rh0min)) &
-          & /float(count(isnotmsr(rh0min))))**2))
+rh0minavg = sum(rh0min,mask=isnotmsr(rh0min))/float(count(isnotmsr(rh0min)))
+if (rh0minavg>0.0) then
+   ndata%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rh0minavg**2))
+else
+   ndata%nc1 = ndata%geom%nc0
+end if
 write(mpl%unit,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: ',ndata%nc1
 if (ndata%nc1>geom%nc0/2) then
    call msgwarning('required nc1 larger than nc0/2, resetting to nc0/2')
@@ -103,27 +107,31 @@ end do
 
 ! Vertical sampling
 write(mpl%unit,'(a7,a)',advance='no') '','Compute vertical subset L1: '
-allocate(ndata%llev(geom%nl0))
 il0_prev = 1
 do il0=1,geom%nl0
    ! Look for convolution levels
    if ((il0==1).or.(il0==geom%nl0)) then
       ! Keep first and last levels
-      ndata%llev(il0) = .true.
+      llev(il0) = .true.
    else
       ! Compute normalized distance with level il0_prev
-      distnorm = abs(geom%vunit(il0)-geom%vunit(il0_prev))/sqrt(0.5*(minval(rv1(:,il0))**2+minval(rv1(:,il0_prev))**2))
-      ndata%llev(il0) = distnorm>1.0/nam%resol
+      rv1min = sqrt(0.5*(minval(rv1(:,il0))**2+minval(rv1(:,il0_prev))**2))
+      if (rv1min>0.0) then
+         distnorm = abs(geom%vunit(il0)-geom%vunit(il0_prev))/rv1min
+         llev(il0) = distnorm>1.0/nam%resol
+      else
+         llev(il0) = .true.
+      end if
    end if
 
    ! Update
-   if (ndata%llev(il0)) il0_prev = il0
+   if (llev(il0)) il0_prev = il0
 end do
-ndata%nl1 = count(ndata%llev)
+ndata%nl1 = count(llev)
 allocate(ndata%il1_to_il0(ndata%nl1))
 il1 = 0
 do il0=1,geom%nl0
-   if (ndata%llev(il0)) then
+   if (llev(il0)) then
       write(mpl%unit,'(i3,a)',advance='no') nam%levs(il0),' '
       il1 = il1+1
       ndata%il1_to_il0(il1) = il0
@@ -247,7 +255,7 @@ call compute_interp_h(ndata)
 
 ! Compute vertical interpolation data
 write(mpl%unit,'(a7,a)') '','Compute vertical interpolation data'
-call compute_interp_v(ndata)
+call compute_interp_v(ndata,llev)
 
 ! Compute subsampling horizontal interpolation data
 write(mpl%unit,'(a7,a)') '','Compute subsampling horizontal interpolation data'

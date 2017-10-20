@@ -280,6 +280,8 @@ if (trim(nam%fit_type)/='none') then
       call ncerr(subr,nf90_put_att(ncid,fit_spec_id,'_FillValue',msvalr))
    end if
 end if
+
+! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables

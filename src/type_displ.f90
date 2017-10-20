@@ -134,7 +134,10 @@ call ncerr(subr,nf90_def_var(ncid,'dist',ncfloat,(/displ_niter_id,nl0_1_id,nb_id
 call ncerr(subr,nf90_put_att(ncid,dist_id,'_FillValue',msvalr))
 call ncerr(subr,nf90_def_var(ncid,'rhflt',ncfloat,(/displ_niter_id,nl0_1_id,nb_id/),rhflt_id))
 call ncerr(subr,nf90_put_att(ncid,rhflt_id,'_FillValue',msvalr))
+
+! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
+
 call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit))
 call ncerr(subr,nf90_put_var(ncid,larc_id,hdata%larc))
 call ncerr(subr,nf90_put_var(ncid,valid_id,displ%valid))

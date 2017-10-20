@@ -570,73 +570,90 @@ do its=1,nam%nts
    if (nam%timeslot(its)<0) call msgerror('timeslot should be non-negative')
 end do
 
-! Check ens1_param
-if (nam%ens1_ne_offset<0) call msgerror('ens1_ne_offset should be non-negative')
-if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
-if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call msgerror('ens1_nsub should be a divider of ens1_ne')
-if (nam%ens1_ne/nam%ens1_nsub<=3) call msgerror('ens1_ne/ens1_nsub should be larger than 3')
+! Surface level
+do iv=1,nam%nv
+   if (trim(nam%addvar2d(iv))/='') nam%levs(nam%nl+1) = maxval(nam%levs(1:nam%nl))+1
+end do
 
-! Check ens2_param
-select case (trim(nam%method))
-case ('hyb-rnd','dual-ens')
-   if (nam%ens2_ne_offset<0) call msgerror('ens2_ne_offset should be non-negative')
-   if (nam%ens2_nsub<1) call msgerror('ens2_nsub should be non-negative')
-   if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call msgerror('ens2_nsub should be a divider of ens2_ne')
-   if (nam%ens2_ne/nam%ens2_nsub<=3) call msgerror('ens2_ne/ens2_nsub should be larger than 3')
-end select
-
-! Check sampling_param
-if (nam%sam_write.and.nam%sam_read) call msgerror('sam_write and sam_read are both true')
-if (nam%nc1<=0) call msgerror('nc1 should be positive')
-if (nam%ntry<=0) call msgerror('ntry should be positive')
-if (nam%nrep<0) call msgerror('nrep should be non-negative')
-if (nam%nc<=0) call msgerror('nc should be positive')
-if (nam%dc<0.0) call msgerror('dc should be positive')
-
-! Check diag_param
-if (nam%ne<=3) call msgerror('ne should be larger than 3')
-if (nam%local_diag) then
-   if (nam%local_rad<0.0) call msgerror('local_rad should be non-negative')
-end if
-if (nam%displ_diag) then
-   if (nam%displ_rad<0.0) call msgerror('displ_rad should be non-negative')
-   if (nam%displ_niter<0) call msgerror('displ_niter should be positive')
-   if (nam%displ_rhflt<0.0) call msgerror('displ_rhflt should be non-negative')
-   if (nam%displ_tol<0.0) call msgerror('displ_tol should be non-negative')
-end if
-
-! Check fit_param
-select case (trim(nam%fit_type))
-case ('none','fast','full')
-case default
-   call msgerror('wrong fit_type')
-end select
-if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
-
-! Check output_param
-if (nam%local_diag) then
-   if (nam%nldwh<0) call msgerror('nldwh should be non-negative')
-   if (any(nam%il_ldwh(1:nam%nldwh)<0)) call msgerror('il_ldwh should be non-negative')
-   if (any(nam%il_ldwh(1:nam%nldwh)>nam%nl)) call msgerror('il_ldwh should be lower than nl')
-   if (any(nam%ic_ldwh(1:nam%nldwh)<0)) call msgerror('ic_ldwh should be non-negative')
-   if (any(nam%ic_ldwh(1:nam%nldwh)>nam%nc)) call msgerror('ic_ldwh should be lower than nc')
-   if (nam%nldwv<0) call msgerror('nldwv should be non-negative')
-   if (any(nam%lon_ldwv(1:nam%nldwv)<-180.0).or.any(nam%lon_ldwv(1:nam%nldwv)>180.0)) call msgerror('wrong lon_ldwv')
-   if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call msgerror('wrong lat_ldwv')
-end if
-if (nam%local_diag.or.nam%displ_diag) then
-   select case (trim(nam%flt_type))
-   case ('average','gc99','median')
-      if (nam%diag_rhflt<0.0) call msgerror('diag_rhflt should be non-negative')
-   case ('none')
-   case default
-      call msgerror('wrong filtering type')
+if (nam%new_hdiag) then
+   ! Check ens1_param
+   if (nam%ens1_ne_offset<0) call msgerror('ens1_ne_offset should be non-negative')
+   if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
+   if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call msgerror('ens1_nsub should be a divider of ens1_ne')
+   if (nam%ens1_ne/nam%ens1_nsub<=3) call msgerror('ens1_ne/ens1_nsub should be larger than 3')
+   
+   ! Check ens2_param
+   select case (trim(nam%method))
+   case ('hyb-rnd','dual-ens')
+      if (nam%ens2_ne_offset<0) call msgerror('ens2_ne_offset should be non-negative')
+      if (nam%ens2_nsub<1) call msgerror('ens2_nsub should be non-negative')
+      if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call msgerror('ens2_nsub should be a divider of ens2_ne')
+      if (nam%ens2_ne/nam%ens2_nsub<=3) call msgerror('ens2_ne/ens2_nsub should be larger than 3')
    end select
+   
+   ! Check sampling_param
+   if (nam%sam_write.and.nam%sam_read) call msgerror('sam_write and sam_read are both true')
+   if (nam%nc1<=0) call msgerror('nc1 should be positive')
+   if (nam%ntry<=0) call msgerror('ntry should be positive')
+   if (nam%nrep<0) call msgerror('nrep should be non-negative')
+   if (nam%nc<=0) call msgerror('nc should be positive')
+   if (nam%dc<0.0) call msgerror('dc should be positive')
+   
+   ! Check diag_param
+   if (nam%ne<=3) call msgerror('ne should be larger than 3')
+   if (nam%local_diag) then
+      if (nam%local_rad<0.0) call msgerror('local_rad should be non-negative')
+   end if
+   if (nam%displ_diag) then
+      if (nam%displ_rad<0.0) call msgerror('displ_rad should be non-negative')
+      if (nam%displ_niter<0) call msgerror('displ_niter should be positive')
+      if (nam%displ_rhflt<0.0) call msgerror('displ_rhflt should be non-negative')
+      if (nam%displ_tol<0.0) call msgerror('displ_tol should be non-negative')
+   end if
+   
+   ! Check fit_param
+   select case (trim(nam%fit_type))
+   case ('none','fast','full')
+   case default
+      call msgerror('wrong fit_type')
+   end select
+   if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
+   
+   ! Check output_param
+   if (nam%local_diag) then
+      if (nam%nldwh<0) call msgerror('nldwh should be non-negative')
+      if (any(nam%il_ldwh(1:nam%nldwh)<0)) call msgerror('il_ldwh should be non-negative')
+      if (any(nam%il_ldwh(1:nam%nldwh)>nam%nl)) call msgerror('il_ldwh should be lower than nl')
+      if (any(nam%ic_ldwh(1:nam%nldwh)<0)) call msgerror('ic_ldwh should be non-negative')
+      if (any(nam%ic_ldwh(1:nam%nldwh)>nam%nc)) call msgerror('ic_ldwh should be lower than nc')
+      if (nam%nldwv<0) call msgerror('nldwv should be non-negative')
+      if (any(nam%lon_ldwv(1:nam%nldwv)<-180.0).or.any(nam%lon_ldwv(1:nam%nldwv)>180.0)) call msgerror('wrong lon_ldwv')
+      if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call msgerror('wrong lat_ldwv')
+   end if
+   if (nam%local_diag.or.nam%displ_diag) then
+      select case (trim(nam%flt_type))
+      case ('average','gc99','median')
+         if (nam%diag_rhflt<0.0) call msgerror('diag_rhflt should be non-negative')
+      case ('none')
+      case default
+         call msgerror('wrong filtering type')
+      end select
+   end if
+
+   ! Check ensemble sizes
+   if (trim(nam%method)/='cor') then
+      if (nam%ne>nam%ens1_ne) call msgwarning('ensemble size larger than ens1_ne (might enhance sampling noise)')
+      if (nam%ne>nam%ens2_ne) call msgwarning('ensemble size larger than ens2_ne (might enhance sampling noise)')
+   end if
 end if
 
 ! Check nicas_param
-if (.not.(nam%resol>0.0)) call msgerror('resol should be positive')
-if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call msgerror('mpicom should be 1 or 2')
+if (nam%new_param) then
+   if (.not.(nam%resol>0.0)) call msgerror('resol should be positive')
+end if
+if (nam%new_mpi.or.nam%check_mpi.or.nam%check_dirac.or.nam%check_perf) then
+   if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call msgerror('mpicom should be 1 or 2')
+end if
 if (nam%check_dirac) then
    if (nam%ndir<1) call msgerror('ndir should be positive')
    do idir=1,nam%ndir
@@ -647,17 +664,6 @@ if (nam%check_dirac) then
       if ((nam%itsdir(idir)<1).or.(nam%itsdir(idir)>nam%nts)) call msgerror('wrong timeslot for a Dirac')
    end do
 end if
-
-! Check ensemble sizes
-if (trim(nam%method)/='cor') then
-   if (nam%ne>nam%ens1_ne) call msgwarning('ensemble size larger than ens1_ne (might enhance sampling noise)')
-   if (nam%ne>nam%ens2_ne) call msgwarning('ensemble size larger than ens2_ne (might enhance sampling noise)')
-end if
-
-! Surface level
-do iv=1,nam%nv
-   if (trim(nam%addvar2d(iv))/='') nam%levs(nam%nl+1) = maxval(nam%levs(1:nam%nl))+1
-end do
 
 ! Build unread parameters
 nam%nb = nam%nv**2*nam%nts**2
@@ -736,8 +742,6 @@ implicit none
 ! Passed variable
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid !< NetCDF file id
-
-! TODO : add hdiag variables
 
 ! general_param
 call namncwrite_param(ncid,'general_param_datadir',trim(nam%datadir))

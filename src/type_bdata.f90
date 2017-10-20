@@ -15,7 +15,7 @@ use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgwarning,msgerror
 use tools_kinds, only: kind_real
-use tools_missing, only: msvalr,msr,isnotmsr
+use tools_missing, only: msvalr,msr,isnotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_curve, only: curvetype
 use type_geom, only: geomtype
@@ -24,6 +24,9 @@ implicit none
 
 ! B data derived type
 type bdatatype
+   ! Block name
+   character(len=1024) :: cname                  !< Block name
+
    ! Namelist
    type(namtype),pointer :: nam                    !< Namelist
 
@@ -31,11 +34,11 @@ type bdatatype
    type(geomtype),pointer :: geom                  !< Geometry
 
    ! Data
-   character(len=1024) :: cname                  !< B name
    real(kind_real),allocatable :: coef_ens(:,:)  !< Ensemble coefficient
    real(kind_real),allocatable :: rh0(:,:)       !< Fit support radius
    real(kind_real),allocatable :: rv0(:,:)       !< Fit support radius
    real(kind_real),allocatable :: coef_sta(:,:)  !< Static coefficient
+   real(kind_real) :: wgt                        !< Block weight
 end type bdatatype
 
 interface diag_to_bdata
@@ -74,6 +77,7 @@ call msr(bdata%coef_ens)
 call msr(bdata%rh0)
 call msr(bdata%rv0)
 call msr(bdata%coef_sta)
+call msr(bdata%wgt)
 
 ! End associate
 end associate
@@ -118,7 +122,11 @@ integer :: il0
 associate(nam=>bdata%nam,geom=>bdata%geom)
 
 do il0=1,geom%nl0
-   bdata%coef_ens(:,il0) = diag%fit_coef_ens(il0)
+   if (isnotmsr(diag%fit_coef_ens(il0))) then
+      bdata%coef_ens(:,il0) = diag%fit_coef_ens(il0)
+   else
+      bdata%coef_ens(:,il0) = diag%raw_coef_ens(il0)
+   end if
    bdata%rh0(:,il0) = diag%fit_rh(il0)
    bdata%rv0(:,il0) = diag%fit_rv(il0)
    bdata%coef_sta(:,il0) = diag%raw_coef_sta
@@ -150,7 +158,11 @@ real(kind_real) :: fld_nc2(hdata%nc2,bdata%geom%nl0)
 associate(nam=>bdata%nam,geom=>bdata%geom)
 
 do ic2=1,hdata%nc2
-   fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+   if (any(isnotmsr(diag(ic2)%fit_coef_ens))) then
+      fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+   else
+      fld_nc2(ic2,:) = diag(ic2)%raw_coef_ens
+   end if
 end do
 call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
 call diag_interpolation(hdata,fld_nc2,bdata%coef_ens)
@@ -204,7 +216,7 @@ if (info==nf90_noerr) then
    call ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
    call ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
    if ((geom%nc0/=nc0_test).or.(geom%nl0/=nl0_test)) call msgerror('wrong dimension when reading B')
-   
+  
    ! Get arrays ID
    call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
    call ncerr(subr,nf90_inq_varid(ncid,'rh0',rh0_id))
@@ -216,6 +228,9 @@ if (info==nf90_noerr) then
    call ncerr(subr,nf90_get_var(ncid,rh0_id,bdata%rh0))
    call ncerr(subr,nf90_get_var(ncid,rv0_id,bdata%rv0))
    call ncerr(subr,nf90_get_var(ncid,coef_sta_id,bdata%coef_sta))
+
+   ! Get main weight
+   call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',bdata%wgt))
    
    ! Close file
    call ncerr(subr,nf90_close(ncid))
@@ -227,6 +242,7 @@ else
       bdata%rv0(:,il0) = nam%rv(il0)
    end do
    bdata%coef_sta = 0.0
+   bdata%wgt = 1.0
 end if
 
 ! Check
@@ -274,6 +290,11 @@ call ncerr(subr,nf90_def_var(ncid,'rv0',ncfloat,(/nc0_id,nl0_id/),rv0_id))
 call ncerr(subr,nf90_put_att(ncid,rv0_id,'_FillValue',msvalr))
 call ncerr(subr,nf90_def_var(ncid,'coef_sta',ncfloat,(/nc0_id,nl0_id/),coef_sta_id))
 call ncerr(subr,nf90_put_att(ncid,coef_sta_id,'_FillValue',msvalr))
+
+! Write main weight
+call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',bdata%wgt))
+
+! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write arrays

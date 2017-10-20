@@ -24,7 +24,7 @@ use netcdf
 use tools_const, only: eigen_init,reqkm
 use tools_display, only: vunitchar,prog_init,prog_print,msgerror,msgwarning,aqua,aqua,peach,peach,purple,purple,black
 use tools_kinds, only: kind_real
-use tools_missing, only: msvali,msvalr,isnotmsi,isanynotmsr,msr
+use tools_missing, only: msvali,msvalr,msr,isnotmsi,isnotmsr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_avg, only: avgtype,avg_dealloc
 use type_bdata, only: bdatatype,bdata_alloc,diag_to_bdata,bdata_read,bdata_write
@@ -75,7 +75,7 @@ type(momtype) :: mom_1(nam%nb),mom_2(nam%nb)
 ! Allocate B data
 allocate(bdata(nam%nb+1))
 do ib=1,nam%nb+1
-   if (nam%nicas_block(ib)) then
+   if (nam%diag_block(ib)) then
       bdata(ib)%nam => nam
       bdata(ib)%geom => geom
       bdata(ib)%cname = 'bdata_'//trim(nam%blockname(ib))
@@ -141,6 +141,8 @@ if (nam%new_hdiag) then
 
    do ib=1,nam%nb
       if (nam%diag_block(ib)) then
+         write(mpl%unit,'(a7,a,a)') '','Block: ',trim(nam%blockname(ib))
+
          ! Compute global statistics
          call compute_avg(hdata,mom_1(ib),0,avg_1(ib))
    
@@ -164,6 +166,13 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a)') '100%'
          end if
          
+         ! Print results
+         do il0=1,geom%nl0
+            write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
+             & 'raw cov. / cor. (1): ',trim(peach),avg_1(ib)%m11(1,il0,il0),trim(black),' / ', &
+             & trim(peach),avg_1(ib)%cor(1,il0,il0),trim(black)
+         end do
+
          if (trim(nam%method)=='hyb-avg') then
             ! Static covariance = ensemble covariance
             avg_1(ib)%m11sta = avg_1(ib)%m11*avg_1(ib)%m11
@@ -183,6 +192,16 @@ if (nam%new_hdiag) then
             ! LR covariance/HR covariance product average
             call compute_avg_lr(hdata,mom_1(ib),mom_2(ib),avg_1(ib),avg_2(ib))
          end if
+
+         ! Print results
+         select case (trim(nam%method))
+         case ('hyb-avg','hyb-rnd','dual-ens')
+            do il0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
+                & 'raw cov. / cor. (2): ',trim(peach),avg_2(ib)%m11(1,il0,il0),trim(black),' / ', &
+                & trim(peach),avg_2(ib)%cor(1,il0,il0),trim(black)
+            end do
+         end select
       end if
    end do
 
@@ -270,7 +289,7 @@ if (nam%new_hdiag) then
       do ib=1,nam%nb+1
          if (nam%fit_block(ib)) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(nam%blockname(ib))
-
+   
             ! Compute global fit
             call compute_fit(hdata%nam,hdata%geom,cor_1(ib),norm=1.0_kind_real)
    
@@ -289,11 +308,11 @@ if (nam%new_hdiag) then
             end if
    
             ! Print results
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
-             & ' ~>  cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
-             & //trim(aqua),cor_1(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
-            end do
+             do il0=1,geom%nl0
+                write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
+              & ' ~> cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
+              & //trim(aqua),cor_1(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+             end do
          end if
       end do
    
@@ -306,21 +325,21 @@ if (nam%new_hdiag) then
          do ib=1,nam%nb+1
             if (nam%fit_block(ib)) then
                write(mpl%unit,'(a7,a,a)') '','Block: ',trim(nam%blockname(ib))
-
+   
                ! Compute fit
                call compute_fit(hdata%nam,hdata%geom,cor_2(ib),norm=1.0_kind_real)
    
                ! Print results
                do il0=1,geom%nl0
-                  write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
-                & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
-                & //trim(aqua),cor_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
-               end do
+                   write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
+                 & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
+                 & //trim(aqua),cor_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+                end do
             end if
          end do
       end select
    end if
-   
+
    select case (trim(nam%method))
    case ('loc','hyb-avg','hyb-rnd','dual-ens')
       ! Compute localization diagnostic and fit
@@ -454,44 +473,51 @@ if (nam%new_hdiag) then
       end do
    end if
    
-   if (nam%new_param.and.any(nam%nicas_block)) then
-      ! Copy diagnostics into B data
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
-   
-      select case (trim(nam%method))
-      case ('cor')
-         do ib=1,nam%nb+1
-            if (nam%nicas_block(ib)) then
-               if (nam%local_diag) then
-                  call diag_to_bdata(hdata,cor_1_nc2(:,ib),bdata(ib))
-               else
-                  call diag_to_bdata(cor_1(ib),bdata(ib))
-               end if
-            end if
-         end do
-      case ('loc')
-         do ib=1,nam%nb+1
-            if (nam%nicas_block(ib)) then
-               if (nam%local_diag) then
-                  call diag_to_bdata(hdata,loc_1_nc2(:,ib),bdata(ib))
-               else
-                  call diag_to_bdata(loc_1(ib),bdata(ib))
-               end if
-            end if
-         end do
-      case default
-         call msgerror('bdata not implemented yet for this method')
-      end select
+   ! Copy diagnostics into B data
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
 
-      ! Write B data
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a,i5,a)') '--- Write B data'
-
+   select case (trim(nam%method))
+   case ('cor')
       do ib=1,nam%nb+1
-         if (nam%nicas_block(ib)) call bdata_write(bdata(ib))
+         if (nam%diag_block(ib)) then
+            if (nam%local_diag) then
+               call diag_to_bdata(hdata,cor_1_nc2(:,ib),bdata(ib))
+            else
+               call diag_to_bdata(cor_1(ib),bdata(ib))
+            end if
+         end if
       end do
-   end if
+   case ('loc')
+      do ib=1,nam%nb+1
+         if (nam%diag_block(ib)) then
+            if (nam%local_diag) then
+               call diag_to_bdata(hdata,loc_1_nc2(:,ib),bdata(ib))
+            else
+               call diag_to_bdata(loc_1(ib),bdata(ib))
+            end if
+         end if
+      end do
+   case default
+      call msgerror('bdata not implemented yet for this method')
+   end select
+
+   ! Main weight
+   do ib=1,nam%nb+1
+      if (nam%diag_block(ib)) then
+bdata(ib)%wgt = sum(bdata(ib)%coef_ens,mask=isnotmsr(bdata(ib)%coef_ens)) &
+                                            & /float(count(isnotmsr(bdata(ib)%coef_ens)))
+write(mpl%unit,*) bdata(ib)%coef_ens(1,1),bdata(ib)%wgt
+end if
+   end do   
+
+   ! Write B data
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a,i5,a)') '--- Write B data'
+
+   do ib=1,nam%nb+1
+      if (nam%diag_block(ib)) call bdata_write(bdata(ib))
+   end do
    
    ! Write data
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -536,13 +562,13 @@ if (nam%new_hdiag) then
          end if
       end do
    end if
-elseif (nam%new_param.and.any(nam%nicas_block)) then
+elseif (nam%new_param) then
    ! Read B data
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Read B data'
 
    do ib=1,nam%nb+1
-      if (nam%nicas_block(ib)) call bdata_read(bdata(ib))
+      if (nam%diag_block(ib)) call bdata_read(bdata(ib))
    end do
 end if
 

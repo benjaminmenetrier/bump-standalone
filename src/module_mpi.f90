@@ -420,7 +420,7 @@ if (nam%lsqrt) allocate(ndataloc%norm_sqrt(ndataloc%nsb))
 do ic0=1,geom%nc0
    if (geom%ic0_to_iproc(ic0)==mpl%myproc) then
       ic0a = geom%ic0_to_ic0a(ic0)
-      ndataloc%norm(ic0a,1:geom%nl0) = ndata%norm(ic0,1:geom%nl0)
+      ndataloc%norm(ic0a,:) = ndata%norm(ic0,:)
    end if
 end do
 if (nam%lsqrt) then

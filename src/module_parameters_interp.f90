@@ -60,12 +60,13 @@ end subroutine compute_interp_h
 ! Subroutine: compute_interp_v
 !> Purpose: compute vertical interpolation
 !----------------------------------------------------------------------
-subroutine compute_interp_v(ndata)
+subroutine compute_interp_v(ndata,llev)
 
 implicit none
 
 ! Passed variables
 type(ndatatype),intent(inout) :: ndata !< Sampling data
+logical,intent(in) :: llev(ndata%geom%nl0) 
 
 ! Local variables
 integer :: il0,jl0,il1,il0inf,il0sup
@@ -82,7 +83,7 @@ ndata%v%n_dst = geom%nl0
 ndata%v%n_s = ndata%nl1
 il0inf = 1
 do il0=1,geom%nl0
-   if (ndata%llev(il0)) then
+   if (llev(il0)) then
       il0sup = il0
       do jl0=il0inf+1,il0sup-1
          ndata%v%n_s = ndata%v%n_s+2
@@ -100,7 +101,7 @@ end do
 ndata%v%n_s = ndata%nl1
 il0inf = 1
 do il0=1,geom%nl0
-   if (ndata%llev(il0)) then
+   if (llev(il0)) then
       il0sup = il0
       do jl0=il0inf+1,il0sup-1
          ndata%v%n_s = ndata%v%n_s+1

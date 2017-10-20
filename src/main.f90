@@ -28,7 +28,6 @@ use type_timer, only: timertype,timer_start,timer_display
 implicit none
 
 ! Local variables
-integer :: ib
 type(geomtype),target :: geom
 type(namtype),target :: nam
 type(bdatatype),allocatable :: bdata(:)
@@ -126,13 +125,7 @@ call run_hdiag(nam,geom,bdata)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call NICAS driver'
 
-allocate(ndataloc(nam%nb+1))
-do ib=1,nam%nb+1
-   if (nam%nicas_block(ib)) then
-      write(mpl%unit,'(a7,a)') '','Block: '//trim(nam%blockname(ib))
-      call run_nicas(nam,geom,bdata(ib),ndataloc(ib))
-   end if
-end do
+call run_nicas(nam,geom,bdata,ndataloc)
 
 if (.false.) then
    !----------------------------------------------------------------------

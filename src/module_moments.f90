@@ -127,7 +127,6 @@ do isub=1,nsub
       fac5 = float((ie-1)*(ie-2))/float(ie**2)
       fac6 = float(ie-1)/float(ie)
 
-
       if (present(ens1)) then
          ! Copy and broadcast field
          if (allocated(fld)) deallocate(fld)
