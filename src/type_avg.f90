@@ -44,34 +44,35 @@ contains
 ! Subroutine: avg_alloc
 !> Purpose: averaged statistics object allocation
 !----------------------------------------------------------------------
-subroutine avg_alloc(hdata,avg)
+subroutine avg_alloc(hdata,ib,avg)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata
+integer,intent(in) :: ib
 type(avgtype),intent(inout) :: avg !< Averaged statistics
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Allocation
-allocate(avg%m11(nam%nc,geom%nl0,geom%nl0))
-allocate(avg%m11m11(nam%nc,geom%nl0,geom%nl0,avg%nsub,avg%nsub))
-allocate(avg%m2m2(nam%nc,geom%nl0,geom%nl0,avg%nsub,avg%nsub))
-allocate(avg%m22(nam%nc,geom%nl0,geom%nl0,avg%nsub))
-allocate(avg%cor(nam%nc,geom%nl0,geom%nl0))
-allocate(avg%m11asysq(nam%nc,geom%nl0,geom%nl0))
-allocate(avg%m2m2asy(nam%nc,geom%nl0,geom%nl0))
-allocate(avg%m22asy(nam%nc,geom%nl0,geom%nl0))
-allocate(avg%m11sq(nam%nc,geom%nl0,geom%nl0))
+allocate(avg%m11(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+allocate(avg%m11m11(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub,avg%nsub))
+allocate(avg%m2m2(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub,avg%nsub))
+allocate(avg%m22(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub))
+allocate(avg%cor(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+allocate(avg%m11asysq(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+allocate(avg%m2m2asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+allocate(avg%m22asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+allocate(avg%m11sq(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
-   allocate(avg%m11sta(nam%nc,geom%nl0,geom%nl0))
-   allocate(avg%stasq(nam%nc,geom%nl0,geom%nl0))
+   allocate(avg%m11sta(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+   allocate(avg%stasq(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 case ('dual-ens')
-   allocate(avg%m11lrm11(nam%nc,geom%nl0,geom%nl0))
-   allocate(avg%m11lrm11asy(nam%nc,geom%nl0,geom%nl0))
+   allocate(avg%m11lrm11(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+   allocate(avg%m11lrm11asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 end select
 
 ! Initialization

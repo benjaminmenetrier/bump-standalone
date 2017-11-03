@@ -133,18 +133,12 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
       call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)), &
     & dble(lat_dst(i_dst)),1,inn,dist)
 
-      if (.not.(abs(dist(1))>0.0)) then
-         ! Subset point
-         n_s = n_s+1
-         row(n_s) = i_dst
-         col(n_s) = mesh%order(inn(1))
-         S(n_s) = 1.0
-      else
+      if (abs(dist(1))>0.0) then
          ! Transform to cartesian coordinates
          call trans(1,lat_dst(i_dst),lon_dst(i_dst),p(1),p(2),p(3))
 
          ! Compute barycentric coordinates
-         call trfind(inn(1),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
+         call trfind(mesh%order_inv(inn(1)),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
        & b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
          if (all(ib>0)) then
@@ -166,6 +160,12 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                end if
             end if
          end if
+      else
+         ! Subset point
+         n_s = n_s+1
+         row(n_s) = i_dst
+         col(n_s) = inn(1)
+         S(n_s) = 1.0
       end if
    end if
 

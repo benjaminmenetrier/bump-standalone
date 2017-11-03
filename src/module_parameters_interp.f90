@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_parameters_interp
 
-use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: pi,req,deg2rad,rad2deg,sphere_dist
 use tools_display, only: msgerror,prog_init,prog_print
@@ -21,6 +20,7 @@ use tools_stripack, only: trans
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
 use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
+use type_nam, only: namtype
 use type_ndata, only: ndatatype
 use type_randgen, only: initialize_sampling
 

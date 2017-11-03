@@ -11,12 +11,13 @@
 module module_apply_localization
 
 use module_apply_nicas, only: apply_nicas
-use module_namelist, only: namtype
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
+use type_bpar, only: bpartype
 use type_geom, only: geomtype
 use type_mpl, only: mpl
+use type_nam, only: namtype
 use type_ndata, only: ndataloctype
 
 implicit none
@@ -30,25 +31,20 @@ contains
 ! Subroutine: apply_localization
 !> Purpose: apply 4D localization
 !----------------------------------------------------------------------
-subroutine apply_localization(nam,geom,ndataloc,fld)
+subroutine apply_localization(nam,geom,bpar,ndataloc,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),target,intent(in) :: nam !< Namelist variables
 type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(ndataloctype),intent(inout) :: ndataloc(nam%nb+1) !< Sampling
+type(bpartype),target,intent(in) :: bpar    !< Sampling data
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
 real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)  !< Field
 
 ! Local variable
 integer :: ib,its,iv,jv
 real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:),wgt(:,:),wgt_diag(:)
-
-! Set namelist and geometry
-do ib=1,nam%nb+1
-   ndataloc(ib)%nam => nam
-   ndataloc(ib)%geom => geom
-end do
 
 select case (nam%strategy)
 case ('common')
@@ -64,13 +60,13 @@ case ('common')
    end do
 
    ! Apply common ensemble coefficient square-root
-   fld_3d = fld_3d*sqrt(ndataloc(nam%nb+1)%coef_ens)
+   fld_3d = fld_3d*sqrt(ndataloc(bpar%nb+1)%coef_ens)
 
    ! Apply common localization
-   call apply_nicas(ndataloc(nam%nb+1),fld_3d)
+   call apply_nicas(nam,geom,ndataloc(bpar%nb+1),fld_3d)
 
    ! Apply common ensemble coefficient square-root
-   fld_3d = fld_3d*sqrt(ndataloc(nam%nb+1)%coef_ens)
+   fld_3d = fld_3d*sqrt(ndataloc(bpar%nb+1)%coef_ens)
 
    ! Build final vector
    do its=1,nam%nts
@@ -88,16 +84,16 @@ case ('specific_univariate')
       fld_4d = fld_4d+fld(:,:,:,its)
    end do
 
-   do ib=1,nam%nb
-      if (nam%nicas_block(ib)) then
+   do ib=1,bpar%nb
+      if (bpar%nicas_block(ib)) then
          ! Variable index
-         iv = nam%ib_to_iv(ib)
+         iv = bpar%ib_to_iv(ib)
 
          ! Apply common ensemble coefficient square-root
          fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(ib)%coef_ens)
 
          ! Apply specific localization (same for all timeslots)
-         call apply_nicas(ndataloc(ib),fld_4d(:,:,iv))
+         call apply_nicas(nam,geom,ndataloc(ib),fld_4d(:,:,iv))
 
          ! Apply common ensemble coefficient square-root
          fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(ib)%coef_ens)
@@ -125,21 +121,21 @@ case ('common_weighted')
 
    do iv=1,nam%nv
       ! Apply common ensemble coefficient square-root
-      fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(nam%nb+1)%coef_ens)
+      fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(bpar%nb+1)%coef_ens)
 
       ! Apply common localization
-      call apply_nicas(ndataloc(nam%nb+1),fld_4d(:,:,iv))
+      call apply_nicas(nam,geom,ndataloc(bpar%nb+1),fld_4d(:,:,iv))
 
       ! Apply common ensemble coefficient square-root
-      fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(nam%nb+1)%coef_ens)
+      fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(bpar%nb+1)%coef_ens)
    end do
 
    ! Prepare weights
-   do ib=1,nam%nb
-      if (nam%diag_block(ib)) then
+   do ib=1,bpar%nb
+      if (bpar%diag_block(ib)) then
          ! Variable indices
-         iv = nam%ib_to_iv(ib)
-         jv = nam%ib_to_jv(ib)
+         iv = bpar%ib_to_iv(ib)
+         jv = bpar%ib_to_jv(ib)
          wgt(iv,jv) = ndataloc(ib)%wgt
          if (iv==jv) wgt_diag(iv) = wgt(iv,iv)
       end if

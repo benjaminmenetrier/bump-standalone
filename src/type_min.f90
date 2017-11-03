@@ -10,9 +10,10 @@
 !----------------------------------------------------------------------
 module type_min
 
-use module_namelist, only: namtype
 use tools_kinds, only: kind_real
 use type_geom, only: geomtype
+use type_nam, only: namtype
+
 implicit none
 
 ! Minimization data derived type

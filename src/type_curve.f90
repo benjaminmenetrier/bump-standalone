@@ -12,7 +12,6 @@ module type_curve
 
 use model_interface, only: model_write
 use module_diag_tools, only: diag_write,diag_filter,diag_interpolation
-use module_namelist, only: namncwrite
 use netcdf
 use tools_const, only: egvmat
 use tools_display, only: vunitchar,msgerror
@@ -20,6 +19,8 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isnotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_hdata, only: hdatatype
+use type_nam, only: namtype,namncwrite
+
 implicit none
 
 ! Curve derived type
@@ -132,33 +133,34 @@ end subroutine curve_dealloc
 ! Subroutine: curve_normalization
 !> Purpose: compute localization normalization
 !----------------------------------------------------------------------
-subroutine curve_normalization(hdata,curve)
+subroutine curve_normalization(hdata,ib,curve)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata    !< Sampling data
+integer,intent(in) :: ib !< Block index
 type(curvetype),intent(inout) :: curve !< Curve
 
 ! Local variables
 integer :: il0,jl0,ic
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Get diagonal values
 do il0=1,geom%nl0
-   if (isnotmsr(curve%raw(1,il0,il0))) curve%raw_coef_ens(il0) = curve%raw(1,il0,il0)
+   if (isnotmsr(curve%raw(1,min(il0,bpar%nl0(ib)),il0))) curve%raw_coef_ens(il0) = curve%raw(1,min(il0,bpar%nl0(ib)),il0)
    if (trim(nam%fit_type)/='none') then
-      if (isnotmsr(curve%fit(1,il0,il0))) curve%fit_coef_ens(il0) = curve%fit(1,il0,il0)
+      if (isnotmsr(curve%fit(1,min(il0,bpar%nl0(ib)),il0))) curve%fit_coef_ens(il0) = curve%fit(1,min(il0,bpar%nl0(ib)),il0)
    end if
 end do
 
 ! Normalize
 if (nam%norm_loc) then
    do jl0=1,geom%nl0
-      do il0=1,geom%nl0
-         do ic=1,nam%nc
+      do il0=1,bpar%nl0(ib)
+         do ic=1,bpar%icmax(ib)
             if (isnotmsr(curve%raw_coef_ens(il0)).and.isnotmsr(curve%raw_coef_ens(jl0)) &
           & .and.isnotmsr(curve%raw(ic,il0,jl0))) &
           & curve%raw(ic,il0,jl0) = curve%raw(ic,il0,jl0) &
@@ -327,12 +329,12 @@ implicit none
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
 character(len=*),intent(in) :: filename
-type(curvetype),intent(inout) :: cor_1(hdata%nam%nb+1) !< 
-type(curvetype),intent(inout) :: cor_2(hdata%nam%nb+1) !< 
-type(curvetype),intent(inout) :: loc_1(hdata%nam%nb+1) !< 
-type(curvetype),intent(inout) :: loc_2(hdata%nam%nb+1) !< 
-type(curvetype),intent(inout) :: loc_3(hdata%nam%nb+1) !< 
-type(curvetype),intent(inout) :: loc_4(hdata%nam%nb+1) !< 
+type(curvetype),intent(inout) :: cor_1(hdata%bpar%nb+1) !< 
+type(curvetype),intent(inout) :: cor_2(hdata%bpar%nb+1) !< 
+type(curvetype),intent(inout) :: loc_1(hdata%bpar%nb+1) !< 
+type(curvetype),intent(inout) :: loc_2(hdata%bpar%nb+1) !< 
+type(curvetype),intent(inout) :: loc_3(hdata%bpar%nb+1) !< 
+type(curvetype),intent(inout) :: loc_4(hdata%bpar%nb+1) !< 
 
 ! Local variables
 integer :: ncid,one_id,nc_id,nl0_1_id,nl0_2_id,disth_id,vunit_id
@@ -340,7 +342,7 @@ integer :: ib
 character(len=1024) :: subr = 'curve_write_all'
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
@@ -353,10 +355,10 @@ call ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
 call ncerr(subr,nf90_def_var(ncid,'disth',ncfloat,(/nc_id/),disth_id))
 call ncerr(subr,nf90_def_var(ncid,'vunit',ncfloat,(/nl0_1_id/),vunit_id))
 call ncerr(subr,nf90_enddef(ncid))
-call ncerr(subr,nf90_put_var(ncid,disth_id,nam%disth(1:nam%nc)))
+call ncerr(subr,nf90_put_var(ncid,disth_id,geom%disth(1:nam%nc)))
 call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit))
-do ib=1,nam%nb+1
-   if (nam%diag_block(ib)) then
+do ib=1,bpar%nb+1
+   if (bpar%diag_block(ib)) then
       call curve_write(hdata,ncid,cor_1(ib))
       select case (trim(nam%method))
       case ('hyb-avg','hyb-rnd','dual-ens')
@@ -394,43 +396,43 @@ implicit none
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
 character(len=*),intent(in) :: filename !<
-type(curvetype),intent(in) :: curve_nc2(hdata%nam%nb+1,hdata%nc2) !< 
+type(curvetype),intent(in) :: curve_nc2(hdata%nc2,hdata%bpar%nb+1) !< 
 
 ! Local variables
 integer :: ncid
-integer :: ib,ic2
+integer :: ic2,ib
 real(kind_real) :: fld_nc2(hdata%nc2,hdata%geom%nl0),fld(hdata%geom%nc0,hdata%geom%nl0)
 character(len=1024) :: subr = 'curve_write_all'
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 call namncwrite(nam,ncid)
 call ncerr(subr,nf90_close(ncid))
-do ib=1,nam%nb+1
-   if (nam%fit_block(ib)) then
+do ib=1,bpar%nb+1
+   if (bpar%fit_block(ib)) then
       call msr(fld_nc2)
       do ic2=1,hdata%nc2
-         fld_nc2(ic2,:) = curve_nc2(ib,ic2)%fit_rh
+         fld_nc2(ic2,:) = curve_nc2(ic2,ib)%fit_rh
       end do
       call diag_interpolation(hdata,fld_nc2,fld)
-      call model_write(nam,geom,filename,trim(nam%blockname(ib))//'_fit_rh',fld)
+      call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh',fld)
       if (trim(nam%flt_type)/='none') then
          call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
          call diag_interpolation(hdata,fld_nc2,fld)
-         call model_write(nam,geom,filename,trim(nam%blockname(ib))//'_fit_rh_flt',fld)
+         call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh_flt',fld)
       end if
       call msr(fld_nc2)
       do ic2=1,hdata%nc2
-         fld_nc2(ic2,:) = curve_nc2(ib,ic2)%fit_rv
+         fld_nc2(ic2,:) = curve_nc2(ic2,ib)%fit_rv
       end do
       call diag_interpolation(hdata,fld_nc2,fld)
-      call model_write(nam,geom,filename,trim(nam%blockname(ib))//'_fit_rv',fld)
+      call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv',fld)
       if (trim(nam%flt_type)/='none') then
          call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
          call diag_interpolation(hdata,fld_nc2,fld)
-         call model_write(nam,geom,filename,trim(nam%blockname(ib))//'_fit_rv_flt',fld)
+         call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv_flt',fld)
       end if
    end if
 end do

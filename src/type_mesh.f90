@@ -32,6 +32,7 @@ type meshtype
    integer,allocatable :: lptr(:) 
    integer,allocatable :: lend(:) 
    integer,allocatable :: order(:)
+   integer,allocatable :: order_inv(:)
 end type meshtype
 
 private
@@ -140,6 +141,7 @@ mesh%nnr = count(.not.isnotmsi(mesh%redundant))
 
 ! Allocation
 allocate(mesh%order(mesh%nnr))
+allocate(mesh%order_inv(mesh%nnr))
 allocate(mesh%list(6*(mesh%nnr-2)))
 allocate(mesh%lptr(6*(mesh%nnr-2)))
 allocate(mesh%lend(mesh%nnr))
@@ -163,6 +165,11 @@ do i=mesh%nnr,2,-1
    k = mesh%order(j)
    mesh%order(j) = mesh%order(i)
    mesh%order(i) = k
+end do
+
+! Inverse order
+do i=1,mesh%nnr
+   mesh%order_inv(mesh%order(i)) = i
 end do
 
 ! Transform to cartesian coordinates
@@ -194,6 +201,7 @@ deallocate(mesh%list)
 deallocate(mesh%lptr)
 deallocate(mesh%lend)
 deallocate(mesh%order)
+deallocate(mesh%order_inv)
 
 end subroutine mesh_dealloc
 

@@ -20,15 +20,14 @@ use model_arp, only: model_arp_coord,model_arp_read,model_arp_write
 !use model_nemo, only: model_nemo_coord,model_nemo_read,model_nemo_write
 use model_oops, only: model_oops_coord,model_oops_write
 !use model_wrf, only: model_wrf_coord,model_wrf_read,model_wrf_write
-use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr
 use tools_nc, only: ncfloat,ncerr
 use type_geom, only: geomtype
-use type_mom, only: momtype
 use type_mpl, only: mpl
+use type_nam, only: namtype
 
 implicit none
 

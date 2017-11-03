@@ -13,7 +13,9 @@ module module_apply_interp
 use omp_lib
 use tools_kinds,only: kind_real
 use tools_missing, only: msr
+use type_geom, only: geomtype
 use type_linop, only: apply_linop,apply_linop_ad
+use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
 
 implicit none
@@ -105,22 +107,21 @@ end subroutine interp_global
 ! Subroutine: interp_local
 !> Purpose: interpolation, local
 !----------------------------------------------------------------------
-subroutine interp_local(ndataloc,alpha,fld)
+subroutine interp_local(nam,geom,ndataloc,alpha,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 real(kind_real),intent(in) :: alpha(ndataloc%nsb) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
-real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%geom%nl0)
-real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%geom%nl0,ndataloc%nc1b)
-
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
+real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,geom%nl0)
+real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(geom%nl0,ndataloc%nc1b)
 
 !$omp parallel do private(isb)
 do isb=1,ndataloc%nsb
@@ -163,9 +164,6 @@ end do
 
 ! Normalization
 fld = fld*ndataloc%norm
-
-! End associate
-end associate
 
 end subroutine interp_local
 
@@ -242,23 +240,22 @@ end subroutine interp_ad_global
 ! Subroutine: interp_ad_local
 !> Purpose: interpolation adjoint, local
 !----------------------------------------------------------------------
-subroutine interp_ad_local(ndataloc,fld,alpha)
+subroutine interp_ad_local(nam,geom,ndataloc,fld,alpha)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc  !< Sampling data
-real(kind_real),intent(in) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndataloc%nsb) !< Subgrid variable
 
 ! Local variables
 integer :: isb,il1,ic1b,il0
-real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,ndataloc%geom%nl0)
-real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(ndataloc%geom%nl0,ndataloc%nc1b)
-real(kind_real) :: fld_tmp(ndataloc%geom%nc0a,ndataloc%geom%nl0)
-
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
+real(kind_real) :: beta(ndataloc%nc1b,ndataloc%nl1),gamma(ndataloc%nc1b,ndataloc%nl1),delta(ndataloc%nc1b,geom%nl0)
+real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(geom%nl0,ndataloc%nc1b)
+real(kind_real) :: fld_tmp(geom%nc0a,geom%nl0)
 
 ! Normalization
 fld_tmp = fld*ndataloc%norm
@@ -301,9 +298,6 @@ do isb=1,ndataloc%nsb
    end if
 end do
 !$omp end parallel do
-
-! End associate
-end associate
 
 end subroutine interp_ad_local
 

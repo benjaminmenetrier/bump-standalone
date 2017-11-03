@@ -19,11 +19,11 @@ using namespace std;
 randGen::randGen(int default_seed) {
     // Initialize random number generator
     if (default_seed==0) {
-        std::random_device rd;
-        gen = new std::mt19937(rd());
+// C++11        std::random_device rd;
+// C++11        gen = new std::mt19937(rd());
     }
     else {
-        gen = new std::mt19937;
+// C++11        gen = new std::mt19937;
     }
 }
 
@@ -33,27 +33,30 @@ randGen::~randGen(){}
 // Random integer generator
 void randGen::rand_integer(int binf, int bsup, int *ir) const{
     // Initialize uniform distribution
-    std::uniform_int_distribution<int> dis(binf,bsup);
+// C++11    std::uniform_int_distribution<int> dis(binf,bsup);
 
     // Generate random integer
-    *ir=dis(*gen);
+// C++11    *ir=dis(*gen);
+    int range=bsup-binf+1;
+    *ir=rand()%range+binf;
     return;
 }
 
 // Random real generator
 void randGen::rand_real(double binf, double bsup, double *rr) const{
     // Initialize uniform distribution
-    std::uniform_real_distribution<double> dis(binf,bsup);
+// C++11    std::uniform_real_distribution<double> dis(binf,bsup);
 
     // Generate random real
-    *rr=dis(*gen);
+// C++11    *rr=dis(*gen);
+    *rr=binf+(rand()/(RAND_MAX/(bsup-binf)));
     return;
 }
 
 // Sampling initialization
 void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) const{
     // Initialize uniform distribution
-    std::uniform_int_distribution<int> dis(0,n-1);
+// C++11    std::uniform_int_distribution<int> dis(0,n-1);
 
     // Declaration
     int ir;
@@ -76,7 +79,8 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
         int itry=0;
         while(itry<ntry) {
             // Generate random number
-            ir=dis(*gen);
+// C++11            ir=dis(*gen);
+            ir=rand()%n;
             if(mask_copy[ir]==1) {
                 if(is>0) {
                     // Find nearest neighbor
@@ -140,7 +144,8 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
             int itry=0;
             while(itry<ntry) {
                 // Generate random number
-                ir=dis(*gen);
+// C++11                ir=dis(*gen);
+                ir=rand()%n;
                 if(mask_copy[ir]==1) {
                     // Find nearest neighbor
                     vector<CoverTreePoint> neighbors(cTree.kNearestNeighbors(CoverTreePoint(-999,lon[ir],lat[ir]),1));

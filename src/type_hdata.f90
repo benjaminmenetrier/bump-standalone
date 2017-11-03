@@ -10,18 +10,20 @@
 !----------------------------------------------------------------------
 module type_hdata
 
-use module_namelist, only: namtype
 use netcdf
 use tools_const, only: rad2deg
 use tools_display, only: msgerror,msgwarning
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncerr,ncfloat
+use type_bpar, only: bpartype
 use type_ctree, only: ctreetype,delete_ctree
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_dealloc,linop_read,linop_write
 use type_mpl, only: mpl
+use type_nam, only: namtype
 use type_randgen, only: randgentype,create_randgen,delete_randgen
+
 implicit none
 
 ! Sampling data derived type
@@ -31,6 +33,9 @@ type hdatatype
 
    ! Geometry
    type(geomtype),pointer :: geom                  !< Geometry
+
+   ! Block parameters
+   type(bpartype),pointer :: bpar                  !< Block parameters
 
    ! Sampling
    integer,allocatable :: ic1_to_ic0(:)               !< First sampling index
@@ -80,7 +85,7 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< Sampling data
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Allocation
 allocate(hdata%ic1_to_ic0(nam%nc1))
@@ -88,7 +93,7 @@ allocate(hdata%ic1il0_log(nam%nc1,geom%nl0))
 allocate(hdata%ic1icil0_to_ic0(nam%nc1,nam%nc,geom%nl0))
 allocate(hdata%ic1icil0_log(nam%nc1,nam%nc,geom%nl0))
 allocate(hdata%swgt(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-allocate(hdata%bwgtsq(nam%nc,geom%nl0,geom%nl0,nam%nb))
+allocate(hdata%bwgtsq(nam%nc,geom%nl0,geom%nl0,bpar%nb))
 if (nam%local_diag.or.nam%displ_diag) then
    allocate(hdata%ic2_to_ic1(hdata%nc2))
    allocate(hdata%ic2_to_ic0(hdata%nc2))
@@ -485,8 +490,8 @@ if (nam%local_diag.or.nam%displ_diag) then
       call ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
       call ncerr(subr,nf90_def_dim(ncid,'nc2_1',hdata%nc2,nc2_1_id))
       call ncerr(subr,nf90_def_var(ncid,'local_mask',nf90_int,(/nc1_id,nc2_1_id/),local_mask_id))
-      call ncerr(subr,nf90_put_att(ncid,local_mask_id,'_FillValue',msvali))
       call ncerr(subr,nf90_def_var(ncid,'displ_mask',nf90_int,(/nc1_id,nc2_1_id/),displ_mask_id))
+      call ncerr(subr,nf90_put_att(ncid,local_mask_id,'_FillValue',msvali))
       call ncerr(subr,nf90_put_att(ncid,displ_mask_id,'_FillValue',msvali))
       if (trim(nam%flt_type)/='none') then
          call ncerr(subr,nf90_def_dim(ncid,'nc2_2',hdata%nc2,nc2_2_id))

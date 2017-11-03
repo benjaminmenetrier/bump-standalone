@@ -15,7 +15,9 @@ use module_apply_interp, only: interp,interp_ad
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_com, only: com_ext,com_red
+use type_geom, only: geomtype
 use type_mpl, only: mpl,mpl_barrier
+use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
 
 implicit none
@@ -75,25 +77,24 @@ end subroutine apply_nicas_global
 ! Subroutine: apply_nicas_local
 !> Purpose: apply NICAS method, local
 !----------------------------------------------------------------------
-subroutine apply_nicas_local(ndataloc,fld)
+subroutine apply_nicas_local(nam,geom,ndataloc,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(inout) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variables
 real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
-
-! Associate
-associate(nam=>ndataloc%nam)
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
 
 ! Adjoint interpolation
-call interp_ad(ndataloc,fld,alpha)
+call interp_ad(nam,geom,ndataloc,fld,alpha)
 
 ! Communication
 if (nam%mpicom==1) then
@@ -149,13 +150,10 @@ call com_red(ndataloc%AC,alpha)
 call com_ext(ndataloc%AB,alpha)
 
 ! Interpolation
-call interp(ndataloc,alpha,fld)
+call interp(nam,geom,ndataloc,alpha,fld)
 
 ! Release memory
 deallocate(alpha)
-
-! End associate
-end associate
 
 end subroutine apply_nicas_local
 
@@ -190,14 +188,16 @@ end subroutine apply_nicas_sqrt_global
 ! Subroutine: apply_nicas_sqrt_local
 !> Purpose: apply NICAS method square-root, local
 !----------------------------------------------------------------------
-subroutine apply_nicas_sqrt_local(ndataloc,alpha,fld)
+subroutine apply_nicas_sqrt_local(nam,geom,ndataloc,alpha,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 real(kind_real),intent(in) :: alpha(ndataloc%nsa) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variable
 real(kind_real),allocatable :: alpha_tmp(:)
@@ -221,7 +221,7 @@ call com_red(ndataloc%AC,alpha_tmp)
 call com_ext(ndataloc%AB,alpha_tmp)
 
 ! Interpolation
-call interp(ndataloc,alpha_tmp,fld)
+call interp(nam,geom,ndataloc,alpha_tmp,fld)
 
 ! Release memory
 deallocate(alpha_tmp)
@@ -253,13 +253,15 @@ end subroutine apply_nicas_sqrt_ad_global
 ! Subroutine: apply_nicas_sqrt_ad_local
 !> Purpose: apply NICAS method square-root adjoint, local
 !----------------------------------------------------------------------
-subroutine apply_nicas_sqrt_ad_local(ndataloc,fld,alpha)
+subroutine apply_nicas_sqrt_ad_local(nam,geom,ndataloc,fld,alpha)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(in) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndataloc%nsa) !< Subgrid variable
 
 ! Local variable
@@ -269,7 +271,7 @@ real(kind_real),allocatable :: alpha_tmp(:)
 allocate(alpha_tmp(ndataloc%nsb))
 
 ! Adjoint interpolation
-call interp_ad(ndataloc,fld,alpha_tmp)
+call interp_ad(nam,geom,ndataloc,fld,alpha_tmp)
 
 ! Halo reduction from zone B to zone A
 call com_red(ndataloc%AB,alpha_tmp)
@@ -317,22 +319,24 @@ end subroutine apply_nicas_from_sqrt_global
 ! Subroutine: apply_nicas_from_sqrt_local
 !> Purpose: apply NICAS method from its square-root formulation, local
 !----------------------------------------------------------------------
-subroutine apply_nicas_from_sqrt_local(ndataloc,fld)
+subroutine apply_nicas_from_sqrt_local(nam,geom,ndataloc,fld)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist
+type(geomtype),intent(in) :: geom !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(inout) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)  !< Field
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variables
 real(kind_real) :: alpha(ndataloc%nsa)
 
 ! Apply square-root adjoint
-call apply_nicas_sqrt_ad(ndataloc,fld,alpha)
+call apply_nicas_sqrt_ad(nam,geom,ndataloc,fld,alpha)
 
 ! Apply square-root
-call apply_nicas_sqrt(ndataloc,alpha,fld)
+call apply_nicas_sqrt(nam,geom,ndataloc,alpha,fld)
 
 end subroutine apply_nicas_from_sqrt_local
 

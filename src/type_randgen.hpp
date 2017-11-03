@@ -24,5 +24,5 @@ class randGen {
         void initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) const;
     private:
         // Mersenne Twister 19937 generator
-        std::mt19937 *gen;
+// C++11        std::mt19937 *gen;
 };

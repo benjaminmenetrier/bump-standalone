@@ -15,11 +15,12 @@ use driver_nicas, only: run_nicas
 use driver_obsop, only: run_obsop
 use driver_test, only: run_test
 use model_interface, only: model_coord
-use module_namelist, only: namtype,namread,namcheck
 use tools_display, only: listing_setup,msgerror
 use type_bdata, only: bdatatype
+use type_bpar, only: bpartype,bpar_alloc
 use type_geom, only: geomtype,compute_grid_mesh
 use type_mpl, only: mpl,mpl_start,mpl_end
+use type_nam, only: namtype,namread,namcheck
 use type_ndata, only: ndataloctype
 use type_odata, only: odataloctype
 use type_randgen, only: rng,create_randgen
@@ -30,6 +31,7 @@ implicit none
 ! Local variables
 type(geomtype),target :: geom
 type(namtype),target :: nam
+type(bpartype) :: bpar
 type(bdatatype),allocatable :: bdata(:)
 type(ndataloctype),allocatable :: ndataloc(:)
 type(odataloctype) :: odataloc
@@ -91,13 +93,19 @@ write(mpl%unit,'(a)') '--- Initialize random number generator'
 rng = create_randgen(nam)
 
 !----------------------------------------------------------------------
-! Initialize coordinates
+! Initialize geometry
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Initialize coordinates'
+write(mpl%unit,'(a)') '--- Initialize geometry'
 
 call model_coord(nam,geom)
+
+!----------------------------------------------------------------------
+! Initialize block parameters
+!----------------------------------------------------------------------
+
+call bpar_alloc(nam,geom,bpar)
 
 !----------------------------------------------------------------------
 ! Compute grid mesh
@@ -116,7 +124,7 @@ call compute_grid_mesh(nam,geom)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call hybrid_diag driver'
 
-call run_hdiag(nam,geom,bdata)
+call run_hdiag(nam,geom,bpar,bdata)
 
 !----------------------------------------------------------------------
 ! Call NICAS driver
@@ -125,7 +133,7 @@ call run_hdiag(nam,geom,bdata)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call NICAS driver'
 
-call run_nicas(nam,geom,bdata,ndataloc)
+call run_nicas(nam,geom,bpar,bdata,ndataloc)
 
 if (.false.) then
    !----------------------------------------------------------------------
@@ -145,7 +153,7 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call run_test driver'
 
-call run_test(nam,geom,ndataloc)
+call run_test(nam,geom,bpar,ndataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats

@@ -10,13 +10,13 @@
 !----------------------------------------------------------------------
 module type_odata
 
-use module_namelist, only: namtype
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_com, only: comtype
 use type_geom, only: geomtype
 use type_linop, only: linoptype
 use type_mpl, only: mpl,mpl_recv,mpl_send
+use type_nam, only: namtype
 
 implicit none
 

@@ -14,7 +14,7 @@ using namespace std;
 // Constructor
 cTree::cTree(int n, double lon[], double lat[], int mask[]) {
     // Initialize tree: maximum distance is half the sphere circonference (sphere of radius 1, easier)
-    tree = new CoverTree<CoverTreePoint>(M_PI);
+    tree = new CoverTree<CoverTreePoint>(2.0*M_PI);
 
     for(int i=0;i<n;i++) {
         // Check mask

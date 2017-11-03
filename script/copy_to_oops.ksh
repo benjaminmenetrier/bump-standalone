@@ -7,7 +7,7 @@ src=${HOME}/codes/nicas/src
 dst=${HOME}/codes/OOPS/oops/src/oops/generic/nicas
 
 # Sync
-rsync -avh --delete --exclude "main.f90" tmp ${src}/* ${dst}
+rsync -avh --delete --exclude "main.f90" --exclude "tmp" ${src}/* ${dst}
 
 # To copy in OOPS/oops/src/CMakeLists.txt
 echo

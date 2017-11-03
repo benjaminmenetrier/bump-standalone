@@ -7,27 +7,27 @@ sam_default_seed = .true.,
 /
 
 &driver_param
-method = "loc",
+method = "cor",
 strategy = "common_weighted",
-new_hdiag = .false.,
-new_param = .true.,
-new_mpi = .true.,
-check_adjoints = .true.,
+new_hdiag = .true.,
+new_param = .false.,
+new_mpi = .false.,
+check_adjoints = .false.,
 check_pos_def = .false.,
-check_mpi = .true.,
-check_dirac = .true.,
+check_mpi = .false.,
+check_dirac = .false.,
 check_perf = .false.,
 /
 
 &model_param
-nl = 3,
-levs = 60,70,80,
+nl = 1,
+levs = 10,
 logpres = .true.,
-nv = 2,
+nv = 1,
 varname = "TEMPERATURE","HUMI_SPECIFI",
 addvar2d = "","",
-nts = 1,
-timeslot = 6,
+nts = 3,
+timeslot = 0,3,6,
 /
 
 &ens1_param
@@ -61,12 +61,11 @@ gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
 local_rad = 1000.0e3,
-displ_diag = .false.,
-displ_rad = 3000.0e3,
-displ_explicit = .false.,
+displ_diag = .true.,
+displ_rad = 1000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,
-displ_tol = 0.05,
+displ_tol = 0.01,
 /
 
 &fit_param

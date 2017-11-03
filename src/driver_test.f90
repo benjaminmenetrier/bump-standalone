@@ -10,11 +10,12 @@
 !----------------------------------------------------------------------
 module driver_test
 
-use module_namelist, only: namtype
 use module_test, only: test_dirac,test_dirac_localization,test_perf
+use type_bpar, only: bpartype
 use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_ndata, only: ndataloctype
+use type_nam, only: namtype
 
 implicit none
 
@@ -27,37 +28,35 @@ contains
 ! Subroutine: run_test
 !> Purpose: test NICAS method
 !----------------------------------------------------------------------
-subroutine run_test(nam,geom,ndataloc)
+subroutine run_test(nam,geom,bpar,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(ndataloctype),intent(inout) :: ndataloc(:) !< Sampling data,local
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
+type(bpartype),intent(in) :: bpar    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data,local
 
 ! Local variables
 integer :: ib
-
-! Set namelist and geometry
-do ib=1,nam%nb+1
-   ndataloc(ib)%nam => nam
-   ndataloc(ib)%geom => geom
-end do
 
 if (nam%check_dirac) then
    ! Apply NICAS to diracs
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
-   do ib=1,nam%nb+1
-      if (nam%nicas_block(ib)) call test_dirac(nam%blockname(ib),ndataloc(ib))
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a7,a)') '','Dirac test for block: '//trim(bpar%blockname(ib))
+         call test_dirac(nam,geom,trim(bpar%blockname(ib)),ndataloc(ib))
+      end if
    end do
    call flush(mpl%unit)
 
    ! Apply NICAS to diracs
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Apply localization to diracs'
-   call test_dirac_localization(ndataloc)
+   call test_dirac_localization(nam,geom,bpar,ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -65,8 +64,11 @@ if (nam%check_perf) then
    ! Test NICAS performance
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Test NICAS performance'
-   do ib=1,nam%nb+1
-      if (nam%nicas_block(ib)) call test_perf(nam%blockname(ib),ndataloc(ib))
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a7,a)') '','Performance results (elapsed time) for block: '//trim(bpar%blockname(ib))
+         call test_perf(nam,geom,ndataloc(ib))
+      end if
    end do
    call flush(mpl%unit)
 end if

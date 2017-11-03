@@ -29,14 +29,14 @@ contains
 ! Subroutine: compute_hybridization
 !> Purpose: compute static hybridization
 !----------------------------------------------------------------------
-subroutine compute_hybridization(hdata,avg,lfit,loc_hyb)
+subroutine compute_hybridization(hdata,ib,avg,loc_hyb)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata               !< Sampling data
+integer,intent(in) :: ib !< Block index
 type(avgtype),intent(in) :: avg                   !< Averaged statistics
-logical,intent(in) :: lfit
 type(curvetype),intent(inout) :: loc_hyb !< Adapted localizations
 
 ! Local variables
@@ -44,26 +44,26 @@ integer :: il0,jl0,ic
 real(kind_real) :: num,den
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Compute raw hybridization
 num = 0.0
 den = 0.0
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
+   do il0=1,bpar%nl0(ib)
+      do ic=1,bpar%icmax(ib)
          if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(avg%m11sq(ic,il0,jl0)) &
        & .and.isnotmsr(avg%m11sta(ic,il0,jl0)).and.isnotmsr(avg%stasq(ic,il0,jl0))) then
-            num = num+nam%disth(ic)*(1.0-avg%m11asysq(ic,il0,jl0)/avg%m11sq(ic,il0,jl0))*avg%m11sta(ic,il0,jl0)
-            den = den+nam%disth(ic)*(avg%stasq(ic,il0,jl0)-avg%m11sta(ic,il0,jl0)**2/avg%m11sq(ic,il0,jl0))
+            num = num+geom%disth(ic)*(1.0-avg%m11asysq(ic,il0,jl0)/avg%m11sq(ic,il0,jl0))*avg%m11sta(ic,il0,jl0)
+            den = den+geom%disth(ic)*(avg%stasq(ic,il0,jl0)-avg%m11sta(ic,il0,jl0)**2/avg%m11sq(ic,il0,jl0))
          end if
       end do
    end do
 end do
 if ((num>0.0).and.(den>0.0)) loc_hyb%raw_coef_sta = num/den
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
+   do il0=1,bpar%nl0(ib)
+      do ic=1,bpar%icmax(ib)
          if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(loc_hyb%raw_coef_sta) &
        & .and.isnotmsr(avg%m11sta(ic,il0,jl0)).and.isnotmsr(avg%stasq(ic,il0,jl0)) &
        & .and.isnotmsr(avg%m11sq(ic,il0,jl0))) then
@@ -79,7 +79,7 @@ do jl0=1,geom%nl0
 end do
 
 ! Compute hybridization fits
-if (lfit) then
+if (bpar%fit_block(ib)) then
    ! Compute fit weight
    if (nam%fit_wgt) loc_hyb%fit_wgt = abs(avg%cor)
 
@@ -88,7 +88,7 @@ if (lfit) then
 end if
 
 ! Normalize hybridization
-call curve_normalization(hdata,loc_hyb)
+call curve_normalization(hdata,ib,loc_hyb)
 
 ! End associate
 end associate

@@ -64,6 +64,7 @@ if (nam%local_diag.or.nam%displ_diag) then
    hdata%nc2 = int(2.0*maxval(geom%area)/(sqrt(3.0)*(nam%local_rad)**2))
    write(mpl%unit,'(a7,a,i8)') '','Estimated nc2 from local diagnostic radius: ',hdata%nc2
    hdata%nc2 = min(hdata%nc2,nam%nc1)
+   write(mpl%unit,'(a7,a,i8)') '','Final nc2: ',hdata%nc2
 end if
 
 ! Allocation
@@ -137,7 +138,6 @@ if (nam%local_diag.or.nam%displ_diag) then
                   hdata%local_mask(jc1,ic2,il0i) = (ic1==1).or.(nn_nc1_dist(ic1)<min(nam%local_rad,hdata%bdist(ic2)))
                   hdata%displ_mask(jc1,ic2,il0i) = (ic1==1).or.(nn_nc1_dist(ic1)<min(nam%displ_rad,hdata%bdist(ic2)))
                end do
-
             end if
          end do
          call delete_ctree(ctree_diag)

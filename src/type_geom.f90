@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module type_geom
 
-use module_namelist, only: namtype
 use netcdf
 use tools_const, only: req,sphere_dist,vector_product
 use tools_display, only: msgerror
@@ -21,6 +20,7 @@ use tools_stripack, only: areas,trans,trlist
 use type_ctree, only: ctreetype,create_ctree
 use type_mesh, only: meshtype,create_mesh
 use type_mpl, only: mpl,mpl_recv,mpl_send
+use type_nam, only: namtype
 use type_randgen, only: rng
 
 implicit none
@@ -45,6 +45,7 @@ type geomtype
    logical,allocatable :: mask(:,:)                !< Cells mask
    real(kind_real),allocatable :: vunit(:)            !< Vertical unit
    real(kind_real),allocatable :: distv(:,:)         !< Vertical distance
+   real(kind_real),allocatable :: disth(:)         !< Horizontal distance
 
    ! Mesh
    type(meshtype) :: mesh
@@ -128,11 +129,11 @@ type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(inout) :: geom !< Sampling data
 
 ! Local variables
-integer :: il0,il0i,jl0
+integer :: il0,il0i,jl0,ic
 logical :: same_mask
 
 ! Create mesh
-if ((.not.all(geom%area>0.0)).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
+if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
  & call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
 
 ! Compute area
@@ -175,6 +176,12 @@ do jl0=1,geom%nl0
    do il0=1,geom%nl0
       geom%distv(il0,jl0) = abs(geom%vunit(jl0)-geom%vunit(il0))
    end do
+end do
+
+! Horizontal distance
+allocate(geom%disth(nam%nc))
+do ic=1,nam%nc
+   geom%disth(ic) = float(ic-1)*nam%dc
 end do
 
 ! Read local distribution

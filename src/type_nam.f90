@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Module: module_namelist
-!> Purpose: namelist parameters management
+! Module: type_nam
+!> Purpose: namelist derived type
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,7 +8,7 @@
 !> <br>
 !> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
-module module_namelist
+module type_nam
 
 use iso_c_binding
 use netcdf, only: nf90_put_att,nf90_global
@@ -89,8 +89,7 @@ type namtype
    logical :: local_diag                                !< Activate local diagnostics
    real(kind_real) ::  local_rad                                    !< Local diagnostics calculation radius
    logical :: displ_diag                                !< Activate displacement diagnostics
-   real(kind_real) ::  displ_rad                                    !< Displacement calculation radius
-   logical :: displ_explicit                            !< Filtering with explicit support radius
+   real(kind_real) ::  displ_rad                                    !< Displacement diagnostics calculation radius
    integer :: displ_niter                               !< Number of iteration for the displacement filtering (for displ_diag = .true.)
    real(kind_real) ::  displ_rhflt                                   !< Displacement initial filtering support radius (for displ_diag = .true.)
    real(kind_real) ::  displ_tol                                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
@@ -127,19 +126,6 @@ type namtype
    integer :: levdir(ndirmax)         !< Diracs level
    integer :: ivdir(ndirmax)          !< Diracs variable
    integer :: itsdir(ndirmax)         !< Diracs timeslot
-   
-   ! Unread parameters
-   integer :: nb
-   character(len=11),allocatable :: blockname(:)
-   logical,allocatable :: diag_block(:)
-   logical,allocatable :: avg_block(:)
-   logical,allocatable :: fit_block(:)
-   logical,allocatable :: nicas_block(:)
-   integer,allocatable :: ib_to_iv(:)
-   integer,allocatable :: ib_to_jv(:)
-   integer,allocatable :: ib_to_its(:)
-   integer,allocatable :: ib_to_jts(:)
-   real(kind_real) :: disth(ncmax)
 end type namtype
 
 interface namncwrite_param
@@ -176,7 +162,7 @@ integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_ns
 integer :: nc1,ntry,nrep,nc,ne,displ_niter,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
 integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax)
 logical :: colorlog,sam_default_seed,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
-logical :: logpres,sam_write,sam_read,spectrum,mask_check,gau_approx,full_var,local_diag,displ_diag,displ_explicit
+logical :: logpres,sam_write,sam_read,spectrum,mask_check,gau_approx,full_var,local_diag,displ_diag
 logical :: fit_wgt,lhomh,lhomv,norm_loc,lsqrt,network
 real(kind_real) :: mask_th,dc,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt
 real(kind_real) :: rh(nlmax),rv(nlmax),resol,londir(ndirmax),latdir(ndirmax)
@@ -190,8 +176,7 @@ namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc
-namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad, &
- & displ_diag,displ_rad,displ_explicit,displ_niter,displ_rhflt,displ_tol
+namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
 namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt
 namelist/output_param/norm_loc,spectrum,nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
 namelist/nicas_param/lsqrt,rh,rv,resol,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
@@ -257,7 +242,6 @@ local_diag = .false.
 call msr(local_rad)
 displ_diag = .false.
 call msr(displ_rad)
-displ_explicit = .false.
 call msi(displ_niter)
 call msr(displ_rhflt)
 call msr(displ_tol)
@@ -364,7 +348,6 @@ if (mpl%main) then
    nam%local_rad = local_rad/req
    nam%displ_diag = displ_diag
    nam%displ_rad = displ_rad/req
-   nam%displ_explicit = displ_explicit
    nam%displ_niter = displ_niter
    nam%displ_rhflt = displ_rhflt/req
    nam%displ_tol = displ_tol
@@ -467,7 +450,6 @@ call mpl_bcast(nam%local_diag,mpl%ioproc)
 call mpl_bcast(nam%local_rad,mpl%ioproc)
 call mpl_bcast(nam%displ_diag,mpl%ioproc)
 call mpl_bcast(nam%displ_rad,mpl%ioproc)
-call mpl_bcast(nam%displ_explicit,mpl%ioproc)
 call mpl_bcast(nam%displ_niter,mpl%ioproc)
 call mpl_bcast(nam%displ_rhflt,mpl%ioproc)
 call mpl_bcast(nam%displ_tol,mpl%ioproc)
@@ -519,7 +501,7 @@ implicit none
 type(namtype),intent(inout) :: nam !< Namelist variables
 
 ! Local variables
-integer :: ib,iv,jv,its,jts,il,idir,ic
+integer :: iv,its,il,idir
 character(len=2) :: ivchar
 
 ! Check general_param
@@ -601,11 +583,11 @@ if (nam%new_hdiag) then
    
    ! Check diag_param
    if (nam%ne<=3) call msgerror('ne should be larger than 3')
-   if (nam%local_diag) then
-      if (nam%local_rad<0.0) call msgerror('local_rad should be non-negative')
+   if (nam%local_diag.or.nam%displ_diag) then
+      if (nam%displ_rad<0.0) call msgerror('displ_rad should be non-negative')
    end if
    if (nam%displ_diag) then
-      if (nam%displ_rad<0.0) call msgerror('displ_rad should be non-negative')
+      if (nam%local_rad<0.0) call msgerror('local_rad should be non-negative')
       if (nam%displ_niter<0) call msgerror('displ_niter should be positive')
       if (nam%displ_rhflt<0.0) call msgerror('displ_rhflt should be non-negative')
       if (nam%displ_tol<0.0) call msgerror('displ_tol should be non-negative')
@@ -643,7 +625,10 @@ if (nam%new_hdiag) then
    ! Check ensemble sizes
    if (trim(nam%method)/='cor') then
       if (nam%ne>nam%ens1_ne) call msgwarning('ensemble size larger than ens1_ne (might enhance sampling noise)')
-      if (nam%ne>nam%ens2_ne) call msgwarning('ensemble size larger than ens2_ne (might enhance sampling noise)')
+      select case (trim(nam%method))
+      case ('hyb-avg','hyb-rnd','dual-ens')
+         if (nam%ne>nam%ens2_ne) call msgwarning('ensemble size larger than ens2_ne (might enhance sampling noise)')
+      end select
    end if
 end if
 
@@ -665,67 +650,6 @@ if (nam%check_dirac) then
    end do
 end if
 
-! Build unread parameters
-nam%nb = nam%nv**2*nam%nts**2
-allocate(nam%diag_block(nam%nb+1))
-allocate(nam%avg_block(nam%nb+1))
-allocate(nam%fit_block(nam%nb+1))
-allocate(nam%nicas_block(nam%nb+1))
-allocate(nam%blockname(nam%nb+1))
-allocate(nam%ib_to_iv(nam%nb))
-allocate(nam%ib_to_jv(nam%nb))
-allocate(nam%ib_to_its(nam%nb))
-allocate(nam%ib_to_jts(nam%nb))
-ib = 1
-do iv=1,nam%nv
-   do jv=1,nam%nv
-      do its=1,nam%nts
-         do jts=1,nam%nts
-            ! Select diagnostic blocks
-            select case (nam%strategy)
-            case ('common')
-               nam%diag_block(ib) = (iv==jv).and.(its==1)
-               nam%avg_block(ib) = (iv==jv).and.(its==1)
-               nam%nicas_block(ib) = .false.
-            case ('specific_univariate','specific_multivariate')
-               nam%diag_block(ib) = (iv==jv).and.(its==1)
-               nam%avg_block(ib) = .false.
-               nam%nicas_block(ib) = (iv==jv).and.(its==1)
-            case ('common_weighted')
-               nam%diag_block(ib) = (its==1)
-               nam%avg_block(ib) = (iv==jv).and.(its==1)
-               nam%nicas_block(ib) = .false.
-            end select
-            nam%fit_block(ib) = nam%diag_block(ib).and.(iv==jv).and.(its==jts).and.(trim(nam%fit_type)/='none')
-
-            ! Blocks information
-            write(nam%blockname(ib),'(i2.2,a,i2.2,a,i2.2,a,i2.2)') iv,'_',jv,'_',its,'_',jts
-            nam%ib_to_iv(ib) = iv
-            nam%ib_to_jv(ib) = jv
-            nam%ib_to_its(ib) = its
-            nam%ib_to_jts(ib) = jts
-
-            ib = ib+1
-         end do
-      end do
-   end do
-end do
-select case (nam%strategy)
-case ('common','common_weighted')
-   nam%diag_block(nam%nb+1) = .true. 
-   nam%avg_block(nam%nb+1) = .false. 
-   nam%nicas_block(nam%nb+1) = .true.
-case ('specific_univariate','specific_multivariate')
-   nam%diag_block(nam%nb+1) = .false.
-   nam%avg_block(nam%nb+1) = .false. 
-   nam%nicas_block(nam%nb+1) = .false. 
-end select
-nam%fit_block(nam%nb+1) = nam%diag_block(nam%nb+1).and.(trim(nam%fit_type)/='none')
-nam%blockname(nam%nb+1) = 'common'
-do ic=1,nam%nc
-   nam%disth(ic) = float(ic-1)*nam%dc
-end do
-
 ! Clean files
 if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
 
@@ -742,6 +666,8 @@ implicit none
 ! Passed variable
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid !< NetCDF file id
+
+! TODO
 
 ! general_param
 call namncwrite_param(ncid,'general_param_datadir',trim(nam%datadir))
@@ -927,4 +853,4 @@ call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(var)))
 
 end subroutine namncwrite_string
 
-end module module_namelist
+end module type_nam

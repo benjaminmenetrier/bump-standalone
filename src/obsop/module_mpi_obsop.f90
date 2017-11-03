@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_mpi_obsop
 
-use module_namelist, only: namtype
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi
@@ -19,6 +18,7 @@ use type_com, only: comtype,com_setup,com_bcast
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc
 use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_nam, only: namtype
 use type_odata, only: odatatype,odataloctype
 use type_randgen, only: rng,rand_real
 

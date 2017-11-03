@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module model_geos
 
-use module_namelist, only: namtype
 use netcdf
 use tools_const, only: deg2rad,pi,ps
 use tools_display, only: msgerror
@@ -18,6 +17,7 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_geom, only: geomtype,geom_alloc
+use type_nam, only: namtype
 
 implicit none
 

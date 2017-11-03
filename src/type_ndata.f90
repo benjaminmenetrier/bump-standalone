@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module type_ndata
 
-use module_namelist, only: namtype,namncwrite
 use netcdf
 use tools_const, only: rad2deg
 use tools_display, only: msgerror
@@ -21,6 +20,7 @@ use type_com, only: comtype,com_dealloc,com_read,com_write
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_read,linop_write
 use type_mpl, only: mpl
+use type_nam, only: namtype,namncwrite
 
 implicit none
 
@@ -81,12 +81,6 @@ end type ndatatype
 type ndataloctype
    ! Block name
    character(len=1024) :: cname                  !< Block name
-
-   ! Namelist
-   type(namtype),pointer :: nam                    !< Namelist
-
-   ! Geometry
-   type(geomtype),pointer :: geom                  !< Geometry
 
    ! Number of points
    integer :: nc1b                       !< Number of points in subset Sc1 on halo B
@@ -218,10 +212,7 @@ associate(nam=>ndata%nam,geom=>ndata%geom)
 filename = trim(nam%prefix)//'_'//trim(ndata%cname)//'.nc'
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
-! Read ensemble coefficient and main weight
-allocate(ndata%coef_ens(geom%nc0,geom%nl0))
-call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
-call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndata%coef_ens))
+! Read main weight
 call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',ndata%wgt))
 
 if (nicas_block) then
@@ -251,6 +242,7 @@ if (nicas_block) then
    allocate(ndata%ic1il1_to_is(ndata%nc1,ndata%nl1))
    allocate(ndata%norm(geom%nc0,geom%nl0))
    if (nam%lsqrt) allocate(ndata%norm_sqrt(ndata%ns))
+   allocate(ndata%coef_ens(geom%nc0,geom%nl0))
    
    ! Read data
    call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
@@ -270,6 +262,7 @@ if (nicas_block) then
    call ncerr(subr,nf90_inq_varid(ncid,'ic1il1_to_is',ic1il1_to_is_id))
    call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
    if (nam%lsqrt) call ncerr(subr,nf90_inq_varid(ncid,'norm_sqrt',norm_sqrt_id))
+   call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
 
    call ncerr(subr,nf90_get_var(ncid,vbot_id,ndata%vbot))
    call ncerr(subr,nf90_get_var(ncid,vtop_id,ndata%vtop))
@@ -288,7 +281,8 @@ if (nicas_block) then
    call ncerr(subr,nf90_get_var(ncid,ic1il1_to_is_id,ndata%ic1il1_to_is))
    call ncerr(subr,nf90_get_var(ncid,norm_id,ndata%norm))
    if (nam%lsqrt) call ncerr(subr,nf90_get_var(ncid,norm_sqrt_id,ndata%norm_sqrt))
-   
+   call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndata%coef_ens))
+
    ! Read linear operators
    call linop_read(ncid,'c',ndata%c)
    call linop_read(ncid,'h',ndata%h)
@@ -308,11 +302,13 @@ end subroutine ndata_read
 ! Subroutine: ndataloc_read
 !> Purpose: read ndataloc object
 !----------------------------------------------------------------------
-subroutine ndataloc_read(ndataloc,nicas_block)
+subroutine ndataloc_read(nam,geom,ndataloc,nicas_block)
 
 implicit none
 
 ! Passed variables
+type(namtype),target,intent(in) :: nam !< Namelist variables
+type(geomtype),target,intent(inout) :: geom    !< Geometry
 type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
 logical,intent(in) :: nicas_block
 
@@ -325,17 +321,11 @@ integer :: norm_id,norm_sqrt_id,coef_ens_id
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndataloc_read'
 
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
-
 ! Open file and get dimensions
 filename = trim(nam%prefix)//'_'//trim(ndataloc%cname)//'.nc'
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
-! Read ensemble coefficient and main weight
-allocate(ndataloc%coef_ens(geom%nc0,geom%nl0))
-call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
-call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndataloc%coef_ens))
+! Read main weight
 call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',ndataloc%wgt))
 
 if (nicas_block) then
@@ -375,8 +365,9 @@ if (nicas_block) then
    if (ndataloc%nsb>0) allocate(ndataloc%isb_to_isc(ndataloc%nsb))
    allocate(ndataloc%norm(geom%nc0a,geom%nl0))
    if (nam%lsqrt) allocate(ndataloc%norm_sqrt(ndataloc%nsb))
-   
-   ! Read data
+   allocate(ndataloc%coef_ens(geom%nc0,geom%nl0))
+
+   ! Get variable id
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
    call ncerr(subr,nf90_inq_varid(ncid,'nc2b',nc2b_id))
@@ -388,6 +379,8 @@ if (nicas_block) then
    call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
    if (nam%lsqrt) call ncerr(subr,nf90_inq_varid(ncid,'norm_sqrt',norm_sqrt_id))
    call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
+
+   ! Read data
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vbot_id,ndataloc%vbot))
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vtop_id,ndataloc%vtop))
    call ncerr(subr,nf90_get_var(ncid,nc2b_id,ndataloc%nc2b))
@@ -398,7 +391,8 @@ if (nicas_block) then
    if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_isc_id,ndataloc%isb_to_isc))
    call ncerr(subr,nf90_get_var(ncid,norm_id,ndataloc%norm))
    if (nam%lsqrt) call ncerr(subr,nf90_get_var(ncid,norm_sqrt_id,ndataloc%norm_sqrt))
-   
+   call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndataloc%coef_ens))
+
    ! Read communications
    call com_read(mpl%nproc,ncid,'AB',ndataloc%AB)
    call com_read(mpl%nproc,ncid,'AC',ndataloc%AC)
@@ -412,9 +406,6 @@ end if
 
 ! Close file
 call ncerr(subr,nf90_close(ncid))
-
-! End associate
-end associate
 
 end subroutine ndataloc_read
 
@@ -462,9 +453,10 @@ if (nicas_block) then
    call ncerr(subr,nf90_def_dim(ncid,'ns',ndata%ns,ns_id))
 end if
 
-! Define variables
-call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0_id,nl0_id/),coef_ens_id))
+! Write main weight
 call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',ndata%wgt))
+
+! Define variables
 if (nicas_block) then
    call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1_id/),vbot_id))
    call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1_id/),vtop_id))
@@ -483,13 +475,13 @@ if (nicas_block) then
    call ncerr(subr,nf90_def_var(ncid,'ic1il1_to_is',nf90_int,(/nc1_id,nl1_id/),ic1il1_to_is_id))
    call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0_id,nl0_id/),norm_id))
    if (nam%lsqrt) call ncerr(subr,nf90_def_var(ncid,'norm_sqrt',ncfloat,(/ns_id/),norm_sqrt_id))
+   call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0_id,nl0_id/),coef_ens_id))
 end if
 
 ! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
-call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndata%coef_ens))
 if (nicas_block) then
    call ncerr(subr,nf90_put_var(ncid,vbot_id,ndata%vbot))
    call ncerr(subr,nf90_put_var(ncid,vtop_id,ndata%vtop))
@@ -508,6 +500,7 @@ if (nicas_block) then
    call ncerr(subr,nf90_put_var(ncid,ic1il1_to_is_id,ndata%ic1il1_to_is))
    call ncerr(subr,nf90_put_var(ncid,norm_id,ndata%norm))
    if (nam%lsqrt) call ncerr(subr,nf90_put_var(ncid,norm_sqrt_id,ndata%norm_sqrt))
+   call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndata%coef_ens))
 
    ! Write linear operators
    call linop_write(ncid,ndata%c)
@@ -528,11 +521,13 @@ end subroutine ndata_write
 ! Subroutine: ndataloc_write
 !> Purpose: write ndataloc object
 !----------------------------------------------------------------------
-subroutine ndataloc_write(ndataloc,nicas_block)
+subroutine ndataloc_write(nam,geom,ndataloc,nicas_block)
 
 implicit none
 
 ! Passed variables
+type(namtype),target,intent(in) :: nam !< Namelist variables
+type(geomtype),target,intent(in) :: geom    !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 logical,intent(in) :: nicas_block
 
@@ -545,9 +540,6 @@ integer :: norm_id,norm_sqrt_id,coef_ens_id
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndataloc_write'
 
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
-
 ! Create file
 filename = trim(nam%prefix)//'_'//trim(ndataloc%cname)//'.nc'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
@@ -556,9 +548,9 @@ call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobb
 call namncwrite(nam,ncid)
 
 ! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
-call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
 if (nicas_block) then
+   call ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
+   call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
    call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndataloc%nc1b,nc1b_id))
    call ncerr(subr,nf90_def_dim(ncid,'nl1',ndataloc%nl1,nl1_id))
@@ -567,10 +559,10 @@ if (nicas_block) then
    call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndataloc%nsc))
 end if
 
-! Define variables
-call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0a_id,nl0_id/),coef_ens_id))
-call ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',msvalr))
+! Write main weight
 call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',ndataloc%wgt))
+
+! Define variables
 if (nicas_block) then
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1b_id/),vbot_id))
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1b_id/),vtop_id))
@@ -582,18 +574,20 @@ if (nicas_block) then
    if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_isc',nf90_int,(/nsb_id/),isb_to_isc_id))
    call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0a_id,nl0_id/),norm_id))
    if (nam%lsqrt) call ncerr(subr,nf90_def_var(ncid,'norm_sqrt',ncfloat,(/nsb_id/),norm_sqrt_id))
+   call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0a_id,nl0_id/),coef_ens_id))
+
    if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isb_id,'_FillValue',msvali))
    if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isc_id,'_FillValue',msvali))
    if (ndataloc%nsb>0) call ncerr(subr,nf90_put_att(ncid,isb_to_isc_id,'_FillValue',msvali))
    call ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',msvalr))
    if (nam%lsqrt) call ncerr(subr,nf90_put_att(ncid,norm_sqrt_id,'_FillValue',msvalr))
+   call ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',msvalr))
 end if
 
 ! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
-call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndataloc%coef_ens))
 if (nicas_block) then
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vbot_id,ndataloc%vbot))
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vtop_id,ndataloc%vtop))
@@ -605,6 +599,7 @@ if (nicas_block) then
    if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc%isb_to_isc))
    call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc%norm))
    if (nam%lsqrt) call ncerr(subr,nf90_put_var(ncid,norm_sqrt_id,ndataloc%norm_sqrt))
+   call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndataloc%coef_ens))
 
    ! Write communications
    call com_write(mpl%nproc,ncid,ndataloc%AB)
@@ -619,9 +614,6 @@ end if
 
 ! Close file
 call ncerr(subr,nf90_close(ncid))
-
-! End associate
-end associate
 
 end subroutine ndataloc_write
 

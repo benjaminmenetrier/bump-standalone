@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_mpi
 
-use module_namelist, only: namtype
 use netcdf
 use omp_lib
 use tools_const, only: pi,rad2deg,req,sphere_dist
@@ -20,6 +19,7 @@ use tools_nc, only: ncfloat,ncerr
 use type_com, only: comtype,com_dealloc,com_setup,com_bcast
 use type_linop, only: linop_alloc,linop_copy,linop_reorder
 use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
 use type_randgen, only: initialize_sampling
 

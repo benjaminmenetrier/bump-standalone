@@ -54,14 +54,14 @@ function jrand ( n, ix, iy, iz )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the maximum value to be returned.
+!    Input, integer N, the maximum value to be returned.
 !
-!    Input/output, integer ( kind = 4 ) IX, IY, IZ = seeds initialized to 
+!    Input/output, integer IX, IY, IZ = seeds initialized to 
 !    values in the range 1 to 30,000 before the first call to JRAND, and 
 !    not altered between subsequent calls (unless a sequence of random 
 !    numbers is to be repeated by reinitializing the seeds).
 !
-!    Output, integer ( kind = 4 ) JRAND, a random integer in the range 1 to N.
+!    Output, integer JRAND, a random integer in the range 1 to N.
 !
 !  Local parameters:
 !
@@ -71,11 +71,11 @@ function jrand ( n, ix, iy, iz )
   use tools_kinds, only: kind_real
   implicit none
 
-  integer ( kind = 4 ) ix
-  integer ( kind = 4 ) iy
-  integer ( kind = 4 ) iz
-  integer ( kind = 4 ) jrand
-  integer ( kind = 4 ) n
+  integer ix
+  integer iy
+  integer iz
+  integer jrand
+  integer n
   real ( kind = kind_real ) u
   real ( kind = kind_real ) x
 
@@ -185,15 +185,15 @@ function lstptr ( lpl, nb, list, lptr )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) LPL, is LEND(N0).
+!    Input, integer LPL, is LEND(N0).
 !
-!    Input, integer ( kind = 4 ) NB, index of the node whose pointer is to 
+!    Input, integer NB, index of the node whose pointer is to 
 !    be returned.  NB must be connected to N0.
 !
-!    Input, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), the data 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), the data 
 !    structure defining the triangulation, created by TRMESH.
 !
-!    Output, integer ( kind = 4 ) LSTPTR, pointer such that LIST(LSTPTR) = NB or
+!    Output, integer LSTPTR, pointer such that LIST(LSTPTR) = NB or
 !    LIST(LSTPTR) = -NB, unless NB is not a neighbor of N0, in which 
 !    case LSTPTR = LPL.
 !
@@ -204,13 +204,13 @@ function lstptr ( lpl, nb, list, lptr )
 !
   implicit none
 
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lpl
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lstptr
-  integer ( kind = 4 ) nb
-  integer ( kind = 4 ) nd
+  integer list(*)
+  integer lp
+  integer lpl
+  integer lptr(*)
+  integer lstptr
+  integer nb
+  integer nd
 
   lp = lptr(lpl)
 
@@ -269,7 +269,7 @@ function swptst ( n1, n2, n3, n4, x, y, z )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N1, N2, N3, N4, indexes of the four nodes 
+!    Input, integer N1, N2, N3, N4, indexes of the four nodes 
 !    defining the quadrilateral with N1 adjacent to N2, and (N1,N2,N3) in 
 !    counterclockwise order.  The arc connecting N1 to N2 should be replaced 
 !    by an arc connecting N3 to N4 if SWPTST = TRUE.  Refer to subroutine SWAP.
@@ -298,10 +298,10 @@ function swptst ( n1, n2, n3, n4, x, y, z )
   real ( kind = kind_real ) dz1
   real ( kind = kind_real ) dz2
   real ( kind = kind_real ) dz3
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) n3
-  integer ( kind = 4 ) n4
+  integer n1
+  integer n2
+  integer n3
+  integer n4
   logical              swptst
   real ( kind = kind_real ) x(*)
   real ( kind = kind_real ) x4
@@ -395,22 +395,22 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) NST, the index of a node at which TRFIND 
+!    Input, integer NST, the index of a node at which TRFIND 
 !    begins its search.  Search time depends on the proximity of this node to 
 !    K.  If NST < 1, the search is begun at node K-1.
 !
-!    Input, integer ( kind = 4 ) K, the nodal index (index for X, Y, Z, and 
+!    Input, integer K, the nodal index (index for X, Y, Z, and 
 !    LEND) of the new node to be added.  4 <= K.
 !
 !    Input, real ( kind = kind_real ) X(K), Y(K), Z(K), the coordinates of the nodes.
 !
-!    Input/output, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(K), 
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(K), 
 !    LNEW.  On input, the data structure associated with the triangulation of 
 !    nodes 1 to K-1.  On output, the data has been updated to include node 
 !    K.  The array lengths are assumed to be large enough to add node K. 
 !    Refer to TRMESH.
 !
-!    Output, integer ( kind = 4 ) IER, error indicator:
+!    Output, integer IER, error indicator:
 !     0 if no errors were encountered.
 !    -1 if K is outside its valid range on input.
 !    -2 if all nodes (including K) are collinear (lie on a common geodesic).
@@ -438,32 +438,32 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
   implicit none
 
-  integer ( kind = 4 ) k
+  integer k
 
   real ( kind = kind_real ) b1
   real ( kind = kind_real ) b2
   real ( kind = kind_real ) b3
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) i3
-  integer ( kind = 4 ) ier
-  integer ( kind = 4 ) in1
-  integer ( kind = 4 ) io1
-  integer ( kind = 4 ) io2
-  integer ( kind = 4 ) ist
-  integer ( kind = 4 ) kk
-  integer ( kind = 4 ) km1
-  integer ( kind = 4 ) l
-  integer ( kind = 4 ) lend(k)
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lpf
-  integer ( kind = 4 ) lpo1
-  integer ( kind = 4 ) lpo1s
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lstptr
-  integer ( kind = 4 ) nst
+  integer i1
+  integer i2
+  integer i3
+  integer ier
+  integer in1
+  integer io1
+  integer io2
+  integer ist
+  integer kk
+  integer km1
+  integer l
+  integer lend(k)
+  integer list(*)
+  integer lnew
+  integer lp
+  integer lpf
+  integer lpo1
+  integer lpo1s
+  integer lptr(*)
+  integer lstptr
+  integer nst
   real ( kind = kind_real ) p(3)
   logical swptst
   real ( kind = kind_real ) x(k)
@@ -798,18 +798,18 @@ subroutine bdyadd ( kk, i1, i2, list, lptr, lend, lnew )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) KK, the index of a node to be connected to 
+!    Input, integer KK, the index of a node to be connected to 
 !    the sequence of all visible boundary nodes.  1 <= KK and
 !    KK must not be equal to I1 or I2.
 !
-!    Input, integer ( kind = 4 ) I1, the first (rightmost as viewed from KK) 
+!    Input, integer I1, the first (rightmost as viewed from KK) 
 !    boundary node in the triangulation that is visible from
 !    node KK (the line segment KK-I1 intersects no arcs.
 !
-!    Input, integer ( kind = 4 ) I2, the last (leftmost) boundary node that 
+!    Input, integer I2, the last (leftmost) boundary node that 
 !    is visible from node KK.  I1 and I2 may be determined by TRFIND.
 !
-!    Input/output, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
 !    LNEW, the triangulation data structure created by TRMESH.  
 !    Nodes I1 and I2 must be included 
 !    in the triangulation.  On output, the data structure is updated with
@@ -827,20 +827,20 @@ subroutine bdyadd ( kk, i1, i2, list, lptr, lend, lnew )
 !
   implicit none
 
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) kk
-  integer ( kind = 4 ) lend(*)
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lsav
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) next
-  integer ( kind = 4 ) nsav
+  integer i1
+  integer i2
+  integer k
+  integer kk
+  integer lend(*)
+  integer list(*)
+  integer lnew
+  integer lp
+  integer lptr(*)
+  integer lsav
+  integer n1
+  integer n2
+  integer next
+  integer nsav
 
   k = kk
   n1 = i1
@@ -1073,13 +1073,13 @@ subroutine covsph ( kk, n0, list, lptr, lend, lnew )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) KK = Index of the node to be connected to the
+!    Input, integer KK = Index of the node to be connected to the
 !    set of all boundary nodes.  4 <= KK.
 !
-!    Input, integer ( kind = 4 ) N0 = Index of a boundary node (in the range
+!    Input, integer N0 = Index of a boundary node (in the range
 !    1 to KK-1).  N0 may be determined by TRFIND.
 !
-!    Input/output, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
 !    LNEW, the triangulation data structure created by TRMESH.  Node N0 must
 !    be included in the triangulation.  On output, updated with the addition 
 !    of node KK as the last entry.  The updated triangulation contains no
@@ -1095,17 +1095,17 @@ subroutine covsph ( kk, n0, list, lptr, lend, lnew )
 !
   implicit none
 
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) kk
-  integer ( kind = 4 ) lend(*)
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lsav
-  integer ( kind = 4 ) n0
-  integer ( kind = 4 ) next
-  integer ( kind = 4 ) nst
+  integer k
+  integer kk
+  integer lend(*)
+  integer list(*)
+  integer lnew
+  integer lp
+  integer lptr(*)
+  integer lsav
+  integer n0
+  integer next
+  integer nst
 
   k = kk
   nst = n0
@@ -1185,22 +1185,22 @@ subroutine insert ( k, lp, list, lptr, lnew )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) K, the index of the node to be inserted.
+!    Input, integer K, the index of the node to be inserted.
 !
-!    Input, integer ( kind = 4 ) LP, the LIST pointer of N2 as a neighbor of N1.
+!    Input, integer LP, the LIST pointer of N2 as a neighbor of N1.
 !
-!    Input/output, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LNEW, 
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LNEW, 
 !    the data structure defining the triangulation, created by TRMESH.
 !    On output, updated with the addition of node K.
 !
   implicit none
 
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lsav
+  integer k
+  integer list(*)
+  integer lnew
+  integer lp
+  integer lptr(*)
+  integer lsav
 
   lsav = lptr(lp)
   lptr(lp) = lnew
@@ -1267,15 +1267,15 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !    Input, real ( kind = kind_real ) P(3), the coordinates of the point (unit vector)
 !    to be located.
 !
-!    Input, integer ( kind = 4 ) LV, the length of arrays XV, YV, and ZV.
+!    Input, integer LV, the length of arrays XV, YV, and ZV.
 !
 !    Input, real ( kind = kind_real ) XV(LV), YV(LV), ZV(LV), the coordinates of unit
 !    vectors (points on the unit sphere).  
 !
-!    Input, integer ( kind = 4 ) NV, the number of vertices in the polygon. 
+!    Input, integer NV, the number of vertices in the polygon. 
 !    3 <= NV <= LV.
 !
-!    Input, integer ( kind = 4 ) LISTV(NV), the indexes (for XV, YV, and ZV) 
+!    Input, integer LISTV(NV), the indexes (for XV, YV, and ZV) 
 !    of a cyclically-ordered (and CCW-ordered) sequence of vertices that
 !    define R.  The last vertex (indexed by LISTV(NV)) is followed by the 
 !    first (indexed by LISTV(1)).  LISTV entries must be in the range 1 to LV.
@@ -1283,7 +1283,7 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !    Output, logical INSIDE, TRUE if and only if P lies inside R unless
 !    IER /= 0, in which case the value is not altered.
 !
-!    Output, integer ( kind = 4 ) IER, error indicator:
+!    Output, integer IER, error indicator:
 !    0, if no errors were encountered.
 !    1, if LV or NV is outside its valid range.
 !    2, if a LISTV entry is outside its valid range.
@@ -1351,8 +1351,8 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !
   implicit none
 
-  integer ( kind = 4 ) lv
-  integer ( kind = 4 ) nv
+  integer lv
+  integer nv
 
   real ( kind = kind_real ) b(3)
   real ( kind = kind_real ) bp
@@ -1361,19 +1361,19 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
   real ( kind = kind_real ) d
   real ( kind = kind_real ), parameter :: eps = 0.001_kind_real
   logical even
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) ier
-  integer ( kind = 4 ) ierr
-  integer ( kind = 4 ) imx
+  integer i1
+  integer i2
+  integer ier
+  integer ierr
+  integer imx
   logical inside
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) k0
+  integer k
+  integer k0
   logical lft1
   logical lft2
-  integer ( kind = 4 ) listv(nv)
-  integer ( kind = 4 ) n
-  integer ( kind = 4 ) ni
+  integer listv(nv)
+  integer n
+  integer ni
   real ( kind = kind_real ) p(3)
   logical pinr
   real ( kind = kind_real ) pn(3)
@@ -1602,14 +1602,14 @@ subroutine intadd ( kk, i1, i2, i3, list, lptr, lend, lnew )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) KK, the index of the node to be inserted. 
+!    Input, integer KK, the index of the node to be inserted. 
 !    1 <= KK and KK must not be equal to I1, I2, or I3.
 !
-!    Input, integer ( kind = 4 ) I1, I2, I3, indexes of the 
+!    Input, integer I1, I2, I3, indexes of the 
 !    counterclockwise-ordered sequence of vertices of a triangle which contains 
 !    node KK.
 !
-!    Input, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), LNEW, 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), LNEW, 
 !    the data structure defining the triangulation, created by TRMESH.  Triangle
 !    (I1,I2,I3) must be included in the triangulation.
 !    On output, updated with the addition of node KK.  KK
@@ -1623,20 +1623,20 @@ subroutine intadd ( kk, i1, i2, i3, list, lptr, lend, lnew )
 !
   implicit none
 
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) i3
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) kk
-  integer ( kind = 4 ) lend(*)
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lstptr
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) n3
+  integer i1
+  integer i2
+  integer i3
+  integer k
+  integer kk
+  integer lend(*)
+  integer list(*)
+  integer lnew
+  integer lp
+  integer lptr(*)
+  integer lstptr
+  integer n1
+  integer n2
+  integer n3
 
   k = kk
 !
@@ -1714,7 +1714,7 @@ subroutine intrsc ( p1, p2, cn, p, ier )
 !    Output, real ( kind = kind_real ) P(3), point of intersection defined above 
 !    unless IER is not 0, in which case P is not altered.
 !
-!    Output, integer ( kind = 4 ) IER, error indicator.
+!    Output, integer IER, error indicator.
 !    0, if no errors were encountered.
 !    1, if <CN,P1> = <CN,P2>.  This occurs iff P1 = P2 or CN = 0 or there are
 !      two intersection points at the same distance from A.
@@ -1736,7 +1736,7 @@ subroutine intrsc ( p1, p2, cn, p, ier )
   real ( kind = kind_real ) cn(3)
   real ( kind = kind_real ) d1
   real ( kind = kind_real ) d2
-  integer ( kind = 4 ) ier
+  integer ier
   real ( kind = kind_real ) p(3)
   real ( kind = kind_real ) p1(3)
   real ( kind = kind_real ) p2(3)
@@ -1812,12 +1812,12 @@ function nbcnt ( lpl, lptr )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) LPL = LIST pointer to the last neighbor of N0;
+!    Input, integer LPL = LIST pointer to the last neighbor of N0;
 !    LPL = LEND(N0).
 !
-!    Input, integer ( kind = 4 ) LPTR(6*(N-2)), pointers associated with LIST.
+!    Input, integer LPTR(6*(N-2)), pointers associated with LIST.
 !
-!    Output, integer ( kind = 4 ) NBCNT, the number of neighbors of N0.
+!    Output, integer NBCNT, the number of neighbors of N0.
 !
 !  Local parameters:
 !
@@ -1827,11 +1827,11 @@ function nbcnt ( lpl, lptr )
 !
   implicit none
 
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lpl
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) nbcnt
+  integer k
+  integer lp
+  integer lpl
+  integer lptr(*)
+  integer nbcnt
 
   lp = lpl
   k = 1
@@ -1900,25 +1900,25 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !    that P(1)**2 + P(2)**2 + P(3)**2 = 1, that is, that the
 !    point lies on the unit sphere.
 !
-!    Input, integer ( kind = 4 ) IST, the index of the node at which the search
+!    Input, integer IST, the index of the node at which the search
 !    is to begin.  The search time depends on the proximity of this 
 !    node to P.  If no good candidate is known, any value between
 !    1 and N will do.
 !
-!    Input, integer ( kind = 4 ) N, the number of nodes in the triangulation.
+!    Input, integer N, the number of nodes in the triangulation.
 !    N must be at least 3.
 !
 !    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the Cartesian coordinates of
 !    the nodes.
 !
-!    Input, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), 
 !    the data structure defining the triangulation, created by TRMESH.
 !
 !    Output, real ( kind = kind_real ) AL, the arc length between P and node NEARND.
 !    Because both points are on the unit sphere, this is also
 !    the angular separation in radians.
 !
-!    Output, integer ( kind = 4 ) NEARND, the index of the nearest node to P.
+!    Output, integer NEARND, the index of the nearest node to P.
 !    NEARND will be 0 if N < 3 or the triangulation data structure 
 !    is invalid.
 !
@@ -1948,7 +1948,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
   implicit none
 
   integer ( kind = 4 ), parameter :: lmax = 25
-  integer ( kind = 4 ) n
+  integer n
 
   real ( kind = kind_real ) al
   real ( kind = kind_real ) b1
@@ -1965,28 +1965,28 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
   real ( kind = kind_real ) dz1
   real ( kind = kind_real ) dz2
   real ( kind = kind_real ) dz3
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) i3
-  integer ( kind = 4 ) ist
-  integer ( kind = 4 ) l
-  integer ( kind = 4 ) lend(n)
-  integer ( kind = 4 ) list(6*(n-2))
-  integer ( kind = 4 ) listp(lmax)
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lp1
-  integer ( kind = 4 ) lp2
-  integer ( kind = 4 ) lpl
-  integer ( kind = 4 ) lptr(6*(n-2))
-  integer ( kind = 4 ) lptrp(lmax)
-  integer ( kind = 4 ) lstptr
-  integer ( kind = 4 ) nearnd
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) n3
-  integer ( kind = 4 ) nn
-  integer ( kind = 4 ) nr
-  integer ( kind = 4 ) nst
+  integer i1
+  integer i2
+  integer i3
+  integer ist
+  integer l
+  integer lend(n)
+  integer list(6*(n-2))
+  integer listp(lmax)
+  integer lp
+  integer lp1
+  integer lp2
+  integer lpl
+  integer lptr(6*(n-2))
+  integer lptrp(lmax)
+  integer lstptr
+  integer nearnd
+  integer n1
+  integer n2
+  integer n3
+  integer nn
+  integer nr
+  integer nst
   real ( kind = kind_real ) p(3)
   real ( kind = kind_real ) x(n)
   real ( kind = kind_real ) y(n)
@@ -2273,16 +2273,16 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) IN1, IN2, IO1, IO2, nodal indexes of the 
+!    Input, integer IN1, IN2, IO1, IO2, nodal indexes of the 
 !    vertices of the quadrilateral.  IO1-IO2 is replaced by IN1-IN2.  
 !    (IO1,IO2,IN1) and (IO2,IO1,IN2) must be triangles on input.
 !
-!    Input/output, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
 !    the data structure defining the triangulation, created by TRMESH.  
 !    On output, updated with the swap; triangles (IO1,IO2,IN1) an (IO2,IO1,IN2) 
 !    are replaced by (IN1,IN2,IO2) and (IN2,IN1,IO1) unless LP21 = 0.
 !
-!    Output, integer ( kind = 4 ) LP21, index of IN1 as a neighbor of IN2 after
+!    Output, integer LP21, index of IN1 as a neighbor of IN2 after
 !    the swap is performed unless IN1 and IN2 are adjacent on input, in which 
 !    case LP21 = 0.
 !
@@ -2292,18 +2292,18 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
   implicit none
 
-  integer ( kind = 4 ) in1
-  integer ( kind = 4 ) in2
-  integer ( kind = 4 ) io1
-  integer ( kind = 4 ) io2
-  integer ( kind = 4 ) lend(*)
-  integer ( kind = 4 ) list(*)
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lp21
-  integer ( kind = 4 ) lph
-  integer ( kind = 4 ) lpsav
-  integer ( kind = 4 ) lptr(*)
-  integer ( kind = 4 ) lstptr
+  integer in1
+  integer in2
+  integer io1
+  integer io2
+  integer lend(*)
+  integer list(*)
+  integer lp
+  integer lp21
+  integer lph
+  integer lpsav
+  integer lptr(*)
+  integer lstptr
 !
 !  Test for IN1 and IN2 adjacent.
 !
@@ -2388,7 +2388,7 @@ subroutine trans ( n, rlat, rlon, x, y, z )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the number of nodes (points on the unit 
+!    Input, integer N, the number of nodes (points on the unit 
 !    sphere) whose coordinates are to be transformed.
 !
 !    Input, real ( kind = kind_real ) RLAT(N), latitudes of the nodes in radians.
@@ -2408,11 +2408,11 @@ subroutine trans ( n, rlat, rlon, x, y, z )
 !
   implicit none
 
-  integer ( kind = 4 ) n
+  integer n
 
   real ( kind = kind_real ) cosphi
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) nn
+  integer i
+  integer nn
   real ( kind = kind_real ) phi
   real ( kind = kind_real ) rlat(n)
   real ( kind = kind_real ) rlon(n)
@@ -2467,19 +2467,19 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) NST, index of a node at which TRFIND begins
+!    Input, integer NST, index of a node at which TRFIND begins
 !    its search.  Search time depends on the proximity of this node to P.
 !
 !    Input, real ( kind = kind_real ) P(3), the x, y, and z coordinates (in that order)
 !    of the point P to be located.
 !
-!    Input, integer ( kind = 4 ) N, the number of nodes in the triangulation.
+!    Input, integer N, the number of nodes in the triangulation.
 !    3 <= N.
 !
 !    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates of the
 !    triangulation nodes (unit vectors).
 !
-!    Input, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the 
 !    data structure defining the triangulation, created by TRMESH.
 !
 !    Output, real ( kind = kind_real ) B1, B2, B3, the unnormalized barycentric
@@ -2487,7 +2487,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !    triangle if P is in the convex hull of the nodes.  These parameters 
 !    are not altered if I1 = 0.
 !
-!    Output, integer ( kind = 4 ) I1, I2, I3, the counterclockwise-ordered 
+!    Output, integer I1, I2, I3, the counterclockwise-ordered 
 !    vertex indexes of a triangle containing P if P is contained in a triangle.
 !    If P is not in the convex hull of the nodes, I1 and I2 are the rightmost 
 !    and leftmost (boundary) nodes that are visible from P, and I3 = 0.  (If 
@@ -2529,36 +2529,36 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
   implicit none
 
-  integer ( kind = 4 ) n
+  integer n
 
   real ( kind = kind_real ) b1
   real ( kind = kind_real ) b2
   real ( kind = kind_real ) b3
   real ( kind = kind_real ) det
   real ( kind = kind_real ) eps
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) i3
+  integer i1
+  integer i2
+  integer i3
   integer ( kind = 4 ), save :: ix = 1
   integer ( kind = 4 ), save :: iy = 2
   integer ( kind = 4 ), save :: iz = 3
-  integer ( kind = 4 ) jrand
-  integer ( kind = 4 ) lend(n)
-  integer ( kind = 4 ) list(6*(n-2))
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lptr(6*(n-2))
-  integer ( kind = 4 ) lstptr
-  integer ( kind = 4 ) n0
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n1s
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) n2s
-  integer ( kind = 4 ) n3
-  integer ( kind = 4 ) n4
-  integer ( kind = 4 ) next
-  integer ( kind = 4 ) nf
-  integer ( kind = 4 ) nl
-  integer ( kind = 4 ) nst
+  integer jrand
+  integer lend(n)
+  integer list(6*(n-2))
+  integer lp
+  integer lptr(6*(n-2))
+  integer lstptr
+  integer n0
+  integer n1
+  integer n1s
+  integer n2
+  integer n2s
+  integer n3
+  integer n4
+  integer next
+  integer nf
+  integer nl
+  integer nst
   real ( kind = kind_real ) p(3)
   real ( kind = kind_real ) ptn1
   real ( kind = kind_real ) ptn2
@@ -2973,22 +2973,22 @@ subroutine trlist ( n, list, lptr, lend, nrow, nt, ltri, ier )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the number of nodes in the triangulation.
+!    Input, integer N, the number of nodes in the triangulation.
 !    3 <= N.
 !
-!    Input, integer ( kind = 4 ) LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), linked
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), linked
 !    list data structure defining the triangulation.  Refer to TRMESH.
 !
-!    Input, integer ( kind = 4 ) NROW, the number of rows (entries per triangle)
+!    Input, integer NROW, the number of rows (entries per triangle)
 !    reserved for the triangle list LTRI.  The value must be 6 if only the 
 !    vertex indexes and neighboring triangle indexes are to be stored, or 9
 !    if arc indexes are also to be assigned and stored.  Refer to LTRI.
 !
-!    Output, integer ( kind = 4 ) NT, the number of triangles in the 
+!    Output, integer NT, the number of triangles in the 
 !    triangulation unless IER /=0, in which case NT = 0.  NT = 2N-NB-2 if 
 !    NB >= 3 or 2N-4 if NB = 0, where NB is the number of boundary nodes.
 !
-!    Output, integer ( kind = 4 ) LTRI(NROW,*).  The second dimension of LTRI
+!    Output, integer LTRI(NROW,*).  The second dimension of LTRI
 !    must be at least NT, where NT will be at most 2*N-4.  The J-th column 
 !    contains the vertex nodal indexes (first three rows), neighboring triangle 
 !    indexes (second three rows), and, if NROW = 9, arc indexes (last three
@@ -3003,7 +3003,7 @@ subroutine trlist ( n, list, lptr, lend, nrow, nt, ltri, ier )
 !    arc indexes from 1 to NA, where NA = 3N-NB-3 if NB >= 3 or 3N-6 if 
 !    NB = 0.  The triangles are ordered on first (smallest) vertex indexes.
 !
-!    Output, integer ( kind = 4 ) IER, error indicator.
+!    Output, integer IER, error indicator.
 !    0, if no errors were encountered.
 !    1, if N or NROW is outside its valid range on input.
 !    2, if the triangulation data structure (LIST,LPTR,LEND) is invalid.  
@@ -3029,33 +3029,33 @@ subroutine trlist ( n, list, lptr, lend, nrow, nt, ltri, ier )
 !
   implicit none
 
-  integer ( kind = 4 ) n
-  integer ( kind = 4 ) nrow
+  integer n
+  integer nrow
 
   logical              arcs
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) i1
-  integer ( kind = 4 ) i2
-  integer ( kind = 4 ) i3
-  integer ( kind = 4 ) ier
-  integer ( kind = 4 ) isv
-  integer ( kind = 4 ) j
-  integer ( kind = 4 ) ka
-  integer ( kind = 4 ) kn
-  integer ( kind = 4 ) kt
-  integer ( kind = 4 ) lend(n)
-  integer ( kind = 4 ) list(6*(n-2))
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lp2
-  integer ( kind = 4 ) lpl
-  integer ( kind = 4 ) lpln1
-  integer ( kind = 4 ) lptr(6*(n-2))
-  integer ( kind = 4 ) ltri(nrow,*)
-  integer ( kind = 4 ) n1
-  integer ( kind = 4 ) n2
-  integer ( kind = 4 ) n3
-  integer ( kind = 4 ) nm2
-  integer ( kind = 4 ) nt
+  integer i
+  integer i1
+  integer i2
+  integer i3
+  integer ier
+  integer isv
+  integer j
+  integer ka
+  integer kn
+  integer kt
+  integer lend(n)
+  integer list(6*(n-2))
+  integer lp
+  integer lp2
+  integer lpl
+  integer lpln1
+  integer lptr(6*(n-2))
+  integer ltri(nrow,*)
+  integer n1
+  integer n2
+  integer n3
+  integer nm2
+  integer nt
 !
 !  Test for invalid input parameters.
 !
@@ -3360,7 +3360,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the number of nodes in the triangulation.
+!    Input, integer N, the number of nodes in the triangulation.
 !    3 <= N.
 !
 !    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates of distinct
@@ -3369,7 +3369,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    for all K.  The first three nodes must not be collinear (lie on a 
 !    common great circle).
 !
-!    Output, integer ( kind = 4 ) LIST(6*(N-2)), nodal indexes which, along 
+!    Output, integer LIST(6*(N-2)), nodal indexes which, along 
 !    with LPTR, LEND, and LNEW, define the triangulation as a set of N 
 !    adjacency lists; counterclockwise-ordered sequences of neighboring nodes 
 !    such that the first and last neighbors of a boundary node are boundary 
@@ -3377,24 +3377,24 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    distinguish between interior and boundary nodes, the last neighbor of 
 !    each boundary node is represented by the negative of its index.
 !
-!    Output, integer ( kind = 4 ) LPTR(6*(N-2)), = Set of pointers (LIST 
+!    Output, integer LPTR(6*(N-2)), = Set of pointers (LIST 
 !    indexes) in one-to-one correspondence with the elements of LIST.
 !    LIST(LPTR(I)) indexes the node which follows LIST(I) in cyclical
 !    counterclockwise order (the first neighbor follows the last neighbor).
 !
-!    Output, integer ( kind = 4 ) LEND(N), pointers to adjacency lists.  
+!    Output, integer LEND(N), pointers to adjacency lists.  
 !    LEND(K) points to the last neighbor of node K.  LIST(LEND(K)) < 0 if and 
 !    only if K is a boundary node.
 !
-!    Output, integer ( kind = 4 ) LNEW, pointer to the first empty location 
+!    Output, integer LNEW, pointer to the first empty location 
 !    in LIST and LPTR (list length plus one).  LIST, LPTR, LEND, and LNEW are 
 !    not altered if IER < 0, and are incomplete if 0 < IER.
 !
-!    Workspace, integer ( kind = 4 ) NEAR(N), 
+!    Workspace, integer NEAR(N), 
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
-!    Workspace, integer ( kind = 4 ) NEXT(N),
+!    Workspace, integer NEXT(N),
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
@@ -3402,7 +3402,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
-!    Output, integer ( kind = 4 ) IER, error indicator:
+!    Output, integer IER, error indicator:
 !     0, if no errors were encountered.
 !    -1, if N < 3 on input.
 !    -2, if the first three nodes are collinear.
@@ -3424,29 +3424,29 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !
   implicit none
 
-  integer ( kind = 4 ) n
+  integer n
 
   real ( kind = kind_real ) d
   real ( kind = kind_real ) d1
   real ( kind = kind_real ) d2
   real ( kind = kind_real ) d3
   real ( kind = kind_real ) dist(n)
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) i0
-  integer ( kind = 4 ) ier
-  integer ( kind = 4 ) j
-  integer ( kind = 4 ) k
+  integer i
+  integer i0
+  integer ier
+  integer j
+  integer k
   logical              left
-  integer ( kind = 4 ) lend(n)
-  integer ( kind = 4 ) list(6*(n-2))
-  integer ( kind = 4 ) lnew
-  integer ( kind = 4 ) lp
-  integer ( kind = 4 ) lpl
-  integer ( kind = 4 ) lptr(6*(n-2))
-  integer ( kind = 4 ) near(n)
-  integer ( kind = 4 ) next(n)
-  integer ( kind = 4 ) nexti
-  integer ( kind = 4 ) nn
+  integer lend(n)
+  integer list(6*(n-2))
+  integer lnew
+  integer lp
+  integer lpl
+  integer lptr(6*(n-2))
+  integer near(n)
+  integer next(n)
+  integer nexti
+  integer nn
   real ( kind = kind_real ) x(n)
   real ( kind = kind_real ) y(n)
   real ( kind = kind_real ) z(n)

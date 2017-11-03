@@ -15,16 +15,17 @@ use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
 use module_apply_localization, only: apply_localization
 use module_apply_nicas, only: apply_nicas,apply_nicas_sqrt,apply_nicas_sqrt_ad,apply_nicas_from_sqrt
-use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: deg2rad,rad2deg,sphere_dist
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
+use type_bpar, only: bpartype
 use type_com, only: com_ext,com_red
 use type_ctree, only: find_nearest_neighbors
-use type_geom, only: fld_com_gl,fld_com_lg
+use type_geom, only: geomtype,fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
+use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
 use type_randgen, only: rng,rand_real
 use type_timer, only: timertype,timer_start,timer_end
@@ -255,13 +256,13 @@ if (mpl%nproc>0) then
       if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
    
       ! Local
-      call apply_nicas_from_sqrt(ndataloc,fldloc)
+      call apply_nicas_from_sqrt(nam,geom,ndataloc,fldloc)
    else
       ! Global
       if (mpl%main) call apply_nicas(ndata,fld)
    
       ! Local
-      call apply_nicas(ndataloc,fldloc)
+      call apply_nicas(nam,geom,ndataloc,fldloc)
    end if
    
    ! Local to global
@@ -284,21 +285,20 @@ end subroutine test_mpi
 ! Subroutine: test_dirac
 !> Purpose: apply NICAS to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac(blockname,ndataloc)
+subroutine test_dirac(nam,geom,blockname,ndataloc)
 
 implicit none
 
 ! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
 character(len=*),intent(in) :: blockname !< Block name
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
 
 ! Local variables
-integer :: il0,il0dir(ndataloc%nam%ndir),ic0dir(ndataloc%nam%ndir),idir
+integer :: il0,il0dir(nam%ndir),ic0dir(nam%ndir),idir
 real(kind_real) :: dum(1)
 real(kind_real),allocatable :: fld(:,:)
-
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 if (mpl%main) then
    ! Allocation
@@ -326,9 +326,9 @@ call fld_com_gl(geom,fld)
 
 ! Apply NICAS method
 if (nam%lsqrt) then
-   call apply_nicas_from_sqrt(ndataloc,fld)
+   call apply_nicas_from_sqrt(nam,geom,ndataloc,fld)
 else
-   call apply_nicas(ndataloc,fld)
+   call apply_nicas(nam,geom,ndataloc,fld)
 end if
 
 ! Local to global
@@ -339,7 +339,6 @@ if (mpl%main) then
    call model_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac',fld)
 
    ! Print results
-   write(mpl%unit,'(a7,a)') '','Normalization for block: '//trim(blockname)
    do idir=1,nam%ndir
       write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',fld(ic0dir(idir),il0dir(idir))
    end do
@@ -347,30 +346,25 @@ if (mpl%main) then
  & minval(fld(:,il0dir),mask=geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=geom%mask(:,il0dir))
 end if
 
-! End associate
-end associate
-
 end subroutine test_dirac
 
 !----------------------------------------------------------------------
 ! Subroutine: test_perf
 !> Purpose: test NICAS performance
 !----------------------------------------------------------------------
-subroutine test_perf(blockname,ndataloc)
+subroutine test_perf(nam,geom,ndataloc)
 
 implicit none
 
 ! Passed variables
-character(len=*),intent(in) :: blockname !< Block name
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 
 ! Local variables
-real(kind_real) :: fld(ndataloc%geom%nc0a,ndataloc%geom%nl0)
+real(kind_real) :: fld(geom%nc0a,geom%nl0)
 real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
 type(timertype) :: timer_interp_ad,timer_com_1,timer_convol,timer_com_2,timer_interp
-
-! Associate
-associate(nam=>ndataloc%nam,geom=>ndataloc%geom)
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
@@ -380,7 +374,7 @@ call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,fld)
 
 ! Adjoint interpolation
 call timer_start(timer_interp_ad)
-call interp_ad(ndataloc,fld,alpha)
+call interp_ad(nam,geom,ndataloc,fld,alpha)
 call timer_end(timer_interp_ad)
 
 ! Communication
@@ -444,22 +438,18 @@ call timer_end(timer_com_2)
 
 ! Interpolation
 call timer_start(timer_interp)
-call interp(ndataloc,alpha,fld)
+call interp(nam,geom,ndataloc,alpha,fld)
 call timer_end(timer_interp)
 
 ! Release memory
 deallocate(alpha)
 
 ! Print results
-write(mpl%unit,'(a7,a)') '','Performance results (elapsed time) for block: '//trim(blockname)
 write(mpl%unit,'(a10,a,f6.1,a)') '','Adjoint interpolation: ',timer_interp_ad%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 1    : ',timer_com_1%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Convolution          : ',timer_convol%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 2    : ',timer_com_2%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Interpolation        : ',timer_interp%elapsed,' s'
-
-! End associate
-end associate
 
 end subroutine test_perf
 
@@ -467,21 +457,21 @@ end subroutine test_perf
 ! Subroutine: test_dirac_localization
 !> Purpose: apply localization to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac_localization(ndataloc)
+subroutine test_dirac_localization(nam,geom,bpar,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(ndataloctype),intent(inout) :: ndataloc(:) !< Sampling data, local
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
+type(bpartype),intent(in) :: bpar    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
 
 ! Local variables
-integer :: il0,il0dir(ndataloc(1)%nam%ndir),ic0dir(ndataloc(1)%nam%ndir),idir,iv,its
+integer :: il0,il0dir(nam%ndir),ic0dir(nam%ndir),idir,iv,its
 real(kind_real) :: dum(1)
 real(kind_real),allocatable :: fld(:,:,:,:)
 character(len=2) :: itschar
-
-! Associate
-associate(nam=>ndataloc(1)%nam,geom=>ndataloc(1)%geom)
 
 if (mpl%main) then
    ! Allocation
@@ -508,7 +498,7 @@ end if
 call fld_com_gl(nam,geom,fld)
 
 ! Apply localization
-call apply_localization(nam,geom,ndataloc,fld)
+call apply_localization(nam,geom,bpar,ndataloc,fld)
 
 ! Local to global
 call fld_com_lg(nam,geom,fld)
@@ -522,9 +512,6 @@ if (mpl%main) then
       end do
    end do
 end if
-
-! End associate
-end associate
 
 end subroutine test_dirac_localization
 

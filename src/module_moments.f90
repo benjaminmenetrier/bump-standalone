@@ -15,7 +15,9 @@ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
+use type_displ, only: displtype
 use type_geom, only: fld_com_lg
+use type_linop, only: apply_linop
 use type_mom, only: momtype
 use type_mpl, only: mpl,mpl_bcast
 use type_hdata, only: hdatatype
@@ -30,14 +32,15 @@ contains
 ! Subroutine: compute_moments
 !> Purpose: compute centered moments (iterative formulae)
 !----------------------------------------------------------------------
-subroutine compute_moments(hdata,filename,mom,ens1)
+subroutine compute_moments(hdata,filename,displ,mom,ens1)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
 character(len=*),intent(in) :: filename
-type(momtype),intent(inout) :: mom(hdata%nam%nb)     !< Moments
+type(displtype),intent(in) :: displ !< Displacement
+type(momtype),intent(inout) :: mom(hdata%bpar%nb)     !< Moments
 real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne)
 
 ! Local variables
@@ -46,7 +49,7 @@ real(kind_real) :: fac1,fac2,fac3,fac4,fac5,fac6
 real(kind_real),allocatable :: fld(:,:,:,:),fld_1(:,:,:,:),fld_2(:,:,:,:)
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Setup
 select case (trim(filename))
@@ -65,24 +68,20 @@ case default
    call msgerror('wrong filename in ens_read')
 end select
 
-! Allocation
-allocate(fld_1(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-allocate(fld_2(nam%nc1,nam%nc,geom%nl0,geom%nl0))
-
-do ib=1,nam%nb
-   if (nam%diag_block(ib)) then
+do ib=1,bpar%nb
+   if (bpar%diag_block(ib)) then
       ! Allocation
       mom(ib)%ne = ne
       mom(ib)%nsub = nsub
-      allocate(mom(ib)%m1_1(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-      allocate(mom(ib)%m2_1(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-      allocate(mom(ib)%m1_2(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-      allocate(mom(ib)%m2_2(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-      allocate(mom(ib)%m11(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m1_1(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m2_1(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m1_2(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m2_2(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+      allocate(mom(ib)%m11(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
       if (.not.nam%gau_approx) then
-         allocate(mom(ib)%m12(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-         allocate(mom(ib)%m21(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
-         allocate(mom(ib)%m22(nam%nc1,nam%nc,geom%nl0,geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m12(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m21(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
+         allocate(mom(ib)%m22(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0,mom(ib)%nsub))
       end if
       if (nam%full_var) then
          allocate(mom(ib)%m1full(geom%nc0,geom%nl0,mom(ib)%nsub))
@@ -146,36 +145,71 @@ do isub=1,nsub
          call model_read(nam,geom,filename,ie,jsub,fld)
       end if
 
-      do ib=1,nam%nb
-         if (nam%diag_block(ib)) then
+      do ib=1,bpar%nb
+         if (bpar%diag_block(ib)) then
+            ! Allocation
+            allocate(fld_1(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+            allocate(fld_2(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+
             ! Initialization
-            iv = nam%ib_to_iv(ib)
-            jv = nam%ib_to_jv(ib)
-            its = nam%ib_to_its(ib)
-            jts = nam%ib_to_jts(ib)
-            call msr(fld_1)
-            call msr(fld_2)
+            iv = bpar%ib_to_iv(ib)
+            jv = bpar%ib_to_jv(ib)
+            its = bpar%ib_to_its(ib)
+            jts = bpar%ib_to_jts(ib)
 
             ! Copy valid field points
-            do jl0=1,geom%nl0
-               do il0=1,geom%nl0
-                  do ic=1,nam%nc
-                     !$omp parallel do private(ic1,ic0,jc0)
+            call msr(fld_1)
+            call msr(fld_2)
+            if ((iv==jv).and.(its==jts)) then
+               ! Copy all separations points
+               do jl0=1,geom%nl0
+                  do il0=1,geom%nl0
+                     do ic=1,nam%nc
+                        !$omp parallel do private(ic1,ic0,jc0)
+                        do ic1=1,nam%nc1
+                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0min(jl0,ib)+il0)) then
+                              ! Indices
+                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,bpar%il0min(jl0,ib)+il0)
+                              jc0 = hdata%ic1_to_ic0(ic1)
+
+                              ! Copy points
+                              fld_1(ic1,ic,il0,jl0) = fld(jc0,jl0,jv,jts)
+                              fld_2(ic1,ic,il0,jl0) = fld(ic0,bpar%il0min(jl0,ib)+il0,iv,its)
+                           end if
+                        end do
+                        !$omp end parallel do
+                     end do
+                  end do           
+               end do
+            else
+               if (nam%displ_diag) then
+                  ! Interpolate zero separation points
+                  do jl0=1,geom%nl0
+                     call apply_linop(displ%d(jl0,jts),fld(:,jl0,jv,jts),fld_1(:,1,1,jl0))
+                     call apply_linop(displ%d(jl0,its),fld(:,jl0,iv,its),fld_2(:,1,1,jl0))
+                  end do
+               else
+                  ! Copy zero separation points
+                  do jl0=1,geom%nl0
+                     !$omp parallel do private(ic1,jc0)
                      do ic1=1,nam%nc1
-                        if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
+                        if (hdata%ic1il0_log(ic1,jl0)) then
                            ! Indices
-                           ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
                            jc0 = hdata%ic1_to_ic0(ic1)
 
-                           ! Remove means
-                           fld_1(ic1,ic,il0,jl0) = fld(jc0,jl0,jv,jts) - mom(ib)%m1_1(ic1,ic,il0,jl0,isub)
-                           fld_2(ic1,ic,il0,jl0) = fld(ic0,il0,iv,its) - mom(ib)%m1_2(ic1,ic,il0,jl0,isub)
+                           ! Copy points
+                           fld_1(ic1,1,1,jl0) = fld(jc0,jl0,jv,jts)
+                           fld_2(ic1,1,1,jl0) = fld(jc0,jl0,iv,its)
                         end if
                      end do
                      !$omp end parallel do
-                  end do
-               end do
-            end do
+                  end do           
+               end if
+            end if
+
+            ! Remove means
+            fld_1 = fld_1 - mom(ib)%m1_1(:,:,:,:,isub)
+            fld_2 = fld_2 - mom(ib)%m1_2(:,:,:,:,isub)
 
             ! Update high-order moments
             if (ie>1) then
@@ -218,13 +252,17 @@ do isub=1,nsub
 
             ! Full mean
             if (nam%full_var) mom(ib)%m1full(:,:,isub) = mom(ib)%m1full(:,:,isub)+fac4*(fld(:,:,jv,jts)-mom(ib)%m1full(:,:,isub))
+
+            ! Release memory
+            deallocate(fld_1)
+            deallocate(fld_2)
          end if
       end do
    end do
    write(mpl%unit,'(a)') ''
 
-   do ib=1,nam%nb
-      if (nam%diag_block(ib)) then
+   do ib=1,bpar%nb
+      if (bpar%diag_block(ib)) then
          ! Normalize
          mom(ib)%m2_1(:,:,:,:,isub) = mom(ib)%m2_1(:,:,:,:,isub)/float(ne/nsub-1)
          mom(ib)%m2_2(:,:,:,:,isub) = mom(ib)%m2_2(:,:,:,:,isub)/float(ne/nsub-1)

@@ -29,15 +29,15 @@ contains
 ! Subroutine: compute_dualens
 !> Purpose: compute dual-ensemble hybridization formulae
 !----------------------------------------------------------------------
-subroutine compute_dualens(hdata,avg,avg_lr,lfit,loc_deh,loc_deh_lr)
+subroutine compute_dualens(hdata,ib,avg,avg_lr,loc_deh,loc_deh_lr)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata                  !< Sampling data
+integer,intent(in) :: ib !< Block index
 type(avgtype),intent(in) :: avg                      !< Averaged statistics
 type(avgtype),intent(in) :: avg_lr                   !< Low-resolution averaged statistics
-logical,intent(in) :: lfit
 type(curvetype),intent(inout) :: loc_deh    !< Adapted high-resolution localizations
 type(curvetype),intent(inout) :: loc_deh_lr !< Adapted low-resolution localizations
 
@@ -46,12 +46,12 @@ integer :: il0,jl0,ic
 real(kind_real) :: num(hdata%nam%nc),num_lr(hdata%nam%nc),den(hdata%nam%nc)
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Compute raw dual-ensemble hybridization
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
+   do il0=1,bpar%nl0(ib)
+      do ic=1,bpar%icmax(ib)
          if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(avg%m11sq(ic,il0,jl0)) &
        & .and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0)).and.isnotmsr(avg_lr%m11lrm11(ic,il0,jl0)) &
        & .and.isnotmsr(avg_lr%m11sq(ic,il0,jl0)).and.isnotmsr(avg_lr%m11lrm11asy(ic,il0,jl0))) then
@@ -70,7 +70,7 @@ do jl0=1,geom%nl0
 end do
 
 ! Compute dual-ensemble hybridization fits
-if (lfit) then
+if (bpar%fit_block(ib)) then
    ! Compute fit weight
    if (nam%fit_wgt) then
       loc_deh%fit_wgt = abs(avg%cor)
@@ -83,8 +83,8 @@ if (lfit) then
 end if
 
 ! Normalize dual-ensemble hybridization
-call curve_normalization(hdata,loc_deh)
-call curve_normalization(hdata,loc_deh_lr)
+call curve_normalization(hdata,ib,loc_deh)
+call curve_normalization(hdata,ib,loc_deh_lr)
 
 ! End associate
 end associate

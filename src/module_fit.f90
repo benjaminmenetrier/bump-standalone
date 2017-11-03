@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module module_fit
 
-use module_namelist, only: namtype
 use omp_lib
 use tools_const, only: gc99
 use tools_display, only: msgerror,msgwarning
@@ -22,6 +21,8 @@ use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_min, only: mintype
 use type_mpl, only: mpl
+use type_nam, only: namtype
+
 implicit none
 
 real(kind_real),parameter :: epsilon = 1.0e-6 !< Small parameter to compute the Jacobian
@@ -82,7 +83,7 @@ end do
 ! Fast fit
 do jl0=1,geom%nl0  
    ! Horizontal fast fit
-   call fast_fit(nam%nc,1,nam%disth,raw(:,jl0,jl0),curve%fit_rh(jl0))
+   call fast_fit(nam%nc,1,geom%disth,raw(:,jl0,jl0),curve%fit_rh(jl0))
 
    ! Vertical fast fit
    rawv = raw(1,:,jl0)
@@ -245,7 +246,7 @@ do jl0=1,geom%nl0
                   end if
                   distnorm = 0.0
                   if (Dhsq>0.0) then
-                     distnorm = distnorm+(nam%disth(kc)-nam%disth(ic))**2/Dhsq
+                     distnorm = distnorm+(geom%disth(kc)-geom%disth(ic))**2/Dhsq
                   else
                      distnorm = huge(1.0)
                   end if 

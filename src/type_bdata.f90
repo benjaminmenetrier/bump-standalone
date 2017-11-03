@@ -11,7 +11,6 @@
 module type_bdata
 
 use module_diag_tools, only: diag_filter,diag_interpolation
-use module_namelist, only: namtype
 use netcdf
 use tools_display, only: msgwarning,msgerror
 use tools_kinds, only: kind_real
@@ -20,6 +19,8 @@ use tools_nc, only: ncerr,ncfloat
 use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
+use type_nam, only: namtype
+
 implicit none
 
 ! B data derived type
@@ -107,11 +108,13 @@ end subroutine bdata_dealloc
 ! Subroutine: diag_to_bdata
 !> Purpose: copy diagnostics into bdata object
 !----------------------------------------------------------------------
-subroutine diag_to_bdata(diag,bdata)
+subroutine diag_to_bdata(hdata,ib,diag,bdata)
 
 implicit none
 
 ! Passed variables
+type(hdatatype),intent(in) :: hdata
+integer,intent(in) :: ib
 type(curvetype),intent(in) :: diag
 type(bdatatype),intent(inout) :: bdata !< Sampling data
 
@@ -119,18 +122,19 @@ type(bdatatype),intent(inout) :: bdata !< Sampling data
 integer :: il0
 
 ! Associate
-associate(nam=>bdata%nam,geom=>bdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
-do il0=1,geom%nl0
-   if (isnotmsr(diag%fit_coef_ens(il0))) then
+if (bpar%nicas_block(ib)) then
+   do il0=1,geom%nl0
       bdata%coef_ens(:,il0) = diag%fit_coef_ens(il0)
-   else
-      bdata%coef_ens(:,il0) = diag%raw_coef_ens(il0)
-   end if
-   bdata%rh0(:,il0) = diag%fit_rh(il0)
-   bdata%rv0(:,il0) = diag%fit_rv(il0)
-   bdata%coef_sta(:,il0) = diag%raw_coef_sta
-end do
+      bdata%rh0(:,il0) = diag%fit_rh(il0)
+      bdata%rv0(:,il0) = diag%fit_rv(il0)
+      bdata%coef_sta(:,il0) = diag%raw_coef_sta
+   end do
+   bdata%wgt = sum(diag%fit_coef_ens)/float(geom%nl0)
+else
+   bdata%wgt = sum(diag%raw_coef_ens)/float(geom%nl0)
+end if
 
 ! End associate
 end associate
@@ -141,12 +145,13 @@ end subroutine diag_to_bdata
 ! Subroutine: diag_nc2_to_bdata
 !> Purpose: copy local diagnostics into bdata object
 !----------------------------------------------------------------------
-subroutine diag_nc2_to_bdata(hdata,diag,bdata)
+subroutine diag_nc2_to_bdata(hdata,ib,diag,bdata)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata
+integer,intent(in) :: ib
 type(curvetype),intent(in) :: diag(hdata%nc2)
 type(bdatatype),intent(inout) :: bdata !< Sampling data
 
@@ -155,32 +160,39 @@ integer :: ic2
 real(kind_real) :: fld_nc2(hdata%nc2,bdata%geom%nl0)
 
 ! Associate
-associate(nam=>bdata%nam,geom=>bdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
-do ic2=1,hdata%nc2
-   if (any(isnotmsr(diag(ic2)%fit_coef_ens))) then
+if (bpar%nicas_block(ib)) then
+   do ic2=1,hdata%nc2
       fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
-   else
+   end do
+   call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+   call diag_interpolation(hdata,fld_nc2,bdata%coef_ens)
+   do ic2=1,hdata%nc2
+      fld_nc2(ic2,:) = diag(ic2)%fit_rh
+   end do
+   call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+   call diag_interpolation(hdata,fld_nc2,bdata%rh0)
+   do ic2=1,hdata%nc2
+      fld_nc2(ic2,:) = diag(ic2)%fit_rv
+   end do
+   call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+   call diag_interpolation(hdata,fld_nc2,bdata%rv0)
+   do ic2=1,hdata%nc2
+      fld_nc2(ic2,:) = diag(ic2)%raw_coef_sta
+   end do
+   call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
+   call diag_interpolation(hdata,fld_nc2,bdata%coef_sta)
+   do ic2=1,hdata%nc2
+     fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+   end do
+   bdata%wgt = sum(fld_nc2)/float(hdata%nc2*geom%nl0)
+else
+   do ic2=1,hdata%nc2
       fld_nc2(ic2,:) = diag(ic2)%raw_coef_ens
-   end if
-end do
-call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-call diag_interpolation(hdata,fld_nc2,bdata%coef_ens)
-do ic2=1,hdata%nc2
-   fld_nc2(ic2,:) = diag(ic2)%fit_rh
-end do
-call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-call diag_interpolation(hdata,fld_nc2,bdata%rh0)
-do ic2=1,hdata%nc2
-   fld_nc2(ic2,:) = diag(ic2)%fit_rv
-end do
-call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-call diag_interpolation(hdata,fld_nc2,bdata%rv0)
-do ic2=1,hdata%nc2
-   fld_nc2(ic2,:) = diag(ic2)%raw_coef_sta
-end do
-call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-call diag_interpolation(hdata,fld_nc2,bdata%coef_sta)
+   end do
+   bdata%wgt = sum(fld_nc2)/float(hdata%nc2*geom%nl0)
+end if
 
 ! End associate
 end associate

@@ -43,15 +43,15 @@ contains
 ! Subroutine: diag_filter_2d
 !> Purpose: filter diagnostics, on a single level
 !----------------------------------------------------------------------
-subroutine diag_filter_2d(hdata,filter,r,il0,diag)
+subroutine diag_filter_2d(hdata,il0,filter,r,diag)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata   !< Sampling data
+integer,intent(in) :: il0              !< Level
 character(len=*),intent(in) :: filter !< Filter type
 real(kind_real),intent(in) :: r                  !< Filter support radius
-integer,intent(in) :: il0              !< Level
 real(kind_real),intent(inout) :: diag(hdata%nc2)        !< Filtered diagnostics
 
 ! Local variables
@@ -148,7 +148,7 @@ associate(geom=>hdata%geom)
 
 do il0=1,geom%nl0
    ! Filter diagnostics on a single level
-   call diag_filter_2d(hdata,filter,r,il0,diag(:,il0))
+   call diag_filter_2d(hdata,il0,filter,r,diag(:,il0))
 end do
 
 ! End associate

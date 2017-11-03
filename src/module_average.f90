@@ -33,12 +33,13 @@ contains
 ! Subroutine: compute_avg
 !> Purpose: compute averaged statistics via spatial-angular erogodicity assumption
 !----------------------------------------------------------------------
-subroutine compute_avg(hdata,mom,ic2_loc,avg)
+subroutine compute_avg(hdata,ib,mom,ic2_loc,avg)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
+integer,intent(in) :: ib            !< Block index
 type(momtype),intent(in) :: mom     !< Moments
 integer,intent(in) :: ic2_loc       !< Local index
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
@@ -50,23 +51,23 @@ real(kind_real),allocatable :: list_m11(:),list_m11m11(:,:,:),list_m2m2(:,:,:),l
 logical :: valid
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Copy ensemble size
 avg%ne = mom%ne
 avg%nsub = mom%nsub
 
 ! Allocation
-call avg_alloc(hdata,avg)
+call avg_alloc(hdata,ib,avg)
 
 ! TODO: MPI split
 
 ! Average
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
+   do il0=1,bpar%nl0(ib)
       ! Allocation
       if (ic2_loc>0) then
-         nc1max = count(hdata%local_mask(:,ic2_loc,min(il0,geom%nl0i)))
+         nc1max = count(hdata%local_mask(:,ic2_loc,min(bpar%il0min(jl0,ib)+il0,geom%nl0i)))
       else
          nc1max = nam%nc1
       end if
@@ -76,13 +77,13 @@ do jl0=1,geom%nl0
       allocate(list_m22(nc1max,mom%nsub))
       allocate(list_cor(nc1max))
 
-      do ic=1,nam%nc
+      do ic=1,bpar%icmax(ib)
          ! Fill lists
          jc1 = 0
          do ic1=1,nam%nc1
             ! Check validity
-            valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)
-            if (ic2_loc>0) valid = valid.and.hdata%local_mask(ic1,ic2_loc,min(il0,geom%nl0i))
+            valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0min(jl0,ib)+il0)
+            if (ic2_loc>0) valid = valid.and.hdata%local_mask(ic1,ic2_loc,min(bpar%il0min(jl0,ib)+il0,geom%nl0i))
 
             if (valid) then
                ! Update
@@ -179,12 +180,13 @@ end function taverage
 ! Subroutine: compute_avg_lr
 !> Purpose: compute averaged statistics via spatial-angular erogodicity assumption, for LR covariance/HR covariance and LR covariance/HR asymptotic covariance products
 !----------------------------------------------------------------------
-subroutine compute_avg_lr(hdata,mom,mom_lr,avg,avg_lr)
+subroutine compute_avg_lr(hdata,ib,mom,mom_lr,avg,avg_lr)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata   !< Sampling data
+integer,intent(in) :: ib              !< Block index
 type(momtype),intent(in) :: mom       !< Moments
 type(momtype),intent(in) :: mom_lr    !< Low-resolution moments
 type(avgtype),intent(inout) :: avg    !< Averaged statistics
@@ -194,17 +196,17 @@ type(avgtype),intent(inout) :: avg_lr !< Low-resolution averaged statistics
 integer :: il0,jl0,ic
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Average
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
+   do il0=1,bpar%nl0(ib)
       !$omp parallel do private(ic)
-      do ic=1,nam%nc
+      do ic=1,bpar%icmax(ib)
          ! LR covariance/HR covariance product average
          avg_lr%m11lrm11(ic,il0,jl0) = sum(sum(mom_lr%m11(:,ic,il0,jl0,:),dim=2) &
-                                     & *sum(mom%m11(:,ic,il0,jl0,:),dim=2)*hdata%swgt(:,ic,il0,jl0), &
-                                     & mask=hdata%ic1il0_log(:,jl0).and.hdata%ic1icil0_log(:,ic,il0)) &
+                                     & *sum(mom%m11(:,ic,il0,jl0,:),dim=2)*hdata%swgt(:,ic,bpar%il0min(jl0,ib)+il0,jl0), &
+                                     & mask=hdata%ic1il0_log(:,jl0).and.hdata%ic1icil0_log(:,ic,bpar%il0min(jl0,ib)+il0)) &
                                      & /float(avg%nsub*avg_lr%nsub)
 
          ! LR covariance/HR asymptotic covariance product average
@@ -223,12 +225,13 @@ end subroutine compute_avg_lr
 ! Subroutine: compute_avg_asy
 !> Purpose: compute averaged asymptotic statistics
 !----------------------------------------------------------------------
-subroutine compute_avg_asy(hdata,ne,avg)
+subroutine compute_avg_asy(hdata,ib,ne,avg)
 
 implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata !< Sampling data
+integer,intent(in) :: ib            !< Block index
 integer,intent(in) :: ne            !< Ensemble sizes
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
@@ -238,7 +241,7 @@ real(kind_real) :: P1,P3,P4,P7,P8,P9,P10,P11,P12,P13,P14,P15,P16,P17
 real(kind_real),allocatable :: m11asysq(:,:),m2m2asy(:,:),m22asy(:)
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Ensemble size-dependent coefficients
 n = ne
@@ -262,9 +265,9 @@ P17 = float((n-1)**2)/float((n-2)*(n+1))
 
 ! Asymptotic statistics
 do jl0=1,geom%nl0
-   do il0=1,geom%nl0
+   do il0=1,bpar%nl0(ib)
       !$omp parallel do private(ic,isub,jsub,m11asysq,m2m2asy,m22asy)
-      do ic=1,nam%nc
+      do ic=1,bpar%icmax(ib)
          ! Allocation
          allocate(m11asysq(avg%nsub,avg%nsub))
          allocate(m2m2asy(avg%nsub,avg%nsub))
@@ -351,7 +354,7 @@ implicit none
 
 ! Passed variables
 type(hdatatype),intent(in) :: hdata                !< Sampling data
-type(avgtype),intent(inout) :: avg(hdata%nam%nb+1) !< Averaged statistics
+type(avgtype),intent(inout) :: avg(hdata%bpar%nb+1) !< Averaged statistics
 
 ! Local variables
 integer :: ib,il0,jl0,ic
@@ -360,14 +363,14 @@ real(kind_real),allocatable :: m11sta(:,:,:),stasq(:,:,:)
 real(kind_real),allocatable :: m11lrm11(:,:,:),m11lrm11asy(:,:,:)
 
 ! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Copy ensemble size
-avg(nam%nb+1)%ne = avg(1)%ne
-avg(nam%nb+1)%nsub = avg(1)%nsub
+avg(bpar%nb+1)%ne = avg(1)%ne
+avg(bpar%nb+1)%nsub = avg(1)%nsub
 
 ! Allocation
-call avg_alloc(hdata,avg(nam%nb+1))
+call avg_alloc(hdata,bpar%nb+1,avg(bpar%nb+1))
 
 ! Allocation
 allocate(cor(nam%nc,geom%nl0,geom%nl0))
@@ -383,46 +386,46 @@ case ('dual-ens')
 end select
 
 ! Initialization
-avg(nam%nb+1)%cor = 0.0
+avg(bpar%nb+1)%cor = 0.0
 cor = 0.0
-avg(nam%nb+1)%m11asysq = 0.0
+avg(bpar%nb+1)%m11asysq = 0.0
 m11asysq = 0.0
-avg(nam%nb+1)%m11sq = 0.0
+avg(bpar%nb+1)%m11sq = 0.0
 m11sq = 0.0
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
-   avg(nam%nb+1)%m11sta = 0.0
+   avg(bpar%nb+1)%m11sta = 0.0
    m11sta = 0.0
-   avg(nam%nb+1)%stasq = 0.0
+   avg(bpar%nb+1)%stasq = 0.0
    stasq = 0.0
 case ('dual-ens')
-   avg(nam%nb+1)%m11lrm11 = 0.0
+   avg(bpar%nb+1)%m11lrm11 = 0.0
    m11lrm11 = 0.0
-   avg(nam%nb+1)%m11lrm11asy = 0.0
+   avg(bpar%nb+1)%m11lrm11asy = 0.0
    m11lrm11asy = 0.0
 end select
 
 ! Block averages
-do ib=1,nam%nb
-   if (nam%avg_block(ib)) then
+do ib=1,bpar%nb
+   if (bpar%avg_block(ib)) then
       do jl0=1,geom%nl0
          do il0=1,geom%nl0
             do ic=1,nam%nc
-               call add(avg(ib)%cor(ic,il0,jl0),avg(nam%nb+1)%cor(ic,il0,jl0),cor(ic,il0,jl0))
-               call add(avg(ib)%m11asysq(ic,il0,jl0),avg(nam%nb+1)%m11asysq(ic,il0,jl0),m11asysq(ic,il0,jl0), &
+               call add(avg(ib)%cor(ic,il0,jl0),avg(bpar%nb+1)%cor(ic,il0,jl0),cor(ic,il0,jl0))
+               call add(avg(ib)%m11asysq(ic,il0,jl0),avg(bpar%nb+1)%m11asysq(ic,il0,jl0),m11asysq(ic,il0,jl0), &
              & hdata%bwgtsq(ic,il0,jl0,ib))
-               call add(avg(ib)%m11sq(ic,il0,jl0),avg(nam%nb+1)%m11sq(ic,il0,jl0),m11sq(ic,il0,jl0), &
+               call add(avg(ib)%m11sq(ic,il0,jl0),avg(bpar%nb+1)%m11sq(ic,il0,jl0),m11sq(ic,il0,jl0), &
              & hdata%bwgtsq(ic,il0,jl0,ib))
                select case (trim(nam%method))
                case ('hyb-avg','hyb-rnd')
-                  call add(avg(ib)%m11sta(ic,il0,jl0),avg(nam%nb+1)%m11sta(ic,il0,jl0),m11sta(ic,il0,jl0), &
+                  call add(avg(ib)%m11sta(ic,il0,jl0),avg(bpar%nb+1)%m11sta(ic,il0,jl0),m11sta(ic,il0,jl0), &
                 & hdata%bwgtsq(ic,il0,jl0,ib))
-                  call add(avg(ib)%stasq(ic,il0,jl0),avg(nam%nb+1)%stasq(ic,il0,jl0),stasq(ic,il0,jl0), &
+                  call add(avg(ib)%stasq(ic,il0,jl0),avg(bpar%nb+1)%stasq(ic,il0,jl0),stasq(ic,il0,jl0), &
                 & hdata%bwgtsq(ic,il0,jl0,ib))
                case ('dual-ens')
-                  call add(avg(ib)%m11lrm11(ic,il0,jl0),avg(nam%nb+1)%m11lrm11(ic,il0,jl0),m11lrm11(ic,il0,jl0), &
+                  call add(avg(ib)%m11lrm11(ic,il0,jl0),avg(bpar%nb+1)%m11lrm11(ic,il0,jl0),m11lrm11(ic,il0,jl0), &
                 & hdata%bwgtsq(ic,il0,jl0,ib))
-                  call add(avg(ib)%m11lrm11asy(ic,il0,jl0),avg(nam%nb+1)%m11lrm11asy(ic,il0,jl0),m11lrm11asy(ic,il0,jl0), &
+                  call add(avg(ib)%m11lrm11asy(ic,il0,jl0),avg(bpar%nb+1)%m11lrm11asy(ic,il0,jl0),m11lrm11asy(ic,il0,jl0), &
                 & hdata%bwgtsq(ic,il0,jl0,ib))
                end select
             end do
@@ -435,16 +438,16 @@ end do
 do jl0=1,geom%nl0
    do il0=1,geom%nl0
       do ic=1,nam%nc
-         call divide(avg(nam%nb+1)%cor(ic,il0,jl0),cor(ic,il0,jl0))
-         call divide(avg(nam%nb+1)%m11asysq(ic,il0,jl0),m11asysq(ic,il0,jl0))
-         call divide(avg(nam%nb+1)%m11sq(ic,il0,jl0),m11sq(ic,il0,jl0))
+         call divide(avg(bpar%nb+1)%cor(ic,il0,jl0),cor(ic,il0,jl0))
+         call divide(avg(bpar%nb+1)%m11asysq(ic,il0,jl0),m11asysq(ic,il0,jl0))
+         call divide(avg(bpar%nb+1)%m11sq(ic,il0,jl0),m11sq(ic,il0,jl0))
          select case (trim(nam%method))
          case ('hyb-avg','hyb-rnd')
-            call divide(avg(nam%nb+1)%m11sta(ic,il0,jl0),m11sta(ic,il0,jl0))
-            call divide(avg(nam%nb+1)%stasq(ic,il0,jl0),stasq(ic,il0,jl0))
+            call divide(avg(bpar%nb+1)%m11sta(ic,il0,jl0),m11sta(ic,il0,jl0))
+            call divide(avg(bpar%nb+1)%stasq(ic,il0,jl0),stasq(ic,il0,jl0))
          case ('dual-ens')
-            call divide(avg(nam%nb+1)%m11lrm11(ic,il0,jl0),m11lrm11(ic,il0,jl0))
-            call divide(avg(nam%nb+1)%m11lrm11asy(ic,il0,jl0),m11lrm11asy(ic,il0,jl0))
+            call divide(avg(bpar%nb+1)%m11lrm11(ic,il0,jl0),m11lrm11(ic,il0,jl0))
+            call divide(avg(bpar%nb+1)%m11lrm11asy(ic,il0,jl0),m11lrm11asy(ic,il0,jl0))
          end select
       end do
    end do

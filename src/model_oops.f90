@@ -10,7 +10,6 @@
 !----------------------------------------------------------------------
 module model_oops
 
-use module_namelist, only: namtype
 use netcdf
 use tools_const, only: pi,deg2rad,rad2deg,req
 use tools_display, only: msgerror
@@ -18,8 +17,9 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
 use tools_qsort, only: qsort
-use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast,mpl_allreduce_sum
 use type_geom, only: geomtype,geom_alloc
+use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast,mpl_allreduce_sum
+use type_nam, only: namtype
 
 implicit none
 

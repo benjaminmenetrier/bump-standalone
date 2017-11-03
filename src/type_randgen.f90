@@ -11,9 +11,10 @@
 module type_randgen
 
 use iso_c_binding, only: c_ptr,c_int,c_double
-use module_namelist, only: namtype
 use tools_kinds, only: kind_real
+use tools_missing, only: msi
 use type_mpl, only: mpl,mpl_bcast
+use type_nam, only: namtype
 
 implicit none
 
@@ -301,9 +302,21 @@ integer,intent(in) :: nrep            !< Number of replacements
 integer,intent(in) :: ns              !< Number of samplings points
 integer,intent(out) :: ihor(ns)       !< Horizontal sampling index
 
+! Local variables
+integer :: i,is
+
 if (mpl%main) then
    ! Call C++ function
-   call initialize_sampling_c(this%ptr,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
+   if (ns>=sum(mask)) then
+      call msi(ihor)
+      is = 0
+      do i=1,n
+         is = is+mask(i)
+         ihor(is) = i
+      end do
+   else
+      call initialize_sampling_c(this%ptr,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
+   end if
 end if
 
 ! Broadcast
