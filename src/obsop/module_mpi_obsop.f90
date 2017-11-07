@@ -17,10 +17,10 @@ use tools_qsort, only: qsort
 use type_com, only: comtype,com_setup,com_bcast
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc
-use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast
 use type_nam, only: namtype
 use type_odata, only: odatatype,odataloctype
-use type_randgen, only: rng,rand_real
+use type_randgen, only: rand_real
 
 implicit none
 
@@ -77,7 +77,8 @@ end do
 ! Generate observation distribution on processors
 if (.false.) then
    ! Random repartition
-   call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,list)
+   if (mpl%main) call rand_real(0.0_kind_real,1.0_kind_real,list)
+   call mpl_bcast(list,mpl%ioproc)
    call qsort(odata%nobs,list,order)
    nobsa = odata%nobs/mpl%nproc
    if (nobsa*mpl%nproc<odata%nobs) nobsa = nobsa+1 

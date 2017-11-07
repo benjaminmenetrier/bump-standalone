@@ -20,8 +20,8 @@ use tools_stripack, only: trans,trmesh,trlist,bnodes,scoord
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_hdata, only: hdatatype,hdata_alloc,hdata_read,hdata_write
 use type_linop, only: linop_alloc
-use type_mpl, only: mpl
-use type_randgen, only: rng,rand_integer,initialize_sampling
+use type_mpl, only: mpl,mpl_bcast
+use type_randgen, only: rand_integer,initialize_sampling
 implicit none
 
 integer,parameter :: irmax = 10000 !< Maximum number of random number draws
@@ -86,7 +86,7 @@ if (nam%local_diag.or.nam%displ_diag) then
       ! Define subsampling
       mask_ind = 1
       rh0 = 1.0
-      call initialize_sampling(rng,nam%nc1,dble(geom%lon(hdata%ic1_to_ic0)),dble(geom%lat(hdata%ic1_to_ic0)),mask_ind, &
+      call initialize_sampling(nam%nc1,dble(geom%lon(hdata%ic1_to_ic0)),dble(geom%lat(hdata%ic1_to_ic0)),mask_ind, &
     & rh0,nam%ntry,nam%nrep,hdata%nc2,hdata%ic2_to_ic1)
       hdata%ic2_to_ic0 = hdata%ic1_to_ic0(hdata%ic2_to_ic1)
    end if
@@ -254,7 +254,7 @@ rh0 = 1.0
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
 if (nam%nc1<maxval(count(geom%mask,dim=1))) then
-   call initialize_sampling(rng,geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
+   call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
  & nam%nc1,hdata%ic1_to_ic0)
 else
    ic1 = 0
@@ -336,7 +336,8 @@ if (nam%nc>1) then
          irmaxloc = irmax
          do while (.not.all(hdata%ic1icil0_log(:,:,il0)).and.(nvc0>1).and.(ir<=irmaxloc))
             ! Try a random point
-            call rand_integer(rng,1,nvc0,.true.,i)
+            if (mpl%main) call rand_integer(1,nvc0,i)
+            call mpl_bcast(i,mpl%ioproc)
             ir = ir+1
             jpt = vipt(i)
 

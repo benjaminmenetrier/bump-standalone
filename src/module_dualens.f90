@@ -78,8 +78,8 @@ if (bpar%fit_block(ib)) then
    end if
 
    ! Compute initial fit
-   call compute_fit(hdata%nam,hdata%geom,loc_deh)
-   call compute_fit(hdata%nam,hdata%geom,loc_deh_lr)
+   call compute_fit(hdata,loc_deh)
+   call compute_fit(hdata,loc_deh_lr)
 end if
 
 ! Normalize dual-ensemble hybridization

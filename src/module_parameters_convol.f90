@@ -20,7 +20,7 @@ use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reord
 use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
-use type_randgen, only: initialize_sampling,rand_integer
+use type_randgen, only: initialize_sampling
 
 implicit none
 

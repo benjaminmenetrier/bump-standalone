@@ -21,7 +21,6 @@ use type_ctree, only: ctreetype,create_ctree
 use type_mesh, only: meshtype,create_mesh
 use type_mpl, only: mpl,mpl_recv,mpl_send
 use type_nam, only: namtype
-use type_randgen, only: rng
 
 implicit none
 
@@ -134,7 +133,7 @@ logical :: same_mask
 
 ! Create mesh
 if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
- & call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
+ & call create_mesh(geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call compute_area(geom)

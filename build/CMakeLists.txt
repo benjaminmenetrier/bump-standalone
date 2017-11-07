@@ -57,11 +57,12 @@ cmake_minimum_required (VERSION 2.6)
 project (nicas Fortran C CXX)
 file (GLOB NICAS_SRC
     "../src/*.f90"
-    "../src/*.cpp"
     "../src/external/*.f90"
     "../src/external/*.c"
     "../src/external/*.cpp"
     "../src/obsop/*.f90"
+    "../src/type_ctree/*.cpp"
+    "../src/type_randgen/*.cpp"
 )
 add_executable (nicas ${NICAS_SRC})
 include_directories (${EXTERN_NETCDF_INCLUDE})

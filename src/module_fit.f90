@@ -19,6 +19,7 @@ use tools_minim, only: minim
 use tools_missing, only: msr,isnotmsr
 use type_curve, only: curvetype
 use type_geom, only: geomtype
+use type_hdata, only: hdatatype
 use type_min, only: mintype
 use type_mpl, only: mpl
 use type_nam, only: namtype
@@ -26,6 +27,11 @@ use type_nam, only: namtype
 implicit none
 
 real(kind_real),parameter :: epsilon = 1.0e-6 !< Small parameter to compute the Jacobian
+
+interface compute_fit
+  module procedure compute_fit
+  module procedure compute_fit_multi
+end interface
 
 private
 public :: compute_fit
@@ -36,20 +42,22 @@ contains
 ! Subroutine: compute_fit
 !> Purpose: compute a semi-positive definite fit of a raw function
 !----------------------------------------------------------------------
-subroutine compute_fit(nam,geom,curve,norm)
+subroutine compute_fit(hdata,curve,norm)
 
 implicit none
 
 ! Passed variables
-type(namtype),pointer,intent(in) :: nam
-type(geomtype),pointer,intent(in) :: geom
+type(hdatatype),intent(in) :: hdata
 type(curvetype),intent(inout) :: curve              !< Curve
 real(kind_real),intent(in),optional :: norm            !< Normalization
 
 ! Local variables
 integer :: il0,jl0,ic,offset
-real(kind_real) :: raw(nam%nc,geom%nl0,geom%nl0),rawv(geom%nl0)
+real(kind_real) :: raw(hdata%nam%nc,hdata%geom%nl0,hdata%geom%nl0),rawv(hdata%geom%nl0)
 type(mintype) :: mindata
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Check
 if (trim(nam%fit_type)=='none') call msgerror('cannot compute fit if fit_type = none')
@@ -180,7 +188,33 @@ call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_rv)
 ! Rebuild fit
 call define_fit(nam,geom,curve%fit_coef_ens,curve%fit_rh,curve%fit_rv,curve%fit)
 
+! End associate
+end associate
+
 end subroutine compute_fit
+
+!----------------------------------------------------------------------
+! Subroutine: compute_fit_multi
+!> Purpose: compute a semi-positive definite fit of a raw function, multiple curves
+!----------------------------------------------------------------------
+subroutine compute_fit_multi(hdata,curve,norm)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata
+type(curvetype),intent(inout) :: curve(hdata%nc2)              !< Curve
+real(kind_real),intent(in),optional :: norm            !< Normalization
+
+! Local variables
+integer :: ic2
+
+! Loop over points
+do ic2=1,hdata%nc2
+   call compute_fit(hdata,curve(ic2),norm)
+end do
+
+end subroutine compute_fit_multi
 
 !----------------------------------------------------------------------
 ! Subroutine: define_fit

@@ -11,6 +11,7 @@
 module module_average
 
 use omp_lib
+use tools_const, only: taverage,add,divide
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
@@ -21,8 +22,18 @@ use type_mpl, only: mpl
 use type_hdata, only: hdatatype
 implicit none
 
-real(kind_real),parameter :: qtrim = 0.05  !< Fraction for which upper and lower quantiles are removed in trimmed averages
-integer,parameter :: ntrim = 1  !< Minimum number of remaining points for the trimmed average
+interface compute_avg
+  module procedure compute_avg_global
+  module procedure compute_avg_local
+end interface
+interface compute_avg_asy
+  module procedure compute_avg_asy
+  module procedure compute_avg_asy_local
+end interface
+interface compute_bwavg
+  module procedure compute_bwavg
+  module procedure compute_bwavg_local
+end interface
 
 private
 public :: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwavg
@@ -30,10 +41,10 @@ public :: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwavg
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: compute_avg
+! Subroutine: compute_avg_single
 !> Purpose: compute averaged statistics via spatial-angular erogodicity assumption
 !----------------------------------------------------------------------
-subroutine compute_avg(hdata,ib,mom,ic2_loc,avg)
+subroutine compute_avg_single(hdata,ib,mom,ic2,avg)
 
 implicit none
 
@@ -41,7 +52,7 @@ implicit none
 type(hdatatype),intent(in) :: hdata !< Sampling data
 integer,intent(in) :: ib            !< Block index
 type(momtype),intent(in) :: mom     !< Moments
-integer,intent(in) :: ic2_loc       !< Local index
+integer,intent(in) :: ic2       !< Local index
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Local variables
@@ -60,14 +71,12 @@ avg%nsub = mom%nsub
 ! Allocation
 call avg_alloc(hdata,ib,avg)
 
-! TODO: MPI split
-
 ! Average
 do jl0=1,geom%nl0
    do il0=1,bpar%nl0(ib)
       ! Allocation
-      if (ic2_loc>0) then
-         nc1max = count(hdata%local_mask(:,ic2_loc,min(bpar%il0min(jl0,ib)+il0,geom%nl0i)))
+      if (ic2>0) then
+         nc1max = count(hdata%local_mask(:,ic2,min(bpar%il0min(jl0,ib)+il0,geom%nl0i)))
       else
          nc1max = nam%nc1
       end if
@@ -83,7 +92,7 @@ do jl0=1,geom%nl0
          do ic1=1,nam%nc1
             ! Check validity
             valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0min(jl0,ib)+il0)
-            if (ic2_loc>0) valid = valid.and.hdata%local_mask(ic1,ic2_loc,min(bpar%il0min(jl0,ib)+il0,geom%nl0i))
+            if (ic2>0) valid = valid.and.hdata%local_mask(ic1,ic2,min(bpar%il0min(jl0,ib)+il0,geom%nl0i))
 
             if (valid) then
                ! Update
@@ -133,48 +142,52 @@ end do
 ! End associate
 end associate
 
-end subroutine compute_avg
+end subroutine compute_avg_single
 
 !----------------------------------------------------------------------
-! Function: taverage
-!> Purpose: compute the trimmed average
+! Subroutine: compute_avg_global
+!> Purpose: compute averaged statistics via spatial-angular erogodicity assumption, global
 !----------------------------------------------------------------------
-real(kind_real) function taverage(n,list)
+subroutine compute_avg_global(hdata,ib,mom,avg)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n        !< Number of values
-real(kind_real),intent(in) :: list(n)     !< List values
+type(hdatatype),intent(in) :: hdata !< Sampling data
+integer,intent(in) :: ib            !< Block index
+type(momtype),intent(in) :: mom     !< Moments
+type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
-! Local variable
-integer :: nrm,nvalid
-integer :: order(n)
-real(kind_real) :: list_copy(n)
+! Loop over points
+call compute_avg_single(hdata,ib,mom,0,avg)
 
-! Copy list
-list_copy = list
+end subroutine compute_avg_global
 
-! Compute the number of values to remove
-nrm = floor(n*qtrim)
+!----------------------------------------------------------------------
+! Subroutine: compute_avg_local
+!> Purpose: compute averaged statistics via spatial-angular erogodicity assumption, local
+!----------------------------------------------------------------------
+subroutine compute_avg_local(hdata,ib,mom,avg)
 
-if (n-2*nrm>=ntrim) then
-   ! Order array
-   call qsort(n,list_copy,order)
+implicit none
 
-   ! Compute trimmed average
-   nvalid = count(isnotmsr(list_copy(1+nrm:n-nrm)))
-   if (nvalid>0) then
-      taverage = sum(list_copy(1+nrm:n-nrm),mask=isnotmsr(list_copy(1+nrm:n-nrm)))/float(nvalid)
-   else
-      call msr(taverage)
-   end if
-else
-   ! Missing value
-   call msr(taverage)
-end if
+! Passed variables
+type(hdatatype),intent(in) :: hdata            !< Sampling data
+integer,intent(in) :: ib                       !< Block index
+type(momtype),intent(in) :: mom                !< Moments
+type(avgtype),intent(inout) :: avg(hdata%nc2)  !< Averaged statistics
 
-end function taverage
+! Local variables
+integer :: ic2
+
+! Loop over points
+!$omp parallel do private(ic2)
+do ic2=1,hdata%nc2
+   call compute_avg_single(hdata,ib,mom,ic2,avg(ic2))
+end do
+!$omp end parallel do
+
+end subroutine compute_avg_local
 
 !----------------------------------------------------------------------
 ! Subroutine: compute_avg_lr
@@ -201,7 +214,6 @@ associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 ! Average
 do jl0=1,geom%nl0
    do il0=1,bpar%nl0(ib)
-      !$omp parallel do private(ic)
       do ic=1,bpar%icmax(ib)
          ! LR covariance/HR covariance product average
          avg_lr%m11lrm11(ic,il0,jl0) = sum(sum(mom_lr%m11(:,ic,il0,jl0,:),dim=2) &
@@ -212,7 +224,6 @@ do jl0=1,geom%nl0
          ! LR covariance/HR asymptotic covariance product average
          avg_lr%m11lrm11asy(ic,il0,jl0) = avg_lr%m11lrm11(ic,il0,jl0)
       end do
-      !$omp end parallel do
    end do
 end do
 
@@ -266,7 +277,6 @@ P17 = float((n-1)**2)/float((n-2)*(n+1))
 ! Asymptotic statistics
 do jl0=1,geom%nl0
    do il0=1,bpar%nl0(ib)
-      !$omp parallel do private(ic,isub,jsub,m11asysq,m2m2asy,m22asy)
       do ic=1,bpar%icmax(ib)
          ! Allocation
          allocate(m11asysq(avg%nsub,avg%nsub))
@@ -335,7 +345,6 @@ do jl0=1,geom%nl0
          deallocate(m2m2asy)
          deallocate(m22asy)
       end do
-      !$omp end parallel do
    end do
 end do
 
@@ -343,6 +352,32 @@ end do
 end associate
 
 end subroutine compute_avg_asy
+
+!----------------------------------------------------------------------
+! Subroutine: compute_avg_asy_local
+!> Purpose: compute averaged asymptotic statistics, local
+!----------------------------------------------------------------------
+subroutine compute_avg_asy_local(hdata,ib,ne,avg)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata !< Sampling data
+integer,intent(in) :: ib            !< Block index
+integer,intent(in) :: ne            !< Ensemble sizes
+type(avgtype),intent(inout) :: avg(hdata%nc2)  !< Averaged statistics
+
+! Local variables
+integer :: ic2
+
+! Loop over points
+!$omp parallel do private(ic2)
+do ic2=1,hdata%nc2
+   call compute_avg_asy(hdata,ib,ne,avg(ic2))
+end do
+!$omp end parallel do
+
+end subroutine compute_avg_asy_local
 
 !----------------------------------------------------------------------
 ! Subroutine: compute_bwavg
@@ -459,53 +494,27 @@ end associate
 end subroutine compute_bwavg
 
 !----------------------------------------------------------------------
-! Subroutine: add
-!> Purpose: check if missing and add
+! Subroutine: compute_bwavg_local
+!> Purpose: compute block-averaged statistics, local
 !----------------------------------------------------------------------
-subroutine add(value,cumul,num,wgt)
+subroutine compute_bwavg_local(hdata,avg)
 
 implicit none
 
 ! Passed variables
-real(kind_real),intent(in) :: value
-real(kind_real),intent(inout) :: cumul
-real(kind_real),intent(inout) :: num
-real(kind_real),intent(in),optional :: wgt
+type(hdatatype),intent(in) :: hdata                !< Sampling data
+type(avgtype),intent(inout) :: avg(hdata%nc2,hdata%bpar%nb+1) !< Averaged statistics
 
 ! Local variables
-real(kind_real) :: lwgt
+integer :: ic2
 
-! Initialize weight
-lwgt = 1.0
-if (present(wgt)) lwgt = wgt
+! Loop over points
+!$omp parallel do private(ic2)
+do ic2=1,hdata%nc2
+   call compute_bwavg(hdata,avg(ic2,:))
+end do 
+!$omp end parallel do
 
-! Add value to cumul
-if (isnotmsr(value)) then
-   cumul = cumul+lwgt*value
-   num = num+1.0
-end if
-
-end subroutine add
-
-!----------------------------------------------------------------------
-! Subroutine: divide
-!> Purpose: check if missing and divide
-!----------------------------------------------------------------------
-subroutine divide(cumul,num)
-
-implicit none
-
-! Passed variables
-real(kind_real),intent(inout) :: cumul
-real(kind_real),intent(in) :: num
-
-! Divide cumul by num
-if (num>0.0) then
-   cumul = cumul/num
-else
-   call msr(cumul)
-end if
-
-end subroutine divide
+end subroutine compute_bwavg_local
 
 end module module_average

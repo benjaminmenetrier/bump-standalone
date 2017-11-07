@@ -4,7 +4,7 @@
 /// Licensing: this code is distributed under the CeCILL-C license
 /// Copyright © 2017 METEO-FRANCE
 // ----------------------------------------------------------------------
-#include <random>
+// C++11 #include <random>
 
 class randGen {
     public:

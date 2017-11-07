@@ -20,6 +20,11 @@ use type_curve, only: curvetype,curve_normalization
 use type_hdata, only: hdatatype
 implicit none
 
+interface compute_localization
+  module procedure compute_localization
+  module procedure compute_localization_local
+end interface
+
 private
 public :: compute_localization
 
@@ -61,7 +66,7 @@ if (bpar%fit_block(ib)) then
    if (nam%fit_wgt) loc%fit_wgt = abs(avg%cor)
 
    ! Compute initial fit
-   call compute_fit(hdata%nam,hdata%geom,loc)
+   call compute_fit(hdata,loc)
 end if
 
 ! Normalize localization
@@ -71,5 +76,31 @@ call curve_normalization(hdata,ib,loc)
 end associate
 
 end subroutine compute_localization
+
+!----------------------------------------------------------------------
+! Subroutine: compute_localization_local
+!> Purpose: compute localization, local
+!----------------------------------------------------------------------
+subroutine compute_localization_local(hdata,ib,avg,loc)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata           !< Sampling data
+integer,intent(in) :: ib !< Block index
+type(avgtype),intent(in) :: avg(hdata%nc2)               !< Averaged statistics
+type(curvetype),intent(inout) :: loc(hdata%nc2) !< Localizations
+
+! Local variables
+integer :: ic2
+
+! Loop over points
+!$omp parallel do private(ic2)
+do ic2=1,hdata%nc2
+   call compute_localization(hdata,ib,avg(ic2),loc(ic2))
+end do
+!$omp end parallel do
+
+end subroutine compute_localization_local
 
 end module module_localization

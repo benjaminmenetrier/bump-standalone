@@ -16,9 +16,9 @@ use tools_kinds, only: kind_real
 use type_ctree, only: ctreetype,create_ctree
 use type_linop, only: linop_reorder
 use type_mesh, only: create_mesh
-use type_mpl, only: mpl
+use type_mpl, only: mpl,mpl_bcast
 use type_odata, only: odatatype
-use type_randgen, only: rng,rand_real
+use type_randgen, only: rand_real
 
 implicit none
 
@@ -55,12 +55,14 @@ allocate(latobs(odata%nobs))
 allocate(maskobs(odata%nobs))
 
 ! Generate random observation network
-call rand_real(rng,-180.0_kind_real,180.0_kind_real,.true.,lonobs) 
-call rand_real(rng,-90.0_kind_real,90.0_kind_real,.true.,latobs) 
+if (mpl%main) call rand_real(-180.0_kind_real,180.0_kind_real,lonobs)
+if (mpl%main) call rand_real(-90.0_kind_real,90.0_kind_real,latobs)
+call mpl_bcast(lonobs,mpl%ioproc)
+call mpl_bcast(latobs,mpl%ioproc)
 maskobs = .true.
 
 ! Create mesh
-call create_mesh(rng,geom%nc0,geom%lon,geom%lat,.false.,geom%mesh)
+call create_mesh(geom%nc0,geom%lon,geom%lat,.false.,geom%mesh)
 
 ! Compute cover tree
 allocate(mask_ctree(geom%mesh%nnr))

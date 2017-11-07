@@ -13,13 +13,16 @@ module module_test
 use model_interface, only: model_write
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
-use module_apply_localization, only: apply_localization
+use module_apply_localization, only: apply_localization,apply_localization_from_sqrt
 use module_apply_nicas, only: apply_nicas,apply_nicas_sqrt,apply_nicas_sqrt_ad,apply_nicas_from_sqrt
+use module_normalization, only: compute_normalization
+use module_parameters, only: compute_parameters
 use omp_lib
 use tools_const, only: deg2rad,rad2deg,sphere_dist
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
+use type_bdata, only: bdatatype
 use type_bpar, only: bpartype
 use type_com, only: com_ext,com_red
 use type_ctree, only: find_nearest_neighbors
@@ -27,7 +30,7 @@ use type_geom, only: geomtype,fld_com_gl,fld_com_lg
 use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
-use type_randgen, only: rng,rand_real
+use type_randgen, only: rand_real
 use type_timer, only: timertype,timer_start,timer_end
 
 implicit none
@@ -36,15 +39,16 @@ real(kind_real),parameter :: tol = 1.0e-3 !< Positive-definiteness test toleranc
 integer,parameter :: nitermax = 50        !< Nunmber of iterations for the positive-definiteness test
 
 private
-public :: test_adjoints,test_pos_def,test_mpi,test_dirac,test_perf,test_dirac_localization
+public :: test_nicas_adjoints,test_nicas_pos_def,test_nicas_mpi,test_nicas_sqrt,test_nicas_dirac,test_nicas_perf
+public :: test_loc_adjoint,test_loc_dirac,test_hdiag
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: test_adjoints
+! Subroutine: test_nicas_adjoints
 !> Purpose: test adjoints accuracy
 !----------------------------------------------------------------------
-subroutine test_adjoints(ndata)
+subroutine test_nicas_adjoints(ndata)
 
 implicit none
 
@@ -64,8 +68,8 @@ real(kind_real) :: fld2(ndata%geom%nc0,ndata%geom%nl0),fld2_save(ndata%geom%nc0,
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Initialization
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha_save)
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_save)
+call rand_real(0.0_kind_real,1.0_kind_real,alpha_save)
+call rand_real(0.0_kind_real,1.0_kind_real,fld_save)
 
 ! Adjoint test
 call interp(ndata,alpha_save,fld)
@@ -78,8 +82,8 @@ write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test: '
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Initialization
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha1_save)
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,alpha2_save)
+call rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
+call rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
 alpha1 = alpha1_save
 alpha2 = alpha2_save
 
@@ -94,8 +98,8 @@ write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Convolution adjoint test:   '
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Initialization
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld1_save)
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld2_save)
+call rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
+call rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
 fld1 = fld1_save
 fld2 = fld2_save
 
@@ -117,13 +121,13 @@ write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test:         '
 ! End associate
 end associate
 
-end subroutine test_adjoints
+end subroutine test_nicas_adjoints
 
 !----------------------------------------------------------------------
-! Subroutine: test_pos_def
+! Subroutine: test_nicas_pos_def
 !> Purpose: test positive_definiteness
 !----------------------------------------------------------------------
-subroutine test_pos_def(ndata)
+subroutine test_nicas_pos_def(ndata)
 
 implicit none
 
@@ -139,7 +143,7 @@ real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_prev(ndata%geom%nc0,nd
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Power method to find the largest eigenvalue
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
+call rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
 norm = sum(fld_prev**2)
 fld_prev = fld_prev/norm
 egvmax_prev = huge(1.0)
@@ -172,7 +176,7 @@ do while (iter<=nitermax)
 end do
 
 ! Power method to find the smallest eigenvalue
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld_prev)
+call rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
 norm = sum(fld_prev**2)
 egvmin_prev = huge(1.0)
 fld_prev = fld_prev/norm
@@ -216,13 +220,13 @@ if (iter==nitermax+1) write(mpl%unit,'(a7,a,e15.8,a,i4,a,e15.8)') '','NICAS seem
 ! End associate
 end associate
 
-end subroutine test_pos_def
+end subroutine test_nicas_pos_def
 
 !----------------------------------------------------------------------
-! Subroutine: test_mpi
+! Subroutine: test_nicas_mpi
 !> Purpose: test global/local equivalence
 !----------------------------------------------------------------------
-subroutine test_mpi(ndata,ndataloc)
+subroutine test_nicas_mpi(ndata,ndataloc)
 
 implicit none
 
@@ -244,7 +248,7 @@ if (mpl%nproc>0) then
       allocate(fldloc(geom%nc0,geom%nl0))
    
       ! Initialization
-      call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
+      call rand_real(0.0_kind_real,1.0_kind_real,fld)
       fldloc = fld
    end if
    
@@ -279,13 +283,77 @@ end if
 ! End associate
 end associate
 
-end subroutine test_mpi
+end subroutine test_nicas_mpi
 
 !----------------------------------------------------------------------
-! Subroutine: test_dirac
+! Subroutine: test_nicas_sqrt
+!> Purpose: test full/square-root equivalence
+!----------------------------------------------------------------------
+subroutine test_nicas_sqrt(bdata,ndata)
+
+implicit none
+
+! Passed variables
+type(bdatatype),intent(in) :: bdata
+type(ndatatype),intent(in) :: ndata
+
+! Local variables
+real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_sqrt(ndata%geom%nc0,ndata%geom%nl0)
+type(ndatatype) :: ndata_other
+
+! Associate
+associate(nam=>ndata%nam,geom=>ndata%geom)
+
+! Set namelist and geometry
+ndata_other%nam => nam
+ndata_other%geom => geom
+
+! Generate random field
+call rand_real(0.0_kind_real,1.0_kind_real,fld)
+fld_sqrt = fld
+
+! Apply NICAS, initial version
+if (nam%lsqrt) then
+   call apply_nicas_from_sqrt(ndata,fld_sqrt)
+else
+   call apply_nicas(ndata,fld)
+end if
+
+! Switch lsqrt
+nam%lsqrt = .not.nam%lsqrt
+
+! Compute NICAS parameters
+write(mpl%unit,'(a4,a)') '','Compute NICAS parameters'
+call compute_parameters(bdata,ndata_other)
+      
+! Compute NICAS normalization
+write(mpl%unit,'(a4,a)') '','Compute NICAS normalization'
+call compute_normalization(ndata_other)
+
+! Apply NICAS, other version
+if (nam%lsqrt) then
+   call apply_nicas_from_sqrt(ndata_other,fld_sqrt)
+else
+   ! Apply NICAS
+   call apply_nicas(ndata_other,fld)
+end if
+
+! Reset lsqrt value
+nam%lsqrt = .not.nam%lsqrt
+
+! Print difference
+write(mpl%unit,'(a7,a,f6.1,a)') '','Full / square-root error:',sqrt(sum((fld_sqrt-fld)**2))/sqrt(sum(fld**2))*100.0,'%'
+
+! End associate
+end associate
+
+end subroutine test_nicas_sqrt
+
+!----------------------------------------------------------------------
+! Subroutine: test_nicas_dirac
 !> Purpose: apply NICAS to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac(nam,geom,blockname,ndataloc)
+subroutine test_nicas_dirac(nam,geom,blockname,ndataloc)
 
 implicit none
 
@@ -346,13 +414,13 @@ if (mpl%main) then
  & minval(fld(:,il0dir),mask=geom%mask(:,il0dir)),' - ',maxval(fld(:,il0dir),mask=geom%mask(:,il0dir))
 end if
 
-end subroutine test_dirac
+end subroutine test_nicas_dirac
 
 !----------------------------------------------------------------------
-! Subroutine: test_perf
+! Subroutine: test_nicas_perf
 !> Purpose: test NICAS performance
 !----------------------------------------------------------------------
-subroutine test_perf(nam,geom,ndataloc)
+subroutine test_nicas_perf(nam,geom,ndataloc)
 
 implicit none
 
@@ -362,15 +430,22 @@ type(geomtype),intent(in) :: geom    !< Geometry
 type(ndataloctype),intent(in) :: ndataloc !< Sampling data
 
 ! Local variables
-real(kind_real) :: fld(geom%nc0a,geom%nl0)
-real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
+real(kind_real),allocatable :: fld(:,:),alpha(:),alpha_tmp(:)
 type(timertype) :: timer_interp_ad,timer_com_1,timer_convol,timer_com_2,timer_interp
 
 ! Allocation
 allocate(alpha(ndataloc%nsb))
 
-! Random initialization
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,fld)
+if (mpl%main) then
+   ! Allocation
+   allocate(fld(geom%nc0,geom%nl0))
+
+   ! Generate random field
+   call rand_real(0.0_kind_real,1.0_kind_real,fld)
+end if
+
+! Global to local
+call fld_com_gl(geom,fld)
 
 ! Adjoint interpolation
 call timer_start(timer_interp_ad)
@@ -451,13 +526,75 @@ write(mpl%unit,'(a10,a,f6.1,a)') '','Convolution          : ',timer_convol%elaps
 write(mpl%unit,'(a10,a,f6.1,a)') '','Communication - 2    : ',timer_com_2%elapsed,' s'
 write(mpl%unit,'(a10,a,f6.1,a)') '','Interpolation        : ',timer_interp%elapsed,' s'
 
-end subroutine test_perf
+end subroutine test_nicas_perf
 
 !----------------------------------------------------------------------
-! Subroutine: test_dirac_localization
+! Subroutine: test_loc_adjoint
+!> Purpose: test localization adjoint
+!----------------------------------------------------------------------
+subroutine test_loc_adjoint(nam,geom,bpar,ndataloc)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
+type(bpartype),intent(in) :: bpar    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+
+! Local variables
+real(kind_real) :: sum1,sum2
+real(kind_real),allocatable :: fld1(:,:,:,:),fld1_save(:,:,:,:)
+real(kind_real),allocatable :: fld2(:,:,:,:),fld2_save(:,:,:,:)
+
+if (mpl%main) then
+   ! Allocation
+   allocate(fld1_save(geom%nc0,geom%nl0,nam%nv,nam%nts))
+   allocate(fld2_save(geom%nc0,geom%nl0,nam%nv,nam%nts))
+
+   ! Generate random field
+   call rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
+   call rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
+end if
+
+! Global to local
+call fld_com_gl(nam,geom,fld1_save)
+call fld_com_gl(nam,geom,fld2_save)
+
+! Allocation
+allocate(fld1(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+allocate(fld2(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+
+! Adjoint test
+fld1 = fld1_save
+fld2 = fld2_save
+if (nam%lsqrt) then
+   call apply_localization_from_sqrt(nam,geom,bpar,ndataloc,fld1)
+   call apply_localization_from_sqrt(nam,geom,bpar,ndataloc,fld2)
+else
+   call apply_localization(nam,geom,bpar,ndataloc,fld1)
+   call apply_localization(nam,geom,bpar,ndataloc,fld2)
+end if
+
+! Local to global
+call fld_com_lg(nam,geom,fld1)
+call fld_com_lg(nam,geom,fld2)
+call fld_com_lg(nam,geom,fld1_save)
+call fld_com_lg(nam,geom,fld2_save)
+
+! Print result
+sum1 = sum(fld1*fld2_save)
+sum2 = sum(fld2*fld1_save)
+write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
+ & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+
+end subroutine test_loc_adjoint
+
+!----------------------------------------------------------------------
+! Subroutine: test_loc_dirac
 !> Purpose: apply localization to diracs
 !----------------------------------------------------------------------
-subroutine test_dirac_localization(nam,geom,bpar,ndataloc)
+subroutine test_loc_dirac(nam,geom,bpar,ndataloc)
 
 implicit none
 
@@ -498,7 +635,11 @@ end if
 call fld_com_gl(nam,geom,fld)
 
 ! Apply localization
-call apply_localization(nam,geom,bpar,ndataloc,fld)
+if (nam%lsqrt) then
+   call apply_localization_from_sqrt(nam,geom,bpar,ndataloc,fld)
+else
+   call apply_localization(nam,geom,bpar,ndataloc,fld)
+end if
 
 ! Local to global
 call fld_com_lg(nam,geom,fld)
@@ -513,6 +654,23 @@ if (mpl%main) then
    end do
 end if
 
-end subroutine test_dirac_localization
+end subroutine test_loc_dirac
+
+!----------------------------------------------------------------------
+! Subroutine: test_hdiag
+!> Purpose: test hdiag with a randomization method
+!----------------------------------------------------------------------
+subroutine test_hdiag(nam,geom,bpar,ndataloc)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam !< Namelist variables
+type(geomtype),intent(in) :: geom    !< Geometry
+type(bpartype),intent(in) :: bpar    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+
+
+end subroutine test_hdiag
 
 end module module_test

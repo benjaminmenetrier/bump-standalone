@@ -22,15 +22,19 @@ real(kind_real),parameter :: pi=acos(-1.0)    !< Pi
 real(kind_real),parameter :: deg2rad=pi/180.0 !< Degree to radian
 real(kind_real),parameter :: rad2deg=180.0/pi !< Radian to degree
 real(kind_real),parameter :: req=6.371e6      !< Earth radius (m)
-real(kind_real),parameter :: reqkm=6.371e3      !< Earth radius (km)
+real(kind_real),parameter :: reqkm=6.371e3    !< Earth radius (km)
 real(kind_real),parameter :: ps=101325.0      !< Reference surface pressure
 
 ! Eigendecomposition
 real,allocatable :: egvmat(:,:) !< Eigendecomposition matrix
 
+! Internal parameters
+real(kind_real),parameter :: qtrim = 0.05 !< Fraction for which upper and lower quantiles are removed in trimmed averages
+integer,parameter :: ntrim = 1            !< Minimum number of remaining points for the trimmed average
+
 private
 public :: pi,deg2rad,rad2deg,req,reqkm,ps,egvmat
-public :: eigen_init,lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median
+public :: eigen_init,lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median,taverage,add,divide
 
 contains
 
@@ -302,5 +306,96 @@ end if
 return
 
 end function median
+
+!----------------------------------------------------------------------
+! Function: taverage
+!> Purpose: compute the trimmed average
+!----------------------------------------------------------------------
+real(kind_real) function taverage(n,list)
+
+implicit none
+
+! Passed variables
+integer,intent(in) :: n        !< Number of values
+real(kind_real),intent(in) :: list(n)     !< List values
+
+! Local variable
+integer :: nrm,nvalid
+integer :: order(n)
+real(kind_real) :: list_copy(n)
+
+! Copy list
+list_copy = list
+
+! Compute the number of values to remove
+nrm = floor(n*qtrim)
+
+if (n-2*nrm>=ntrim) then
+   ! Order array
+   call qsort(n,list_copy,order)
+
+   ! Compute trimmed average
+   nvalid = count(isnotmsr(list_copy(1+nrm:n-nrm)))
+   if (nvalid>0) then
+      taverage = sum(list_copy(1+nrm:n-nrm),mask=isnotmsr(list_copy(1+nrm:n-nrm)))/float(nvalid)
+   else
+      call msr(taverage)
+   end if
+else
+   ! Missing value
+   call msr(taverage)
+end if
+
+end function taverage
+
+!----------------------------------------------------------------------
+! Subroutine: add
+!> Purpose: check if missing and add
+!----------------------------------------------------------------------
+subroutine add(value,cumul,num,wgt)
+
+implicit none
+
+! Passed variables
+real(kind_real),intent(in) :: value
+real(kind_real),intent(inout) :: cumul
+real(kind_real),intent(inout) :: num
+real(kind_real),intent(in),optional :: wgt
+
+! Local variables
+real(kind_real) :: lwgt
+
+! Initialize weight
+lwgt = 1.0
+if (present(wgt)) lwgt = wgt
+
+! Add value to cumul
+if (isnotmsr(value)) then
+   cumul = cumul+lwgt*value
+   num = num+1.0
+end if
+
+end subroutine add
+
+!----------------------------------------------------------------------
+! Subroutine: divide
+!> Purpose: check if missing and divide
+!----------------------------------------------------------------------
+subroutine divide(cumul,num)
+
+implicit none
+
+! Passed variables
+real(kind_real),intent(inout) :: cumul
+real(kind_real),intent(in) :: num
+
+! Divide cumul by num
+if (num>0.0) then
+   cumul = cumul/num
+else
+   call msr(cumul)
+end if
+
+end subroutine divide
 
 end module tools_const

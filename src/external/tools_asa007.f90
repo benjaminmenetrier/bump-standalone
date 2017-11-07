@@ -4,7 +4,7 @@ use tools_kinds, only: kind_real
 implicit none
 
 private
-public :: syminv
+public :: cholesky,syminv
 
 contains
 

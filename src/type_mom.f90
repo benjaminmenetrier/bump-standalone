@@ -12,6 +12,7 @@ module type_mom
 
 use tools_kinds, only: kind_real
 use type_hdata, only: hdatatype
+
 implicit none
 
 ! Moments derived type

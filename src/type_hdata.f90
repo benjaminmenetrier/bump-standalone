@@ -22,7 +22,6 @@ use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_dealloc,linop_read,linop_write
 use type_mpl, only: mpl
 use type_nam, only: namtype
-use type_randgen, only: randgentype,create_randgen,delete_randgen
 
 implicit none
 

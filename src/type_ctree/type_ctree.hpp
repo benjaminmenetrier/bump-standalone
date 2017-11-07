@@ -4,8 +4,8 @@
 /// Licensing: this code is distributed under the CeCILL-C license
 /// Copyright © 2017 METEO-FRANCE
 // ----------------------------------------------------------------------
-#include "external/Cover_Tree.h"
-#include "external/Cover_Tree_Point.h"
+#include "../external/Cover_Tree.h"
+#include "../external/Cover_Tree_Point.h"
 
 class cTree {
     public:

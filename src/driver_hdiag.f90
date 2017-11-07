@@ -141,7 +141,7 @@ if (nam%new_hdiag) then
    
    ! Allocation
    if (nam%local_diag) then
-      allocate(avg_1_nc2(bpar%nb+1,hdata%nc2))
+      allocate(avg_1_nc2(hdata%nc2,bpar%nb+1))
       allocate(cor_1_nc2(hdata%nc2,bpar%nb+1))
       allocate(done(hdata%nc2))
    end if
@@ -151,26 +151,19 @@ if (nam%new_hdiag) then
          write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
          ! Compute global statistics
-         call compute_avg(hdata,ib,mom_1(ib),0,avg_1(ib))
+         call compute_avg(hdata,ib,mom_1(ib),avg_1(ib))
    
          ! Compute global asymptotic statistics
          call compute_avg_asy(hdata,ib,nam%ne,avg_1(ib))
    
          if (nam%local_diag) then             
             write(mpl%unit,'(a7,a)',advance='no') '','Compute local statistics:'
-            call prog_init(progint,done)
-            !$omp parallel do private(ic2)
-            do ic2=1,hdata%nc2
-               ! Compute local statistics
-               call compute_avg(hdata,ib,mom_1(ib),ic2,avg_1_nc2(ib,ic2))
 
-               ! Compute local asymptotic statistics
-               call compute_avg_asy(hdata,ib,nam%ne,avg_1_nc2(ib,ic2))
-               done(ic2) = .true.
-               call prog_print(progint,done)
-            end do
-            !$omp end parallel do
-            write(mpl%unit,'(a)') '100%'
+            ! Compute local statistics
+            call compute_avg(hdata,ib,mom_1(ib),avg_1_nc2(:,ib))
+
+            ! Compute local asymptotic statistics
+            call compute_avg_asy(hdata,ib,nam%ne,avg_1_nc2(:,ib))
          end if
          
          ! Print results
@@ -186,14 +179,14 @@ if (nam%new_hdiag) then
             avg_1(ib)%stasq = avg_1(ib)%m11**2
          elseif (trim(nam%method)=='hyb-rnd') then
             ! Compute randomized averaged statistics
-            call compute_avg(hdata,ib,mom_2(ib),0,avg_2(ib))
+            call compute_avg(hdata,ib,mom_2(ib),avg_2(ib))
          
             ! Static covariance = randomized covariance
             avg_1(ib)%m11sta = avg_1(ib)%m11*avg_2(ib)%m11
             avg_1(ib)%stasq = avg_2(ib)%m11**2
          elseif (trim(nam%method)=='dual-ens') then
             ! Compute low-resolution averaged statistics
-            call compute_avg(hdata,ib,mom_2(ib),0,avg_2(ib))
+            call compute_avg(hdata,ib,mom_2(ib),avg_2(ib))
             call compute_avg_asy(hdata,ib,nam%ens2_ne,avg_2(ib))
          
             ! LR covariance/HR covariance product average
@@ -235,11 +228,7 @@ if (nam%new_hdiag) then
       if ((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens')) call compute_bwavg(hdata,avg_2)
       if (nam%local_diag) then
          ! Compute local block averages
-         !$omp parallel do private(ic2)
-         do ic2=1,hdata%nc2
-            call compute_bwavg(hdata,avg_1_nc2(:,ic2))
-         end do
-         !$omp end parallel do
+         call compute_bwavg(hdata,avg_1_nc2)
       end if
    end if
 
@@ -279,9 +268,9 @@ if (nam%new_hdiag) then
                call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_nc2',cor_1_nc2(ic2,ib))
       
                ! Copy
-               cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ib,ic2)%cor
+               cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ic2,ib)%cor
                do il0=1,geom%nl0
-                  cor_1_nc2(ic2,ib)%raw_coef_ens(il0) = avg_1_nc2(ib,ic2)%m11(1,min(il0,bpar%nl0(ib)),il0)
+                  cor_1_nc2(ic2,ib)%raw_coef_ens(il0) = avg_1_nc2(ic2,ib)%m11(1,min(il0,bpar%nl0(ib)),il0)
                end do
             end do
          end if
@@ -298,20 +287,12 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
    
             ! Compute global fit
-            call compute_fit(hdata%nam,hdata%geom,cor_1(ib),norm=1.0_kind_real)
+            call compute_fit(hdata,cor_1(ib),norm=1.0_kind_real)
    
             if (nam%local_diag) then
                ! Compute local fit
                write(mpl%unit,'(a7,a)',advance='no') '','Compute local fit:'
-               call prog_init(progint,done)
-               !$omp parallel do private(ic2)
-               do ic2=1,hdata%nc2
-                  call compute_fit(hdata%nam,hdata%geom,cor_1_nc2(ic2,ib),norm=1.0_kind_real)
-                  done(ic2) = .true.
-                  call prog_print(progint,done)
-               end do
-               !$omp end parallel do
-               write(mpl%unit,'(a)') '100%'
+               call compute_fit(hdata,cor_1_nc2(:,ib),norm=1.0_kind_real)
             end if
    
             ! Print results
@@ -334,7 +315,7 @@ if (nam%new_hdiag) then
                write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
    
                ! Compute fit
-               call compute_fit(hdata%nam,hdata%geom,cor_2(ib),norm=1.0_kind_real)
+               call compute_fit(hdata,cor_2(ib),norm=1.0_kind_real)
    
                ! Print results
                do il0=1,geom%nl0
@@ -370,13 +351,7 @@ if (nam%new_hdiag) then
    
             ! Compute localization
             call compute_localization(hdata,ib,avg_1(ib),loc_1(ib))
-            if (nam%local_diag) then
-               !$omp parallel do private(ic2)
-               do ic2=1,hdata%nc2
-                  call compute_localization(hdata,ib,avg_1_nc2(ic2,ib),loc_1_nc2(ic2,ib))
-               end do
-               !$omp end parallel do
-            end if
+            if (nam%local_diag) call compute_localization(hdata,ib,avg_1_nc2(:,ib),loc_1_nc2(:,ib))
    
             ! Print results
             do il0=1,geom%nl0

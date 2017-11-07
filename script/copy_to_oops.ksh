@@ -13,7 +13,7 @@ rsync -avh --delete --exclude "main.f90" --exclude "tmp" ${src}/* ${dst}
 echo
 echo "To copy in OOPS/oops/src/CMakeLists.txt:"
 for file in `ls ${HOME}/codes/nicas/src` ; do
-   if [ "${file}" != "nicas.f90" ]&&[ "${file}" != "external" ]&&[ "${file}" != "obsop" ]&&[ "${file}" != "tmp" ] ; then
+   if [ "${file}" != "main.f90" ]&&[ "${file}" != "external" ]&&[ "${file}" != "obsop" ]&&[ "${file}" != "tmp" ] ; then
       echo oops/generic/nicas/${file}
    fi
 done

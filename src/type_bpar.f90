@@ -142,8 +142,8 @@ case ('specific_univariate','specific_multivariate')
 end select
 
 ! Blocks information
-bpar%fit_block(bpar%nb+1) = bpar%diag_block(bpar%nb+1).and.(trim(nam%fit_type)/='none')
 bpar%blockname(bpar%nb+1) = 'common'
+bpar%fit_block(bpar%nb+1) = bpar%diag_block(bpar%nb+1).and.(trim(nam%fit_type)/='none')
 
 end subroutine bpar_alloc
 

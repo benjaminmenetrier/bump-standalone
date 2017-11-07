@@ -23,7 +23,7 @@ use type_mpl, only: mpl,mpl_start,mpl_end
 use type_nam, only: namtype,namread,namcheck
 use type_ndata, only: ndataloctype
 use type_odata, only: odataloctype
-use type_randgen, only: rng,create_randgen
+use type_randgen, only: create_randgen
 use type_timer, only: timertype,timer_start,timer_display
 
 implicit none
@@ -90,7 +90,7 @@ write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI task
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Initialize random number generator'
    
-rng = create_randgen(nam)
+call create_randgen(nam)
 
 !----------------------------------------------------------------------
 ! Initialize geometry

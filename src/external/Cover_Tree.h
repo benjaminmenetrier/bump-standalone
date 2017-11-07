@@ -98,7 +98,7 @@ class CoverTree
 
     CoverTreeNode* _root;
     unsigned int _numNodes;
-    int _maxLevel;//base^_maxLevel should be the max distance
+    int _maxLevel;//2.0^_maxLevel should be the max distance
                   //between any 2 points
     int _minLevel;//A level beneath which there are no more new nodes.
 
@@ -125,8 +125,6 @@ class CoverTree
                     bool& multi);
 
  public:
-    double base = 2.0;
-
     /**
      * Constructs a cover tree which begins with all points in points.
      *
@@ -142,9 +140,9 @@ class CoverTree
 
     /**
      * Just for testing/debugging. Returns true iff the cover tree satisfies the
-     * the covering tree invariants (every node in level i is greater than base^i
+     * the covering tree invariants (every node in level i is greater than 2.0^i
      * distance from every other node, and every node in level i is less than
-     * or equal to base^i distance from its children). See the cover tree
+     * or equal to 2.0^i distance from its children). See the cover tree
      * papers for details.
      */
     bool isValidTree() const;
@@ -186,7 +184,7 @@ CoverTree<Point>::CoverTree(const double& maxDist,
 {
     _root=NULL;
     _numNodes=0;
-    _maxLevel=ceilf(log(maxDist)/log(base));
+    _maxLevel=ceilf(log(maxDist)/log(2.0));
     _minLevel=_maxLevel-1;
     typename std::vector<Point>::const_iterator it;
     for(it=points.begin(); it!=points.end(); ++it) {
@@ -247,7 +245,7 @@ CoverTree<Point>::kNearestNodes(const Point& p, const unsigned int& k) const
                 Qj.push_back(std::make_pair(d,*it2));
             }
         }
-        double sep = maxDist + pow(base, level);
+        double sep = maxDist + pow(2.0, level);
         size = Qj.size();
         for(int i=0; i<size; i++) {
             if(Qj[i].first > sep) {
@@ -272,7 +270,7 @@ bool CoverTree<Point>::insert_rec(const Point& p,
                                   const int& level)
 {
     std::vector<std::pair<double, CoverTreeNode*> > Qj;
-    double sep = pow(base,level);
+    double sep = pow(2.0,level);
     double minDist = DBL_MAX;
     std::pair<double,CoverTreeNode*> minQiDist(DBL_MAX,NULL);
     typename  std::vector<std::pair<double, CoverTreeNode*> >::const_iterator it;
@@ -321,7 +319,7 @@ void CoverTree<Point>::remove_rec(const Point& p,
     double minDist = DBL_MAX;
     CoverTreeNode* minNode = _root;
     CoverTreeNode* parent = 0;
-    double sep = pow(base, level);
+    double sep = pow(2.0, level);
     typename std::vector<distNodePair>::const_iterator it;
     //set Qj to be all children q of Qi such that p.distance(q)<=sep
     //and also keep track of the minimum distance from p to a node in Qj
@@ -381,7 +379,7 @@ void CoverTree<Point>::remove_rec(const Point& p,
             Point q = (*it)->getPoint();
             double minDQ = DBL_MAX;
             CoverTreeNode* minDQNode;
-            double sep = pow(base,i);
+            double sep = pow(2.0,i);
             bool br=false;
             while(true) {
                 std::vector<distNodePair>&
@@ -403,7 +401,7 @@ void CoverTree<Point>::remove_rec(const Point& p,
                 if(br) break;
                 Q.push_back(std::make_pair((*it)->distance(p),*it));
                 i++;
-                sep = pow(base,i);
+                sep = pow(2.0,i);
             }
             //minDQNode->getPoint().print();
             //std::cout << " is level " << i << " parent of ";
@@ -656,10 +654,10 @@ bool CoverTree<Point>::isValidTree() const {
     std::vector<CoverTreeNode*> nodes;
     nodes.push_back(_root);
     for(int i=_maxLevel;i>_minLevel;i--) {
-        double sep = pow(base,i);
+        double sep = pow(2.0,i);
         typename std::vector<CoverTreeNode*>::const_iterator it, it2;
         //verify separation invariant of cover tree: for each level,
-        //every point is farther than base^level away
+        //every point is farther than 2.0^level away
         for(it=nodes.begin(); it!=nodes.end(); ++it) {
             for(it2=nodes.begin(); it2!=nodes.end(); ++it2) {
                 double dist=(*it)->distance((*it2)->getPoint());
@@ -673,7 +671,7 @@ bool CoverTree<Point>::isValidTree() const {
         for(it=nodes.begin(); it!=nodes.end(); ++it) {
             std::vector<CoverTreeNode*> children = (*it)->getChildren(i);
             //verify covering tree invariant: the children of node n at level
-            //i are no further than base^i away
+            //i are no further than 2.0^i away
             for(it2=children.begin(); it2!=children.end(); ++it2) {
                 double dist = (*it2)->distance((*it)->getPoint());
                 if(dist>sep) {

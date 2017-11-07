@@ -16,7 +16,7 @@ use tools_kinds, only: kind_real
 use type_geom, only: geomtype,fld_com_gl,fld_com_lg
 use type_mpl, only: mpl,mpl_allreduce_sum
 use type_odata, only: odatatype,odataloctype,yobs_com_gl,yobs_com_lg
-use type_randgen, only: rng,rand_real
+use type_randgen, only: rand_real
 
 implicit none
 
@@ -42,8 +42,8 @@ real(kind_real) :: fld(odata%geom%nc0,odata%geom%nl0),fld_save(odata%geom%nc0,od
 real(kind_real) :: yobs(odata%nobs,odata%geom%nl0),yobs_save(odata%nobs,odata%geom%nl0)
 
 ! Generate random fields
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,fld_save)
-call rand_real(rng,0.0_kind_real,1.0_kind_real,.true.,yobs_save)
+call rand_real(0.0_kind_real,1.0_kind_real,fld_save)
+call rand_real(0.0_kind_real,1.0_kind_real,yobs_save)
 
 ! Apply direct and adjoint obsservation operators
 call apply_obsop(odata,fld_save,yobs)
@@ -84,7 +84,7 @@ if (mpl%main) then
    allocate(yobs(odata%nobs,geom%nl0))
 
    ! Initialization
-   call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,fld)
+   call rand_real(0.0_kind_real,1.0_kind_real,fld)
    fldloc = fld
 end if
 allocate(yobsloc(odataloc%nobsa,geom%nl0))
@@ -137,7 +137,7 @@ if (mpl%main) then
    allocate(fld(geom%nc0,geom%nl0))
 
    ! Initialization
-   call rand_real(rng,0.0_kind_real,1.0_kind_real,.false.,yobs)
+   call rand_real(0.0_kind_real,1.0_kind_real,yobs)
    yobsloc = yobs
 end if
 allocate(fldloc(odataloc%nc0a,geom%nl0))

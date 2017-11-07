@@ -22,7 +22,7 @@ use tools_nc, only: ncfloat,ncerr
 use type_bdata, only: bdatatype
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype
-use type_randgen, only: rng,initialize_sampling,rand_integer
+use type_randgen, only: initialize_sampling
 
 implicit none
 
@@ -86,7 +86,7 @@ end do
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
 allocate(ndata%ic1_to_ic0(ndata%nc1))
-call initialize_sampling(rng,geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0min,nam%ntry,nam%nrep, &
+call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0min,nam%ntry,nam%nrep, &
  & ndata%nc1,ndata%ic1_to_ic0)
 
 ! Inverse conversion
@@ -201,7 +201,7 @@ do il1=1,ndata%nl1
    ndata%nc2(il1) = min(ndata%nc2(il1),ndata%nc1)
    if (ndata%nc2(il1)<ndata%nc1) then
       ! Compute subset
-      call initialize_sampling(rng,ndata%nc1,dble(geom%lon(ndata%ic1_to_ic0)), &
+      call initialize_sampling(ndata%nc1,dble(geom%lon(ndata%ic1_to_ic0)), &
     & dble(geom%lat(ndata%ic1_to_ic0)),mask_ind(:,il1),rh0(ndata%ic1_to_ic0,il0),nam%ntry,nam%nrep, &
     & ndata%nc2(il1),ndata%ic2il1_to_ic1(1:ndata%nc2(il1),il1))
    else

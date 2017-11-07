@@ -7,15 +7,15 @@ sam_default_seed = .true.,
 /
 
 &driver_param
-method = "cor",
-strategy = "common_weighted",
-new_hdiag = .true.,
-new_param = .false.,
-new_mpi = .false.,
-check_adjoints = .false.,
+method = "loc",
+strategy = "common",
+new_hdiag = .false.,
+new_param = .true.,
+new_mpi = .true.,
+check_adjoints = .true.,
 check_pos_def = .false.,
 check_mpi = .false.,
-check_dirac = .false.,
+check_dirac = .true.,
 check_perf = .false.,
 /
 
@@ -26,8 +26,8 @@ logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE","HUMI_SPECIFI",
 addvar2d = "","",
-nts = 3,
-timeslot = 0,3,6,
+nts = 1,
+timeslot = 0,6,
 /
 
 &ens1_param
@@ -61,7 +61,7 @@ gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
 local_rad = 1000.0e3,
-displ_diag = .true.,
+displ_diag = .false.,
 displ_rad = 1000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,
@@ -90,16 +90,16 @@ diag_rhflt = 1000.0e3,
 /
 
 &nicas_param
-lsqrt = .false.,
+lsqrt = .true.,
 rh = 3500.0e3,5500.0e3,7500.0e3,,
 rv = 2.0,2.0,2.0,
-resol = 4.0,
+resol = 10.0,
 network = .false.,
 mpicom = 2,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
-levdir = 60,60,60,60,60,60,60,60,60,60,60,60,
+levdir = 10,10,10,10,10,10,10,10,10,10,10,10,
 ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /

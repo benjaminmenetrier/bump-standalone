@@ -21,7 +21,6 @@ use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
 use type_mesh, only: meshtype,create_mesh,mesh_dealloc
 use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
-use type_randgen, only: rng
 
 implicit none
 
@@ -62,7 +61,7 @@ type(ctreetype) :: ctree
 type(meshtype) :: mesh
 
 ! Create mesh
-call create_mesh(rng,n_src,lon_src,lat_src,.false.,mesh)
+call create_mesh(n_src,lon_src,lat_src,.false.,mesh)
 
 ! Compute cover tree
 allocate(mask_ctree(mesh%nnr))
@@ -133,39 +132,31 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
       call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)), &
     & dble(lat_dst(i_dst)),1,inn,dist)
 
-      if (abs(dist(1))>0.0) then
-         ! Transform to cartesian coordinates
-         call trans(1,lat_dst(i_dst),lon_dst(i_dst),p(1),p(2),p(3))
+      ! Transform to cartesian coordinates
+      call trans(1,lat_dst(i_dst),lon_dst(i_dst),p(1),p(2),p(3))
 
-         ! Compute barycentric coordinates
-         call trfind(mesh%order_inv(inn(1)),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
-       & b(1),b(2),b(3),ib(1),ib(2),ib(3))
+      ! Compute barycentric coordinates
+      call trfind(mesh%order_inv(inn(1)),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
+    & b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
-         if (all(ib>0)) then
-            if (all(mask_src(mesh%order(ib)))) then
-               ! Valid interpolation
-               if (sum(b)>0.0) then
-                  ! Normalize barycentric coordinates
-                  b = b/sum(b)
+      if (all(ib>0)) then
+         if (all(mask_src(mesh%order(ib)))) then
+            ! Valid interpolation
+            if (sum(b)>0.0) then
+               ! Normalize barycentric coordinates
+               b = b/sum(b)
 
-                  ! Add interpolation elements
-                  do i=1,3
-                     if (b(i)>S_inf) then
-                        n_s = n_s+1
-                        row(n_s) = i_dst
-                        col(n_s) = mesh%order(ib(i))
-                        S(n_s) = b(i)
-                     end if
-                  end do
-               end if
+               ! Add interpolation elements
+               do i=1,3
+                  if (b(i)>S_inf) then
+                     n_s = n_s+1
+                     row(n_s) = i_dst
+                     col(n_s) = mesh%order(ib(i))
+                     S(n_s) = b(i)
+                  end if
+               end do
             end if
          end if
-      else
-         ! Subset point
-         n_s = n_s+1
-         row(n_s) = i_dst
-         col(n_s) = inn(1)
-         S(n_s) = 1.0
       end if
    end if
 

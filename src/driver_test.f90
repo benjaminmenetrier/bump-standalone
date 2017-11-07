@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module driver_test
 
-use module_test, only: test_dirac,test_dirac_localization,test_perf
+use module_test, only: test_loc_adjoint,test_nicas_dirac,test_loc_dirac,test_nicas_perf
 use type_bpar, only: bpartype
 use type_geom, only: geomtype
 use type_mpl, only: mpl
@@ -48,15 +48,9 @@ if (nam%check_dirac) then
    do ib=1,bpar%nb+1
       if (bpar%nicas_block(ib)) then
          write(mpl%unit,'(a7,a)') '','Dirac test for block: '//trim(bpar%blockname(ib))
-         call test_dirac(nam,geom,trim(bpar%blockname(ib)),ndataloc(ib))
+         call test_nicas_dirac(nam,geom,trim(bpar%blockname(ib)),ndataloc(ib))
       end if
    end do
-   call flush(mpl%unit)
-
-   ! Apply NICAS to diracs
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Apply localization to diracs'
-   call test_dirac_localization(nam,geom,bpar,ndataloc)
    call flush(mpl%unit)
 end if
 
@@ -67,9 +61,25 @@ if (nam%check_perf) then
    do ib=1,bpar%nb+1
       if (bpar%nicas_block(ib)) then
          write(mpl%unit,'(a7,a)') '','Performance results (elapsed time) for block: '//trim(bpar%blockname(ib))
-         call test_perf(nam,geom,ndataloc(ib))
+         call test_nicas_perf(nam,geom,ndataloc(ib))
       end if
    end do
+   call flush(mpl%unit)
+end if
+
+if (nam%check_adjoints) then
+   ! Test adjoints
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test localization adjoint'
+   call test_loc_adjoint(nam,geom,bpar,ndataloc)
+   call flush(mpl%unit)
+end if
+
+if (nam%check_dirac) then
+   ! Apply NICAS to diracs
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Apply localization to diracs'
+   call test_loc_dirac(nam,geom,bpar,ndataloc)
    call flush(mpl%unit)
 end if
 

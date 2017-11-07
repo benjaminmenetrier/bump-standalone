@@ -17,7 +17,7 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr
 use tools_stripack, only: trans,trmesh
 use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast
-use type_randgen, only: randgentype,rand_integer
+use type_randgen, only: rand_integer
 
 implicit none
 
@@ -45,12 +45,11 @@ contains
 ! Subroutine: create_mesh
 !> Purpose: create mesh
 !----------------------------------------------------------------------
-subroutine create_mesh(randgen,n,lon,lat,lred,mesh)
+subroutine create_mesh(n,lon,lat,lred,mesh)
 
 implicit none
 
 ! Passed variables
-type(randgentype),intent(in) :: randgen
 integer,intent(in) :: n
 real(kind_real),intent(in) :: lon(n)
 real(kind_real),intent(in) :: lat(n)
@@ -60,7 +59,7 @@ type(meshtype),intent(inout) :: mesh
 ! Local variables
 integer :: i,j,k,lnew,info
 integer :: n_loc(mpl%nproc),i_loc,iproc,progint
-integer,allocatable :: near(:),next(:),i_glb(:,:),rbuf(:),sbuf(:)
+integer,allocatable :: jtab(:),near(:),next(:),i_glb(:,:),rbuf(:),sbuf(:)
 real(kind_real),allocatable :: dist(:)
 logical,allocatable :: done(:)
 
@@ -147,6 +146,7 @@ allocate(mesh%lptr(6*(mesh%nnr-2)))
 allocate(mesh%lend(mesh%nnr))
 allocate(near(mesh%nnr))
 allocate(next(mesh%nnr))
+allocate(jtab(mesh%nnr))
 allocate(mesh%x(mesh%nnr))
 allocate(mesh%y(mesh%nnr))
 allocate(mesh%z(mesh%nnr))
@@ -160,10 +160,11 @@ do j=1,n
       mesh%order(i) = j
    end if
 end do
-do i=mesh%nnr,2,-1
-   call rand_integer(randgen,1,mesh%nnr,.true.,j)
-   k = mesh%order(j)
-   mesh%order(j) = mesh%order(i)
+if (mpl%main) call rand_integer(1,mesh%nnr,jtab)
+call mpl_bcast(jtab,mpl%ioproc)
+do i=mesh%nnr,2,-1  
+   k = mesh%order(jtab(i))
+   mesh%order(jtab(i)) = mesh%order(i)
    mesh%order(i) = k
 end do
 

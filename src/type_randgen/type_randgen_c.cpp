@@ -6,12 +6,12 @@
 // ----------------------------------------------------------------------
 #include "type_randgen.h"
 #include "type_randgen.hpp"
-#include "external/Cover_Tree.h"
-#include "external/Cover_Tree_Point.h"
+#include "../external/Cover_Tree.h"
+#include "../external/Cover_Tree_Point.h"
 #include <ostream>
 #include <iomanip>
 #include <cmath>
-#include <random>
+// C++11 #include <random>
 
 using namespace std;
 

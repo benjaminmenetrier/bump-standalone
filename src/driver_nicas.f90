@@ -13,7 +13,7 @@ module driver_nicas
 use module_mpi, only: compute_mpi
 use module_normalization, only: compute_normalization
 use module_parameters, only: compute_parameters
-use module_test, only: test_adjoints,test_pos_def,test_mpi
+use module_test, only: test_nicas_adjoints,test_nicas_pos_def,test_nicas_mpi,test_nicas_sqrt
 use tools_const, only: eigen_init,pi
 use tools_display, only: msgerror
 use type_bdata, only: bdatatype
@@ -41,7 +41,7 @@ subroutine run_nicas(nam,geom,bpar,bdata,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
+type(namtype),target,intent(inout) :: nam !< Namelist variables
 type(geomtype),target,intent(inout) :: geom    !< Sampling data
 type(bpartype),target,intent(in) :: bpar    !< Sampling data
 type(bdatatype),intent(in) :: bdata(bpar%nb+1) !< B data
@@ -54,7 +54,7 @@ type(ndatatype) :: ndata
 ! Allocate ndataloc
 allocate(ndataloc(bpar%nb+1))
 do ib=1,bpar%nb+1
-   if (bpar%nicas_block(ib)) then
+   if (bpar%diag_block(ib)) then
       ! Set name
       write(ndataloc(ib)%cname,'(a,i1,a,i4.4,a,i4.4,a,a)') 'ndataloc_',nam%mpicom,'_',mpl%nproc,'-',mpl%myproc, &
     & '_',trim(bpar%blockname(ib))
@@ -139,8 +139,7 @@ do ib=1,bpar%nb+1
          write(mpl%unit,'(a)') '--- Write NICAS MPI distribution'
          call ndataloc_write(nam,geom,ndataloc(ib),bpar%nicas_block(ib))
       end if
-
-   else
+   elseif (nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi.or.nam%check_dirac.or.nam%check_perf) then
       if (bpar%diag_block(ib)) then
          ! Read NICAS MPI distribution
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -155,7 +154,7 @@ do ib=1,bpar%nb+1
          ! Test adjoints
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Test NICAS adjoints'
-         if (mpl%main) call test_adjoints(ndata)
+         if (mpl%main) call test_nicas_adjoints(ndata)
          call flush(mpl%unit)
       end if
       
@@ -163,21 +162,29 @@ do ib=1,bpar%nb+1
          ! Test NICAS positive definiteness
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
-         if (mpl%main) call test_pos_def(ndata)
+         if (mpl%main) call test_nicas_pos_def(ndata)
          call flush(mpl%unit)
       end if
       
       if (nam%check_mpi) then
-         ! Test single/multi-procs equivalence
+         ! Test NICAS single/multi-procs equivalence
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
-         call test_mpi(ndata,ndataloc(ib))
+         call test_nicas_mpi(ndata,ndataloc(ib))
+         call flush(mpl%unit)
+      end if
+
+      if (.true.) then ! TODO
+         ! Test NICAS full/square-root equivalence
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
+         call test_nicas_sqrt(bdata(ib),ndata)
          call flush(mpl%unit)
       end if
    end if
 
    ! Release memory
-   if ((nam%new_param.or.nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi).and.bpar%diag_block(ib)) &
+   if ((nam%new_param.or.nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi).and.bpar%nicas_block(ib)) &
  & call ndata_dealloc(ndata,bpar%nicas_block(ib))
 end do
 
