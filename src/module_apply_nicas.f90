@@ -200,16 +200,30 @@ real(kind_real),intent(in) :: alpha(ndataloc%nsa) !< Subgrid variable
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variable
-real(kind_real),allocatable :: alpha_tmp(:)
+real(kind_real),allocatable :: alpha_tmp(:),alpha_tmp2(:)
 
 ! Allocation
 allocate(alpha_tmp(ndataloc%nsa))
+allocate(alpha_tmp2(ndataloc%nsa))
 
 ! Copy
 alpha_tmp = alpha
 
-! Halo extension from zone A to zone C
-call com_ext(ndataloc%AC,alpha_tmp)
+! Copy zone A
+alpha_tmp2 = alpha_tmp
+
+! Reallocation
+deallocate(alpha_tmp)
+allocate(alpha_tmp(ndataloc%nsc))
+
+! Initialize
+alpha_tmp = 0.0
+
+! Copy zone A into zone C
+alpha_tmp(ndataloc%isa_to_isc) = alpha_tmp2
+
+! Release memory
+deallocate(alpha_tmp2)
 
 ! Convolution
 call convol(ndataloc,alpha_tmp)
@@ -265,10 +279,11 @@ real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)  !< Field
 real(kind_real),intent(out) :: alpha(ndataloc%nsa) !< Subgrid variable
 
 ! Local variable
-real(kind_real),allocatable :: alpha_tmp(:)
+real(kind_real),allocatable :: alpha_tmp(:),alpha_tmp2(:)
 
 ! Allocation
 allocate(alpha_tmp(ndataloc%nsb))
+allocate(alpha_tmp2(ndataloc%nsa))
 
 ! Adjoint interpolation
 call interp_ad(nam,geom,ndataloc,fld,alpha_tmp)
@@ -276,8 +291,21 @@ call interp_ad(nam,geom,ndataloc,fld,alpha_tmp)
 ! Halo reduction from zone B to zone A
 call com_red(ndataloc%AB,alpha_tmp)
 
-! Halo extension from zone A to zone C
-call com_ext(ndataloc%AC,alpha_tmp)
+! Copy zone A
+alpha_tmp2 = alpha_tmp
+
+! Reallocation
+deallocate(alpha_tmp)
+allocate(alpha_tmp(ndataloc%nsc))
+
+! Initialize
+alpha_tmp = 0.0
+
+! Copy zone A into zone C
+alpha_tmp(ndataloc%isa_to_isc) = alpha_tmp2
+
+! Release memory
+deallocate(alpha_tmp2)
 
 ! Convolution
 call convol(ndataloc,alpha_tmp)

@@ -10,7 +10,9 @@
 !----------------------------------------------------------------------
 module driver_test
 
-use module_test, only: test_loc_adjoint,test_nicas_dirac,test_loc_dirac,test_nicas_perf
+use module_test, only: test_loc_adjoint,test_nicas_dirac,test_loc_dirac,test_nicas_perf,test_hdiag
+use tools_display, only: msgerror
+use type_bdata, only: bdatatype
 use type_bpar, only: bpartype
 use type_geom, only: geomtype
 use type_mpl, only: mpl
@@ -28,15 +30,16 @@ contains
 ! Subroutine: run_test
 !> Purpose: test NICAS method
 !----------------------------------------------------------------------
-subroutine run_test(nam,geom,bpar,ndataloc)
+subroutine run_test(nam,geom,bpar,bdata,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
+type(namtype),intent(inout) :: nam !< Namelist variables
 type(geomtype),intent(in) :: geom    !< Geometry
 type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data,local
+type(bdatatype),intent(in) :: bdata(bpar%nb+1) !< B data
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data,local
 
 ! Local variables
 integer :: ib
@@ -80,6 +83,14 @@ if (nam%check_dirac) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Apply localization to diracs'
    call test_loc_dirac(nam,geom,bpar,ndataloc)
+   call flush(mpl%unit)
+end if
+
+if (nam%check_hdiag) then
+   ! Test hdiag consistency
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test hdiag consistency'
+   call test_hdiag(nam,geom,bpar,bdata,ndataloc)
    call flush(mpl%unit)
 end if
 

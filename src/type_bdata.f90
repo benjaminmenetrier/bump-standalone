@@ -19,6 +19,7 @@ use tools_nc, only: ncerr,ncfloat
 use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 
 implicit none
@@ -126,12 +127,12 @@ associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 if (bpar%nicas_block(ib)) then
    do il0=1,geom%nl0
-      bdata%coef_ens(:,il0) = diag%fit_coef_ens(il0)
+      bdata%coef_ens(:,il0) = diag%raw_coef_ens(il0)
       bdata%rh0(:,il0) = diag%fit_rh(il0)
       bdata%rv0(:,il0) = diag%fit_rv(il0)
       bdata%coef_sta(:,il0) = diag%raw_coef_sta
    end do
-   bdata%wgt = sum(diag%fit_coef_ens)/float(geom%nl0)
+   bdata%wgt = sum(diag%raw_coef_ens)/float(geom%nl0)
 else
    bdata%wgt = sum(diag%raw_coef_ens)/float(geom%nl0)
 end if
@@ -164,7 +165,7 @@ associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 if (bpar%nicas_block(ib)) then
    do ic2=1,hdata%nc2
-      fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+      fld_nc2(ic2,:) = diag(ic2)%raw_coef_ens
    end do
    call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
    call diag_interpolation(hdata,fld_nc2,bdata%coef_ens)
@@ -184,7 +185,7 @@ if (bpar%nicas_block(ib)) then
    call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
    call diag_interpolation(hdata,fld_nc2,bdata%coef_sta)
    do ic2=1,hdata%nc2
-     fld_nc2(ic2,:) = diag(ic2)%fit_coef_ens
+     fld_nc2(ic2,:) = diag(ic2)%raw_coef_ens
    end do
    bdata%wgt = sum(fld_nc2)/float(hdata%nc2*geom%nl0)
 else
@@ -284,6 +285,9 @@ character(len=1024) :: subr = 'bdata_write'
 
 ! Associate
 associate(nam=>bdata%nam,geom=>bdata%geom)
+
+! Processor verification
+if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Create file
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_'//trim(bdata%cname)//'.nc', &

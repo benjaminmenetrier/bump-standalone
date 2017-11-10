@@ -184,7 +184,7 @@ if (nam%local_diag.or.nam%displ_diag) then
 end if
 
 ! Write sampling data
-if (nam%sam_write) call hdata_write(hdata)
+if (nam%sam_write.and.mpl%main) call hdata_write(hdata)
 
 ! Compute nearest neighbors for local diagnostics output
 if (nam%local_diag.and.(nam%nldwv>0)) then

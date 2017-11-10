@@ -25,81 +25,15 @@ real(kind_real),parameter :: req=6.371e6      !< Earth radius (m)
 real(kind_real),parameter :: reqkm=6.371e3    !< Earth radius (km)
 real(kind_real),parameter :: ps=101325.0      !< Reference surface pressure
 
-! Eigendecomposition
-real,allocatable :: egvmat(:,:) !< Eigendecomposition matrix
-
 ! Internal parameters
 real(kind_real),parameter :: qtrim = 0.05 !< Fraction for which upper and lower quantiles are removed in trimmed averages
 integer,parameter :: ntrim = 1            !< Minimum number of remaining points for the trimmed average
 
 private
-public :: pi,deg2rad,rad2deg,req,reqkm,ps,egvmat
-public :: eigen_init,lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median,taverage,add,divide
+public :: pi,deg2rad,rad2deg,req,reqkm,ps
+public :: lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median,taverage,add,divide
 
 contains
-
-!----------------------------------------------------------------------
-! Subroutine: eigen_init
-!> Purpose: initialize eigendecomposition
-!----------------------------------------------------------------------
-subroutine eigen_init(nc)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: nc !< Matrix size
-
-! Local variables
-integer :: ic,jc
-real(kind_real),allocatable :: permat(:,:),resmat(:,:)
-complex(kind_real),allocatable :: FFT(:,:),FFTinv(:,:)
-
-! Allocation
-allocate(egvmat(nc,nc))
-
-if (nc>1) then
-   ! Allocation
-   allocate(permat(2*(nc-1),nc))
-   allocate(resmat(nc,2*(nc-1)))
-   allocate(FFT(2*(nc-1),2*(nc-1)))
-   allocate(FFTinv(2*(nc-1),2*(nc-1)))
-
-   ! Periodization matrix
-   permat = 0.0
-   permat(1,1) = 1.0
-   do ic=2,nc-1
-      permat(ic,ic) = 1.0
-      permat(2*nc-ic,ic) = 1.0
-   end do
-   permat(nc,nc) = 1.0
-
-   ! FFT matrix
-   do ic=1,2*(nc-1)
-      do jc=1,2*(nc-1)
-         FFT(ic,jc) = exp(-2.0*(0.0,1.0)*pi*float((ic-1)*(jc-1))/float(2*(nc-1)))
-         FFTinv(ic,jc) = exp(2.0*(0.0,1.0)*pi*float((ic-1)*(jc-1))/float(2*(nc-1)))/float(2*(nc-1))
-      end do
-   end do
-
-   ! Restriction matrix
-   resmat = 0.0
-   do ic=1,nc
-      resmat(ic,ic) = 1.0
-   end do
-
-   ! Eigendecomposition matrix
-   egvmat = real(matmul(resmat,matmul(FFT,permat)),kind=kind_real)
-
-   ! Release memory
-   deallocate(permat)
-   deallocate(resmat)
-   deallocate(FFT)
-   deallocate(FFTinv)
-else
-   egvmat = 1.0
-end if
-
-end subroutine eigen_init
 
 !----------------------------------------------------------------------
 ! Function: lonmod
@@ -240,7 +174,6 @@ p = sum(vp*v3)
 
 end subroutine vector_triple_product
 
-
 !----------------------------------------------------------------------
 ! Function: gc99
 !> Purpose: Gaspari and Cohn (1999) function, with the support radius as a parameter
@@ -256,12 +189,22 @@ real(kind_real) :: gc99
 ! Distance check bound
 if (distnorm<0.0) call msgerror('negative normalized distance')
 
-if (distnorm<0.5) then
-   gc99 = 1.0-8.0*distnorm**5+8.0*distnorm**4+5.0*distnorm**3-20.0/3.0*distnorm**2
-else if (distnorm<1.0) then
-   gc99 = 8.0/3.0*distnorm**5-8.0*distnorm**4+5.0*distnorm**3+20.0/3.0*distnorm**2-10.0*distnorm+4.0-1.0/(3.0*distnorm)
+if (.true.) then
+   ! Gaspari and Cohn (1999) function
+   if (distnorm<0.5) then
+      gc99 = 1.0-8.0*distnorm**5+8.0*distnorm**4+5.0*distnorm**3-20.0/3.0*distnorm**2
+   else if (distnorm<1.0) then
+      gc99 = 8.0/3.0*distnorm**5-8.0*distnorm**4+5.0*distnorm**3+20.0/3.0*distnorm**2-10.0*distnorm+4.0-1.0/(3.0*distnorm)
+   else
+      gc99 = 0.0
+   end if
 else
-   gc99 = 0.0
+   ! Gaussian equivalent
+   if (distnorm<1.0) then
+      gc99 = exp(-0.5*(3.53*distnorm)**2)
+   else
+      gc99 = 0.0
+   end if
 end if
 
 return

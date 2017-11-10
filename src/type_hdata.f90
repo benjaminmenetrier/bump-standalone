@@ -389,6 +389,9 @@ character(len=1024) :: subr = 'hdata_write'
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
+! Processor verification
+if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
+
 ! Create file
 write(mpl%unit,'(a7,a)') '','Write sampling'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc',or(nf90_clobber,nf90_64bit_offset),ncid))

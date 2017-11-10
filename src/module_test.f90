@@ -10,10 +10,11 @@
 !----------------------------------------------------------------------
 module module_test
 
+use driver_hdiag, only: run_hdiag
 use model_interface, only: model_write
 use module_apply_convol, only: convol
 use module_apply_interp, only: interp,interp_ad
-use module_apply_localization, only: apply_localization,apply_localization_from_sqrt
+use module_apply_localization, only: apply_localization,apply_localization_from_sqrt,randomize_localization
 use module_apply_nicas, only: apply_nicas,apply_nicas_sqrt,apply_nicas_sqrt_ad,apply_nicas_from_sqrt
 use module_normalization, only: compute_normalization
 use module_parameters, only: compute_parameters
@@ -240,45 +241,41 @@ real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
-if (mpl%nproc>0) then
+! Allocation
+if (mpl%main) then
    ! Allocation
-   if (mpl%main) then
-      ! Allocation
-      allocate(fld(geom%nc0,geom%nl0))
-      allocate(fldloc(geom%nc0,geom%nl0))
-   
-      ! Initialization
-      call rand_real(0.0_kind_real,1.0_kind_real,fld)
-      fldloc = fld
-   end if
-   
-   ! Global to local
-   call fld_com_gl(geom,fldloc)
-   
-   if (nam%lsqrt) then
-      ! Global
-      if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
-   
-      ! Local
-      call apply_nicas_from_sqrt(nam,geom,ndataloc,fldloc)
-   else
-      ! Global
-      if (mpl%main) call apply_nicas(ndata,fld)
-   
-      ! Local
-      call apply_nicas(nam,geom,ndataloc,fldloc)
-   end if
-   
-   ! Local to global
-   call fld_com_lg(geom,fldloc)
-   
-   ! Print difference
-   if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
-    & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
-    & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
-else
-   write(mpl%unit,'(a7,a)') '','Only one proc used, no test'
+   allocate(fld(geom%nc0,geom%nl0))
+   allocate(fldloc(geom%nc0,geom%nl0))
+
+   ! Initialization
+   call rand_real(0.0_kind_real,1.0_kind_real,fld)
+   fldloc = fld
 end if
+
+! Global to local
+call fld_com_gl(geom,fldloc)
+
+if (nam%lsqrt) then
+   ! Global
+   if (mpl%main) call apply_nicas_from_sqrt(ndata,fld)
+
+   ! Local
+   call apply_nicas_from_sqrt(nam,geom,ndataloc,fldloc)
+else
+   ! Global
+   if (mpl%main) call apply_nicas(ndata,fld)
+
+   ! Local
+   call apply_nicas(nam,geom,ndataloc,fldloc)
+end if
+
+! Local to global
+call fld_com_lg(geom,fldloc)
+
+! Print difference
+if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
+ & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
+ & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
 
 ! End associate
 end associate
@@ -309,7 +306,7 @@ ndata_other%nam => nam
 ndata_other%geom => geom
 
 ! Generate random field
-call rand_real(0.0_kind_real,1.0_kind_real,fld)
+call rand_real(-1.0_kind_real,1.0_kind_real,fld)
 fld_sqrt = fld
 
 ! Apply NICAS, initial version
@@ -342,7 +339,7 @@ end if
 nam%lsqrt = .not.nam%lsqrt
 
 ! Print difference
-write(mpl%unit,'(a7,a,f6.1,a)') '','Full / square-root error:',sqrt(sum((fld_sqrt-fld)**2))/sqrt(sum(fld**2))*100.0,'%'
+write(mpl%unit,'(a7,a,f6.1,a)') '','Full / square-root error:',sqrt(sum((fld_sqrt-fld)**2)/sum(fld**2))*100.0,'%'
 
 ! End associate
 end associate
@@ -540,7 +537,7 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(in) :: geom    !< Geometry
 type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
 
 ! Local variables
 real(kind_real) :: sum1,sum2
@@ -582,11 +579,13 @@ call fld_com_lg(nam,geom,fld2)
 call fld_com_lg(nam,geom,fld1_save)
 call fld_com_lg(nam,geom,fld2_save)
 
-! Print result
-sum1 = sum(fld1*fld2_save)
-sum2 = sum(fld2*fld1_save)
-write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
+if (mpl%main) then
+   ! Print result
+   sum1 = sum(fld1*fld2_save)
+   sum2 = sum(fld2*fld1_save)
+   write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+end if
 
 end subroutine test_loc_adjoint
 
@@ -602,7 +601,7 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 type(geomtype),intent(in) :: geom    !< Geometry
 type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
 
 ! Local variables
 integer :: il0,il0dir(nam%ndir),ic0dir(nam%ndir),idir,iv,its
@@ -660,16 +659,88 @@ end subroutine test_loc_dirac
 ! Subroutine: test_hdiag
 !> Purpose: test hdiag with a randomization method
 !----------------------------------------------------------------------
-subroutine test_hdiag(nam,geom,bpar,ndataloc)
+subroutine test_hdiag(nam,geom,bpar,bdata,ndataloc)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
+type(namtype),intent(inout) :: nam !< Namelist variables
 type(geomtype),intent(in) :: geom    !< Geometry
 type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(:) !< Sampling data, local
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
 
+! Local variables
+integer,parameter :: ne = 150
+integer :: ens1_ne,ens1_ne_offset,ens1_nsub,ib,il0
+real(kind_real) :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,ne)
+logical :: new_hdiag,displ_diag,gau_approx,full_var
+character(len=1024) :: prefix,method
+type(bdatatype),allocatable :: bdata_test(:)
+
+! Randomize ensemble
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Randomize ensemble'
+call randomize_localization(nam,geom,bpar,ndataloc,ne,ens1)
+
+! Copy sampling
+call system('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
+ & //trim(nam%datadir)//'/'//trim(nam%prefix)//'_hdiag-test_sampling.nc')
+
+! Save namelist variables
+prefix = nam%prefix
+method = nam%method
+new_hdiag = nam%new_hdiag
+displ_diag = nam%displ_diag
+gau_approx = nam%gau_approx
+full_var = nam%full_var
+ens1_ne = nam%ens1_ne
+ens1_ne_offset = nam%ens1_ne_offset
+ens1_nsub = nam%ens1_nsub
+
+! Set namelist variables
+nam%prefix = trim(nam%prefix)//'_hdiag-test'
+nam%method = 'cor'
+nam%new_hdiag = .true.
+nam%displ_diag = .false.
+nam%gau_approx = .true.
+nam%full_var = .false.
+nam%ens1_ne = ne
+nam%ens1_ne_offset = 0
+nam%ens1_nsub = 1
+
+! Call hdiag driver
+call run_hdiag(nam,geom,bpar,bdata_test,ens1)
+
+! Print scores
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- hdiag consistency results'
+do ib=1,bpar%nb+1
+   if (bpar%nicas_block(ib)) then
+      write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
+      do il0=1,geom%nl0
+         write(mpl%unit,'(a10,a7,i3,a4,a25,f6.1,a)') '','Level: ',nam%levs(il0),' ~> ','ensemble coefficient: ', &
+       & sqrt(sum((bdata_test(ib)%coef_ens(:,il0)-bdata(ib)%coef_ens(:,il0))**2)/sum(bdata(ib)%coef_ens(:,il0)**2))*100.0,'%'
+         write(mpl%unit,'(a49,f6.1,a)') 'horizontal length-scale: ', &
+       & sqrt(sum((bdata_test(ib)%rh0(:,il0)-bdata(ib)%rh0(:,il0))**2)/sum(bdata(ib)%rh0(:,il0)**2))*100.0,'%'
+         if (any(abs(bdata(ib)%rv0(:,il0))>0.0)) then
+            write(mpl%unit,'(a49,f6.1,a)') 'vertical length-scale: ', &
+          & sqrt(sum((bdata_test(ib)%rv0(:,il0)-bdata(ib)%rv0(:,il0))**2)/sum(bdata(ib)%rv0(:,il0)**2))*100.0,'%'
+         end if
+      end do
+   end if
+end do
+
+! Reset namelist variables
+nam%prefix = prefix
+nam%method = method
+nam%new_hdiag = new_hdiag
+nam%displ_diag = displ_diag
+nam%gau_approx = gau_approx
+nam%full_var = full_var
+nam%ens1_ne = ens1_ne
+nam%ens1_ne_offset = ens1_ne_offset
+nam%ens1_nsub = ens1_nsub
 
 end subroutine test_hdiag
 

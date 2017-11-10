@@ -11,7 +11,7 @@
 module driver_hdiag
 
 use model_interface, only: model_write
-use module_average, only: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwavg
+use module_average, only: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwgtsq,compute_bwavg
 use module_displacement, only: compute_displacement
 use module_dualens, only: compute_dualens
 use module_fit, only: compute_fit
@@ -20,7 +20,7 @@ use module_localization, only: compute_localization
 use module_moments, only: compute_moments
 use module_sampling, only: setup_sampling
 use netcdf
-use tools_const, only: eigen_init,reqkm
+use tools_const, only: reqkm
 use tools_display, only: vunitchar,prog_init,prog_print,msgerror,msgwarning,aqua,aqua,peach,peach,purple,purple,black
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msr,isnotmsi,isnotmsr,isanynotmsr
@@ -28,7 +28,7 @@ use tools_nc, only: ncerr,ncfloat
 use type_avg, only: avgtype,avg_dealloc
 use type_bdata, only: bdatatype,bdata_alloc,diag_to_bdata,bdata_read,bdata_write
 use type_bpar, only: bpartype
-use type_curve, only: curvetype,curve_alloc,curve_dealloc,curve_write,curve_write_all,curve_write_local
+use type_curve, only: curvetype,curve_alloc,curve_dealloc,curve_normalization,curve_write,curve_write_all,curve_write_local
 use type_displ, only: displtype,displ_alloc,displ_dealloc,displ_write
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
@@ -59,8 +59,7 @@ type(bdatatype),allocatable,intent(inout) :: bdata(:) !< B data
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne)
 
 ! Local variables
-integer :: ib,il0,jl0,ic,ic2,ildw,progint
-logical,allocatable :: done(:)
+integer :: ib,il0,ic2,ildw
 character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
 type(avgtype) :: avg_1(bpar%nb+1),avg_2(bpar%nb+1)
@@ -91,14 +90,6 @@ if (nam%new_hdiag) then
    hdata%geom => geom
    hdata%bpar => bpar
 
-   if (nam%spectrum) then
-      ! Initialize eigendecomposition
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a)') '--- Initialize eigendecomposition'
-   
-      call eigen_init(nam%nc)
-   end if
-
    ! Setup sampling
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
@@ -122,7 +113,7 @@ if (nam%new_hdiag) then
    write(mpl%unit,'(a)') '--- Compute sample moments'
    
    ! Compute ensemble 1 sample moments
-   write(mpl%unit,'(a7,a,i4,a)') '','Ensemble 1:'
+   write(mpl%unit,'(a7,a)') '','Ensemble 1:'
    if (present(ens1)) then
       call compute_moments(hdata,'ens1',displ,mom_1,ens1)
    else
@@ -131,7 +122,7 @@ if (nam%new_hdiag) then
    
    if ((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens')) then
       ! Compute randomized sample moments
-      write(mpl%unit,'(a7,a,i4,a)') '','Ensemble 2:'
+      write(mpl%unit,'(a7,a)') '','Ensemble 2:'
       call compute_moments(hdata,'ens2',displ,mom_2)
    end if
 
@@ -143,12 +134,12 @@ if (nam%new_hdiag) then
    if (nam%local_diag) then
       allocate(avg_1_nc2(hdata%nc2,bpar%nb+1))
       allocate(cor_1_nc2(hdata%nc2,bpar%nb+1))
-      allocate(done(hdata%nc2))
    end if
 
    do ib=1,bpar%nb
       if (bpar%diag_block(ib)) then
          write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
+         write(mpl%unit,'(a7,a)') '','Compute global statistics'
 
          ! Compute global statistics
          call compute_avg(hdata,ib,mom_1(ib),avg_1(ib))
@@ -157,7 +148,7 @@ if (nam%new_hdiag) then
          call compute_avg_asy(hdata,ib,nam%ne,avg_1(ib))
    
          if (nam%local_diag) then             
-            write(mpl%unit,'(a7,a)',advance='no') '','Compute local statistics:'
+            write(mpl%unit,'(a7,a)') '','Compute local statistics'
 
             ! Compute local statistics
             call compute_avg(hdata,ib,mom_1(ib),avg_1_nc2(:,ib))
@@ -206,22 +197,8 @@ if (nam%new_hdiag) then
    end do
 
    if (bpar%diag_block(bpar%nb+1)) then
-      ! Define block weights (inverse variances product)
-      do ib=1,bpar%nb
-         if (bpar%avg_block(ib)) then
-            do jl0=1,geom%nl0
-               do il0=1,geom%nl0
-                  do ic=1,nam%nc
-                     if (avg_1(ib)%m2m2asy(ic,il0,jl0)>0.0) then
-                        hdata%bwgtsq(ic,il0,jl0,ib) = 1.0/avg_1(ib)%m2m2asy(ic,il0,jl0)
-                     else
-                        hdata%bwgtsq(ic,il0,jl0,ib) = 0.0
-                     end if
-                  end do
-               end do
-            end do
-         end if
-      end do
+      ! Define block weights from avg_1
+      call compute_bwgtsq(hdata,avg_1(1:bpar%nb))
 
       ! Compute global block averages
       call compute_bwavg(hdata,avg_1)
@@ -246,22 +223,16 @@ if (nam%new_hdiag) then
    
          ! Copy
          cor_1(ib)%raw = avg_1(ib)%cor
-         do il0=1,geom%nl0
-            cor_1(ib)%raw_coef_ens(il0) = avg_1(ib)%m11(1,min(il0,bpar%nl0(ib)),il0)
-         end do
+         call curve_normalization(hdata,ib,cor_1(ib))
          select case (trim(nam%method))
          case ('hyb-avg')
             cor_2(ib)%raw = avg_1(ib)%cor
-            do il0=1,geom%nl0
-               cor_2(ib)%raw_coef_ens(il0) = avg_1(ib)%m11(1,min(il0,bpar%nl0(ib)),il0)
-            end do
+            call curve_normalization(hdata,ib,cor_2(ib))
          case ('hyb-rnd','dual-ens')
             cor_2(ib)%raw = avg_2(ib)%cor
-            do il0=1,geom%nl0
-               cor_2(ib)%raw_coef_ens(il0) = avg_2(ib)%m11(1,min(il0,bpar%nl0(ib)),il0)
-            end do  
+            call curve_normalization(hdata,ib,cor_2(ib))
          end select
-   
+
          if (nam%local_diag) then
             do ic2=1,hdata%nc2
                ! Allocation
@@ -269,9 +240,7 @@ if (nam%new_hdiag) then
       
                ! Copy
                cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ic2,ib)%cor
-               do il0=1,geom%nl0
-                  cor_1_nc2(ic2,ib)%raw_coef_ens(il0) = avg_1_nc2(ic2,ib)%m11(1,min(il0,bpar%nl0(ib)),il0)
-               end do
+               cor_1_nc2(ic2,ib)%raw_coef_ens = 1.0
             end do
          end if
       end if
@@ -287,12 +256,13 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
    
             ! Compute global fit
-            call compute_fit(hdata,cor_1(ib),norm=1.0_kind_real)
+            write(mpl%unit,'(a7,a)') '','Compute global fit'
+            call compute_fit(hdata,cor_1(ib))
    
             if (nam%local_diag) then
                ! Compute local fit
-               write(mpl%unit,'(a7,a)',advance='no') '','Compute local fit:'
-               call compute_fit(hdata,cor_1_nc2(:,ib),norm=1.0_kind_real)
+               write(mpl%unit,'(a7,a)') '','Compute local fit'
+               call compute_fit(hdata,cor_1_nc2(:,ib))
             end if
    
             ! Print results
@@ -314,8 +284,9 @@ if (nam%new_hdiag) then
             if (bpar%fit_block(ib)) then
                write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
    
-               ! Compute fit
-               call compute_fit(hdata,cor_2(ib),norm=1.0_kind_real)
+               ! Compute global fit
+               write(mpl%unit,'(a7,a)') '','Compute global fit'
+               call compute_fit(hdata,cor_2(ib))
    
                ! Print results
                do il0=1,geom%nl0
@@ -349,16 +320,21 @@ if (nam%new_hdiag) then
                end do
             end if
    
-            ! Compute localization
+            ! Compute global localization
+            write(mpl%unit,'(a7,a)') '','Compute global localization'
             call compute_localization(hdata,ib,avg_1(ib),loc_1(ib))
-            if (nam%local_diag) call compute_localization(hdata,ib,avg_1_nc2(:,ib),loc_1_nc2(:,ib))
+
+            if (nam%local_diag) then
+               ! Compute local localization
+               write(mpl%unit,'(a7,a)') '','Compute local localization'
+               call compute_localization(hdata,ib,avg_1_nc2(:,ib),loc_1_nc2(:,ib))
+            end if
    
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'raw norm.: ',trim(peach),loc_1(ib)%raw_coef_ens(il0),trim(black)
+             & 'diagonal value: ',trim(peach),loc_1(ib)%raw_coef_ens(il0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a)') 'fit norm.: ',trim(peach),loc_1(ib)%fit_coef_ens(il0),trim(black)
                   write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_1(ib)%fit_rh(il0)*reqkm, &
                 & trim(black)//' km  / '//trim(aqua),loc_1(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
                end if
@@ -380,15 +356,15 @@ if (nam%new_hdiag) then
             ! Allocation
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_hyb',loc_2(ib))
    
-            ! Compute static hybridization
+            ! Compute global static hybridization
+            write(mpl%unit,'(a7,a)') '','Compute global static hybridization'
             call compute_hybridization(hdata,ib,avg_1(ib),loc_2(ib))
    
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'raw norm.: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
+             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a)') 'fit norm.: ',trim(peach),loc_2(ib)%fit_coef_ens(il0),trim(black)
                   write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(il0)*reqkm, &
                 & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
                end if
@@ -408,15 +384,15 @@ if (nam%new_hdiag) then
             ! Allocation
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_lr',loc_2(ib))
    
-            ! Compute low-resolution localization
+            ! Compute global low-resolution localization
+            write(mpl%unit,'(a7,a)') '','Compute global low-resolution localization'
             call compute_localization(hdata,ib,avg_2(ib),loc_2(ib))
    
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'raw norm.: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
+             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a)') 'fit norm.: ',trim(peach),loc_2(ib)%fit_coef_ens(il0),trim(black)
                   write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(il0)*reqkm, &
                 & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
                end if
@@ -434,17 +410,16 @@ if (nam%new_hdiag) then
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh',loc_3(ib))
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh_lr',loc_4(ib))
    
-            ! Compute dual-ensemble hybridization
+            ! Compute global dual-ensemble hybridization
+            write(mpl%unit,'(a7,a)') '','Compute global dual-ensemble hybridization'
             call compute_dualens(hdata,ib,avg_1(ib),avg_2(ib),loc_3(ib),loc_4(ib))
    
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'raw norm. (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(il0),trim(black)
-               write(mpl%unit,'(a45,a,f8.2,a)') 'raw norm. (LR): ',trim(peach),loc_4(ib)%raw_coef_ens(il0),trim(black)
+             & 'diagonal value (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(il0),trim(black)
+               write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ',trim(peach),loc_4(ib)%raw_coef_ens(il0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a)') 'fit norm. (HR): ',trim(peach),loc_3(ib)%fit_coef_ens(il0),trim(black)
-                  write(mpl%unit,'(a45,a,f8.2,a)') 'fit norm. (LR): ',trim(peach),loc_4(ib)%fit_coef_ens(il0),trim(black)
                   write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ',trim(aqua),loc_3(ib)%fit_rh(il0)*reqkm, &
                 & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
                   write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ',trim(aqua),loc_4(ib)%fit_rh(il0)*reqkm, &
@@ -455,85 +430,91 @@ if (nam%new_hdiag) then
       end do
    end if
    
-   ! Copy diagnostics into B data
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
-
-   select case (trim(nam%method))
-   case ('cor')
-      do ib=1,bpar%nb+1
-         if (bpar%diag_block(ib)) then
-            if (nam%local_diag) then
-               call diag_to_bdata(hdata,ib,cor_1_nc2(:,ib),bdata(ib))
-            else
-               call diag_to_bdata(hdata,ib,cor_1(ib),bdata(ib))
+   if (trim(nam%fit_type)/='none') then
+      ! Copy diagnostics into B data
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
+   
+      select case (trim(nam%method))
+      case ('cor')
+         do ib=1,bpar%nb+1
+            if (bpar%diag_block(ib)) then
+               if (nam%local_diag) then
+                  call diag_to_bdata(hdata,ib,cor_1_nc2(:,ib),bdata(ib))
+               else
+                  call diag_to_bdata(hdata,ib,cor_1(ib),bdata(ib))
+               end if
             end if
-         end if
-      end do
-   case ('loc')
-      do ib=1,bpar%nb+1
-         if (bpar%diag_block(ib)) then
-            if (nam%local_diag) then
-               call diag_to_bdata(hdata,ib,loc_1_nc2(:,ib),bdata(ib))
-            else
-               call diag_to_bdata(hdata,ib,loc_1(ib),bdata(ib))
+         end do
+      case ('loc')
+         do ib=1,bpar%nb+1
+            if (bpar%diag_block(ib)) then
+               if (nam%local_diag) then
+                  call diag_to_bdata(hdata,ib,loc_1_nc2(:,ib),bdata(ib))
+               else
+                  call diag_to_bdata(hdata,ib,loc_1(ib),bdata(ib))
+               end if
             end if
-         end if
-      end do
-   case default
-      call msgerror('bdata not implemented yet for this method')
-   end select
-
-   ! Write B data
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Write B data'
-
-   do ib=1,bpar%nb+1
-      if (bpar%diag_block(ib)) call bdata_write(bdata(ib))
-   end do
+         end do
+      case default
+         call msgerror('bdata not implemented yet for this method')
+      end select
    
-   ! Write data
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Write data'
+      if (mpl%main) then
+         ! Write B data
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a,i5,a)') '--- Write B data'
    
-   ! Displacement
-   if (nam%displ_diag) call displ_write(hdata,trim(nam%prefix)//'_displ_diag.nc',displ)
-   
-   ! Full variances
-   if (nam%full_var) then
-      filename = trim(nam%prefix)//'_full_var.nc'
-      do ib=1,bpar%nb
-         if (bpar%diag_block(ib)) call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_var', &
-       & sum(mom_1(ib)%m2full,dim=3)/float(mom_1(ib)%nsub))
-      end do
-   end if
-   
-   ! Diagnostics
-   call curve_write_all(hdata,trim(nam%prefix)//'_diag.nc',cor_1,cor_2,loc_1,loc_2,loc_3,loc_4)
-
-   if (nam%local_diag) then  
-      ! Fit support radii maps
-      if (any(bpar%fit_block)) then
-         call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_cor.nc',cor_1_nc2)
-
-         select case (trim(nam%method))
-         case ('loc','hyb-avg','hyb-rnd','dual-ens')
-            call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_loc.nc',loc_1_nc2)
-         end select
+         do ib=1,bpar%nb+1
+            if (bpar%diag_block(ib)) call bdata_write(bdata(ib))
+         end do
       end if
-   
-      ! Local diagnostics
-      do ildw=1,nam%nldwv
-         if (isnotmsi(hdata%nn_ldwv_index(ildw))) then
-            write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
-            write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
-   
-            call curve_write_all(hdata,trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc', &
-          & cor_1_nc2(hdata%nn_ldwv_index(ildw),:),cor_2,loc_1_nc2(hdata%nn_ldwv_index(ildw),:),loc_2,loc_3,loc_4)
-         else
-            call msgwarning('missing local profile')
+   end if
+
+   if (mpl%main) then
+      ! Write data
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Write data'
+      
+      ! Displacement
+      if (nam%displ_diag) call displ_write(hdata,trim(nam%prefix)//'_displ_diag.nc',displ)
+      
+      ! Full variances
+      if (nam%full_var) then
+         filename = trim(nam%prefix)//'_full_var.nc'
+         do ib=1,bpar%nb
+            if (bpar%diag_block(ib)) call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_var', &
+          & sum(mom_1(ib)%m2full,dim=3)/float(mom_1(ib)%nsub))
+         end do
+      end if
+      
+      ! Diagnostics
+      call curve_write_all(hdata,trim(nam%prefix)//'_diag.nc',cor_1,cor_2,loc_1,loc_2,loc_3,loc_4)
+
+      if (nam%local_diag) then  
+         ! Fit support radii maps
+         if (any(bpar%fit_block)) then
+            call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_cor.nc',cor_1_nc2)
+
+            select case (trim(nam%method))
+            case ('loc','hyb-avg','hyb-rnd','dual-ens')
+               call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_loc.nc',loc_1_nc2)
+            end select
          end if
-      end do
+      
+         ! Local diagnostics
+         do ildw=1,nam%nldwv
+            if (isnotmsi(hdata%nn_ldwv_index(ildw))) then
+               write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
+               write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
+      
+               call curve_write_all(hdata,trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc', &
+             & cor_1_nc2(hdata%nn_ldwv_index(ildw),:),cor_2,loc_1_nc2(hdata%nn_ldwv_index(ildw),:),loc_2,loc_3,loc_4)
+            else
+               call msgwarning('missing local profile')
+            end if
+         end do
+      end if
    end if
 elseif (nam%new_param) then
    ! Read B data

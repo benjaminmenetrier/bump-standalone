@@ -13,7 +13,7 @@ module driver_obsop
 use module_mpi_obsop, only: compute_mpi_obsop
 use module_parameters_obsop, only: compute_parameters_obsop
 use module_test_obsop, only: test_adjoint_obsop,test_mpi_obsop,test_mpi_obsop_ad
-use tools_const, only: eigen_init,pi
+use tools_const, only: pi
 use tools_display, only: msgerror
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_geom, only: geomtype

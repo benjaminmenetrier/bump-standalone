@@ -14,7 +14,7 @@ use module_mpi, only: compute_mpi
 use module_normalization, only: compute_normalization
 use module_parameters, only: compute_parameters
 use module_test, only: test_nicas_adjoints,test_nicas_pos_def,test_nicas_mpi,test_nicas_sqrt
-use tools_const, only: eigen_init,pi
+use tools_const, only: pi
 use tools_display, only: msgerror
 use type_bdata, only: bdatatype
 use type_bpar, only: bpartype
@@ -91,10 +91,12 @@ do ib=1,bpar%nb+1
             ndata%coef_ens = bdata(ib)%coef_ens
          end if
 
-         ! Write NICAS parameters
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Write NICAS parameters'
-         call ndata_write(ndata,bpar%nicas_block(ib))
+         if (mpl%main) then
+            ! Write NICAS parameters
+            write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+            write(mpl%unit,'(a)') '--- Write NICAS parameters'
+            call ndata_write(ndata,bpar%nicas_block(ib))
+         end if
       end if
    elseif (nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi) then
       if (bpar%diag_block(ib)) then
@@ -139,7 +141,7 @@ do ib=1,bpar%nb+1
          write(mpl%unit,'(a)') '--- Write NICAS MPI distribution'
          call ndataloc_write(nam,geom,ndataloc(ib),bpar%nicas_block(ib))
       end if
-   elseif (nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi.or.nam%check_dirac.or.nam%check_perf) then
+   elseif (nam%check_adjoints.or.nam%check_mpi.or.nam%check_dirac.or.nam%check_perf.or.nam%check_hdiag) then
       if (bpar%diag_block(ib)) then
          ! Read NICAS MPI distribution
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -174,7 +176,7 @@ do ib=1,bpar%nb+1
          call flush(mpl%unit)
       end if
 
-      if (.true.) then ! TODO
+      if (nam%new_param.and.nam%check_sqrt) then
          ! Test NICAS full/square-root equivalence
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'

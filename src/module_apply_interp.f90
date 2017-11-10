@@ -15,6 +15,7 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msr
 use type_geom, only: geomtype
 use type_linop, only: apply_linop,apply_linop_ad
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype,ndataloctype
 
@@ -58,13 +59,9 @@ associate(nam=>ndata%nam,geom=>ndata%geom)
 
 !$omp parallel do private(is)
 do is=1,ndata%ns
-   if (nam%lsqrt) then
-      ! Internal normalization
-      beta(ndata%is_to_ic2(is),ndata%is_to_il1(is)) = alpha(is)*ndata%norm_sqrt(is)
-   else
-      ! Copy
-      beta(ndata%is_to_ic2(is),ndata%is_to_il1(is)) = alpha(is)
-   end if
+   beta(ndata%is_to_ic2(is),ndata%is_to_il1(is)) = alpha(is)
+   if (nam%lsqrt) beta(ndata%is_to_ic2(is),ndata%is_to_il1(is)) = & 
+ & beta(ndata%is_to_ic2(is),ndata%is_to_il1(is))*ndata%norm_sqrt(is)
 end do
 !$omp end parallel do
 
@@ -125,13 +122,9 @@ real(kind_real) :: gammaT(ndataloc%nl1,ndataloc%nc1b),deltaT(geom%nl0,ndataloc%n
 
 !$omp parallel do private(isb)
 do isb=1,ndataloc%nsb
-   if (nam%lsqrt) then
-      ! Internal normalization
-      beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb)) = alpha(isb)*ndataloc%norm_sqrt(isb)
-   else
-      ! Copy
-      beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb)) = alpha(isb)
-   end if
+   beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb)) = alpha(isb)
+   if (nam%lsqrt) beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb)) = & 
+ & beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb))*ndataloc%norm_sqrt(isb)
 end do
 !$omp end parallel do
 
@@ -221,13 +214,8 @@ end do
 
 !$omp parallel do private(is)
 do is=1,ndata%ns
-   if (nam%lsqrt) then
-      ! Internal normalization
-      alpha(is) = beta(ndata%is_to_ic2(is),ndata%is_to_il1(is))*ndata%norm_sqrt(is)
-   else
-      ! Copy
-      alpha(is) = beta(ndata%is_to_ic2(is),ndata%is_to_il1(is))
-   end if
+   alpha(is) = beta(ndata%is_to_ic2(is),ndata%is_to_il1(is))
+   if (nam%lsqrt) alpha(is) = alpha(is)*ndata%norm_sqrt(is)
 end do
 !$omp end parallel do
 
@@ -289,13 +277,8 @@ end do
 
 !$omp parallel do private(isb)
 do isb=1,ndataloc%nsb
-   if (nam%lsqrt) then
-      ! Internal normalization
-      alpha(isb) = beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb))*ndataloc%norm_sqrt(isb)
-   else
-      ! Copy
-      alpha(isb) = beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb))
-   end if
+   alpha(isb) = beta(ndataloc%isb_to_ic2b(isb),ndataloc%isb_to_il1(isb))
+   if (nam%lsqrt) alpha(isb) = alpha(isb)*ndataloc%norm_sqrt(isb)
 end do
 !$omp end parallel do
 

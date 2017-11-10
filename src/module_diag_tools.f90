@@ -17,8 +17,9 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isnotmsi,isnotmsr,isanynotmsr,isallnotmsr
 use tools_nc, only: ncfloat,ncerr
-use type_linop, only: apply_linop
 use type_hdata, only: hdatatype
+use type_linop, only: apply_linop
+use type_mpl, only: mpl
 implicit none
 
 interface diag_filter
@@ -232,6 +233,9 @@ character(len=1024) :: subr = 'diag_write_2d'
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
+! Processor verification
+if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
+
 ! Check if the file exists
 ierr = nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_noclobber,nf90_64bit_offset),ncid)
 if (ierr/=nf90_noerr) then
@@ -297,6 +301,9 @@ character(len=1024) :: subr = 'diag_write_3d'
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
+
+! Processor verification
+if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Check if the file exists
 ierr = nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_noclobber,nf90_64bit_offset),ncid)

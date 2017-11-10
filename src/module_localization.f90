@@ -60,6 +60,9 @@ do jl0=1,geom%nl0
    end do
 end do
 
+! Normalize localization
+call curve_normalization(hdata,ib,loc)
+
 ! Compute localization fits
 if (bpar%fit_block(ib)) then
    ! Compute fit weight
@@ -68,9 +71,6 @@ if (bpar%fit_block(ib)) then
    ! Compute initial fit
    call compute_fit(hdata,loc)
 end if
-
-! Normalize localization
-call curve_normalization(hdata,ib,loc)
 
 ! End associate
 end associate

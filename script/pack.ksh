@@ -46,15 +46,7 @@ cp -f script/namelist.sqlite pack/script
 
 # Copy src
 mkdir pack/src
-cp -f src/*.f90 pack/src
-cp -f src/*.cpp pack/src
-cp -f src/*.h pack/src
-cp -f src/*.hpp pack/src
-mkdir pack/src/external
-cp -f src/external/*.f90 pack/src/external
-cp -f src/external/*.c pack/src/external
-cp -f src/external/*.cpp pack/src/external
-cp -f src/external/*.h pack/src/external
+cp -fr src/* pack/src
 
 # Copy test
 mkdir pack/test

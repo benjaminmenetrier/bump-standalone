@@ -10,19 +10,11 @@
 i=1
 typeset -RZ4 i
 while [[ ${i} -le 150 ]] ; do
-   if [ $i -lt 1000 ] ; then
-     i3=$i
-     typeset -RZ3 i3
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i3}/ICMSHARPE+0000.nc ens1_00_${i}.nc
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i3}/ICMSHARPE+0003.nc ens1_03_${i}.nc
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i3}/ICMSHARPE+0006.nc ens1_06_${i}.nc
-   else
-     i4=$i
-     typeset -RZ4 i4
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i4}/ICMSHARPE+0000.nc ens1_00_${i}.nc
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i4}/ICMSHARPE+0003.nc ens1_03_${i}.nc
-     ln -sf /scratch/work/menetrie/data/ARPEGE/86SV/20131220H12A/ensemble4D/${i4}/ICMSHARPE+0006.nc ens1_06_${i}.nc
-   fi
+   i3=$i
+   typeset -RZ3 i3
+   ln -sf /scratch/work/menetrie/data/ARPEGE/877D/20170114H00A/ensemble4D/${i3}/ICMSHARPE+0000.nc ens1_00_${i}.nc
+   ln -sf /scratch/work/menetrie/data/ARPEGE/877D/20170114H00A/ensemble4D/${i3}/ICMSHARPE+0003.nc ens1_03_${i}.nc
+   ln -sf /scratch/work/menetrie/data/ARPEGE/877D/20170114H00A/ensemble4D/${i3}/ICMSHARPE+0006.nc ens1_06_${i}.nc
    let i=i+1
 done
 

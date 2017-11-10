@@ -47,8 +47,10 @@ type namtype
    logical :: check_adjoints          !< Test adjoints
    logical :: check_pos_def           !< Test positive definiteness
    logical :: check_mpi               !< Test single proc/multi-procs equivalence
+   logical :: check_sqrt              !< Test full/square-root equivalence
    logical :: check_dirac             !< Test NICAS application on diracs
    logical :: check_perf              !< Test NICAS performance
+   logical :: check_hdiag             !< Test hdiag consistency
    
    ! model_param
    integer :: nl                      !< Number of levels
@@ -95,15 +97,13 @@ type namtype
    real(kind_real) ::  displ_tol                                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
    
    ! fit_param
-   character(len=1024) :: fit_type                      !< Fit type ('none', 'fast' or 'full')
+   character(len=1024) :: fit_type                      !< Fit type ('none', 'fast', 'nelder_mead', 'compass_search' or 'praxis')
    logical :: fit_wgt                                   !< Apply a fit weight given by the curve on which localization is applied
    logical :: lhomh                                     !< Vertically homogenous horizontal support radius
    logical :: lhomv                                     !< Vertically homogenous vertical support radius
    real(kind_real) ::  rvflt                                      !< Vertical smoother support radius
    
    ! output_param
-   logical :: norm_loc                                  !< Normalize localization functions
-   logical :: spectrum                                  !< Compute eigenspectrum
    integer :: nldwh                                     !< Number of local diagnostics fields to write (for local_diag = .true.)
    integer :: il_ldwh(nlmax*ncmax)                      !< Levels of local diagnostics fields to write (for local_diag = .true.)
    integer :: ic_ldwh(nlmax*ncmax)                      !< Classes of local diagnostics fields to write (for local_diag = .true.)
@@ -135,6 +135,7 @@ interface namncwrite_param
   module procedure namncwrite_real_array
   module procedure namncwrite_logical
   module procedure namncwrite_string
+  module procedure namncwrite_string_array
 end interface
 
 private
@@ -161,9 +162,10 @@ integer :: iv
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 integer :: nc1,ntry,nrep,nc,ne,displ_niter,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
 integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax)
-logical :: colorlog,sam_default_seed,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
-logical :: logpres,sam_write,sam_read,spectrum,mask_check,gau_approx,full_var,local_diag,displ_diag
-logical :: fit_wgt,lhomh,lhomv,norm_loc,lsqrt,network
+logical :: colorlog,sam_default_seed
+logical :: new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac,check_perf,check_hdiag
+logical :: logpres,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag,displ_diag
+logical :: fit_wgt,lhomh,lhomv,lsqrt,network
 real(kind_real) :: mask_th,dc,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt
 real(kind_real) :: rh(nlmax),rv(nlmax),resol,londir(ndirmax),latdir(ndirmax)
 character(len=1024) :: datadir,prefix,model,strategy,method,mask_type,fit_type,flt_type
@@ -171,14 +173,15 @@ character(len=1024),dimension(nvmax) :: varname,addvar2d
 
 ! Namelist blocks
 namelist/general_param/datadir,prefix,model,colorlog,sam_default_seed
-namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_mpi,check_dirac,check_perf
+namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac, &
+                    & check_perf,check_hdiag
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc
 namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
 namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt
-namelist/output_param/norm_loc,spectrum,nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
+namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
 namelist/nicas_param/lsqrt,rh,rv,resol,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
 
 ! Default initialization
@@ -198,8 +201,11 @@ new_param = .false.
 new_mpi = .false.
 check_adjoints = .false.
 check_pos_def = .false.
+check_sqrt = .false.
 check_mpi = .false.
 check_dirac = .false.
+check_perf = .false.
+check_hdiag = .false.
 
 ! model_param default
 call msi(nl)
@@ -254,8 +260,6 @@ lhomv = .false.
 call msr(rvflt)
 
 ! output_param default
-norm_loc = .false.
-spectrum = .false.
 call msi(nldwh)
 call msi(il_ldwh)
 call msi(ic_ldwh)
@@ -300,8 +304,10 @@ if (mpl%main) then
    nam%check_adjoints = check_adjoints
    nam%check_pos_def = check_pos_def
    nam%check_mpi = check_mpi
+   nam%check_sqrt = check_sqrt
    nam%check_dirac = check_dirac
    nam%check_perf = check_perf
+   nam%check_hdiag = check_hdiag
 
    ! model_param
    read(*,nml=model_param)
@@ -362,8 +368,6 @@ if (mpl%main) then
 
    ! output_param
    read(*,nml=output_param)
-   nam%norm_loc = norm_loc
-   nam%spectrum = spectrum
    nam%nldwh = nldwh
    nam%il_ldwh = il_ldwh
    nam%ic_ldwh = ic_ldwh
@@ -407,8 +411,10 @@ call mpl_bcast(nam%new_mpi,mpl%ioproc)
 call mpl_bcast(nam%check_adjoints,mpl%ioproc)
 call mpl_bcast(nam%check_pos_def,mpl%ioproc)
 call mpl_bcast(nam%check_mpi,mpl%ioproc)
+call mpl_bcast(nam%check_sqrt,mpl%ioproc)
 call mpl_bcast(nam%check_dirac,mpl%ioproc)
 call mpl_bcast(nam%check_perf,mpl%ioproc)
+call mpl_bcast(nam%check_hdiag,mpl%ioproc)
 
 ! model_param
 call mpl_bcast(nam%nl,mpl%ioproc)
@@ -462,8 +468,6 @@ call mpl_bcast(nam%lhomv,mpl%ioproc)
 call mpl_bcast(nam%rvflt,mpl%ioproc)
 
 ! output_param
-call mpl_bcast(nam%norm_loc,mpl%ioproc)
-call mpl_bcast(nam%spectrum,mpl%ioproc)
 call mpl_bcast(nam%nldwh,mpl%ioproc)
 call mpl_bcast(nam%il_ldwh,mpl%ioproc)
 call mpl_bcast(nam%ic_ldwh,mpl%ioproc)
@@ -527,6 +531,12 @@ end select
 if (nam%new_param.and.(.not.nam%new_mpi)) then
    call msgwarning('new parameters calculation implies new MPI splitting, resetting new_mpi to .true.')
    nam%new_mpi = .true.
+end if
+if (nam%check_sqrt.and.(.not.nam%new_param)) call msgerror('square-root check requires new parameters calculation')
+if (nam%check_hdiag) then
+   if (.not.nam%new_hdiag) call msgerror('new_hdiag required for check_hdiag')
+   if (.not.nam%new_param) call msgerror('new_param required for check_hdiag')
+   if (.not.nam%lsqrt) call msgerror('lsqrt required for check_hdiag')
 end if
 
 ! Check model_param
@@ -595,7 +605,7 @@ if (nam%new_hdiag) then
    
    ! Check fit_param
    select case (trim(nam%fit_type))
-   case ('none','fast','full')
+   case ('none','fast','nelder_mead','compass_search','praxis')
    case default
       call msgerror('wrong fit_type')
    end select
@@ -633,6 +643,9 @@ if (nam%new_hdiag) then
 end if
 
 ! Check nicas_param
+if (nam%lsqrt) then
+   if (nam%mpicom==1) call msgerror('mpicom should be 2 for square-root application')
+end if
 if (nam%new_param) then
    if (.not.(nam%resol>0.0)) call msgerror('resol should be positive')
 end if
@@ -667,39 +680,101 @@ implicit none
 type(namtype),intent(in) :: nam !< Namelist variables
 integer,intent(in) :: ncid !< NetCDF file id
 
-! TODO
-
 ! general_param
-call namncwrite_param(ncid,'general_param_datadir',trim(nam%datadir))
-call namncwrite_param(ncid,'general_param_prefix',trim(nam%prefix))
-call namncwrite_param(ncid,'general_param_colorlog',nam%colorlog)
-call namncwrite_param(ncid,'general_param_model',trim(nam%model))
-call namncwrite_param(ncid,'general_param_nl',nam%nl)
-call namncwrite_param(ncid,'general_param_levs',nam%nl,nam%levs)
-call namncwrite_param(ncid,'general_param_new_param',nam%new_param)
-call namncwrite_param(ncid,'general_param_new_mpi',nam%new_mpi)
-call namncwrite_param(ncid,'general_param_check_adjoints',nam%check_adjoints)
-call namncwrite_param(ncid,'general_param_check_pos_def',nam%check_pos_def)
-call namncwrite_param(ncid,'general_param_check_mpi',nam%check_mpi)
-call namncwrite_param(ncid,'general_param_check_dirac',nam%check_dirac)
-call namncwrite_param(ncid,'general_param_ndir',nam%ndir)
-call namncwrite_param(ncid,'general_param_londir',nam%ndir,nam%londir)
-call namncwrite_param(ncid,'general_param_latdir',nam%ndir,nam%latdir)
+call namncwrite_param(ncid,'datadir',trim(nam%datadir))
+call namncwrite_param(ncid,'prefix',trim(nam%prefix))
+call namncwrite_param(ncid,'model',trim(nam%model))
+call namncwrite_param(ncid,'colorlog',nam%colorlog)
+call namncwrite_param(ncid,'sam_default_seed',nam%sam_default_seed)
+
+! driver_param
+call namncwrite_param(ncid,'method',trim(nam%method))
+call namncwrite_param(ncid,'strategy',trim(nam%strategy))
+call namncwrite_param(ncid,'check_hdiag',nam%check_hdiag)
+call namncwrite_param(ncid,'new_param',nam%new_param)
+call namncwrite_param(ncid,'new_mpi',nam%new_mpi)
+call namncwrite_param(ncid,'check_adjoints',nam%check_adjoints)
+call namncwrite_param(ncid,'check_pos_def',nam%check_pos_def)
+call namncwrite_param(ncid,'check_mpi',nam%check_mpi)
+call namncwrite_param(ncid,'check_sqrt',nam%check_sqrt)
+call namncwrite_param(ncid,'check_dirac',nam%check_dirac)
+call namncwrite_param(ncid,'check_perf',nam%check_perf)
+call namncwrite_param(ncid,'check_hdiag',nam%check_hdiag)
+
+! model_param
+call namncwrite_param(ncid,'nl',nam%nl)
+call namncwrite_param(ncid,'levs',nam%nl,nam%levs(1:nam%nl))
+call namncwrite_param(ncid,'logpres',nam%logpres)
+call namncwrite_param(ncid,'nv',nam%nv)
+call namncwrite_param(ncid,'varname',nam%nv,nam%varname(1:nam%nv))
+call namncwrite_param(ncid,'addvar2d',nam%nv,nam%addvar2d(1:nam%nv))
+call namncwrite_param(ncid,'nts',nam%nts)
+call namncwrite_param(ncid,'timeslot',nam%nts,nam%timeslot(1:nam%nts))
+
+! ens1_param
+call namncwrite_param(ncid,'ens1_ne',nam%ens1_ne)
+call namncwrite_param(ncid,'ens1_ne_offset',nam%ens1_ne_offset)
+call namncwrite_param(ncid,'ens1_nsub',nam%ens1_nsub)
+
+! ens2_param
+call namncwrite_param(ncid,'ens2_ne',nam%ens2_ne)
+call namncwrite_param(ncid,'ens2_ne_offset',nam%ens2_ne_offset)
+call namncwrite_param(ncid,'ens2_nsub',nam%ens2_nsub)
 
 ! sampling_param
-call namncwrite_param(ncid,'sampling_param_sam_default_seed',nam%sam_default_seed)
-call namncwrite_param(ncid,'sampling_param_mask_check',nam%mask_check)
-call namncwrite_param(ncid,'sampling_param_ntry',nam%ntry)
-call namncwrite_param(ncid,'sampling_param_nrep',nam%nrep)
-call namncwrite_param(ncid,'sampling_param_logpres',nam%logpres)
+call namncwrite_param(ncid,'sam_write',nam%sam_write)
+call namncwrite_param(ncid,'sam_read',nam%sam_read)
+call namncwrite_param(ncid,'mask_type',nam%mask_type)
+call namncwrite_param(ncid,'mask_th',nam%mask_th)
+call namncwrite_param(ncid,'mask_check',nam%mask_check)
+call namncwrite_param(ncid,'nc1',nam%nc1)
+call namncwrite_param(ncid,'ntry',nam%ntry)
+call namncwrite_param(ncid,'nrep',nam%nrep)
+call namncwrite_param(ncid,'nc',nam%nc)
+call namncwrite_param(ncid,'dc',nam%dc)
+
+! diag_param
+call namncwrite_param(ncid,'ne',nam%ne)
+call namncwrite_param(ncid,'gau_approx',nam%gau_approx)
+call namncwrite_param(ncid,'full_var',nam%full_var)
+call namncwrite_param(ncid,'local_diag',nam%local_diag)
+call namncwrite_param(ncid,'local_rad',nam%local_rad)
+call namncwrite_param(ncid,'displ_diag',nam%displ_diag)
+call namncwrite_param(ncid,'displ_rad',nam%displ_rad)
+call namncwrite_param(ncid,'displ_niter',nam%displ_niter)
+call namncwrite_param(ncid,'displ_rhflt',nam%displ_rhflt)
+call namncwrite_param(ncid,'displ_tol',nam%displ_tol)
+
+! fit_param
+call namncwrite_param(ncid,'fit_type',nam%fit_type)
+call namncwrite_param(ncid,'fit_wgt',nam%fit_wgt)
+call namncwrite_param(ncid,'lhomh',nam%lhomh)
+call namncwrite_param(ncid,'lhomv',nam%lhomv)
+call namncwrite_param(ncid,'rvflt',nam%rvflt)
+
+! output_param
+call namncwrite_param(ncid,'nldwh',nam%nldwh)
+call namncwrite_param(ncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
+call namncwrite_param(ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
+call namncwrite_param(ncid,'nldwv',nam%nldwv)
+call namncwrite_param(ncid,'lon_ldwv',nam%nldwv,nam%lon_ldwv(1:nam%nldwv))
+call namncwrite_param(ncid,'lat_ldwv',nam%nldwv,nam%lat_ldwv(1:nam%nldwv))
+call namncwrite_param(ncid,'flt_type',nam%flt_type)
+call namncwrite_param(ncid,'diag_rhflt',nam%diag_rhflt)
 
 ! nicas_param
-call namncwrite_param(ncid,'nicas_param_lsqrt',nam%lsqrt)
-call namncwrite_param(ncid,'nicas_param_rh',nam%nl,nam%rh)
-call namncwrite_param(ncid,'nicas_param_rv',nam%nl,nam%rv)
-call namncwrite_param(ncid,'nicas_param_resol',nam%resol)
-call namncwrite_param(ncid,'nicas_param_network',nam%network)
-call namncwrite_param(ncid,'nicas_param_mpicom',nam%mpicom)
+call namncwrite_param(ncid,'lsqrt',nam%lsqrt)
+call namncwrite_param(ncid,'rh',nam%nl,nam%rh(1:nam%nl))
+call namncwrite_param(ncid,'rv',nam%nl,nam%rv(1:nam%nl))
+call namncwrite_param(ncid,'resol',nam%resol)
+call namncwrite_param(ncid,'network',nam%network)
+call namncwrite_param(ncid,'mpicom',nam%mpicom)
+call namncwrite_param(ncid,'ndir',nam%ndir)
+call namncwrite_param(ncid,'londir',nam%ndir,nam%londir(1:nam%ndir))
+call namncwrite_param(ncid,'latdir',nam%ndir,nam%latdir(1:nam%ndir))
+call namncwrite_param(ncid,'levdir',nam%ndir,nam%levdir(1:nam%ndir))
+call namncwrite_param(ncid,'ivdir',nam%ndir,nam%ivdir(1:nam%ndir))
+call namncwrite_param(ncid,'itsdir',nam%ndir,nam%itsdir(1:nam%ndir))
 
 end subroutine namncwrite
 
@@ -852,5 +927,35 @@ character(len=1024) :: subr='namncwrite_string'
 call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(var)))
 
 end subroutine namncwrite_string
+
+!----------------------------------------------------------------------
+! Subroutine: namncwrite_string_array
+!> Purpose: write namelist string array as NetCDF attribute
+!----------------------------------------------------------------------
+subroutine namncwrite_string_array(ncid,varname,n,var)
+
+implicit none
+
+! Passed variables
+integer,intent(in) :: ncid             !< NetCDF file id
+character(len=*),intent(in) :: varname !< Variable name
+integer,intent(in) :: n                !< String array size
+character(len=*),intent(in) :: var(n)  !< String array
+
+! Local variables
+integer :: i
+character(len=1024) :: fullstr
+character(len=1024) :: subr='namncwrite_string_array'
+
+! Write string array
+if (n>0) then
+   fullstr = trim(var(1))
+   do i=2,n
+      fullstr = trim(fullstr)//':'//trim(var(i))
+   end do
+   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(fullstr)))
+end if
+
+end subroutine namncwrite_string_array
 
 end module type_nam

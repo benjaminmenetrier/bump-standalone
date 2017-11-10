@@ -78,6 +78,9 @@ do jl0=1,geom%nl0
    end do
 end do
 
+! Normalize hybridization
+call curve_normalization(hdata,ib,loc_hyb)
+
 ! Compute hybridization fits
 if (bpar%fit_block(ib)) then
    ! Compute fit weight
@@ -86,9 +89,6 @@ if (bpar%fit_block(ib)) then
    ! Compute initial fit
    call compute_fit(hdata,loc_hyb)
 end if
-
-! Normalize hybridization
-call curve_normalization(hdata,ib,loc_hyb)
 
 ! End associate
 end associate

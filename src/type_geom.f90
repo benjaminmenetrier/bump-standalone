@@ -173,7 +173,7 @@ end if
 ! Vertical distance
 do jl0=1,geom%nl0
    do il0=1,geom%nl0
-      geom%distv(il0,jl0) = abs(geom%vunit(jl0)-geom%vunit(il0))
+      geom%distv(il0,jl0) = abs(geom%vunit(il0)-geom%vunit(jl0))
    end do
 end do
 

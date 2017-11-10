@@ -197,7 +197,7 @@ call msr(ndata%norm)
 ! Compute normalization weights
 do il0=1,geom%nl0
    il0i = min(il0,geom%nl0i)
-   write(mpl%unit,'(a7,a,i3,a)',advance='no') '','Level ',il0,': '
+   write(mpl%unit,'(a7,a,i3,a)',advance='no') '','Level ',nam%levs(il0),': '
    call prog_init(progint,done)
  
    !$omp parallel do private(ic0_loc,ic0,is_list,order,S_list,S_list_tmp,valid_list_tmp,nlr) &

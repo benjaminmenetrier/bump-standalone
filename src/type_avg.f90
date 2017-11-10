@@ -13,12 +13,14 @@ module type_avg
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_hdata, only: hdatatype
+use type_mpl, only: mpl
 implicit none
 
 ! Averaged statistics derived type
 type avgtype
    integer :: ne                                !< Ensemble size
    integer :: nsub                              !< Sub-ensembles number
+   integer :: npack                             !< Pack format size
    real(kind_real),allocatable :: m11(:,:,:)               !< Covariance average
    real(kind_real),allocatable :: m11m11(:,:,:,:,:)        !< Product of covariances average
    real(kind_real),allocatable :: m2m2(:,:,:,:,:)          !< Product of variances average
@@ -36,7 +38,7 @@ end type avgtype
 
 private
 public :: avgtype
-public :: avg_alloc,avg_dealloc
+public :: avg_alloc,avg_dealloc,avg_pack,avg_unpack
 
 contains
 
@@ -60,11 +62,11 @@ associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 allocate(avg%m11(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 allocate(avg%m11m11(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub,avg%nsub))
 allocate(avg%m2m2(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub,avg%nsub))
-allocate(avg%m22(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub))
+if (.not.nam%gau_approx) allocate(avg%m22(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub))
 allocate(avg%cor(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 allocate(avg%m11asysq(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 allocate(avg%m2m2asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
-allocate(avg%m22asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+if (.not.nam%gau_approx) allocate(avg%m22asy(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 allocate(avg%m11sq(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
@@ -76,14 +78,16 @@ case ('dual-ens')
 end select
 
 ! Initialization
+avg%npack = (2+2*avg%nsub**2)*bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0
+if (.not.nam%gau_approx) avg%npack = avg%npack+avg%nsub*bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0
 call msr(avg%m11)
 call msr(avg%m11m11)
 call msr(avg%m2m2)
-call msr(avg%m22)
+if (.not.nam%gau_approx) call msr(avg%m22)
 call msr(avg%cor)
 call msr(avg%m11asysq)
 call msr(avg%m2m2asy)
-call msr(avg%m22asy)
+if (.not.nam%gau_approx) call msr(avg%m22asy)
 call msr(avg%m11sq)
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
@@ -118,11 +122,11 @@ associate(nam=>hdata%nam)
 deallocate(avg%m11)
 deallocate(avg%m11m11)
 deallocate(avg%m2m2)
-deallocate(avg%m22)
+if (.not.nam%gau_approx) deallocate(avg%m22)
 deallocate(avg%cor)
 deallocate(avg%m11asysq)
 deallocate(avg%m2m2asy)
-deallocate(avg%m22asy)
+if (.not.nam%gau_approx) deallocate(avg%m22asy)
 deallocate(avg%m11sq)
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
@@ -137,5 +141,92 @@ end select
 end associate
 
 end subroutine avg_dealloc
+
+!----------------------------------------------------------------------
+! Subroutine: avg_pack
+!> Purpose: averaged statistics object packing
+!----------------------------------------------------------------------
+subroutine avg_pack(hdata,ib,avg,buf)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata
+integer,intent(in) :: ib
+type(avgtype),intent(in) :: avg !< Averaged statistics
+real(kind_real),intent(out) :: buf(avg%npack)
+
+! Local variables
+integer :: offset
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
+
+! Pack
+offset = 0
+buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0) = pack(avg%m11,.true.)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0
+buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2) = pack(avg%m11m11,.true.)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2
+buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2) = pack(avg%m2m2,.true.)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2
+if (.not.nam%gau_approx) then
+   buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub) = pack(avg%m22,.true.)
+   offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub
+end if
+buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0) = pack(avg%cor,.true.)
+
+! End associate
+end associate
+
+end subroutine avg_pack
+
+!----------------------------------------------------------------------
+! Subroutine: avg_unpack
+!> Purpose: averaged statistics object unpacking
+!----------------------------------------------------------------------
+subroutine avg_unpack(hdata,ib,avg,buf)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata
+integer,intent(in) :: ib
+type(avgtype),intent(inout) :: avg !< Averaged statistics
+real(kind_real),intent(in) :: buf(avg%npack)
+
+! Local variables
+integer :: offset
+logical,allocatable :: mask_0(:,:,:),mask_1(:,:,:,:),mask_2(:,:,:,:,:)
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
+
+! Allocation
+allocate(mask_0(bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+if (.not.nam%gau_approx) allocate(mask_1(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub))
+allocate(mask_2(bpar%icmax(ib),bpar%nl0(ib),geom%nl0,avg%nsub,avg%nsub))
+mask_0 = .true.
+if (.not.nam%gau_approx) mask_1 = .true.
+mask_2 = .true.
+
+! Unpack
+offset = 0
+avg%m11 = unpack(buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0),mask_0,avg%m11)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0
+avg%m11m11 = unpack(buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2),mask_2,avg%m11m11)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2
+avg%m2m2 = unpack(buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2),mask_2,avg%m2m2)
+offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub**2
+if (.not.nam%gau_approx) then
+   avg%m22 = unpack(buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub),mask_1,avg%m22)
+   offset = offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0*avg%nsub
+end if
+avg%cor = unpack(buf(offset+1:offset+bpar%icmax(ib)*bpar%nl0(ib)*geom%nl0),mask_0,avg%cor)
+
+! End associate
+end associate
+
+end subroutine avg_unpack
 
 end module type_avg

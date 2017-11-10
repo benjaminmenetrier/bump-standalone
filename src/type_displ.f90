@@ -13,11 +13,13 @@ module type_displ
 use model_interface, only: model_write
 use netcdf
 use tools_const, only: rad2deg
+use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncfloat,ncerr
 use type_hdata, only: hdatatype
 use type_linop, only: linoptype,linop_dealloc
+use type_mpl, only: mpl
 use type_nam, only: namncwrite
 
 implicit none
@@ -141,13 +143,21 @@ character(len=1024) :: subr = 'displ_write'
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
+! Processor verification
+if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
+
+! Create file
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 call namncwrite(nam,ncid)
+
+! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nts',nam%nts-1,nts_id))
 call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_1_id))
 call ncerr(subr,nf90_def_dim(ncid,'na',3*hdata%nc2-6,na_id))
 call ncerr(subr,nf90_def_dim(ncid,'two',2,two_id))
 call ncerr(subr,nf90_def_dim(ncid,'niter',nam%displ_niter+1,displ_niter_id))
+
+! Define arrays
 call ncerr(subr,nf90_def_var(ncid,'vunit',ncfloat,(/nl0_1_id/),vunit_id))
 call ncerr(subr,nf90_def_var(ncid,'larc',nf90_int,(/two_id,na_id/),larc_id))
 call ncerr(subr,nf90_put_att(ncid,larc_id,'_FillValue',msvali))
@@ -161,12 +171,17 @@ call ncerr(subr,nf90_put_att(ncid,rhflt_id,'_FillValue',msvalr))
 ! End definition mode
 call ncerr(subr,nf90_enddef(ncid))
 
+! Write arrays
 call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit))
 call ncerr(subr,nf90_put_var(ncid,larc_id,hdata%larc))
 call ncerr(subr,nf90_put_var(ncid,valid_id,displ%valid))
 call ncerr(subr,nf90_put_var(ncid,dist_id,displ%dist))
 call ncerr(subr,nf90_put_var(ncid,rhflt_id,displ%rhflt))
+
+! Close file
 call ncerr(subr,nf90_close(ncid))
+
+! Write displacement
 do its=2,nam%nts
    write(itschar,'(i2.2)') its
    call model_write(nam,geom,filename,itschar//'_dlon_raw',displ%dlon_raw(:,:,its))

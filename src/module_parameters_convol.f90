@@ -24,8 +24,9 @@ use type_randgen, only: initialize_sampling
 
 implicit none
 
-real(kind_real),parameter :: S_inf = 1.0e-2  !< Minimum value for the convolution coefficients
-real(kind_real) :: deform = 0.0              !< Deformation coefficient (maximum absolute value: -0.318)
+real(kind_real),parameter :: sqrt_fac = 0.721 !< Square-root factor (empirical)
+real(kind_real),parameter :: S_inf = 1.0e-2   !< Minimum value for the convolution coefficients
+real(kind_real),parameter :: deform = 0.0     !< Deformation coefficient (maximum absolute value: -0.318)
 
 private
 public :: compute_convol_network,compute_convol_distance
@@ -175,7 +176,7 @@ do is_loc=1,ns_loc(mpl%myproc)
                   distnorm = distnorm+deform*sin(pi*distnorm)
 
                   ! Square-root
-                  if (nam%lsqrt) distnorm = distnorm*sqrt(2.0)
+                  if (nam%lsqrt) distnorm = distnorm/sqrt_fac
 
                   ! Gaspari-Cohn (1999) function
                   S_test = gc99(distnorm)
@@ -388,7 +389,7 @@ do is_loc=1,ns_loc(mpl%myproc)
                   distnorm = distnorm+deform*sin(pi*distnorm)
 
                   ! Square-root
-                  if (nam%lsqrt) distnorm = distnorm*sqrt(2.0)
+                  if (nam%lsqrt) distnorm = distnorm/sqrt_fac
 
                   ! Gaspari-Cohn (1999) function
                   S_test = gc99(distnorm)

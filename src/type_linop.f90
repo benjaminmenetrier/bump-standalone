@@ -41,7 +41,7 @@ interface linop_write
   module procedure linop_write_array
 end interface
 
-logical :: check_data = .true. !< Activate data check for all linear operations
+logical :: check_data = .false. !< Activate data check for all linear operations
 
 private
 public :: linoptype

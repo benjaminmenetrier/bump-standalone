@@ -69,6 +69,10 @@ do jl0=1,geom%nl0
    end do
 end do
 
+! Normalize dual-ensemble hybridization
+call curve_normalization(hdata,ib,loc_deh)
+call curve_normalization(hdata,ib,loc_deh_lr)
+
 ! Compute dual-ensemble hybridization fits
 if (bpar%fit_block(ib)) then
    ! Compute fit weight
@@ -81,10 +85,6 @@ if (bpar%fit_block(ib)) then
    call compute_fit(hdata,loc_deh)
    call compute_fit(hdata,loc_deh_lr)
 end if
-
-! Normalize dual-ensemble hybridization
-call curve_normalization(hdata,ib,loc_deh)
-call curve_normalization(hdata,ib,loc_deh_lr)
 
 ! End associate
 end associate

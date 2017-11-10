@@ -16,9 +16,9 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
 use tools_qsort, only: qsort
-use type_avg, only: avgtype,avg_alloc
+use type_avg, only: avgtype,avg_alloc,avg_pack,avg_unpack
 use type_mom, only: momtype
-use type_mpl, only: mpl
+use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast
 use type_hdata, only: hdatatype
 implicit none
 
@@ -36,7 +36,7 @@ interface compute_bwavg
 end interface
 
 private
-public :: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwavg
+public :: compute_avg,compute_avg_lr,compute_avg_asy,compute_bwgtsq,compute_bwavg
 
 contains
 
@@ -64,14 +64,9 @@ logical :: valid
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
-! Copy ensemble size
-avg%ne = mom%ne
-avg%nsub = mom%nsub
-
-! Allocation
-call avg_alloc(hdata,ib,avg)
-
 ! Average
+!$omp parallel do schedule(static) private(jl0,il0,nc1max,list_m11,list_m11m11,list_m2m2,list_m22,list_cor,ic,jc1,ic1), &
+!$omp&                             private(valid,m2m2,jsub,isub)
 do jl0=1,geom%nl0
    do il0=1,bpar%nl0(ib)
       ! Allocation
@@ -138,6 +133,7 @@ do jl0=1,geom%nl0
       deallocate(list_cor) 
    end do
 end do
+!$omp end parallel do
 
 ! End associate
 end associate
@@ -157,6 +153,13 @@ type(hdatatype),intent(in) :: hdata !< Sampling data
 integer,intent(in) :: ib            !< Block index
 type(momtype),intent(in) :: mom     !< Moments
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
+
+! Copy ensemble size
+avg%ne = mom%ne
+avg%nsub = mom%nsub
+
+! Allocation
+call avg_alloc(hdata,ib,avg)
 
 ! Loop over points
 call compute_avg_single(hdata,ib,mom,0,avg)
@@ -178,14 +181,82 @@ type(momtype),intent(in) :: mom                !< Moments
 type(avgtype),intent(inout) :: avg(hdata%nc2)  !< Averaged statistics
 
 ! Local variables
-integer :: ic2
+integer :: ic2,npack
+integer :: iproc,ic2_s(mpl%nproc),ic2_e(mpl%nproc),nc2_loc(mpl%nproc),ic2_loc
+real(kind_real),allocatable :: rbuf(:),sbuf(:)
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom)
+
+do ic2=1,hdata%nc2
+   ! Copy ensemble size
+   avg(ic2)%ne = mom%ne
+   avg(ic2)%nsub = mom%nsub
+
+   ! Allocation
+   call avg_alloc(hdata,ib,avg(ic2))
+end do
+
+! MPI splitting
+do iproc=1,mpl%nproc
+   ic2_s(iproc) = (iproc-1)*(hdata%nc2/mpl%nproc+1)+1
+   ic2_e(iproc) = min(iproc*(hdata%nc2/mpl%nproc+1),hdata%nc2)
+   nc2_loc(iproc) = ic2_e(iproc)-ic2_s(iproc)+1
+end do
 
 ! Loop over points
-!$omp parallel do private(ic2)
-do ic2=1,hdata%nc2
+do ic2_loc=1,nc2_loc(mpl%myproc)
+   ic2 = ic2_s(mpl%myproc)+ic2_loc-1
    call compute_avg_single(hdata,ib,mom,ic2,avg(ic2))
 end do
-!$omp end parallel do
+
+! Allocation
+npack = avg(ic2_s(mpl%myproc))%npack
+allocate(rbuf(hdata%nc2*npack))
+
+! Communication
+if (mpl%main) then 
+   do iproc=1,mpl%nproc
+      if (iproc==mpl%ioproc) then
+         ! Format data
+         do ic2_loc=1,nc2_loc(iproc)
+            ic2 = ic2_s(iproc)+ic2_loc-1
+            call avg_pack(hdata,ib,avg(ic2),rbuf((ic2-1)*npack+1:ic2*npack))
+         end do
+      else
+         ! Receive data on ioproc
+         call mpl_recv(nc2_loc(iproc)*npack, &
+       & rbuf((ic2_s(iproc)-1)*npack+1:ic2_e(iproc)*npack),iproc,mpl%tag)
+      end if
+   end do
+else
+   ! Allocation
+   allocate(sbuf(nc2_loc(mpl%myproc)*npack))
+
+   ! Format data
+   do ic2_loc=1,nc2_loc(mpl%myproc)
+      ic2 = ic2_s(mpl%myproc)+ic2_loc-1
+      call avg_pack(hdata,ib,avg(ic2),sbuf((ic2_loc-1)*npack+1:ic2_loc*npack))
+   end do
+
+   ! Send data to ioproc
+   call mpl_send(nc2_loc(mpl%myproc)*npack,sbuf,mpl%ioproc,mpl%tag)
+
+   ! Release memory
+   deallocate(sbuf)
+end if
+mpl%tag = mpl%tag+1
+
+! Broadcast data
+call mpl_bcast(rbuf,mpl%ioproc)
+
+! Format data
+do ic2=1,hdata%nc2
+   call avg_unpack(hdata,ib,avg(ic2),rbuf((ic2-1)*npack+1:ic2*npack))
+end do
+
+! End associate
+end associate
 
 end subroutine compute_avg_local
 
@@ -380,6 +451,46 @@ end do
 end subroutine compute_avg_asy_local
 
 !----------------------------------------------------------------------
+! Subroutine: compute_bwgtsq
+!> Purpose: compute block squared weights
+!----------------------------------------------------------------------
+subroutine compute_bwgtsq(hdata,avg)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(inout) :: hdata              !< Sampling data
+type(avgtype),intent(in) :: avg(hdata%bpar%nb) !< Averaged statistics
+
+! Local variables
+integer :: ib,jl0,il0,ic
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
+
+! Weight = inverse variance
+do ib=1,bpar%nb
+   if (bpar%avg_block(ib)) then
+      do jl0=1,geom%nl0
+         do il0=1,geom%nl0
+            do ic=1,nam%nc
+               if (avg(ib)%m2m2asy(ic,il0,jl0)>0.0) then
+                  hdata%bwgtsq(ic,il0,jl0,ib) = 1.0/avg(ib)%m2m2asy(ic,il0,jl0)
+               else
+                  hdata%bwgtsq(ic,il0,jl0,ib) = 0.0
+               end if
+            end do
+         end do
+      end do
+   end if
+end do
+
+! End associate
+end associate
+
+end subroutine compute_bwgtsq
+
+!----------------------------------------------------------------------
 ! Subroutine: compute_bwavg
 !> Purpose: compute block-averaged statistics
 !----------------------------------------------------------------------
@@ -511,6 +622,7 @@ integer :: ic2
 ! Loop over points
 !$omp parallel do private(ic2)
 do ic2=1,hdata%nc2
+   ! TODO: rotate input array
    call compute_bwavg(hdata,avg(ic2,:))
 end do 
 !$omp end parallel do

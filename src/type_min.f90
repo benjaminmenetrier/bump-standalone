@@ -28,14 +28,11 @@ type mintype
    integer :: nx
    integer :: ny
    real(kind_real),allocatable :: x(:)           !< Control vector
-   real(kind_real),allocatable :: guess(:)           !< Control vector
+   real(kind_real),allocatable :: guess(:)           !< Control vector guess
    real(kind_real),allocatable :: binf(:)        !< Control vector lower bound
    real(kind_real),allocatable :: bsup(:)        !< Control vector lower bound
    real(kind_real),allocatable :: obs(:)           !< Control vector
-   real(kind_real),allocatable :: wgt(:)         !< Weight
-
-   ! Specific data
-   logical :: lnorm
+   real(kind_real) :: f_guess                 !< Guess cost
 end type mintype
 
 private

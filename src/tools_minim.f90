@@ -10,14 +10,23 @@
 !----------------------------------------------------------------------
 module tools_minim
 
+use tools_asa047, only: nelmin
+use tools_compass_search, only: compass_search
+use tools_display, only: msgwarning
 use tools_kinds, only: kind_real
-use tools_asa007, only: syminv
+use tools_praxis, only: praxis
 use type_min, only: mintype
+use type_mpl, only: mpl
+
 implicit none
 
-! Minimization parameter
-integer,parameter :: niterout = 10
-integer,parameter :: niterin = 30
+! Minimization parameters
+real(kind_real),parameter :: reqmin = 1.0e-8
+integer,parameter :: konvge = 10
+integer,parameter :: kcount = 1000
+real(kind_real),parameter :: delta_tol = 1.0e-3
+integer,parameter :: k_max = 500
+real(kind_real),parameter :: t0 = 1.0e-3
 
 private
 public :: minim
@@ -28,7 +37,7 @@ contains
 ! subroutine: minim
 !> Purpose: minimize ensuring bounds constraints
 !----------------------------------------------------------------------
-subroutine minim(mindata,func,jacobian)
+subroutine minim(mindata,func)
 
 implicit none
 
@@ -39,98 +48,60 @@ interface
    use tools_kinds, only: kind_real
    use type_min, only: mintype
    type(mintype),intent(in) :: mindata
-   real(kind_real),intent(in) :: x(mindata%nx)
-   real(kind_real),intent(out) :: f(mindata%ny)
-   end subroutine
-end interface
-interface
-   subroutine jacobian(mindata,x,jac)
-   use tools_kinds, only: kind_real
-   use type_min, only: mintype
-   type(mintype),intent(in) :: mindata
-   real(kind_real),intent(in) :: x(mindata%nx)
-   real(kind_real),intent(out) :: jac(mindata%ny,mindata%nx)
+   real(kind_real),intent(inout) :: x(mindata%nx)
+   real(kind_real),intent(out) :: f
    end subroutine
 end interface
 
 ! Local variables
-integer :: iterout,i,ix,jx,nullty,info,iterin
-real(kind_real) :: cost,cost_prev,alpha
-real(kind_real) :: guess(mindata%nx),f(mindata%ny),jac(mindata%ny,mindata%nx),d(mindata%ny)
-real(kind_real) :: jtj(mindata%nx,mindata%nx),a((mindata%nx*(mindata%nx+1))/2)
-real(kind_real) :: jtjinv(mindata%nx,mindata%nx),ainv((mindata%nx*(mindata%nx+1))/2)
-real(kind_real) :: work(mindata%nx),x(mindata%nx)
-logical :: valid
+integer :: icount,numres,info
+real(kind_real) :: guess(mindata%nx),xmin(mindata%nx),y,ynewlo,step(mindata%nx)
+real(kind_real) :: delta_init,h0
 
-! Copy guess
-guess = mindata%guess
+! Associate
+associate(nam=>mindata%nam)
 
-! Compute nonlinear function
-call func(mindata,guess,f)
+! Initialization
+guess = 1.0
 
-! Compute nonlinear cost
-cost_prev = sum(mindata%wgt*(mindata%obs-f)**2)
+! Initial cost
+mindata%f_guess = 0.0
+call func(mindata,guess,y)
+mindata%f_guess = y
 
-! Outer loop
-do iterout=1,niterout
-   ! Compute nonlinear function
-   call func(mindata,guess,f)
+select case (trim(nam%fit_type))
+case ('nelder_mead')
+   ! Initialization
+   step = 0.1
+     
+   ! Nelder-Mead algorithm
+   call nelmin(mindata,func,mindata%nx,guess,xmin,ynewlo,reqmin,step,konvge,kcount,icount,numres,info)
+case ('compass_search')
+   ! Initialization  
+   delta_init = 0.1
+  
+   ! Compass search
+   call compass_search(mindata,func,mindata%nx,guess,delta_tol,delta_init,k_max,xmin,ynewlo,icount)
+case ('praxis')
+   ! Initialization
+   h0 = 0.1
+   xmin = guess
 
-   ! Compute jacobian
-   call jacobian(mindata,guess,jac)
+   ! Praxis
+   ynewlo = praxis(mindata,func,t0,h0,mindata%nx,0,xmin)
+end select
 
-   ! Compute innovation
-   d = mindata%obs-f
+! Test
+if (ynewlo<y) then
+   mindata%x = xmin*mindata%guess
+   write(mpl%unit,'(a7,a,f6.1,a)') '','Minimizer '//trim(nam%fit_type)//', cost function decrease:',abs(ynewlo-y)/y*100.0,'%'
+else
+   mindata%x = mindata%guess
+   call msgwarning('Minimizer '//trim(nam%fit_type)//' failed')
+end if
 
-   ! Invert matrix
-   jtj = matmul(transpose(jac),jac)
-   i = 0
-   do ix=1,mindata%nx
-      do jx=1,ix
-         i = i+1
-         a(i) = jtj(ix,jx)
-      end do
-   end do
-   call syminv(a,mindata%nx,ainv,work,nullty,info)
-   i = 0
-   do ix=1,mindata%nx
-      do jx=1,ix
-         i = i+1
-         jtjinv(ix,jx) = ainv(i) 
-         jtjinv(jx,ix) = ainv(i) 
-      end do
-   end do
-
-   ! Simple line-search to compute the new solution
-   valid = .false.
-   do iterin=1,niterin
-      alpha = 2.0*float(iterin)/float(niterin)
-      x = guess + alpha*matmul(jtjinv,matmul(transpose(jac),d))
-
-      ! Test bounds
-      if (all(x>mindata%binf).and.all(x<mindata%bsup)) then
-         ! Compute nonlinear function
-         call func(mindata,x,f)
-
-         ! Compute nonlinear cost
-         cost = sum(mindata%wgt*(mindata%obs-f)**2)
-
-         ! Test cost
-         if (cost<cost_prev) then
-            ! Update
-            guess = x
-            cost_prev = cost
-            valid = .true.
-         end if
-      end if
-   end do
-
-   ! Exit
-   if (.not.valid) exit
-end do
-
-! Copy
-mindata%x = guess
+! End associate
+end associate
 
 end subroutine minim
 

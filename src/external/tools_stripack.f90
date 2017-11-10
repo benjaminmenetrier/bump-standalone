@@ -1,339 +1,3 @@
-function det ( x1, y1, z1, x2, y2, z2, x0, y0, z0 )
-!*****************************************************************************80
-!
-!!  Statement function:
-!
-!  DET(X1,...,Z0) >= 0 if and only if (X0,Y0,Z0) is in the
-!  (closed) left hemisphere defined by the plane containing (0,0,0),
-!  (X1,Y1,Z1), and (X2,Y2,Z2), where left is defined relative to an 
-!  observer at (X1,Y1,Z1) facing (X2,Y2,Z2).
-!
-  use tools_kinds, only: kind_real
-  implicit none
-
-  real ( kind = kind_real ) x1
-  real ( kind = kind_real ) y1
-  real ( kind = kind_real ) z1
-  real ( kind = kind_real ) x2
-  real ( kind = kind_real ) y2
-  real ( kind = kind_real ) z2
-  real ( kind = kind_real ) x0
-  real ( kind = kind_real ) y0
-  real ( kind = kind_real ) z0
-  real ( kind = kind_real ) det
-
-  det = x0*(y1*z2-y2*z1) - y0*(x1*z2-x2*z1) + z0*(x1*y2-x2*y1)
-
-end
-
-function jrand ( n, ix, iy, iz )
-
-!*****************************************************************************80
-!
-!! JRAND returns a random integer between 1 and N.
-!
-!  Discussion:
-!
-!   This function returns a uniformly distributed pseudorandom integer 
-!   in the range 1 to N.
-!
-!  Modified:
-!
-!    16 June 2007
-!
-!  Author:
-!
-!    Robert Renka
-!
-!  Reference:  
-!
-!    Brian Wichmann, David Hill, 
-!    An Efficient and Portable Pseudo-random Number Generator,
-!    Applied Statistics, 
-!    Volume 31, Number 2, 1982, pages 188-190.
-!
-!  Parameters:
-!
-!    Input, integer N, the maximum value to be returned.
-!
-!    Input/output, integer IX, IY, IZ = seeds initialized to 
-!    values in the range 1 to 30,000 before the first call to JRAND, and 
-!    not altered between subsequent calls (unless a sequence of random 
-!    numbers is to be repeated by reinitializing the seeds).
-!
-!    Output, integer JRAND, a random integer in the range 1 to N.
-!
-!  Local parameters:
-!
-!    U = Pseudo-random number uniformly distributed in the interval (0,1).
-!    X = Pseudo-random number in the range 0 to 3 whose fractional part is U.
-!
-  use tools_kinds, only: kind_real
-  implicit none
-
-  integer ix
-  integer iy
-  integer iz
-  integer jrand
-  integer n
-  real ( kind = kind_real ) u
-  real ( kind = kind_real ) x
-
-  ix = mod ( 171 * ix, 30269 )
-  iy = mod ( 172 * iy, 30307 )
-  iz = mod ( 170 * iz, 30323 )
-
-  x = ( real ( ix, kind = kind_real ) / 30269.0_kind_real ) &
-    + ( real ( iy, kind = kind_real ) / 30307.0_kind_real ) &
-    + ( real ( iz, kind = kind_real ) / 30323.0_kind_real )
-
-  u = x - int ( x )
-  jrand = int ( real ( n, kind = kind_real ) * u ) + 1
-
-  return
-end
-function left ( x1, y1, z1, x2, y2, z2, x0, y0, z0 )
-
-!*****************************************************************************80
-!
-!! LEFT determines whether a node is to the left of a plane through the origin.
-!
-!  Discussion:
-!
-!    This function determines whether node N0 is in the
-!    (closed) left hemisphere defined by the plane containing
-!    N1, N2, and the origin, where left is defined relative to
-!    an observer at N1 facing N2.
-!
-!  Modified:
-!
-!    16 June 2007
-!
-!  Author:
-!
-!    Robert Renka
-!
-!  Reference:
-!
-!    Robert Renka,
-!    Algorithm 772: STRIPACK,
-!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
-!    ACM Transactions on Mathematical Software,
-!    Volume 23, Number 3, September 1997, pages 416-434.
-!
-!  Parameters:
-!
-!    Input, real ( kind = kind_real ) X1, Y1, Z1 = Coordinates of N1.
-!
-!    Input, real ( kind = kind_real ) X2, Y2, Z2 = Coordinates of N2.
-!
-!    Input, real ( kind = kind_real ) X0, Y0, Z0 = Coordinates of N0.
-!
-!    Output, logical LEFT = TRUE if and only if N0 is in the closed
-!    left hemisphere.
-!
-  use tools_kinds, only: kind_real
-  implicit none
-
-  logical              left
-  real ( kind = kind_real ) x0
-  real ( kind = kind_real ) x1
-  real ( kind = kind_real ) x2
-  real ( kind = kind_real ) y0
-  real ( kind = kind_real ) y1
-  real ( kind = kind_real ) y2
-  real ( kind = kind_real ) z0
-  real ( kind = kind_real ) z1
-  real ( kind = kind_real ) z2
-!
-!  LEFT = TRUE iff <N0,N1 X N2> = det(N0,N1,N2) >= 0.
-!
-  left = x0 * ( y1 * z2 - y2 * z1 ) &
-       - y0 * ( x1 * z2 - x2 * z1 ) &
-       + z0 * ( x1 * y2 - x2 * y1 ) >= 0.0_kind_real
-
-  return
-end
-function lstptr ( lpl, nb, list, lptr )
-
-!*****************************************************************************80
-!
-!! LSTPTR returns the index of NB in the adjacency list.
-!
-!  Discussion:
-!
-!    This function returns the index (LIST pointer) of NB in
-!    the adjacency list for N0, where LPL = LEND(N0).
-!
-!    This function is identical to the similarly named function in TRIPACK.
-!
-!  Modified:
-!
-!    16 June 2007
-!
-!  Author:
-!
-!    Robert Renka
-!
-!  Reference:
-!
-!    Robert Renka,
-!    Algorithm 772: STRIPACK,
-!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
-!    ACM Transactions on Mathematical Software,
-!    Volume 23, Number 3, September 1997, pages 416-434.
-!
-!  Parameters:
-!
-!    Input, integer LPL, is LEND(N0).
-!
-!    Input, integer NB, index of the node whose pointer is to 
-!    be returned.  NB must be connected to N0.
-!
-!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), the data 
-!    structure defining the triangulation, created by TRMESH.
-!
-!    Output, integer LSTPTR, pointer such that LIST(LSTPTR) = NB or
-!    LIST(LSTPTR) = -NB, unless NB is not a neighbor of N0, in which 
-!    case LSTPTR = LPL.
-!
-!  Local parameters:
-!
-!    LP = LIST pointer
-!    ND = Nodal index
-!
-  implicit none
-
-  integer list(*)
-  integer lp
-  integer lpl
-  integer lptr(*)
-  integer lstptr
-  integer nb
-  integer nd
-
-  lp = lptr(lpl)
-
-  do
-
-    nd = list(lp)
-
-    if ( nd == nb ) then
-      exit
-    end if
-
-    lp = lptr(lp)
-
-    if ( lp == lpl ) then
-      exit
-    end if
-
-  end do
-
-  lstptr = lp
-
-  return
-end
-function swptst ( n1, n2, n3, n4, x, y, z )
-
-!*****************************************************************************80
-!
-!! SWPTST decides whether to replace a diagonal arc by the other.
-!
-!  Discussion:
-!
-!    This function decides whether or not to replace a
-!    diagonal arc in a quadrilateral with the other diagonal.
-!    The decision will be to swap (SWPTST = TRUE) if and only
-!    if N4 lies above the plane (in the half-space not contain-
-!    ing the origin) defined by (N1,N2,N3), or equivalently, if
-!    the projection of N4 onto this plane is interior to the
-!    circumcircle of (N1,N2,N3).  The decision will be for no
-!    swap if the quadrilateral is not strictly convex.
-!
-!  Modified:
-!
-!    16 June 2007
-!
-!  Author:
-!
-!    Robert Renka
-!
-!  Reference:
-!
-!    Robert Renka,
-!    Algorithm 772: STRIPACK,
-!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
-!    ACM Transactions on Mathematical Software,
-!    Volume 23, Number 3, September 1997, pages 416-434.
-!
-!  Parameters:
-!
-!    Input, integer N1, N2, N3, N4, indexes of the four nodes 
-!    defining the quadrilateral with N1 adjacent to N2, and (N1,N2,N3) in 
-!    counterclockwise order.  The arc connecting N1 to N2 should be replaced 
-!    by an arc connecting N3 to N4 if SWPTST = TRUE.  Refer to subroutine SWAP.
-!
-!    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates of the nodes. 
-!
-!    Output, logical SWPTST, TRUE if and only if the arc connecting N1
-!    and N2 should be swapped for an arc connecting N3 and N4.
-!
-!  Local parameters:
-!
-!    DX1,DY1,DZ1 = Coordinates of N4->N1
-!    DX2,DY2,DZ2 = Coordinates of N4->N2
-!    DX3,DY3,DZ3 = Coordinates of N4->N3
-!    X4,Y4,Z4 =    Coordinates of N4
-!
-  use tools_kinds, only: kind_real
-  implicit none
-
-  real ( kind = kind_real ) dx1
-  real ( kind = kind_real ) dx2
-  real ( kind = kind_real ) dx3
-  real ( kind = kind_real ) dy1
-  real ( kind = kind_real ) dy2
-  real ( kind = kind_real ) dy3
-  real ( kind = kind_real ) dz1
-  real ( kind = kind_real ) dz2
-  real ( kind = kind_real ) dz3
-  integer n1
-  integer n2
-  integer n3
-  integer n4
-  logical              swptst
-  real ( kind = kind_real ) x(*)
-  real ( kind = kind_real ) x4
-  real ( kind = kind_real ) y(*)
-  real ( kind = kind_real ) y4
-  real ( kind = kind_real ) z(*)
-  real ( kind = kind_real ) z4
-
-  x4 = x(n4)
-  y4 = y(n4)
-  z4 = z(n4)
-  dx1 = x(n1) - x4
-  dx2 = x(n2) - x4
-  dx3 = x(n3) - x4
-  dy1 = y(n1) - y4
-  dy2 = y(n2) - y4
-  dy3 = y(n3) - y4
-  dz1 = z(n1) - z4
-  dz2 = z(n2) - z4
-  dz3 = z(n3) - z4
-!
-!  N4 lies above the plane of (N1,N2,N3) iff N3 lies above
-!  the plane of (N2,N1,N4) iff Det(N3-N4,N2-N4,N1-N4) =
-!  (N3-N4,N2-N4 X N1-N4) > 0.
-!
-  swptst =  dx3 * ( dy2 * dz1 - dy1 * dz2 ) &
-          - dy3 * ( dx2 * dz1 - dx1 * dz2 ) &
-          + dz3 * ( dx2 * dy1 - dx1 * dy2 ) > 0.0_kind_real
-
-  return
-end
-
 !----------------------------------------------------------------------
 ! Module: tools_stripack.f90
 !> Purpose: stripack routines
@@ -402,7 +66,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !    Input, integer K, the nodal index (index for X, Y, Z, and 
 !    LEND) of the new node to be added.  4 <= K.
 !
-!    Input, real ( kind = kind_real ) X(K), Y(K), Z(K), the coordinates of the nodes.
+!    Input, real ( kind_real ) X(K), Y(K), Z(K), the coordinates of the nodes.
 !
 !    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(K), 
 !    LNEW.  On input, the data structure associated with the triangulation of 
@@ -440,9 +104,9 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 
   integer k
 
-  real ( kind = kind_real ) b1
-  real ( kind = kind_real ) b2
-  real ( kind = kind_real ) b3
+  real ( kind_real ) b1
+  real ( kind_real ) b2
+  real ( kind_real ) b3
   integer i1
   integer i2
   integer i3
@@ -462,13 +126,12 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
   integer lpo1
   integer lpo1s
   integer lptr(*)
-  integer lstptr
   integer nst
-  real ( kind = kind_real ) p(3)
-  logical swptst
-  real ( kind = kind_real ) x(k)
-  real ( kind = kind_real ) y(k)
-  real ( kind = kind_real ) z(k)
+  real ( kind_real ) p(3)
+  logical output
+  real ( kind_real ) x(k)
+  real ( kind_real ) y(k)
+  real ( kind_real ) z(k)
 
   kk = k
 
@@ -566,7 +229,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
   do
 
-    lp = lstptr ( lend(io1), io2, list, lptr )
+    call lstptr ( lend(io1), io2, list, lptr, lp )
 
     if ( 0 <= list(lp) ) then
 
@@ -578,7 +241,8 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
       lpo1s = lpo1
 
-      if ( .not. swptst ( in1, kk, io1, io2, x, y, z ) ) then
+      call swptst ( in1, kk, io1, io2, x, y, z, output )
+      if ( .not. output ) then
 
         if ( lpo1 == lpf .or. list(lpo1) < 0 ) then
           exit
@@ -649,11 +313,11 @@ function areas ( v1, v2, v3 )
 !
 !  Parameters:
 !
-!    Input, real ( kind = kind_real ) V1(3), V2(3), V3(3), the Cartesian coordinates
+!    Input, real ( kind_real ) V1(3), V2(3), V3(3), the Cartesian coordinates
 !    of unit vectors (the three triangle vertices in any order).  These 
 !    vectors, if nonzero, are implicitly scaled to have length 1.
 !
-!    Output, real ( kind = kind_real ) AREAS, the area of the spherical triangle 
+!    Output, real ( kind_real ) AREAS, the area of the spherical triangle 
 !    defined by V1, V2, and V3, in the range 0 to 2*PI (the area of a
 !    hemisphere).  AREAS = 0 (or 2*PI) if and only if V1, V2, and V3 lie in (or
 !    close to) a plane containing the origin.
@@ -675,25 +339,25 @@ function areas ( v1, v2, v3 )
 !
   implicit none
 
-  real ( kind = kind_real ) a1
-  real ( kind = kind_real ) a2
-  real ( kind = kind_real ) a3
-  real ( kind = kind_real ) areas
-  real ( kind = kind_real ) ca1
-  real ( kind = kind_real ) ca2
-  real ( kind = kind_real ) ca3
-  real ( kind = kind_real ) dv1(3)
-  real ( kind = kind_real ) dv2(3)
-  real ( kind = kind_real ) dv3(3)
-  real ( kind = kind_real ) s12
-  real ( kind = kind_real ) s23
-  real ( kind = kind_real ) s31
-  real ( kind = kind_real ) u12(3)
-  real ( kind = kind_real ) u23(3)
-  real ( kind = kind_real ) u31(3)
-  real ( kind = kind_real ) v1(3)
-  real ( kind = kind_real ) v2(3)
-  real ( kind = kind_real ) v3(3)
+  real ( kind_real ) a1
+  real ( kind_real ) a2
+  real ( kind_real ) a3
+  real ( kind_real ) areas
+  real ( kind_real ) ca1
+  real ( kind_real ) ca2
+  real ( kind_real ) ca3
+  real ( kind_real ) dv1(3)
+  real ( kind_real ) dv2(3)
+  real ( kind_real ) dv3(3)
+  real ( kind_real ) s12
+  real ( kind_real ) s23
+  real ( kind_real ) s31
+  real ( kind_real ) u12(3)
+  real ( kind_real ) u23(3)
+  real ( kind_real ) u31(3)
+  real ( kind_real ) v1(3)
+  real ( kind_real ) v2(3)
+  real ( kind_real ) v3(3)
 
   dv1(1:3) = v1(1:3)
   dv2(1:3) = v2(1:3)
@@ -1152,6 +816,32 @@ subroutine covsph ( kk, n0, list, lptr, lend, lnew )
 
   return
 end
+subroutine det ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
+!*****************************************************************************80
+!
+!!  Statement function:
+!
+!  DET(X1,...,Z0) >= 0 if and only if (X0,Y0,Z0) is in the
+!  (closed) left hemisphere defined by the plane containing (0,0,0),
+!  (X1,Y1,Z1), and (X2,Y2,Z2), where left is defined relative to an 
+!  observer at (X1,Y1,Z1) facing (X2,Y2,Z2).
+!
+  implicit none
+
+  real ( kind_real ) x1
+  real ( kind_real ) y1
+  real ( kind_real ) z1
+  real ( kind_real ) x2
+  real ( kind_real ) y2
+  real ( kind_real ) z2
+  real ( kind_real ) x0
+  real ( kind_real ) y0
+  real ( kind_real ) z0
+  real ( kind_real ) output
+
+  output = x0*(y1*z2-y2*z1) - y0*(x1*z2-x2*z1) + z0*(x1*y2-x2*y1)
+
+end
 subroutine insert ( k, lp, list, lptr, lnew )
 
 !*****************************************************************************80
@@ -1264,12 +954,12 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !
 !  Parameters:
 !
-!    Input, real ( kind = kind_real ) P(3), the coordinates of the point (unit vector)
+!    Input, real ( kind_real ) P(3), the coordinates of the point (unit vector)
 !    to be located.
 !
 !    Input, integer LV, the length of arrays XV, YV, and ZV.
 !
-!    Input, real ( kind = kind_real ) XV(LV), YV(LV), ZV(LV), the coordinates of unit
+!    Input, real ( kind_real ) XV(LV), YV(LV), ZV(LV), the coordinates of unit
 !    vectors (points on the unit sphere).  
 !
 !    Input, integer NV, the number of vertices in the polygon. 
@@ -1354,12 +1044,12 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
   integer lv
   integer nv
 
-  real ( kind = kind_real ) b(3)
-  real ( kind = kind_real ) bp
-  real ( kind = kind_real ) bq
-  real ( kind = kind_real ) cn(3)
-  real ( kind = kind_real ) d
-  real ( kind = kind_real ), parameter :: eps = 0.001_kind_real
+  real ( kind_real ) b(3)
+  real ( kind_real ) bp
+  real ( kind_real ) bq
+  real ( kind_real ) cn(3)
+  real ( kind_real ) d
+  real ( kind_real ), parameter :: eps = 0.001_kind_real
   logical even
   integer i1
   integer i2
@@ -1374,20 +1064,20 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
   integer listv(nv)
   integer n
   integer ni
-  real ( kind = kind_real ) p(3)
+  real ( kind_real ) p(3)
   logical pinr
-  real ( kind = kind_real ) pn(3)
-  real ( kind = kind_real ) q(3)
+  real ( kind_real ) pn(3)
+  real ( kind_real ) q(3)
   logical qinr
-  real ( kind = kind_real ) qn(3)
-  real ( kind = kind_real ) qnrm
-  real ( kind = kind_real ) v1(3)
-  real ( kind = kind_real ) v2(3)
-  real ( kind = kind_real ) vn(3)
-  real ( kind = kind_real ) vnrm
-  real ( kind = kind_real ) xv(lv)
-  real ( kind = kind_real ) yv(lv)
-  real ( kind = kind_real ) zv(lv)
+  real ( kind_real ) qn(3)
+  real ( kind_real ) qnrm
+  real ( kind_real ) v1(3)
+  real ( kind_real ) v2(3)
+  real ( kind_real ) vn(3)
+  real ( kind_real ) vnrm
+  real ( kind_real ) xv(lv)
+  real ( kind_real ) yv(lv)
+  real ( kind_real ) zv(lv)
 !
 !  Store local parameters.
 !
@@ -1633,7 +1323,6 @@ subroutine intadd ( kk, i1, i2, i3, list, lptr, lend, lnew )
   integer lnew
   integer lp
   integer lptr(*)
-  integer lstptr
   integer n1
   integer n2
   integer n3
@@ -1648,13 +1337,13 @@ subroutine intadd ( kk, i1, i2, i3, list, lptr, lend, lnew )
 !
 !  Add K as a neighbor of I1, I2, and I3.
 !
-  lp = lstptr ( lend(n1), n2, list, lptr )
+  call lstptr ( lend(n1), n2, list, lptr, lp )
   call insert ( k, lp, list, lptr, lnew )
 
-  lp = lstptr ( lend(n2), n3, list, lptr )
+  call lstptr ( lend(n2), n3, list, lptr, lp )
   call insert ( k, lp, list, lptr, lnew )
 
-  lp = lstptr ( lend(n3), n1, list, lptr )
+  call lstptr ( lend(n3), n1, list, lptr, lp )
   call insert ( k, lp, list, lptr, lnew )
 !
 !  Add I1, I2, and I3 as neighbors of K.
@@ -1704,14 +1393,14 @@ subroutine intrsc ( p1, p2, cn, p, ier )
 !
 !  Parameters:
 !
-!    Input, real ( kind = kind_real ) P1(3), P2(3), the coordinates of unit vectors.
+!    Input, real ( kind_real ) P1(3), P2(3), the coordinates of unit vectors.
 !
-!    Input, real ( kind = kind_real ) CN(3), the coordinates of a nonzero vector 
+!    Input, real ( kind_real ) CN(3), the coordinates of a nonzero vector 
 !    which defines C as the intersection of the plane whose normal is CN 
 !    with the unit sphere.  Thus, if C is to be the great circle defined
 !    by P and Q, CN should be P X Q.
 !
-!    Output, real ( kind = kind_real ) P(3), point of intersection defined above 
+!    Output, real ( kind_real ) P(3), point of intersection defined above 
 !    unless IER is not 0, in which case P is not altered.
 !
 !    Output, integer IER, error indicator.
@@ -1733,16 +1422,16 @@ subroutine intrsc ( p1, p2, cn, p, ier )
 !
   implicit none
 
-  real ( kind = kind_real ) cn(3)
-  real ( kind = kind_real ) d1
-  real ( kind = kind_real ) d2
+  real ( kind_real ) cn(3)
+  real ( kind_real ) d1
+  real ( kind_real ) d2
   integer ier
-  real ( kind = kind_real ) p(3)
-  real ( kind = kind_real ) p1(3)
-  real ( kind = kind_real ) p2(3)
-  real ( kind = kind_real ) pp(3)
-  real ( kind = kind_real ) ppn
-  real ( kind = kind_real ) t
+  real ( kind_real ) p(3)
+  real ( kind_real ) p1(3)
+  real ( kind_real ) p2(3)
+  real ( kind_real ) pp(3)
+  real ( kind_real ) ppn
+  real ( kind_real ) t
 
   d1 = dot_product ( cn(1:3), p1(1:3) )
   d2 = dot_product ( cn(1:3), p2(1:3) )
@@ -1774,6 +1463,212 @@ subroutine intrsc ( p1, p2, cn, p, ier )
   p(1:3) = pp(1:3) / ppn
 
   ier = 0
+
+  return
+end
+subroutine jrand ( n, ix, iy, iz, output )
+
+!*****************************************************************************80
+!
+!! JRAND returns a random integer between 1 and N.
+!
+!  Discussion:
+!
+!   This function returns a uniformly distributed pseudorandom integer 
+!   in the range 1 to N.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:  
+!
+!    Brian Wichmann, David Hill, 
+!    An Efficient and Portable Pseudo-random Number Generator,
+!    Applied Statistics, 
+!    Volume 31, Number 2, 1982, pages 188-190.
+!
+!  Parameters:
+!
+!    Input, integer N, the maximum value to be returned.
+!
+!    Input/output, integer IX, IY, IZ = seeds initialized to 
+!    values in the range 1 to 30,000 before the first call to JRAND, and 
+!    not altered between subsequent calls (unless a sequence of random 
+!    numbers is to be repeated by reinitializing the seeds).
+!
+!    Output, integer JRAND, a random integer in the range 1 to N.
+!
+!  Local parameters:
+!
+!    U = Pseudo-random number uniformly distributed in the interval (0,1).
+!    X = Pseudo-random number in the range 0 to 3 whose fractional part is U.
+!
+  implicit none
+
+  integer ix
+  integer iy
+  integer iz
+  integer output
+  integer n
+  real ( kind_real ) u
+  real ( kind_real ) x
+
+  ix = mod ( 171 * ix, 30269 )
+  iy = mod ( 172 * iy, 30307 )
+  iz = mod ( 170 * iz, 30323 )
+
+  x = ( real ( ix, kind_real ) / 30269.0_kind_real ) &
+    + ( real ( iy, kind_real ) / 30307.0_kind_real ) &
+    + ( real ( iz, kind_real ) / 30323.0_kind_real )
+
+  u = x - int ( x )
+  output = int ( real ( n, kind_real ) * u ) + 1
+
+  return
+end
+subroutine left ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
+
+!*****************************************************************************80
+!
+!! LEFT determines whether a node is to the left of a plane through the origin.
+!
+!  Discussion:
+!
+!    This function determines whether node N0 is in the
+!    (closed) left hemisphere defined by the plane containing
+!    N1, N2, and the origin, where left is defined relative to
+!    an observer at N1 facing N2.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:
+!
+!    Robert Renka,
+!    Algorithm 772: STRIPACK,
+!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
+!    ACM Transactions on Mathematical Software,
+!    Volume 23, Number 3, September 1997, pages 416-434.
+!
+!  Parameters:
+!
+!    Input, real ( kind_real ) X1, Y1, Z1 = Coordinates of N1.
+!
+!    Input, real ( kind_real ) X2, Y2, Z2 = Coordinates of N2.
+!
+!    Input, real ( kind_real ) X0, Y0, Z0 = Coordinates of N0.
+!
+!    Output, logical LEFT = TRUE if and only if N0 is in the closed
+!    left hemisphere.
+!
+  implicit none
+
+  logical output
+  real ( kind_real ) x0
+  real ( kind_real ) x1
+  real ( kind_real ) x2
+  real ( kind_real ) y0
+  real ( kind_real ) y1
+  real ( kind_real ) y2
+  real ( kind_real ) z0
+  real ( kind_real ) z1
+  real ( kind_real ) z2
+!
+!  LEFT = TRUE iff <N0,N1 X N2> = det(N0,N1,N2) >= 0.
+!
+  output = x0 * ( y1 * z2 - y2 * z1 ) &
+       - y0 * ( x1 * z2 - x2 * z1 ) &
+       + z0 * ( x1 * y2 - x2 * y1 ) >= 0.0_kind_real
+
+  return
+end
+subroutine lstptr ( lpl, nb, list, lptr, output )
+
+!*****************************************************************************80
+!
+!! LSTPTR returns the index of NB in the adjacency list.
+!
+!  Discussion:
+!
+!    This function returns the index (LIST pointer) of NB in
+!    the adjacency list for N0, where LPL = LEND(N0).
+!
+!    This function is identical to the similarly named function in TRIPACK.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:
+!
+!    Robert Renka,
+!    Algorithm 772: STRIPACK,
+!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
+!    ACM Transactions on Mathematical Software,
+!    Volume 23, Number 3, September 1997, pages 416-434.
+!
+!  Parameters:
+!
+!    Input, integer LPL, is LEND(N0).
+!
+!    Input, integer NB, index of the node whose pointer is to 
+!    be returned.  NB must be connected to N0.
+!
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), the data 
+!    structure defining the triangulation, created by TRMESH.
+!
+!    Output, integer LSTPTR, pointer such that LIST(LSTPTR) = NB or
+!    LIST(LSTPTR) = -NB, unless NB is not a neighbor of N0, in which 
+!    case LSTPTR = LPL.
+!
+!  Local parameters:
+!
+!    LP = LIST pointer
+!    ND = Nodal index
+!
+  implicit none
+
+  integer list(*)
+  integer lp
+  integer lpl
+  integer lptr(*)
+  integer output
+  integer nb
+  integer nd
+
+  lp = lptr(lpl)
+
+  do
+
+    nd = list(lp)
+
+    if ( nd == nb ) then
+      exit
+    end if
+
+    lp = lptr(lp)
+
+    if ( lp == lpl ) then
+      exit
+    end if
+
+  end do
+
+  output = lp
 
   return
 end
@@ -1895,7 +1790,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !
 !  Parameters:
 !
-!    Input, real ( kind = kind_real ) P(3), the Cartesian coordinates of the point P to 
+!    Input, real ( kind_real ) P(3), the Cartesian coordinates of the point P to 
 !    be located relative to the triangulation.  It is assumed 
 !    that P(1)**2 + P(2)**2 + P(3)**2 = 1, that is, that the
 !    point lies on the unit sphere.
@@ -1908,13 +1803,13 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !    Input, integer N, the number of nodes in the triangulation.
 !    N must be at least 3.
 !
-!    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the Cartesian coordinates of
+!    Input, real ( kind_real ) X(N), Y(N), Z(N), the Cartesian coordinates of
 !    the nodes.
 !
 !    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), 
 !    the data structure defining the triangulation, created by TRMESH.
 !
-!    Output, real ( kind = kind_real ) AL, the arc length between P and node NEARND.
+!    Output, real ( kind_real ) AL, the arc length between P and node NEARND.
 !    Because both points are on the unit sphere, this is also
 !    the angular separation in radians.
 !
@@ -1950,21 +1845,21 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
   integer ( kind = 4 ), parameter :: lmax = 25
   integer n
 
-  real ( kind = kind_real ) al
-  real ( kind = kind_real ) b1
-  real ( kind = kind_real ) b2
-  real ( kind = kind_real ) b3
-  real ( kind = kind_real ) ds1
-  real ( kind = kind_real ) dsr
-  real ( kind = kind_real ) dx1
-  real ( kind = kind_real ) dx2
-  real ( kind = kind_real ) dx3
-  real ( kind = kind_real ) dy1
-  real ( kind = kind_real ) dy2
-  real ( kind = kind_real ) dy3
-  real ( kind = kind_real ) dz1
-  real ( kind = kind_real ) dz2
-  real ( kind = kind_real ) dz3
+  real ( kind_real ) al
+  real ( kind_real ) b1
+  real ( kind_real ) b2
+  real ( kind_real ) b3
+  real ( kind_real ) ds1
+  real ( kind_real ) dsr
+  real ( kind_real ) dx1
+  real ( kind_real ) dx2
+  real ( kind_real ) dx3
+  real ( kind_real ) dy1
+  real ( kind_real ) dy2
+  real ( kind_real ) dy3
+  real ( kind_real ) dz1
+  real ( kind_real ) dz2
+  real ( kind_real ) dz3
   integer i1
   integer i2
   integer i3
@@ -1979,7 +1874,6 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
   integer lpl
   integer lptr(6*(n-2))
   integer lptrp(lmax)
-  integer lstptr
   integer nearnd
   integer n1
   integer n2
@@ -1987,10 +1881,10 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
   integer nn
   integer nr
   integer nst
-  real ( kind = kind_real ) p(3)
-  real ( kind = kind_real ) x(n)
-  real ( kind = kind_real ) y(n)
-  real ( kind = kind_real ) z(n)
+  real ( kind_real ) p(3)
+  real ( kind_real ) x(n)
+  real ( kind_real ) y(n)
+  real ( kind_real ) z(n)
 
   nearnd = 0
   al = 0.0_kind_real
@@ -2082,7 +1976,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !
   do
 
-    lp = lstptr ( lend(n1), n2, list, lptr )
+    call lstptr ( lend(n1), n2, list, lptr, lp )
 
     if ( 0 <= list(lp) ) then
 
@@ -2303,11 +2197,10 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
   integer lph
   integer lpsav
   integer lptr(*)
-  integer lstptr
 !
 !  Test for IN1 and IN2 adjacent.
 !
-  lp = lstptr ( lend(in1), in2, list, lptr )
+  call lstptr ( lend(in1), in2, list, lptr, lp )
 
   if ( abs ( list(lp) ) == in2 ) then
     lp21 = 0
@@ -2316,7 +2209,7 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Delete IO2 as a neighbor of IO1.
 !
-  lp = lstptr ( lend(io1), in2, list, lptr )
+  call lstptr ( lend(io1), in2, list, lptr, lp )
   lph = lptr(lp)
   lptr(lp) = lptr(lph)
 !
@@ -2328,7 +2221,7 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Insert IN2 as a neighbor of IN1 following IO1 using the hole created above.
 !
-  lp = lstptr ( lend(in1), io1, list, lptr )
+  call lstptr ( lend(in1), io1, list, lptr, lp )
   lpsav = lptr(lp)
   lptr(lp) = lph
   list(lph) = in2
@@ -2336,7 +2229,7 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Delete IO1 as a neighbor of IO2.
 !
-  lp = lstptr ( lend(io2), in1, list, lptr )
+  call lstptr ( lend(io2), in1, list, lptr, lp )
   lph = lptr(lp)
   lptr(lp) = lptr(lph)
 !
@@ -2348,12 +2241,110 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Insert IN1 as a neighbor of IN2 following IO2.
 !
-  lp = lstptr ( lend(in2), io2, list, lptr )
+  call lstptr ( lend(in2), io2, list, lptr, lp )
   lpsav = lptr(lp)
   lptr(lp) = lph
   list(lph) = in1
   lptr(lph) = lpsav
   lp21 = lph
+
+  return
+end
+subroutine swptst ( n1, n2, n3, n4, x, y, z, output )
+
+!*****************************************************************************80
+!
+!! SWPTST decides whether to replace a diagonal arc by the other.
+!
+!  Discussion:
+!
+!    This function decides whether or not to replace a
+!    diagonal arc in a quadrilateral with the other diagonal.
+!    The decision will be to swap (SWPTST = TRUE) if and only
+!    if N4 lies above the plane (in the half-space not contain-
+!    ing the origin) defined by (N1,N2,N3), or equivalently, if
+!    the projection of N4 onto this plane is interior to the
+!    circumcircle of (N1,N2,N3).  The decision will be for no
+!    swap if the quadrilateral is not strictly convex.
+!
+!  Modified:
+!
+!    16 June 2007
+!
+!  Author:
+!
+!    Robert Renka
+!
+!  Reference:
+!
+!    Robert Renka,
+!    Algorithm 772: STRIPACK,
+!    Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere,
+!    ACM Transactions on Mathematical Software,
+!    Volume 23, Number 3, September 1997, pages 416-434.
+!
+!  Parameters:
+!
+!    Input, integer N1, N2, N3, N4, indexes of the four nodes 
+!    defining the quadrilateral with N1 adjacent to N2, and (N1,N2,N3) in 
+!    counterclockwise order.  The arc connecting N1 to N2 should be replaced 
+!    by an arc connecting N3 to N4 if SWPTST = TRUE.  Refer to subroutine SWAP.
+!
+!    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of the nodes. 
+!
+!    Output, logical SWPTST, TRUE if and only if the arc connecting N1
+!    and N2 should be swapped for an arc connecting N3 and N4.
+!
+!  Local parameters:
+!
+!    DX1,DY1,DZ1 = Coordinates of N4->N1
+!    DX2,DY2,DZ2 = Coordinates of N4->N2
+!    DX3,DY3,DZ3 = Coordinates of N4->N3
+!    X4,Y4,Z4 =    Coordinates of N4
+!
+  implicit none
+
+  real ( kind_real ) dx1
+  real ( kind_real ) dx2
+  real ( kind_real ) dx3
+  real ( kind_real ) dy1
+  real ( kind_real ) dy2
+  real ( kind_real ) dy3
+  real ( kind_real ) dz1
+  real ( kind_real ) dz2
+  real ( kind_real ) dz3
+  integer n1
+  integer n2
+  integer n3
+  integer n4
+  logical output
+  real ( kind_real ) x(*)
+  real ( kind_real ) x4
+  real ( kind_real ) y(*)
+  real ( kind_real ) y4
+  real ( kind_real ) z(*)
+  real ( kind_real ) z4
+
+  x4 = x(n4)
+  y4 = y(n4)
+  z4 = z(n4)
+  dx1 = x(n1) - x4
+  dx2 = x(n2) - x4
+  dx3 = x(n3) - x4
+  dy1 = y(n1) - y4
+  dy2 = y(n2) - y4
+  dy3 = y(n3) - y4
+  dz1 = z(n1) - z4
+  dz2 = z(n2) - z4
+  dz3 = z(n3) - z4
+!
+!  N4 lies above the plane of (N1,N2,N3) iff N3 lies above
+!  the plane of (N2,N1,N4) iff Det(N3-N4,N2-N4,N1-N4) =
+!  (N3-N4,N2-N4 X N1-N4) > 0.
+!
+  output =  dx3 * ( dy2 * dz1 - dy1 * dz2 ) &
+          - dy3 * ( dx2 * dz1 - dx1 * dz2 ) &
+          + dz3 * ( dx2 * dy1 - dx1 * dy2 ) > 0.0_kind_real
 
   return
 end
@@ -2391,11 +2382,11 @@ subroutine trans ( n, rlat, rlon, x, y, z )
 !    Input, integer N, the number of nodes (points on the unit 
 !    sphere) whose coordinates are to be transformed.
 !
-!    Input, real ( kind = kind_real ) RLAT(N), latitudes of the nodes in radians.
+!    Input, real ( kind_real ) RLAT(N), latitudes of the nodes in radians.
 !
-!    Input, real ( kind = kind_real ) RLON(N), longitudes of the nodes in radians.
+!    Input, real ( kind_real ) RLON(N), longitudes of the nodes in radians.
 !
-!    Output, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates in the 
+!    Output, real ( kind_real ) X(N), Y(N), Z(N), the coordinates in the 
 !    range -1 to 1.  X(I)**2 + Y(I)**2 + Z(I)**2 = 1 for I = 1 to N.
 !
 !  Local parameters:
@@ -2410,16 +2401,16 @@ subroutine trans ( n, rlat, rlon, x, y, z )
 
   integer n
 
-  real ( kind = kind_real ) cosphi
+  real ( kind_real ) cosphi
   integer i
   integer nn
-  real ( kind = kind_real ) phi
-  real ( kind = kind_real ) rlat(n)
-  real ( kind = kind_real ) rlon(n)
-  real ( kind = kind_real ) theta
-  real ( kind = kind_real ) x(n)
-  real ( kind = kind_real ) y(n)
-  real ( kind = kind_real ) z(n)
+  real ( kind_real ) phi
+  real ( kind_real ) rlat(n)
+  real ( kind_real ) rlon(n)
+  real ( kind_real ) theta
+  real ( kind_real ) x(n)
+  real ( kind_real ) y(n)
+  real ( kind_real ) z(n)
 
   nn = n
 
@@ -2470,19 +2461,19 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !    Input, integer NST, index of a node at which TRFIND begins
 !    its search.  Search time depends on the proximity of this node to P.
 !
-!    Input, real ( kind = kind_real ) P(3), the x, y, and z coordinates (in that order)
+!    Input, real ( kind_real ) P(3), the x, y, and z coordinates (in that order)
 !    of the point P to be located.
 !
 !    Input, integer N, the number of nodes in the triangulation.
 !    3 <= N.
 !
-!    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates of the
+!    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of the
 !    triangulation nodes (unit vectors).
 !
 !    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the 
 !    data structure defining the triangulation, created by TRMESH.
 !
-!    Output, real ( kind = kind_real ) B1, B2, B3, the unnormalized barycentric
+!    Output, real ( kind_real ) B1, B2, B3, the unnormalized barycentric
 !    coordinates of the central projection of P onto the underlying planar
 !    triangle if P is in the convex hull of the nodes.  These parameters 
 !    are not altered if I1 = 0.
@@ -2531,23 +2522,21 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 
   integer n
 
-  real ( kind = kind_real ) b1
-  real ( kind = kind_real ) b2
-  real ( kind = kind_real ) b3
-  real ( kind = kind_real ) det
-  real ( kind = kind_real ) eps
+  real ( kind_real ) b1
+  real ( kind_real ) b2
+  real ( kind_real ) b3
+  real ( kind_real ) output
+  real ( kind_real ) eps
   integer i1
   integer i2
   integer i3
   integer ( kind = 4 ), save :: ix = 1
   integer ( kind = 4 ), save :: iy = 2
   integer ( kind = 4 ), save :: iz = 3
-  integer jrand
   integer lend(n)
   integer list(6*(n-2))
   integer lp
   integer lptr(6*(n-2))
-  integer lstptr
   integer n0
   integer n1
   integer n1s
@@ -2559,18 +2548,18 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
   integer nf
   integer nl
   integer nst
-  real ( kind = kind_real ) p(3)
-  real ( kind = kind_real ) ptn1
-  real ( kind = kind_real ) ptn2
-  real ( kind = kind_real ) q(3)
-  real ( kind = kind_real ) s12
-  real ( kind = kind_real ) tol
-  real ( kind = kind_real ) x(n)
-  real ( kind = kind_real ) xp
-  real ( kind = kind_real ) y(n)
-  real ( kind = kind_real ) yp
-  real ( kind = kind_real ) z(n)
-  real ( kind = kind_real ) zp
+  real ( kind_real ) p(3)
+  real ( kind_real ) ptn1
+  real ( kind_real ) ptn2
+  real ( kind_real ) q(3)
+  real ( kind_real ) s12
+  real ( kind_real ) tol
+  real ( kind_real ) x(n)
+  real ( kind_real ) xp
+  real ( kind_real ) y(n)
+  real ( kind_real ) yp
+  real ( kind_real ) z(n)
+  real ( kind_real ) zp
 !
 !  Initialize variables.
 !
@@ -2580,7 +2569,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
   n0 = nst
 
   if ( n0 < 1 .or. n < n0 ) then
-    n0 = jrand ( n, ix, iy, iz )
+    call jrand ( n, ix, iy, iz, n0 )
   end if
 !
 !  Compute the relative machine precision EPS and TOL.
@@ -2607,7 +2596,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 3   continue
 
-    if ( det ( x(n0),y(n0),z(n0),x(n1),y(n1),z(n1),xp,yp,zp ) < 0.0_kind_real ) then
+    call det(x(n0),y(n0),z(n0),x(n1),y(n1),z(n1),xp,yp,zp,output)
+    if ( output  < 0.0_kind_real ) then
       lp = lptr(lp)
       n1 = list(lp)
       if ( n1 == nl ) then
@@ -2624,7 +2614,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !  Is P to the right of the boundary edge N0->NF?
 !
-    if ( det(x(n0),y(n0),z(n0),x(nf),y(nf),z(nf), xp,yp,zp) < 0.0_kind_real ) then
+    call det(x(n0),y(n0),z(n0),x(nf),y(nf),z(nf), xp,yp,zp,output)
+    if ( output < 0.0_kind_real ) then
       n1 = n0
       n2 = nf
       go to 9
@@ -2632,7 +2623,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !  Is P to the right of the boundary edge NL->N0?
 !
-    if ( det(x(nl),y(nl),z(nl),x(n0),y(n0),z(n0),xp,yp,zp) < 0.0_kind_real ) then
+    call det(x(nl),y(nl),z(nl),x(n0),y(n0),z(n0),xp,yp,zp,output)
+    if ( output < 0.0_kind_real ) then
       n1 = nl
       n2 = n0
       go to 9
@@ -2648,7 +2640,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
     lp = lptr(lp)
     n2 = abs ( list(lp) )
 
-    if ( det(x(n0),y(n0),z(n0),x(n2),y(n2),z(n2),xp,yp,zp) < 0.0_kind_real ) then
+    call det(x(n0),y(n0),z(n0),x(n2),y(n2),z(n2),xp,yp,zp,output)
+    if ( output < 0.0_kind_real ) then
       go to 7
     end if
 
@@ -2658,8 +2651,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
       go to 4
     end if
 
-  if ( det ( x(n0), y(n0), z(n0), x(nf), y(nf), z(nf), xp, yp, zp ) &
-    < 0.0_kind_real ) then
+  call det ( x(n0), y(n0), z(n0), x(nf), y(nf), z(nf), xp, yp, zp, output )
+  if ( output < 0.0_kind_real ) then
     go to 6
   end if
 !
@@ -2674,7 +2667,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
     do
 
-      if ( det(x(n1),y(n1),z(n1),x(n0),y(n0),z(n0),xp,yp,zp) < 0.0_kind_real ) then
+      call det(x(n1),y(n1),z(n1),x(n0),y(n0),z(n0),xp,yp,zp,output)
+      if ( output < 0.0_kind_real ) then
         exit
       end if
 
@@ -2717,14 +2711,14 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 8 continue
 
-  b3 = det ( x(n1),y(n1),z(n1),x(n2),y(n2),z(n2),xp,yp,zp )
+  call det ( x(n1),y(n1),z(n1),x(n2),y(n2),z(n2),xp,yp,zp,b3 )
 
   if ( b3 < 0.0_kind_real ) then
 !
 !  Set N4 to the first neighbor of N2 following N1 (the
 !  node opposite N2->N1) unless N1->N2 is a boundary arc.
 !
-    lp = lstptr ( lend(n2), n1, list, lptr )
+    call lstptr ( lend(n2), n1, list, lptr, lp )
 
     if ( list(lp) < 0 ) then
       go to 9
@@ -2735,7 +2729,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !  Define a new arc N1->N2 which intersects the geodesic N0-P.
 !
-    if ( det ( x(n0),y(n0),z(n0),x(n4),y(n4),z(n4),xp,yp,zp ) < 0.0_kind_real ) then
+    call det ( x(n0),y(n0),z(n0),x(n4),y(n4),z(n4),xp,yp,zp,output )
+    if ( output < 0.0_kind_real ) then
       n3 = n2
       n2 = n4
       n1s = n1
@@ -2755,7 +2750,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !  again, implying a cycle (infinite loop).  Restart
 !  with N0 randomly selected.
 !
-    n0 = jrand ( n, ix, iy, iz )
+    call jrand ( n, ix, iy, iz, n0 )
     go to 2
 
   end if
@@ -2767,13 +2762,13 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !  B3 /= 0.
 !
-    b1 = det(x(n2),y(n2),z(n2),x(n3),y(n3),z(n3),xp,yp,zp)
-    b2 = det(x(n3),y(n3),z(n3),x(n1),y(n1),z(n1),xp,yp,zp)
+    call det(x(n2),y(n2),z(n2),x(n3),y(n3),z(n3),xp,yp,zp,b1)
+    call det(x(n3),y(n3),z(n3),x(n1),y(n1),z(n1),xp,yp,zp,b2)
 !
 !  Restart with N0 randomly selected.
 !
     if ( b1 < -tol .or. b2 < -tol ) then
-      n0 = jrand ( n, ix, iy, iz )
+      call jrand ( n, ix, iy, iz, n0 )
       go to 2
     end if
 
@@ -2792,7 +2787,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !  Restart with N0 randomly selected.
 !
     if ( b1 < -tol .or. b2 < -tol ) then
-      n0 = jrand ( n, ix, iy, iz )
+      call jrand ( n, ix, iy, iz, n0 )
       go to 2
     end if
 
@@ -2825,7 +2820,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
   lp = lptr(lp)
   next = list(lp)
 
-  if ( det(x(n2),y(n2),z(n2),x(next),y(next),z(next),xp,yp,zp) >= 0.0_kind_real ) then
+  call det(x(n2),y(n2),z(n2),x(next),y(next),z(next),xp,yp,zp,output)
+  if ( output >= 0.0_kind_real ) then
 !
 !  N2 is the rightmost visible node if P Forward N2->N1
 !  or NEXT Forward N2->N1.  Set Q to (N2 X N1) X N2.
@@ -2887,8 +2883,8 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
     lp = lend(n1)
     next = -list(lp)
 
-    if ( 0.0_kind_real <= &
-      det ( x(next), y(next), z(next), x(n1), y(n1), z(n1), xp, yp, zp )  ) then
+    call det ( x(next), y(next), z(next), x(n1), y(n1), z(n1), xp, yp, zp, output )
+    if ( 0.0_kind_real <= output  ) then
 !
 !  N1 is the leftmost visible node if P or NEXT is
 !  forward of N1->N2.  Compute Q = N1 X (N2 X N1).
@@ -3032,7 +3028,7 @@ subroutine trlist ( n, list, lptr, lend, nrow, nt, ltri, ier )
   integer n
   integer nrow
 
-  logical              arcs
+  logical arcs
   integer i
   integer i1
   integer i2
@@ -3363,7 +3359,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    Input, integer N, the number of nodes in the triangulation.
 !    3 <= N.
 !
-!    Input, real ( kind = kind_real ) X(N), Y(N), Z(N), the coordinates of distinct
+!    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of distinct
 !    nodes.  (X(K),Y(K), Z(K)) is referred to as node K, and K is referred 
 !    to as a nodal index.  It is required that X(K)**2 + Y(K)**2 + Z(K)**2 = 1
 !    for all K.  The first three nodes must not be collinear (lie on a 
@@ -3398,7 +3394,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
-!    Workspace, real ( kind = kind_real ) DIST(N), 
+!    Workspace, real ( kind_real ) DIST(N), 
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
@@ -3426,17 +3422,17 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 
   integer n
 
-  real ( kind = kind_real ) d
-  real ( kind = kind_real ) d1
-  real ( kind = kind_real ) d2
-  real ( kind = kind_real ) d3
-  real ( kind = kind_real ) dist(n)
+  real ( kind_real ) d
+  real ( kind_real ) d1
+  real ( kind_real ) d2
+  real ( kind_real ) d3
+  real ( kind_real ) dist(n)
   integer i
   integer i0
   integer ier
   integer j
   integer k
-  logical              left
+  logical output_1, output_2
   integer lend(n)
   integer list(6*(n-2))
   integer lnew
@@ -3447,9 +3443,9 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
   integer next(n)
   integer nexti
   integer nn
-  real ( kind = kind_real ) x(n)
-  real ( kind = kind_real ) y(n)
-  real ( kind = kind_real ) z(n)
+  real ( kind_real ) x(n)
+  real ( kind_real ) y(n)
+  real ( kind_real ) z(n)
 
   nn = n
 
@@ -3463,8 +3459,10 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !
 !  Store the first triangle in the linked list.
 !
-  if ( .not. left (x(1),y(1),z(1),x(2),y(2),z(2), &
-                   x(3),y(3),z(3) ) ) then
+  call left (x(1),y(1),z(1),x(2),y(2),z(2),x(3),y(3),z(3),output_1)
+  call left (x(2),y(2),z(2),x(1),y(1),z(1),x(3),y(3),z(3),output_2)
+
+  if ( .not. output_1 ) then
 !
 !  The first triangle is (3,2,1) = (2,1,3) = (1,3,2).
 !
@@ -3486,7 +3484,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
     lptr(6) = 5
     lend(3) = 6
 
-  else if ( .not. left ( x(2),y(2),z(2),x(1),y(1),z(1),x(3),y(3),z(3) ) ) then
+  else if ( .not. output_2 ) then
 !
 !  The first triangle is (1,2,3):  3 Strictly Left 1->2,
 !  i.e., node 3 lies in the left hemisphere defined by arc 1->2.

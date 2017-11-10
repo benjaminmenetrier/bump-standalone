@@ -153,7 +153,7 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call run_test driver'
 
-call run_test(nam,geom,bpar,ndataloc)
+call run_test(nam,geom,bpar,bdata,ndataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats
