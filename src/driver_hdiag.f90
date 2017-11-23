@@ -59,7 +59,7 @@ type(bdatatype),allocatable,intent(inout) :: bdata(:)                           
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
-integer :: ib,il0,ic2,ildw
+integer :: ib,jl0,ic2,ildw
 character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
 type(avgtype) :: avg_1(bpar%nb+1),avg_2(bpar%nb+1)
@@ -158,10 +158,10 @@ if (nam%new_hdiag) then
          end if
 
          ! Print results
-         do il0=1,geom%nl0
-            write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'raw cov. / cor. (1): ',trim(peach),avg_1(ib)%m11(1,min(il0,bpar%nl0(ib)),il0),trim(black),' / ', &
-             & trim(peach),avg_1(ib)%cor(1,min(il0,bpar%nl0(ib)),il0),trim(black)
+         do jl0=1,geom%nl0
+            write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+             & 'raw cov. / cor. (1): ',trim(peach),avg_1(ib)%m11(1,bpar%il0rz(jl0,ib),jl0),trim(black),' / ', &
+             & trim(peach),avg_1(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
          end do
 
          if (trim(nam%method)=='hyb-avg') then
@@ -187,10 +187,10 @@ if (nam%new_hdiag) then
          ! Print results
          select case (trim(nam%method))
          case ('hyb-avg','hyb-rnd','dual-ens')
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-                & 'raw cov. / cor. (2): ',trim(peach),avg_2(ib)%m11(1,min(il0,bpar%nl0(ib)),il0),trim(black),' / ', &
-                & trim(peach),avg_2(ib)%cor(1,min(il0,bpar%nl0(ib)),il0),trim(black)
+            do jl0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+                & 'raw cov. / cor. (2): ',trim(peach),avg_2(ib)%m11(1,bpar%il0rz(jl0,ib),jl0),trim(black),' / ', &
+                & trim(peach),avg_2(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
             end do
          end select
       end if
@@ -213,12 +213,12 @@ if (nam%new_hdiag) then
    do ib=1,bpar%nb+1
       if (bpar%diag_block(ib)) then
          ! Allocation
-         call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor',cor_1(ib))
+         call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor',cor_1(ib))
          select case (trim(nam%method))
          case ('hyb-avg','hyb-rnd')
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_hyb',cor_2(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_hyb',cor_2(ib))
          case ('dual-ens')
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_lr',cor_2(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_lr',cor_2(ib))
          end select
 
          ! Copy
@@ -236,7 +236,7 @@ if (nam%new_hdiag) then
          if (nam%local_diag) then
             do ic2=1,hdata%nc2
                ! Allocation
-               call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_nc2',cor_1_nc2(ic2,ib))
+               call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_nc2',cor_1_nc2(ic2,ib))
 
                ! Copy
                cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ic2,ib)%cor
@@ -257,19 +257,19 @@ if (nam%new_hdiag) then
 
             ! Compute global fit
             write(mpl%unit,'(a7,a)') '','Compute global fit'
-            call compute_fit(hdata,cor_1(ib))
+            call compute_fit(hdata,ib,cor_1(ib))
 
             if (nam%local_diag) then
                ! Compute local fit
                write(mpl%unit,'(a7,a)',advance='no') '','Compute local fit:'
-               call compute_fit(hdata,cor_1_nc2(:,ib))
+               call compute_fit(hdata,ib,cor_1_nc2(:,ib))
             end if
 
             ! Print results
-             do il0=1,geom%nl0
-                write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
-              & ' ~> cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
-              & //trim(aqua),cor_1(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+             do jl0=1,geom%nl0
+                write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
+              & ' ~> cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / ' &
+              & //trim(aqua),cor_1(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
              end do
          end if
       end do
@@ -286,13 +286,13 @@ if (nam%new_hdiag) then
 
                ! Compute global fit
                write(mpl%unit,'(a7,a)') '','Compute global fit'
-               call compute_fit(hdata,cor_2(ib))
+               call compute_fit(hdata,ib,cor_2(ib))
 
                ! Print results
-               do il0=1,geom%nl0
-                   write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
-                 & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(il0)*reqkm,trim(black)//' km  / ' &
-                 & //trim(aqua),cor_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+               do jl0=1,geom%nl0
+                   write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
+                 & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / ' &
+                 & //trim(aqua),cor_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                 end do
             end if
          end do
@@ -313,10 +313,10 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
             ! Allocation
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc',loc_1(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc',loc_1(ib))
             if (nam%local_diag) then
                do ic2=1,hdata%nc2
-                  call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_nc2',loc_1_nc2(ic2,ib))
+                  call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_nc2',loc_1_nc2(ic2,ib))
                end do
             end if
 
@@ -331,12 +331,12 @@ if (nam%new_hdiag) then
             end if
 
             ! Print results
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_1(ib)%raw_coef_ens(il0),trim(black)
+            do jl0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+             & 'diagonal value: ',trim(peach),loc_1(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_1(ib)%fit_rh(il0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_1(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_1(ib)%fit_rh(jl0)*reqkm, &
+                & trim(black)//' km  / '//trim(aqua),loc_1(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if
@@ -354,19 +354,19 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
             ! Allocation
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_hyb',loc_2(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_hyb',loc_2(ib))
 
             ! Compute global static hybridization
             write(mpl%unit,'(a7,a)') '','Compute global static hybridization'
             call compute_hybridization(hdata,ib,avg_1(ib),loc_2(ib))
 
             ! Print results
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
+            do jl0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(il0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm, &
+                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                end if
             end do
             write(mpl%unit,'(a10,a,f8.2,a)') '','Raw static coeff.: ',trim(purple),loc_2(ib)%raw_coef_sta,trim(black)
@@ -382,19 +382,19 @@ if (nam%new_hdiag) then
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_lr',loc_2(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_lr',loc_2(ib))
 
             ! Compute global low-resolution localization
             write(mpl%unit,'(a7,a)') '','Compute global low-resolution localization'
             call compute_localization(hdata,ib,avg_2(ib),loc_2(ib))
 
             ! Print results
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(il0),trim(black)
+            do jl0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(il0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm, &
+                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if
@@ -407,23 +407,23 @@ if (nam%new_hdiag) then
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh',loc_3(ib))
-            call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh_lr',loc_4(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh',loc_3(ib))
+            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh_lr',loc_4(ib))
 
             ! Compute global dual-ensemble hybridization
             write(mpl%unit,'(a7,a)') '','Compute global dual-ensemble hybridization'
             call compute_dualens(hdata,ib,avg_1(ib),avg_2(ib),loc_3(ib),loc_4(ib))
 
             ! Print results
-            do il0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
-             & 'diagonal value (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(il0),trim(black)
-               write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ',trim(peach),loc_4(ib)%raw_coef_ens(il0),trim(black)
+            do jl0=1,geom%nl0
+               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
+             & 'diagonal value (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(jl0),trim(black)
+               write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ',trim(peach),loc_4(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ',trim(aqua),loc_3(ib)%fit_rh(il0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ',trim(aqua),loc_4(ib)%fit_rh(il0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
+                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ',trim(aqua),loc_3(ib)%fit_rh(jl0)*reqkm, &
+                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ',trim(aqua),loc_4(ib)%fit_rh(jl0)*reqkm, &
+                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if

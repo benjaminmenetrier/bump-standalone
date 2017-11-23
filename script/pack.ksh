@@ -28,7 +28,6 @@ done
 mkdir pack/doc
 cp -f doc/Doxyfile pack/doc
 cp -f doc/mainpage.h pack/doc
-cp -f doc/wiki pack/doc
 
 # Copy doc
 mkdir pack/ncl
@@ -63,7 +62,7 @@ find pack -type f -name '*~' -delete
 today=`date +%Y%m%d`
 rm -fr hdiag_nicas
 mv pack hdiag_nicas
-tar -cvzf hdiag_nicas${today}.tar.gz hdiag_nicas
+tar -cvzf hdiag_nicas_${today}.tar.gz hdiag_nicas
 ln -sf hdiag_nicas_${today}.tar.gz hdiag_nicas_latest.tar.gz
 
 # Clean

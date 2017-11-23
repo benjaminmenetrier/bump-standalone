@@ -19,19 +19,20 @@ implicit none
 
 type bpartype
    ! Block parameters
-   integer :: nb                                 !< Number of blocks
-   integer,allocatable :: il0off(:,:)            !< Level offset
-   integer,allocatable :: nl0(:)                 !< Number of levels
-   integer,allocatable :: icmax(:)               !< Maximum class
-   logical,allocatable :: diag_block(:)          !< HDIAG block
-   logical,allocatable :: avg_block(:)           !< Averaging block
-   logical,allocatable :: fit_block(:)           !< Fit block
-   logical,allocatable :: nicas_block(:)         !< NICAS block
-   character(len=11),allocatable :: blockname(:) !< Block name
-   integer,allocatable :: ib_to_iv(:)            !< Block to first variable
-   integer,allocatable :: ib_to_jv(:)            !< Block to second variable
-   integer,allocatable :: ib_to_its(:)           !< Block to first timeslot
-   integer,allocatable :: ib_to_jts(:)           !< Block to second timeslot
+   integer :: nb                                  !< Number of blocks
+   integer,allocatable :: nl0(:)                  !< Effective number of levels
+   integer,allocatable :: il0rjl0ib_to_il0(:,:,:) !< Effective level to level
+   integer,allocatable :: il0rz(:,:)              !< Effective zero separation level
+   integer,allocatable :: icmax(:)                !< Maximum class
+   logical,allocatable :: diag_block(:)           !< HDIAG block
+   logical,allocatable :: avg_block(:)            !< Averaging block
+   logical,allocatable :: fit_block(:)            !< Fit block
+   logical,allocatable :: nicas_block(:)          !< NICAS block
+   character(len=11),allocatable :: blockname(:)  !< Block name
+   integer,allocatable :: ib_to_iv(:)             !< Block to first variable
+   integer,allocatable :: ib_to_jv(:)             !< Block to second variable
+   integer,allocatable :: ib_to_its(:)            !< Block to first timeslot
+   integer,allocatable :: ib_to_jts(:)            !< Block to second timeslot
 end type bpartype
 
 private
@@ -54,7 +55,7 @@ type(geomtype),intent(in) :: geom    !< Geometry
 type(bpartype),intent(inout) :: bpar !< Block parameters
 
 ! Local variables
-integer :: ib,iv,jv,its,jts,jl0
+integer :: ib,iv,jv,its,jts,il0r,jl0,il0off
 
 ! Number of blocks
 if (nam%new_lct) then
@@ -66,7 +67,8 @@ else
 end if
 
 ! Allocation
-allocate(bpar%il0off(geom%nl0,bpar%nb+1))
+allocate(bpar%il0rjl0ib_to_il0(nam%nl0r,geom%nl0,bpar%nb+1))
+allocate(bpar%il0rz(geom%nl0,bpar%nb+1))
 allocate(bpar%nl0(bpar%nb+1))
 allocate(bpar%icmax(bpar%nb+1))
 allocate(bpar%diag_block(bpar%nb+1))
@@ -79,17 +81,25 @@ allocate(bpar%ib_to_jv(bpar%nb))
 allocate(bpar%ib_to_its(bpar%nb))
 allocate(bpar%ib_to_jts(bpar%nb))
 
+! Initialization
+call msi(bpar%il0rjl0ib_to_il0)
+call msi(bpar%il0rz)
+
 if (nam%new_lct) then
    ! Individual blocks
    ib = 1
    do iv=1,nam%nv
       do its=1,nam%nts
          ! Classes and levels
-         bpar%nl0(ib) = 2*min(nam%lct_nl0,(geom%nl0-1)/2)+1
+         bpar%nl0(ib) = nam%nl0r
          do jl0=1,geom%nl0
-            bpar%il0off(jl0,ib) = jl0-(bpar%nl0(ib)-1)/2-1
-            if (bpar%il0off(jl0,ib)<1) bpar%il0off(jl0,ib) = 0
-            if (bpar%il0off(jl0,ib)+bpar%nl0(ib)>geom%nl0) bpar%il0off(jl0,ib) = geom%nl0-bpar%nl0(ib)
+            il0off = jl0-(bpar%nl0(ib)-1)/2-1
+            if (il0off<1) il0off = 0
+            if (il0off+nam%nl0r>geom%nl0) il0off = geom%nl0-nam%nl0r
+            do il0r=1,nam%nl0r
+               bpar%il0rjl0ib_to_il0(il0r,jl0,ib) = il0off+il0r
+               if (bpar%il0rjl0ib_to_il0(il0r,jl0,ib)==jl0) bpar%il0rz(jl0,ib) = il0r
+            end do
          end do
          bpar%icmax(ib) = nam%nc
          bpar%diag_block(ib) = .true.
@@ -111,7 +121,8 @@ if (nam%new_lct) then
    ! Common block
 
    ! Classes and levels
-   bpar%il0off(:,bpar%nb+1) = 0
+   bpar%il0rjl0ib_to_il0(:,:,bpar%nb+1) = 0
+   bpar%il0rz(:,bpar%nb+1) = 0
    bpar%nl0(bpar%nb+1) = 0
    bpar%icmax(bpar%nb+1) = 0
    bpar%diag_block(bpar%nb+1) = .false.
@@ -130,13 +141,22 @@ else
             do jts=1,nam%nts
                ! Classes and levels
                if ((iv==jv).and.(its==jts)) then
-                  bpar%il0off(:,ib) = 0
-                  bpar%nl0(ib) = geom%nl0
+                  bpar%nl0(ib) = nam%nl0r
+                  do jl0=1,geom%nl0
+                     il0off = jl0-(bpar%nl0(ib)-1)/2-1
+                     if (il0off<1) il0off = 0
+                     if (il0off+nam%nl0r>geom%nl0) il0off = geom%nl0-nam%nl0r
+                     do il0r=1,nam%nl0r
+                        bpar%il0rjl0ib_to_il0(il0r,jl0,ib) = il0off+il0r
+                        if (bpar%il0rjl0ib_to_il0(il0r,jl0,ib)==jl0) bpar%il0rz(jl0,ib) = il0r
+                     end do
+                  end do
                   bpar%icmax(ib) = nam%nc
                else
                   do jl0=1,geom%nl0
-                     bpar%il0off(jl0,ib) = jl0-1
+                     bpar%il0rjl0ib_to_il0(:,jl0,ib) = jl0
                   end do
+                  bpar%il0rz(:,ib) = 1
                   bpar%nl0(ib) = 1
                   bpar%icmax(ib) = 1
                end if
@@ -165,6 +185,7 @@ else
                bpar%ib_to_its(ib) = its
                bpar%ib_to_jts(ib) = jts
 
+               ! Update block index
                ib = ib+1
             end do
          end do
@@ -172,27 +193,36 @@ else
    end do
 
    ! Common block
+   ib = bpar%nb+1
 
    ! Classes and levels
-   bpar%il0off(:,bpar%nb+1) = 0
-   bpar%nl0(bpar%nb+1) = geom%nl0
-   bpar%icmax(bpar%nb+1) = nam%nc
+   bpar%nl0(ib) = nam%nl0r
+   do jl0=1,geom%nl0
+      il0off = jl0-(bpar%nl0(ib)-1)/2-1
+      if (il0off<1) il0off = 0
+      if (il0off+nam%nl0r>geom%nl0) il0off = geom%nl0-nam%nl0r
+      do il0r=1,nam%nl0r
+         bpar%il0rjl0ib_to_il0(il0r,jl0,ib) = il0off+il0r
+         if (bpar%il0rjl0ib_to_il0(il0r,jl0,ib)==jl0) bpar%il0rz(jl0,ib) = il0r
+      end do
+   end do
+   bpar%icmax(ib) = nam%nc
 
    ! Select blocks
    select case (nam%strategy)
    case ('common','common_weighted')
-      bpar%diag_block(bpar%nb+1) = .true.
-      bpar%avg_block(bpar%nb+1) = .false.
-      bpar%nicas_block(bpar%nb+1) = .true.
+      bpar%diag_block(ib) = .true.
+      bpar%avg_block(ib) = .false.
+      bpar%nicas_block(ib) = .true.
    case ('specific_univariate','specific_multivariate')
-      bpar%diag_block(bpar%nb+1) = .false.
-      bpar%avg_block(bpar%nb+1) = .false.
-      bpar%nicas_block(bpar%nb+1) = .false.
+      bpar%diag_block(ib) = .false.
+      bpar%avg_block(ib) = .false.
+      bpar%nicas_block(ib) = .false.
    end select
 
    ! Blocks information
-   bpar%blockname(bpar%nb+1) = 'common'
-   bpar%fit_block(bpar%nb+1) = bpar%diag_block(bpar%nb+1).and.(trim(nam%fit_type)/='none')
+   bpar%blockname(ib) = 'common'
+   bpar%fit_block(ib) = bpar%diag_block(ib).and.(trim(nam%fit_type)/='none')
 end if
 
 end subroutine bpar_alloc

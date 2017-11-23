@@ -71,7 +71,7 @@ if (bpar%fit_block(ib)) then
    if (nam%fit_wgt) loc%fit_wgt = abs(avg%cor)
 
    ! Compute initial fit
-   call compute_fit(hdata,loc)
+   call compute_fit(hdata,ib,loc)
 end if
 
 ! End associate

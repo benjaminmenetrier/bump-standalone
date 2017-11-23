@@ -84,6 +84,7 @@ type namtype
    integer :: nrep                                  !< Number of replacement to improve homogeneity of the zero-separation sampling
    integer :: nc                                    !< Number of classes
    real(kind_real) ::  dc                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
+   integer :: nl0r                                  !< Reduced number of levels for diagnostics
 
    ! diag_param
    integer :: ne                                    !< Ensemble sizes
@@ -103,7 +104,6 @@ type namtype
    logical :: lhomh                                 !< Vertically homogenous horizontal support radius
    logical :: lhomv                                 !< Vertically homogenous vertical support radius
    real(kind_real) ::  rvflt                        !< Vertical smoother support radius
-   integer :: lct_nl0                               !< Half-number of vertical levels for LCT diagnostics
    logical :: lct_diag                              !< Diagnostic of diagonal LCT components only
 
    ! output_param
@@ -153,7 +153,7 @@ integer :: iv
 
 ! Namelist variables
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
-integer :: nc1,ntry,nrep,nc,ne,displ_niter,lct_nl0,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
+integer :: nc1,ntry,nrep,nc,nl0r,ne,displ_niter,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
 integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax)
 logical :: colorlog,sam_default_seed
 logical :: new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac,check_perf,check_hdiag,new_lct
@@ -171,9 +171,9 @@ namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
-namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc
+namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc,nl0r
 namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
-namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_nl0,lct_diag
+namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_diag
 namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
 namelist/nicas_param/lsqrt,rh,rv,resol,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
 
@@ -234,6 +234,7 @@ call msi(ntry)
 call msi(nrep)
 call msi(nc)
 call msr(dc)
+call msi(nl0r)
 
 ! diag_param default
 call msi(ne)
@@ -252,7 +253,6 @@ fit_wgt = .false.
 lhomh = .false.
 lhomv = .false.
 call msr(rvflt)
-call msi(lct_nl0)
 lct_diag = .false.
 
 ! output_param default
@@ -341,6 +341,7 @@ if (mpl%main) then
    nam%nrep = nrep
    nam%nc = nc
    nam%dc = dc/req
+   nam%nl0r = nl0r
 
    ! diag_param
    read(*,nml=diag_param)
@@ -362,7 +363,6 @@ if (mpl%main) then
    nam%lhomh = lhomh
    nam%lhomv = lhomv
    nam%rvflt = rvflt
-   nam%lct_nl0 = lct_nl0
    nam%lct_diag = lct_diag
 
    ! output_param
@@ -447,6 +447,7 @@ call mpl_bcast(nam%ntry,mpl%ioproc)
 call mpl_bcast(nam%nrep,mpl%ioproc)
 call mpl_bcast(nam%nc,mpl%ioproc)
 call mpl_bcast(nam%dc,mpl%ioproc)
+call mpl_bcast(nam%nl0r,mpl%ioproc)
 
 ! diag_param
 call mpl_bcast(nam%ne,mpl%ioproc)
@@ -466,7 +467,6 @@ call mpl_bcast(nam%fit_wgt,mpl%ioproc)
 call mpl_bcast(nam%lhomh,mpl%ioproc)
 call mpl_bcast(nam%lhomv,mpl%ioproc)
 call mpl_bcast(nam%rvflt,mpl%ioproc)
-call mpl_bcast(nam%lct_nl0,mpl%ioproc)
 call mpl_bcast(nam%lct_diag,mpl%ioproc)
 
 ! output_param
@@ -558,8 +558,7 @@ do il=1,nam%nl
 end do
 if (nam%logpres) then
    select case (trim(nam%model))
-   case ('aro','arp','gem','geos','gfs','mpas','wrf')
-   case default
+   case ('nemo')
       call msgwarning('pressure logarithm vertical coordinate is not available for this model, resetting to model level index')
       nam%logpres = .false.
    end select
@@ -601,6 +600,13 @@ if (nam%new_hdiag) then
    if (nam%nrep<0) call msgerror('nrep should be non-negative')
    if (nam%nc<=0) call msgerror('nc should be positive')
    if (nam%dc<0.0) call msgerror('dc should be positive')
+   if (nam%nl0r<1) call msgerror ('nl0r should be positive')
+   if (nam%nl0r>nam%nl) then
+      call msgwarning('nl0r should be lower that nl, resetting nl0r to nl or the lower odd number')
+      nam%nl0r = nam%nl
+      if (mod(nam%nl0r,2)<1) nam%nl0r = nam%nl0r-1
+   end if
+   if (mod(nam%nl0r,2)<1) call msgerror ('nl0r should be odd')
 
    ! Check diag_param
    if (nam%ne<=3) call msgerror('ne should be larger than 3')
@@ -621,9 +627,6 @@ if (nam%new_hdiag) then
       call msgerror('wrong fit_type')
    end select
    if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
-   if (nam%new_lct) then
-      if (nam%lct_nl0<0) call msgerror ('lct_nl0 should be non-negative')
-   end if
 
    ! Check output_param
    if (nam%local_diag) then
@@ -747,6 +750,7 @@ call put_att(ncid,'ntry',nam%ntry)
 call put_att(ncid,'nrep',nam%nrep)
 call put_att(ncid,'nc',nam%nc)
 call put_att(ncid,'dc',nam%dc)
+call put_att(ncid,'nl0r',nam%nl0r)
 
 ! diag_param
 call put_att(ncid,'ne',nam%ne)
@@ -766,7 +770,6 @@ call put_att(ncid,'fit_wgt',nam%fit_wgt)
 call put_att(ncid,'lhomh',nam%lhomh)
 call put_att(ncid,'lhomv',nam%lhomv)
 call put_att(ncid,'rvflt',nam%rvflt)
-call put_att(ncid,'lct_nl0',nam%lct_nl0)
 call put_att(ncid,'lct_diag',nam%lct_diag)
 
 ! output_param

@@ -44,7 +44,7 @@ type(momtype),intent(inout) :: mom(hdata%bpar%nb)                               
 real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
-integer :: ne,ne_offset,nsub,ie,ic0,jc0,il0,jl0,isub,jsub,ic,ic1,ib,iv,jv,its,jts
+integer :: ne,ne_offset,nsub,ie,ic0,jc0,il0r,il0,jl0,isub,jsub,ic,ic1,ib,iv,jv,its,jts
 real(kind_real) :: fac1,fac2,fac3,fac4,fac5,fac6
 real(kind_real),allocatable :: fld(:,:,:,:),fld_1(:,:,:,:),fld_2(:,:,:,:)
 
@@ -163,19 +163,20 @@ do isub=1,nsub
             call msr(fld_2)
             if ((iv==jv).and.(its==jts)) then
                ! Copy all separations points
-               !$omp parallel do schedule(static) private(jl0,il0,ic,ic1,ic0,jc0)
+               !$omp parallel do schedule(static) private(jl0,il0r,il0,ic,ic1,ic0,jc0)
                do jl0=1,geom%nl0
-                  do il0=1,bpar%nl0(ib)
+                  do il0r=1,bpar%nl0(ib)
+                     il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
                      do ic=1,bpar%icmax(ib)
                         do ic1=1,nam%nc1
-                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0off(jl0,ib)+il0)) then
+                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
                               ! Indices
-                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,bpar%il0off(jl0,ib)+il0)
+                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
                               jc0 = hdata%ic1_to_ic0(ic1)
 
                               ! Copy points
-                              fld_1(ic1,ic,il0,jl0) = fld(jc0,jl0,jv,jts)
-                              fld_2(ic1,ic,il0,jl0) = fld(ic0,bpar%il0off(jl0,ib)+il0,iv,its)
+                              fld_1(ic1,ic,il0r,jl0) = fld(jc0,jl0,jv,jts)
+                              fld_2(ic1,ic,il0r,jl0) = fld(ic0,il0,iv,its)
                            end if
                         end do
                      end do

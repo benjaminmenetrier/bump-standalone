@@ -206,7 +206,7 @@ do jl0=1,geom%nl0
 
       ! Prepare vectors
       do il0r=1,bpar%nl0(ib)
-         il0 = bpar%il0off(jl0,ib)+il0r
+         il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
          do ic=1,nam%nc
             dmask(ic,il0r) = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)
             if (dmask(ic,il0r)) then

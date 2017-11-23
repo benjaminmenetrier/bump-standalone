@@ -246,7 +246,7 @@ do ib=1,bpar%nb
             ! Check diagnostic area
             valid = .true.
             do il0r=1,bpar%nl0(ib)
-               il0 = bpar%il0off(jl0,ib)+il0r
+               il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
                do ic=1,nam%nc
                   if (valid.and.hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) &
                &  valid = valid.and.(.not.isnotmsr(fld(hdata%ic1icil0_to_ic0(ic1,ic,il0),il0,1)))
@@ -254,7 +254,7 @@ do ib=1,bpar%nb
             end do
             if (valid) then
                do il0r=1,bpar%nl0(ib)
-                  il0 = bpar%il0off(jl0,ib)+il0r
+                  il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
                   do ic=1,nam%nc
                      if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
                         fld(hdata%ic1icil0_to_ic0(ic1,ic,il0),il0,1) = lct(ic1,jl0,ib)%raw(ic,il0)

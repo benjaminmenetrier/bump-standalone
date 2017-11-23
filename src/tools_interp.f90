@@ -164,7 +164,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
          ! Subsampled point
          n_s = n_s+1
          row(n_s) = i_dst
-         col(n_s) = inn(1)
+         col(n_s) = mesh%order(inn(1))
          S(n_s) = 1.0
       end if
    end if

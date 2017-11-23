@@ -8,7 +8,8 @@ This code is distributed under the CeCILL-C license (Copyright © 2017 METEO-FRA
 The fact that you are downloading this code means that you have had knowledge of the CeCILL-C license and that you accept its terms.
 
 A theoretical documentation is available: 
- - about covariance filtering at: http://benjaminmenetrier.free.fr/hdiag_nicas/covariance_filtering.pdf
- - about the NICAS method at: http://benjaminmenetrier.free.fr/hdiag_nicas/nicas.pdf
+ - about covariance filtering at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/covariance_filtering.pdf
+ - about the NICAS method at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/nicas.pdf
+ - about multivariate localization at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/multivariate_localization.pdf
 
-The code can be browsed easily browsed via the doxygen documentation: http://benjaminmenetrier.free.fr/nicas/html/index.html
+The code can be browsed easily browsed via the Doxygen documentation: http://benjaminmenetrier.free.fr/hdiag_nicas/index.html

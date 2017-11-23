@@ -17,19 +17,6 @@ sampling"
 for output_file in ${output_files} ; do
    rm -f ../test/test_${output_file}.nc
 done
-rm -f ../run/hdiag_nicas
-
-# Compile
-cd ../build
-cmake CMakeLists.txt > ../test/cmake.log 2>&1
-make clean
-make > ../test/make.log 2>&1
-if [[ -e "../run/hdiag_nicas" ]] ; then
-   echo -e "\033[32mCompilation successful\033[m"
-else
-   echo -e "\033[31mCompilation failed\033[m"
-   exit
-fi
 
 # Execute
 export OMP_NUM_THREADS=1

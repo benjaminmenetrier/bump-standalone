@@ -74,7 +74,7 @@ doxygen Doxyfile
 # Copy doc directory on ftp
 echo '--- Copy doc directory on ftp'
 cd ..
-lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc hdiag_nicas;quit"
+lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc/html hdiag_nicas;quit"
 cd script
 
 # Git commands

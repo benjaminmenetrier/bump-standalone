@@ -37,7 +37,7 @@ subroutine model_oops_coord(nam,geom,lats,lons,areas,levs,mask3d,mask2d,glbind)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam                   !< Namelist
+type(namtype),intent(inout) :: nam                !< Namelist
 type(geomtype),intent(inout) :: geom              !< Geometry
 real(kind_real),intent(in) :: lats(geom%nc0a)     !< Latitudes
 real(kind_real),intent(in) :: lons(geom%nc0a)     !< Longitudes
@@ -72,11 +72,11 @@ mpl%tag = mpl%tag+1
 ! Broadcast data
 call mpl_bcast(nc0ag,mpl%ioproc)
 
-! Number of levels
-geom%nl0 = nam%nl
-!do iv=1,nam%nv
-!   if (trim(nam%addvar2d(iv))/='') geom%nl0 = nam%nl+1
-!end do
+! Number of levels (given by the unstructured grid, not the namelist/JSON)
+geom%nl0 = geom%nlev
+do il0=1,geom%nl0
+   nam%levs(il0) = il0
+end do
 
 ! Global number of nodes
 geom%nc0 = sum(nc0ag)
@@ -95,9 +95,6 @@ allocate(geom%ic0_to_ic0a(geom%nc0))
 allocate(lmask3d(geom%nc0a,geom%nl0))
 allocate(lmask2d(geom%nc0a))
 allocate(glbindg(geom%nc0))
-
-! Check TODO: check dimensions consistency of all arrays
-if (any(nam%levs>geom%nlev)) call msgerror('not enough levels in model_oops')
 
 ! Define local index and MPI task
 ic0 = 0
