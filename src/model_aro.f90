@@ -35,8 +35,8 @@ subroutine model_aro_coord(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(namtype),intent(in) :: nam      !< Namelist
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ncid,nlon_id,nlat_id,nlev_id,pp_id,lon_id,lat_id,cmask_id,a_id,b_id
@@ -93,7 +93,7 @@ geom%area = float(geom%nlon*geom%nlat)*dx*dy/req**2
 ! Vertical unit
 if (nam%logpres) then
    geom%vunit(1:nam%nl) = log(0.5*(a(1:nam%nl)+a(2:nam%nl+1))+0.5*(b(1:nam%nl)+b(2:nam%nl+1))*ps)
-   if (geom%nl0>nam%nl) geom%vunit(geom%nl0) = log(ps)  
+   if (geom%nl0>nam%nl) geom%vunit(geom%nl0) = log(ps)
 else
    geom%vunit = float(nam%levs(1:geom%nl0))
 end if
@@ -116,10 +116,10 @@ subroutine model_aro_read(nam,geom,ncid,its,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom                     !< Sampling data
-integer,intent(in) :: ncid                              !< NetCDF file ID
-integer,intent(in) :: its                               !< Timeslot index
+type(namtype),intent(in) :: nam                              !< Namelist
+type(geomtype),intent(in) :: geom                            !< Geometry
+integer,intent(in) :: ncid                                   !< NetCDF file ID
+integer,intent(in) :: its                                    !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Read field
 
 ! Local variables
@@ -138,7 +138,7 @@ do iv=1,nam%nv
       ! Get id
       write(ilchar,'(i3.3)') nam%levs(il0)
       call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(nam%varname(iv)),fld_id))
-   
+
       ! Read data
       call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
       fld(:,il0,iv) = pack(real(fld_loc,kind_real),mask=.true.)
@@ -146,14 +146,14 @@ do iv=1,nam%nv
 
    if (trim(nam%addvar2d(iv))/='') then
       ! 2d variable
-   
+
       ! Get id
       call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-   
+
       ! Read data
       call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc))
       fld(:,geom%nl0,iv) = pack(real(fld_loc,kind_real),mask=.true.)
-   
+
       ! Variable change for surface pressure
       if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld(:,geom%nl0,iv) = exp(fld(:,geom%nl0,iv))
    end if
@@ -168,15 +168,14 @@ end subroutine model_aro_read
 ! Subroutine: model_aro_write
 !> Purpose: write AROME field
 !----------------------------------------------------------------------
-subroutine model_aro_write(nam,geom,ncid,varname,fld)
+subroutine model_aro_write(geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom                     !< Sampling data
-integer,intent(in) :: ncid                              !< NetCDF file ID
-character(len=*),intent(in) :: varname                  !< Variable name
+type(geomtype),intent(in) :: geom                    !< Geometry
+integer,intent(in) :: ncid                           !< NetCDF file ID
+character(len=*),intent(in) :: varname               !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables

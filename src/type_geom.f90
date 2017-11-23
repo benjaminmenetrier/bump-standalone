@@ -11,15 +11,15 @@
 module type_geom
 
 use netcdf
-use tools_const, only: req,sphere_dist,vector_product
+use tools_const, only: req,deg2rad,sphere_dist,vector_product
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsi
 use tools_nc, only: ncerr
 use tools_stripack, only: areas,trans,trlist
-use type_ctree, only: ctreetype,create_ctree
+use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors
 use type_mesh, only: meshtype,create_mesh
-use type_mpl, only: mpl,mpl_recv,mpl_send
+use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_barrier
 use type_nam, only: namtype
 
 implicit none
@@ -27,47 +27,47 @@ implicit none
 ! Sampling data derived type
 type geomtype
    ! Vector sizes
-   integer :: nlon                         !< Longitude size
-   integer :: nlat                         !< Latitude size
-   integer :: nlev                         !< Number of levels
-   logical,allocatable :: rgmask(:,:)      !< Reduced Gaussian grid mask
-   real(kind_real),allocatable :: area(:)  !< Domain area
+   integer :: nlon                             !< Longitude size
+   integer :: nlat                             !< Latitude size
+   integer :: nlev                             !< Number of levels
+   logical,allocatable :: rgmask(:,:)          !< Reduced Gaussian grid mask
+   real(kind_real),allocatable :: area(:)      !< Domain area
 
    ! Number of points and levels
-   integer :: nc0                          !< Number of points in subset Sc0
-   integer :: nl0                          !< Number of levels in subset Sl0
-   integer :: nl0i                         !< Number of independent levels in subset Sl0
+   integer :: nc0                              !< Number of points in subset Sc0
+   integer :: nl0                              !< Number of levels in subset Sl0
+   integer :: nl0i                             !< Number of independent levels in subset Sl0
 
    ! Vector coordinates
-   real(kind_real),allocatable :: lon(:)              !< Cells longitude
-   real(kind_real),allocatable :: lat(:)              !< Cells latitude
-   logical,allocatable :: mask(:,:)                !< Cells mask
-   real(kind_real),allocatable :: vunit(:)            !< Vertical unit
-   real(kind_real),allocatable :: distv(:,:)         !< Vertical distance
-   real(kind_real),allocatable :: disth(:)         !< Horizontal distance
+   real(kind_real),allocatable :: lon(:)       !< Longitudes
+   real(kind_real),allocatable :: lat(:)       !< Latitudes
+   logical,allocatable :: mask(:,:)            !< Mask
+   real(kind_real),allocatable :: vunit(:)     !< Vertical unit
+   real(kind_real),allocatable :: disth(:)     !< Horizontal distance
+   real(kind_real),allocatable :: distv(:,:)   !< Vertical distance
 
    ! Mesh
-   type(meshtype) :: mesh
+   type(meshtype) :: mesh                      !< Mesh
 
    ! Cover tree
-   type(ctreetype),allocatable :: ctree(:)
+   type(ctreetype),allocatable :: ctree(:)     !< Cover trees
 
    ! Boundary nodes
-   integer,allocatable :: nbnd(:)                     !< Number of boundary nodes
-   real(kind_real),allocatable :: xbnd(:,:,:)         !< Boundary nodes, x-coordinate
-   real(kind_real),allocatable :: ybnd(:,:,:)         !< Boundary nodes, y-coordinate
-   real(kind_real),allocatable :: zbnd(:,:,:)         !< Boundary nodes, z-coordinate
-   real(kind_real),allocatable :: vbnd(:,:,:)         !< Boundary nodes, orthogonal vector
+   integer,allocatable :: nbnd(:)              !< Number of boundary nodes
+   real(kind_real),allocatable :: xbnd(:,:,:)  !< Boundary nodes, x-coordinate
+   real(kind_real),allocatable :: ybnd(:,:,:)  !< Boundary nodes, y-coordinate
+   real(kind_real),allocatable :: zbnd(:,:,:)  !< Boundary nodes, z-coordinate
+   real(kind_real),allocatable :: vbnd(:,:,:)  !< Boundary nodes, orthogonal vector
 
    ! Neighbors
-   integer,allocatable :: net_nnb(:)      !< Number of neighbors on the full grid
-   integer,allocatable :: net_inb(:,:)    !< Neighbors indices on the full grid
-   real(kind_real),allocatable :: net_dnb(:,:)       !< Neighbors distances on the full grid
+   integer,allocatable :: net_nnb(:)           !< Number of neighbors on the full grid
+   integer,allocatable :: net_inb(:,:)         !< Neighbors indices on the full grid
+   real(kind_real),allocatable :: net_dnb(:,:) !< Neighbors distances on the full grid
 
    ! MPI distribution
    integer :: nc0a !< Halo A size
-   integer,allocatable :: ic0_to_iproc(:)    !< Subset Sc0 to local task
-   integer,allocatable :: ic0_to_ic0a(:)     !< Subset Sc0, global to halo A
+   integer,allocatable :: ic0_to_iproc(:)      !< Subset Sc0 to local task
+   integer,allocatable :: ic0_to_ic0a(:)       !< Subset Sc0, global to halo A
    integer,allocatable :: iproc_to_nc0a(:)     !< Halo A size for each proc
 end type geomtype
 
@@ -96,7 +96,7 @@ subroutine geom_alloc(geom)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Allocation
 allocate(geom%lon(geom%nc0))
@@ -124,12 +124,15 @@ subroutine compute_grid_mesh(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(namtype),intent(in) :: nam      !< Namelist
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: il0,il0i,jl0,ic
 logical :: same_mask
+
+! Define mask
+call define_mask(nam,geom)
 
 ! Create mesh
 if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
@@ -143,7 +146,7 @@ if (nam%new_param.and.nam%mask_check) call compute_mask_boundaries(geom)
 
 ! Find grid neighbors
 if (nam%new_param.and.nam%network.and..not.allocated(geom%net_nnb)) call find_grid_neighbors(geom)
-   
+
 ! Compute distances between neighbors
 if (nam%new_param.and.nam%network) call compute_grid_neighbors_distances(geom)
 
@@ -163,7 +166,7 @@ end if
 write(mpl%unit,'(a7,a,i3)') '','Number of independent levels: ',geom%nl0i
 
 ! Create cover tree
-if ((nam%new_hdiag.and.nam%displ_diag).or.nam%check_dirac) then
+if ((nam%new_hdiag.and.nam%displ_diag).or.nam%check_dirac.or.(nam%new_lct)) then
    allocate(geom%ctree(geom%nl0i))
    do il0i=1,geom%nl0i
       geom%ctree(il0i) = create_ctree(geom%nc0,geom%lon,geom%lat,geom%mask(:,il0i))
@@ -189,6 +192,85 @@ call geom_read_local(nam,geom)
 end subroutine compute_grid_mesh
 
 !----------------------------------------------------------------------
+! Subroutine: define_mask
+!> Purpose: define mask
+!----------------------------------------------------------------------
+subroutine define_mask(nam,geom)
+
+implicit none
+
+! Passed variables
+type(namtype),intent(in) :: nam      !< Namelist
+type(geomtype),intent(inout) :: geom !< Geometry
+
+! Local variables
+integer :: latmin,latmax,il0,ic0,nn_index(1),ildw
+integer :: ncid,nlon_id,nlon_test,nlat_id,nlat_test,mask_id
+real(kind_real) :: nn_dist(1),dist
+real(kind_real),allocatable :: hydmask(:,:)
+logical :: mask_test
+character(len=3) :: il0char
+character(len=1024) :: subr = 'define_mask'
+type(ctreetype) :: ctree
+
+! Mask restriction
+if (nam%mask_type(1:3)=='lat') then
+   ! Latitude mask
+   read(nam%mask_type(4:6),'(i3)') latmin
+   read(nam%mask_type(7:9),'(i3)') latmax
+   if (latmin>=latmax) call msgerror('latmin should be lower than latmax')
+   do il0=1,geom%nl0
+      geom%mask(:,il0) = geom%mask(:,il0).and.(geom%lat>=float(latmin)*deg2rad).and.(geom%lat<=float(latmax)*deg2rad)
+   end do
+elseif (trim(nam%mask_type)=='hyd') then
+   ! Read from hydrometeors mask file
+   call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_hyd.nc',nf90_nowrite,ncid))
+   if (trim(nam%model)=='aro') then
+      call ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
+      call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=nlon_test))
+      call ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
+      call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=nlat_test))
+      if ((nlon_test/=geom%nlon).or.(nlat_test/=geom%nlat)) call msgerror('wrong dimensions in the mask')
+      allocate(hydmask(geom%nlon,geom%nlat))
+      do il0=1,geom%nl0
+         write(il0char,'(i3.3)') nam%levs(il0)
+         call ncerr(subr,nf90_inq_varid(ncid,'S'//il0char//'MASK',mask_id))
+         call ncerr(subr,nf90_get_var(ncid,mask_id,hydmask,(/1,1/),(/geom%nlon,geom%nlat/)))
+         geom%mask(:,il0) = geom%mask(:,il0).and.pack(real(hydmask,kind(1.0))>nam%mask_th,mask=.true.)
+      end do
+      deallocate(hydmask)
+      call ncerr(subr,nf90_close(ncid))
+   end if
+elseif (trim(nam%mask_type)=='ldwv') then
+   ! Compute distance to the vertical diagnostic points
+   do ic0=1,geom%nc0
+      if (any(geom%mask(ic0,:))) then
+         mask_test = .false.
+         do ildw=1,nam%nldwv
+            call sphere_dist(nam%lon_ldwv(ildw)*deg2rad,nam%lat_ldwv(ildw)*deg2rad,geom%lon(ic0),geom%lat(ic0),dist)
+            mask_test = mask_test.or.(dist<1.1*nam%local_rad)
+         end do
+         do il0=1,geom%nl0
+            if (geom%mask(ic0,il0)) geom%mask(ic0,:) = mask_test
+         end do
+      end if
+   end do
+elseif (trim(nam%mask_type)=='coast') then
+   ! Compute distance to the coast
+   do il0=1,geom%nl0
+      ctree = create_ctree(geom%nc0,geom%lon,geom%lat,.not.geom%mask(:,il0))
+      do ic0=1,geom%nc0
+         if (geom%mask(ic0,il0)) then
+            call find_nearest_neighbors(ctree,geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)
+            if (nn_dist(1)<nam%mask_th/req) geom%mask(ic0,il0) = .false.
+         end if
+      end do
+   end do
+end if
+
+end subroutine define_mask
+
+!----------------------------------------------------------------------
 ! Subroutine: compute_area
 !> Purpose: compute domain area
 !----------------------------------------------------------------------
@@ -197,7 +279,7 @@ subroutine compute_area(geom)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: info,il0,nt,it
@@ -219,7 +301,7 @@ do it=1,nt
    do il0=1,geom%nl0
       frac = float(count(geom%mask(geom%mesh%order(ltri(1:3,it)),il0)))/3.0
       geom%area(il0) = geom%area(il0)+frac*area
-   end do  
+   end do
 end do
 
 ! Release memory
@@ -236,7 +318,7 @@ subroutine compute_mask_boundaries(geom)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ic0,jc0,kc0,i,ibnd,il0
@@ -304,7 +386,7 @@ subroutine find_grid_neighbors(geom)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ic0,i
@@ -312,7 +394,7 @@ logical :: init
 
 ! Allocation
 allocate(geom%net_nnb(geom%nc0))
-   
+
 ! Count neighbors
 geom%net_nnb = 0
 do ic0=1,geom%mesh%nnr
@@ -324,10 +406,10 @@ do ic0=1,geom%mesh%nnr
       init = .false.
    end do
 end do
-   
+
 ! Allocation
 allocate(geom%net_inb(maxval(geom%net_nnb),geom%nc0))
-   
+
 ! Find neighbors
 geom%net_nnb = 0
 do ic0=1,geom%mesh%nnr
@@ -340,7 +422,7 @@ do ic0=1,geom%mesh%nnr
       init = .false.
    end do
 end do
-   
+
 ! Copy neighbors for redudant points
 do ic0=1,geom%nc0
    if (isnotmsi(geom%mesh%redundant(ic0))) then
@@ -360,7 +442,7 @@ subroutine compute_grid_neighbors_distances(geom)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ic0,i
@@ -369,7 +451,7 @@ integer :: ic0,i
 ! Allocation
 allocate(geom%net_dnb(maxval(geom%net_nnb),geom%nc0))
 
-! Compute distances 
+! Compute distances
 do ic0=1,geom%nc0
    do i=1,geom%net_nnb(ic0)
       call sphere_dist(geom%lon(ic0),geom%lat(ic0),geom%lon(geom%net_inb(i,ic0)), &
@@ -389,8 +471,8 @@ subroutine geom_read_local(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(namtype),intent(in) :: nam      !< Namelist
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ic0,info,iproc,ic0a,nc0amax
@@ -415,7 +497,7 @@ if (.not.allocated(geom%ic0_to_iproc)) then
       write(nprocchar,'(i4.4)') mpl%nproc
       filename = trim(nam%prefix)//'_distribution_'//nprocchar//'.nc'
       info = nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid)
-   
+
       if (info==nf90_noerr) then
          ! Read data and close file
          call ncerr(subr,nf90_inq_varid(ncid,'ic0_to_iproc',ic0_to_iproc_id))
@@ -466,8 +548,8 @@ subroutine fld_com_gl(geom,fld)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom       !< Sampling data
-real(kind_real),allocatable,intent(inout) :: fld(:,:)        !< Field
+type(geomtype),intent(in) :: geom                     !< Geometry
+real(kind_real),allocatable,intent(inout) :: fld(:,:) !< Field
 
 ! Local variables
 integer :: il0,ic0,ic0a,iproc,jproc
@@ -528,6 +610,9 @@ allocate(fld(geom%nc0a,geom%nl0))
 mask_unpack = .true.
 fld = unpack(rbuf,mask=mask_unpack,field=fld)
 
+! Wait
+call mpl_barrier()
+
 end subroutine fld_com_gl
 
 !----------------------------------------------------------------------
@@ -539,9 +624,9 @@ subroutine fld_com_gl_multi(nam,geom,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam       !< Sampling data
-type(geomtype),intent(in) :: geom       !< Sampling data
-real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:)        !< Field
+type(namtype),intent(in) :: nam                           !< Namelist
+type(geomtype),intent(in) :: geom                         !< Geometry
+real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:) !< Field
 
 ! Local variables
 integer :: its,iv,il0,ic0,ic0a,iproc,jproc
@@ -606,6 +691,9 @@ allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
 mask_unpack = .true.
 fld = unpack(rbuf,mask=mask_unpack,field=fld)
 
+! Wait
+call mpl_barrier()
+
 end subroutine fld_com_gl_multi
 
 !----------------------------------------------------------------------
@@ -617,13 +705,13 @@ subroutine fld_com_lg(geom,fld)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom       !< Sampling data
-real(kind_real),allocatable,intent(inout) :: fld(:,:)        !< Field
+type(geomtype),intent(in) :: geom                     !< Geometry
+real(kind_real),allocatable,intent(inout) :: fld(:,:) !< Field
 
 ! Local variables
 integer :: il0,ic0,ic0a,iproc,jproc
 real(kind_real),allocatable :: fld_loc(:,:),sbuf(:),rbuf(:)
-logical :: mask_unpack(geom%nc0a,geom%nl0)
+logical,allocatable :: mask_unpack(:,:)
 
 ! Allocation
 allocate(sbuf(geom%nc0a*geom%nl0))
@@ -642,6 +730,7 @@ if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
       allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0))
+      allocate(mask_unpack(geom%iproc_to_nc0a(iproc),geom%nl0))
       allocate(rbuf(geom%iproc_to_nc0a(iproc)*geom%nl0))
 
       if (iproc==mpl%ioproc) then
@@ -667,6 +756,7 @@ if (mpl%main) then
 
       ! Release memory
       deallocate(fld_loc)
+      deallocate(mask_unpack)
       deallocate(rbuf)
    end do
 else
@@ -674,6 +764,9 @@ else
    call mpl_send(geom%nc0a*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
+
+! Wait
+call mpl_barrier()
 
 end subroutine fld_com_lg
 
@@ -686,14 +779,14 @@ subroutine fld_com_lg_multi(nam,geom,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam       !< Sampling data
-type(geomtype),intent(in) :: geom       !< Sampling data
-real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:)        !< Field
+type(namtype),intent(in) :: nam                           !< Namelist
+type(geomtype),intent(in) :: geom                         !< Geometry
+real(kind_real),allocatable,intent(inout) :: fld(:,:,:,:) !< Field
 
 ! Local variables
 integer :: its,iv,il0,ic0,ic0a,iproc,jproc
 real(kind_real),allocatable :: fld_loc(:,:,:,:),sbuf(:),rbuf(:)
-logical :: mask_unpack(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+logical,allocatable :: mask_unpack(:,:,:,:)
 
 ! Allocation
 allocate(sbuf(geom%nc0a*geom%nl0*nam%nv*nam%nts))
@@ -712,6 +805,7 @@ if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
       allocate(fld_loc(geom%iproc_to_nc0a(iproc),geom%nl0,nam%nv,nam%nts))
+      allocate(mask_unpack(geom%iproc_to_nc0a(iproc),geom%nl0,nam%nv,nam%nts))
       allocate(rbuf(geom%iproc_to_nc0a(iproc)*geom%nl0*nam%nv*nam%nts))
 
       if (iproc==mpl%ioproc) then
@@ -741,6 +835,7 @@ if (mpl%main) then
 
       ! Release memory
       deallocate(fld_loc)
+      deallocate(mask_unpack)
       deallocate(rbuf)
    end do
 else
@@ -748,6 +843,9 @@ else
    call mpl_send(geom%nc0a*geom%nl0*nam%nv*nam%nts,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
+
+! Wait
+call mpl_barrier()
 
 end subroutine fld_com_lg_multi
 

@@ -7,6 +7,7 @@
 #----------------------------------------------------------------------
 # Function to save a namelist
 save_namelist() {
+   #!/bin/ksh
    # Get argument
    if [ $# -eq 0 ] ; then
       echo "Error: no input argument in save_namelist!"
@@ -28,7 +29,11 @@ save_namelist() {
          if [ "${test}" = "&" ] ; then
             # New block
             block=`echo ${line} | cut -c 2-`
-            table="t"${i}"_"${block}
+            i2=${i}
+            if [ ${i} -le 9 ] ; then
+               i2="0"${i2}
+            fi
+            table="t"${i2}"_"${block}
 
             # Initialize key/value
             if [ "${table#*$list}" = "$table" ] ; then

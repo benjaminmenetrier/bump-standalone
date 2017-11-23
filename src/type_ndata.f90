@@ -27,98 +27,98 @@ implicit none
 ! Sampling data derived type
 type ndatatype
    ! Block name
-   character(len=1024) :: cname                  !< Block name
+   character(len=1024) :: cname                !< Block name
 
    ! Namelist
-   type(namtype),pointer :: nam                    !< Namelist
+   type(namtype),pointer :: nam                !< Namelist
 
    ! Geometry
-   type(geomtype),pointer :: geom                  !< Geometry
+   type(geomtype),pointer :: geom              !< Geometry
 
    ! Specific geometry
-   integer :: nc1                          !< Number of points in subset Sc1
-   integer,allocatable :: vbot(:)          !< Bottom level in grid Gh
-   integer,allocatable :: vtop(:)          !< Top level in grid Gh
-   integer :: nl1                          !< Number of levels in subset Sl1
-   integer,allocatable :: nc2(:)           !< Number of points in subset Sc2
-   integer :: ns                           !< Number of subgrid nodes
+   integer :: nc1                              !< Number of points in subset Sc1
+   integer,allocatable :: vbot(:)              !< Bottom level in grid Gh
+   integer,allocatable :: vtop(:)              !< Top level in grid Gh
+   integer :: nl1                              !< Number of levels in subset Sl1
+   integer,allocatable :: nc2(:)               !< Number of points in subset Sc2
+   integer :: ns                               !< Number of subgrid nodes
 
    ! Linear operators
-   type(linoptype) :: c                    !< Convolution
-   type(linoptype),allocatable :: h(:)     !< Horizontal interpolation
-   type(linoptype) :: v     !< Vertical interpolation
-   type(linoptype),allocatable :: s(:)     !< Subsample interpolation
+   type(linoptype) :: c                        !< Convolution
+   type(linoptype),allocatable :: h(:)         !< Horizontal interpolation
+   type(linoptype) :: v                        !< Vertical interpolation
+   type(linoptype),allocatable :: s(:)         !< Subsample interpolation
 
    ! Normalization
-   real(kind_real),allocatable :: norm(:,:) !< Normalization factor
+   real(kind_real),allocatable :: norm(:,:)    !< Normalization factor
    real(kind_real),allocatable :: norm_sqrt(:) !< Internal normalization factor for the square-root formulation
 
    ! Localization weights
    real(kind_real),allocatable :: coef_ens(:,:) !< Ensemble coefficient square-root
-   real(kind_real) :: wgt                !< Main weight
+   real(kind_real) :: wgt                       !< Main weight
 
    ! Other data
 
    ! Parameters/normalization conversion
-   integer,allocatable :: is_to_ic1(:)       !< Subgrid to subset Sc1
-   integer,allocatable :: is_to_il1(:)       !< Subgrid to subset Sl1
-   integer,allocatable :: is_to_ic2(:)       !< Subgrid to subset sc2
-   integer,allocatable :: ic1_to_ic0(:)      !< Subset Sc1 to subset Sc0
-   integer,allocatable :: il1_to_il0(:)      !< Subset Sl1 to subset Sl0
-   integer,allocatable :: ic2il1_to_ic0(:,:) !< Grid Gs to subset Sc0
-   integer,allocatable :: ic0_to_ic1(:)      !< Subset Sc0 to subset Sc1
-   integer,allocatable :: il0_to_il1(:)      !< Subset Sl0 to subset Sl1
-   integer,allocatable :: ic0il0_to_is(:,:)  !< Grid Gf to subgrid
-   integer,allocatable :: ic2il1_to_is(:,:)  !< Grid Gs to subgrid
-   integer,allocatable :: ic2il1_to_ic1(:,:) !< Grid Gs to subset Sc1
-   integer,allocatable :: ic1il1_to_is(:,:)  !< Grid Gv to subgrid
+   integer,allocatable :: is_to_ic1(:)          !< Subgrid to subset Sc1
+   integer,allocatable :: is_to_il1(:)          !< Subgrid to subset Sl1
+   integer,allocatable :: is_to_ic2(:)          !< Subgrid to subset sc2
+   integer,allocatable :: ic1_to_ic0(:)         !< Subset Sc1 to subset Sc0
+   integer,allocatable :: il1_to_il0(:)         !< Subset Sl1 to subset Sl0
+   integer,allocatable :: ic2il1_to_ic0(:,:)    !< Grid Gs to subset Sc0
+   integer,allocatable :: ic0_to_ic1(:)         !< Subset Sc0 to subset Sc1
+   integer,allocatable :: il0_to_il1(:)         !< Subset Sl0 to subset Sl1
+   integer,allocatable :: ic0il0_to_is(:,:)     !< Grid Gf to subgrid
+   integer,allocatable :: ic2il1_to_is(:,:)     !< Grid Gs to subgrid
+   integer,allocatable :: ic2il1_to_ic1(:,:)    !< Grid Gs to subset Sc1
+   integer,allocatable :: ic1il1_to_is(:,:)     !< Grid Gv to subgrid
 
    ! Illustration
-   integer,allocatable :: halo(:)            !< Halo points for illustration
+   integer,allocatable :: halo(:)               !< Halo points for illustration
 end type ndatatype
 
 ! Local sampling data derived type
 type ndataloctype
    ! Block name
-   character(len=1024) :: cname                  !< Block name
+   character(len=1024) :: cname                 !< Block name
 
    ! Number of points
-   integer :: nc1b                       !< Number of points in subset Sc1 on halo B
-   integer :: nl1                        !< Number of levels in subset Sl1
-   integer :: nl0i                       !< Number of independent levels
-   integer,allocatable :: vbot(:)        !< Bottom level
-   integer,allocatable :: vtop(:)        !< Bottom level
-   integer,allocatable :: nc2b(:)        !< Number of points in subset Sc2 on halo B
-   integer :: nsa                        !< Number of subgrid nodes on halo A
-   integer :: nsb                        !< Number of subgrid nodes on halo B
-   integer :: nsc                        !< Number of subgrid nodes on halo C
+   integer :: nc1b                              !< Number of points in subset Sc1 on halo B
+   integer :: nl1                               !< Number of levels in subset Sl1
+   integer :: nl0i                              !< Number of independent levels
+   integer,allocatable :: vbot(:)               !< Bottom level
+   integer,allocatable :: vtop(:)               !< Bottom level
+   integer,allocatable :: nc2b(:)               !< Number of points in subset Sc2 on halo B
+   integer :: nsa                               !< Number of subgrid nodes on halo A
+   integer :: nsb                               !< Number of subgrid nodes on halo B
+   integer :: nsc                               !< Number of subgrid nodes on halo C
 
    ! Inter-halo conversions
-   integer,allocatable :: isa_to_isb(:)  !< Subgrid, halo A to halo B
-   integer,allocatable :: isa_to_isc(:)  !< Subgrid, halo A to halo C
-   integer,allocatable :: isb_to_isc(:)  !< Subgrid, halo B to halo B
+   integer,allocatable :: isa_to_isb(:)         !< Subgrid, halo A to halo B
+   integer,allocatable :: isa_to_isc(:)         !< Subgrid, halo A to halo C
+   integer,allocatable :: isb_to_isc(:)         !< Subgrid, halo B to halo B
 
    ! Linear operators
-   type(linoptype) :: c                  !< Convolution
-   type(linoptype),allocatable :: h(:)   !< Horizontal interpolation
-   type(linoptype) :: v   !< Vertical interpolation
-   type(linoptype),allocatable :: s(:)   !< Subsample interpolation
+   type(linoptype) :: c                         !< Convolution
+   type(linoptype),allocatable :: h(:)          !< Horizontal interpolation
+   type(linoptype) :: v                         !< Vertical interpolation
+   type(linoptype),allocatable :: s(:)          !< Subsample interpolation
 
    ! Copy conversions
-   integer,allocatable :: isb_to_ic2b(:) !< Subgrid to subset Sc2 on halo B
-   integer,allocatable :: isb_to_il1(:)  !< Subgrid to subset Sl1 on halo B
+   integer,allocatable :: isb_to_ic2b(:)        !< Subgrid to subset Sc2 on halo B
+   integer,allocatable :: isb_to_il1(:)         !< Subgrid to subset Sl1 on halo B
 
    ! Normalization
-   real(kind_real),allocatable :: norm(:,:) !< Normalization factor
-   real(kind_real),allocatable :: norm_sqrt(:) !< Internal normalization factor for the square-root formulation
+   real(kind_real),allocatable :: norm(:,:)     !< Normalization factor
+   real(kind_real),allocatable :: norm_sqrt(:)  !< Internal normalization factor for the square-root formulation
 
    ! Localization weights
    real(kind_real),allocatable :: coef_ens(:,:) !< Ensemble coefficient square-root
-   real(kind_real) :: wgt                !< Main weight
+   real(kind_real) :: wgt                       !< Main weight
 
    ! Communications
-   type(comtype) :: AB                   !< Communication between halos A and B
-   type(comtype) :: AC                   !< Communication between halos A and C
+   type(comtype) :: AB                          !< Communication between halos A and B
+   type(comtype) :: AC                          !< Communication between halos A and C
 end type ndataloctype
 
 private
@@ -137,8 +137,8 @@ subroutine ndata_dealloc(ndata,nicas_block)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-logical,intent(in) :: nicas_block
+type(ndatatype),intent(inout) :: ndata !< NICAS data
+logical,intent(in) :: nicas_block      !< NICAS block key
 
 ! Local variables
 integer :: il0i,il1
@@ -176,7 +176,7 @@ if (nicas_block) then
    deallocate(ndata%ic2il1_to_is)
    deallocate(ndata%ic2il1_to_ic1)
    deallocate(ndata%ic1il1_to_is)
-   if (mpl%main) deallocate(ndata%halo)
+   if (allocated(ndata%halo)) deallocate(ndata%halo)
 end if
 
 ! End associate
@@ -193,8 +193,8 @@ subroutine ndata_read(ndata,nicas_block)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-logical,intent(in) :: nicas_block
+type(ndatatype),intent(inout) :: ndata !< NICAS data
+logical,intent(in) :: nicas_block      !< NICAS block key
 
 ! Local variables
 integer :: ncid
@@ -223,7 +223,7 @@ if (nicas_block) then
    call ncerr(subr,nf90_inquire_dimension(ncid,nl1_id,len=ndata%nl1))
    call ncerr(subr,nf90_inq_dimid(ncid,'ns',ns_id))
    call ncerr(subr,nf90_inquire_dimension(ncid,ns_id,len=ndata%ns))
-   
+
    ! Allocation
    allocate(ndata%vbot(ndata%nc1))
    allocate(ndata%vtop(ndata%nc1))
@@ -243,7 +243,7 @@ if (nicas_block) then
    allocate(ndata%norm(geom%nc0,geom%nl0))
    if (nam%lsqrt) allocate(ndata%norm_sqrt(ndata%ns))
    allocate(ndata%coef_ens(geom%nc0,geom%nl0))
-   
+
    ! Read data
    call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
    call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
@@ -307,10 +307,10 @@ subroutine ndataloc_read(nam,geom,ndataloc,nicas_block)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(inout) :: geom    !< Geometry
-type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
-logical,intent(in) :: nicas_block
+type(namtype),target,intent(in) :: nam       !< Namelist
+type(geomtype),target,intent(inout) :: geom  !< Geometry
+type(ndataloctype),intent(inout) :: ndataloc !< NICAS data, local
+logical,intent(in) :: nicas_block            !< NICAS block key
 
 ! Local variables
 integer :: ncid,info
@@ -353,7 +353,7 @@ if (nicas_block) then
       ndataloc%nsb = 0
    end if
    call ncerr(subr,nf90_get_att(ncid,nf90_global,'nsc',ndataloc%nsc))
-   
+
    ! Allocation
    if (ndataloc%nc1b>0) allocate(ndataloc%vbot(ndataloc%nc1b))
    if (ndataloc%nc1b>0) allocate(ndataloc%vtop(ndataloc%nc1b))
@@ -365,7 +365,7 @@ if (nicas_block) then
    if (ndataloc%nsb>0) allocate(ndataloc%isb_to_isc(ndataloc%nsb))
    allocate(ndataloc%norm(geom%nc0a,geom%nl0))
    if (nam%lsqrt) allocate(ndataloc%norm_sqrt(ndataloc%nsb))
-   allocate(ndataloc%coef_ens(geom%nc0,geom%nl0))
+   allocate(ndataloc%coef_ens(geom%nc0a,geom%nl0))
 
    ! Get variable id
    if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
@@ -396,7 +396,7 @@ if (nicas_block) then
    ! Read communications
    call com_read(mpl%nproc,ncid,'AB',ndataloc%AB)
    call com_read(mpl%nproc,ncid,'AC',ndataloc%AC)
-   
+
    ! Read linear operators
    call linop_read(ncid,'c',ndataloc%c)
    call linop_read(ncid,'h',ndataloc%h)
@@ -418,8 +418,8 @@ subroutine ndata_write(ndata,nicas_block)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-logical,intent(in) :: nicas_block
+type(ndatatype),intent(inout) :: ndata !< NICAS data
+logical,intent(in) :: nicas_block      !< NICAS block key
 
 ! Local variables
 integer :: ncid
@@ -526,10 +526,10 @@ subroutine ndataloc_write(nam,geom,ndataloc,nicas_block)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
-logical,intent(in) :: nicas_block
+type(namtype),target,intent(in) :: nam    !< Namelist
+type(geomtype),target,intent(in) :: geom  !< Geometry
+type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
+logical,intent(in) :: nicas_block         !< NICAS block key
 
 ! Local variables
 integer :: ncid
@@ -604,7 +604,7 @@ if (nicas_block) then
    ! Write communications
    call com_write(mpl%nproc,ncid,ndataloc%AB)
    call com_write(mpl%nproc,ncid,ndataloc%AC)
-   
+
    ! Write linear operators
    call linop_write(ncid,ndataloc%c)
    call linop_write(ncid,ndataloc%h)
@@ -626,7 +626,7 @@ subroutine ndata_write_mpi_summary(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
+type(ndatatype),intent(in) :: ndata !< NICAS data
 
 ! Local variables
 integer :: ncid

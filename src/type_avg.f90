@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_avg
 
@@ -18,27 +18,27 @@ implicit none
 
 ! Averaged statistics derived type
 type avgtype
-   integer :: ne                                !< Ensemble size
-   integer :: nsub                              !< Sub-ensembles number
-   integer :: npack                             !< Pack format size
-   real(kind_real),allocatable :: m11(:,:,:)               !< Covariance average
-   real(kind_real),allocatable :: m11m11(:,:,:,:,:)        !< Product of covariances average
-   real(kind_real),allocatable :: m2m2(:,:,:,:,:)          !< Product of variances average
-   real(kind_real),allocatable :: m22(:,:,:,:)             !< Fourth-order centered moment average
-   real(kind_real),allocatable :: cor(:,:,:)               !< Correlation average
-   real(kind_real),allocatable :: m11asysq(:,:,:)          !< Squared asymptotic covariance average
-   real(kind_real),allocatable :: m2m2asy(:,:,:)           !< Product of asymptotic variances average
-   real(kind_real),allocatable :: m22asy(:,:,:)            !< Asymptotic fourth-order centered moment average
-   real(kind_real),allocatable :: m11sq(:,:,:)             !< Squared covariance average for several ensemble sizes
-   real(kind_real),allocatable :: m11sta(:,:,:)            !< Ensemble covariance/static covariance product
-   real(kind_real),allocatable :: stasq(:,:,:)             !< Squared static covariance
-   real(kind_real),allocatable :: m11lrm11(:,:,:)          !< LR covariance/HR covariance product average
-   real(kind_real),allocatable :: m11lrm11asy(:,:,:)       !< LR covariance/HR asymptotic covariance product average
+   integer :: ne                                     !< Ensemble size
+   integer :: nsub                                   !< Sub-ensembles number
+   integer :: npack                                  !< Pack format size
+   real(kind_real),allocatable :: m11(:,:,:)         !< Covariance average
+   real(kind_real),allocatable :: m11m11(:,:,:,:,:)  !< Product of covariances average
+   real(kind_real),allocatable :: m2m2(:,:,:,:,:)    !< Product of variances average
+   real(kind_real),allocatable :: m22(:,:,:,:)       !< Fourth-order centered moment average
+   real(kind_real),allocatable :: cor(:,:,:)         !< Correlation average
+   real(kind_real),allocatable :: m11asysq(:,:,:)    !< Squared asymptotic covariance average
+   real(kind_real),allocatable :: m2m2asy(:,:,:)     !< Product of asymptotic variances average
+   real(kind_real),allocatable :: m22asy(:,:,:)      !< Asymptotic fourth-order centered moment average
+   real(kind_real),allocatable :: m11sq(:,:,:)       !< Squared covariance average for several ensemble sizes
+   real(kind_real),allocatable :: m11sta(:,:,:)      !< Ensemble covariance/static covariance product
+   real(kind_real),allocatable :: stasq(:,:,:)       !< Squared static covariance
+   real(kind_real),allocatable :: m11lrm11(:,:,:)    !< LR covariance/HR covariance product average
+   real(kind_real),allocatable :: m11lrm11asy(:,:,:) !< LR covariance/HR asymptotic covariance product average
 end type avgtype
 
 private
 public :: avgtype
-public :: avg_alloc,avg_dealloc,avg_pack,avg_unpack
+public :: avg_alloc,avg_dealloc,avg_copy,avg_pack,avg_unpack
 
 contains
 
@@ -51,9 +51,9 @@ subroutine avg_alloc(hdata,ib,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-integer,intent(in) :: ib
-type(avgtype),intent(inout) :: avg !< Averaged statistics
+type(hdatatype),intent(in) :: hdata !< HDIAG data
+integer,intent(in) :: ib            !< Block index
+type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -112,8 +112,8 @@ subroutine avg_dealloc(hdata,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-type(avgtype),intent(inout) :: avg !< Averaged statistics
+type(hdatatype),intent(in) :: hdata !< HDIAG data
+type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Associate
 associate(nam=>hdata%nam)
@@ -143,6 +143,51 @@ end associate
 end subroutine avg_dealloc
 
 !----------------------------------------------------------------------
+! Subroutine: avg_copy
+!> Purpose: averaged statistics object copy
+!----------------------------------------------------------------------
+subroutine avg_copy(hdata,ib,avg_in,avg_out)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(in) :: hdata  !< HDIAG data
+integer,intent(in) :: ib             !< Block index
+type(avgtype),intent(in) :: avg_in   !< Averaged statistics, input
+type(avgtype),intent(out) :: avg_out !< Averaged statistics, output
+
+! Associate
+associate(nam=>hdata%nam)
+
+! Allocation
+call avg_alloc(hdata,ib,avg_out)
+
+! Copy
+avg_out%npack = avg_in%npack
+avg_out%m11 = avg_in%m11
+avg_out%m11m11 = avg_in%m11m11
+avg_out%m2m2 = avg_in%m2m2
+if (.not.nam%gau_approx) avg_out%m22 = avg_in%m22
+avg_out%cor = avg_in%cor
+avg_out%m11asysq = avg_in%m11asysq
+avg_out%m2m2asy = avg_in%m2m2asy
+if (.not.nam%gau_approx) avg_out%m22asy = avg_in%m22asy
+avg_out%m11sq = avg_in%m11sq
+select case (trim(nam%method))
+case ('hyb-avg','hyb-rnd')
+   avg_out%m11sta = avg_in%m11sta
+   avg_out%stasq = avg_in%stasq
+case ('dual-ens')
+   avg_out%m11lrm11 = avg_in%m11lrm11
+   avg_out%m11lrm11asy = avg_in%m11lrm11asy
+end select
+
+! End associate
+end associate
+
+end subroutine avg_copy
+
+!----------------------------------------------------------------------
 ! Subroutine: avg_pack
 !> Purpose: averaged statistics object packing
 !----------------------------------------------------------------------
@@ -151,10 +196,10 @@ subroutine avg_pack(hdata,ib,avg,buf)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-integer,intent(in) :: ib
-type(avgtype),intent(in) :: avg !< Averaged statistics
-real(kind_real),intent(out) :: buf(avg%npack)
+type(hdatatype),intent(in) :: hdata           !< HDIAG data
+integer,intent(in) :: ib                      !< Block index
+type(avgtype),intent(in) :: avg               !< Averaged statistics
+real(kind_real),intent(out) :: buf(avg%npack) !< Buffer
 
 ! Local variables
 integer :: offset
@@ -190,10 +235,10 @@ subroutine avg_unpack(hdata,ib,avg,buf)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-integer,intent(in) :: ib
-type(avgtype),intent(inout) :: avg !< Averaged statistics
-real(kind_real),intent(in) :: buf(avg%npack)
+type(hdatatype),intent(in) :: hdata          !< HDIAG data
+integer,intent(in) :: ib                     !< Block index
+type(avgtype),intent(inout) :: avg           !< Averaged statistics
+real(kind_real),intent(in) :: buf(avg%npack) !< Buffer
 
 ! Local variables
 integer :: offset

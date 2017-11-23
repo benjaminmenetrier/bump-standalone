@@ -54,7 +54,7 @@ subroutine test_nicas_adjoints(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
+type(ndatatype),intent(in) :: ndata !< NICAS data
 
 ! Local variables
 real(kind_real) :: sum1,sum2
@@ -133,7 +133,7 @@ subroutine test_nicas_pos_def(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
+type(ndatatype),intent(in) :: ndata !< NICAS data
 
 ! Local variables
 integer :: iter
@@ -232,8 +232,8 @@ subroutine test_nicas_mpi(ndata,ndataloc)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata       !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
+type(ndatatype),intent(in) :: ndata       !< NICAS data
+type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
 
 ! Local variables
 real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
@@ -291,8 +291,8 @@ subroutine test_nicas_sqrt(bdata,ndata)
 implicit none
 
 ! Passed variables
-type(bdatatype),intent(in) :: bdata
-type(ndatatype),intent(in) :: ndata
+type(bdatatype),intent(in) :: bdata !< B data
+type(ndatatype),intent(in) :: ndata !< NICAS data
 
 ! Local variables
 real(kind_real) :: fld(ndata%geom%nc0,ndata%geom%nl0),fld_sqrt(ndata%geom%nc0,ndata%geom%nl0)
@@ -302,8 +302,8 @@ type(ndatatype) :: ndata_other
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Set namelist and geometry
-ndata_other%nam => nam
-ndata_other%geom => geom
+ndata_other%nam => ndata%nam
+ndata_other%geom => ndata%geom
 
 ! Generate random field
 call rand_real(-1.0_kind_real,1.0_kind_real,fld)
@@ -322,7 +322,7 @@ nam%lsqrt = .not.nam%lsqrt
 ! Compute NICAS parameters
 write(mpl%unit,'(a4,a)') '','Compute NICAS parameters'
 call compute_parameters(bdata,ndata_other)
-      
+
 ! Compute NICAS normalization
 write(mpl%unit,'(a4,a)') '','Compute NICAS normalization'
 call compute_normalization(ndata_other)
@@ -355,10 +355,10 @@ subroutine test_nicas_dirac(nam,geom,blockname,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-character(len=*),intent(in) :: blockname !< Block name
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data, local
+type(namtype),intent(in) :: nam           !< Namelist
+type(geomtype),intent(in) :: geom         !< Geometry
+character(len=*),intent(in) :: blockname  !< Block name
+type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
 
 ! Local variables
 integer :: il0,il0dir(nam%ndir),ic0dir(nam%ndir),idir
@@ -422,9 +422,9 @@ subroutine test_nicas_perf(nam,geom,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
+type(namtype),intent(in) :: nam           !< Namelist
+type(geomtype),intent(in) :: geom         !< Geometry
+type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
 
 ! Local variables
 real(kind_real),allocatable :: fld(:,:),alpha(:),alpha_tmp(:)
@@ -452,7 +452,7 @@ call timer_end(timer_interp_ad)
 ! Communication
 call timer_start(timer_com_1)
 if (nam%mpicom==1) then
-   ! Allocation 
+   ! Allocation
    allocate(alpha_tmp(ndataloc%nsb))
 
    ! Copy zone B
@@ -474,7 +474,7 @@ elseif (nam%mpicom==2) then
    ! Halo reduction from zone B to zone A
    call com_red(ndataloc%AB,alpha)
 
-   ! Allocation 
+   ! Allocation
    allocate(alpha_tmp(ndataloc%nsb))
 
    ! Copy zone A
@@ -534,10 +534,10 @@ subroutine test_loc_adjoint(nam,geom,bpar,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
+type(namtype),intent(in) :: nam                      !< Namelist
+type(geomtype),intent(in) :: geom                    !< Geometry
+type(bpartype),intent(in) :: bpar                    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
 
 ! Local variables
 real(kind_real) :: sum1,sum2
@@ -598,10 +598,10 @@ subroutine test_loc_dirac(nam,geom,bpar,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-type(bpartype),intent(in) :: bpar    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
+type(namtype),intent(in) :: nam                      !< Namelist
+type(geomtype),intent(in) :: geom                    !< Geometry
+type(bpartype),intent(in) :: bpar                    !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
 
 ! Local variables
 integer :: il0,il0dir(nam%ndir),ic0dir(nam%ndir),idir,iv,its
@@ -664,10 +664,10 @@ subroutine test_hdiag(nam,geom,bpar,bdata,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(inout) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-type(bpartype),intent(in) :: bpar    !< Block parameters
-type(bdatatype),intent(in) :: bdata(bpar%nb+1)
+type(namtype),intent(inout) :: nam                   !< Namelist variables
+type(geomtype),intent(in) :: geom                    !< Geometry
+type(bpartype),intent(in) :: bpar                    !< Block parameters
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)       !< B data
 type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data, local
 
 ! Local variables

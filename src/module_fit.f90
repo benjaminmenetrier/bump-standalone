@@ -4,15 +4,15 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_fit
 
 use omp_lib
 use tools_const, only: gc99
-use tools_display, only: msgerror,msgwarning
+use tools_display, only: msgerror,msgwarning,prog_init,prog_print
 use tools_kinds, only: kind_real
 use tools_fit, only: fast_fit,ver_smooth
 use tools_minim, only: minim
@@ -26,7 +26,7 @@ use type_nam, only: namtype
 
 implicit none
 
-integer,parameter :: nsc = 50
+integer,parameter :: nsc = 50 !< Scaling optimization parameter
 
 interface compute_fit
   module procedure compute_fit
@@ -47,8 +47,8 @@ subroutine compute_fit(hdata,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-type(curvetype),intent(inout) :: curve              !< Curve
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
+type(curvetype),intent(inout) :: curve !< Curve
 
 ! Local variables
 integer :: jl0,offset,isc
@@ -69,7 +69,7 @@ call msr(curve%fit_rv)
 call msr(curve%fit)
 
 ! Fast fit
-do jl0=1,geom%nl0  
+do jl0=1,geom%nl0
    ! Horizontal fast fit
    call fast_fit(nam%nc,1,geom%disth,curve%raw(:,jl0,jl0),curve%fit_rh(jl0))
 
@@ -92,7 +92,7 @@ do isc=1,nsc
    fit_rv = alpha*curve%fit_rv
 
    ! Fit
-   call define_fit(nam,geom,fit_rh,fit_rv,fit)
+   call define_fit(nam%nc,geom%nl0,geom%disth,geom%distv,fit_rh,fit_rv,fit)
 
    ! MSE
    mse = sum((fit-curve%raw)**2,mask=isnotmsr(curve%raw))
@@ -108,8 +108,6 @@ write(mpl%unit,'(a7,a,f6.1,a)') '','Scaling optimization, cost function decrease
 select case (trim(nam%fit_type))
 case ('nelder_mead','compass_search','praxis')
    ! Allocation
-   mindata%nam => nam
-   mindata%geom => geom
    mindata%nx = 0
    if (nam%lhomh) then
       mindata%nx = mindata%nx+1
@@ -124,9 +122,12 @@ case ('nelder_mead','compass_search','praxis')
    mindata%ny = nam%nc*geom%nl0**2
    allocate(mindata%x(mindata%nx))
    allocate(mindata%guess(mindata%nx))
+   allocate(mindata%norm(mindata%nx))
    allocate(mindata%binf(mindata%nx))
    allocate(mindata%bsup(mindata%nx))
    allocate(mindata%obs(mindata%ny))
+   allocate(mindata%disth(nam%nc))
+   allocate(mindata%distv(geom%nl0,geom%nl0))
 
    ! Fill mindata
    offset = 0
@@ -144,12 +145,20 @@ case ('nelder_mead','compass_search','praxis')
       mindata%guess(offset+1:offset+geom%nl0) = curve%fit_rv
       offset = offset+geom%nl0
    end if
+   mindata%norm = mindata%guess
    mindata%binf = 0.75*mindata%guess
    mindata%bsup = 1.25*mindata%guess
    mindata%obs = pack(curve%raw,mask=.true.)
+   mindata%fit_type = nam%fit_type
+   mindata%nl0 = geom%nl0
+   mindata%nc = nam%nc
+   mindata%lhomh = nam%lhomh
+   mindata%lhomv = nam%lhomv
+   mindata%disth = geom%disth
+   mindata%distv = geom%distv
 
    ! Compute fit
-   call minim(mindata,func)
+   call minim(mindata,func,.true.)
 
    ! Copy parameters
    offset = 0
@@ -177,7 +186,7 @@ call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_rh)
 call ver_smooth(geom%nl0,geom%vunit,nam%rvflt,curve%fit_rv)
 
 ! Rebuild fit
-call define_fit(nam,geom,curve%fit_rh,curve%fit_rv,curve%fit)
+call define_fit(nam%nc,geom%nl0,geom%disth,geom%distv,curve%fit_rh,curve%fit_rv,curve%fit)
 
 ! End associate
 end associate
@@ -193,13 +202,14 @@ subroutine compute_fit_multi(hdata,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-type(curvetype),intent(inout) :: curve(hdata%nc2)              !< Curve
+type(hdatatype),intent(in) :: hdata               !< HDIAG data
+type(curvetype),intent(inout) :: curve(hdata%nc2) !< Curve
 
 ! Local variables
-integer :: ic2,npack
+integer :: ic2,npack,progint
 integer :: iproc,ic2_s(mpl%nproc),ic2_e(mpl%nproc),nc2_loc(mpl%nproc),ic2_loc
 real(kind_real),allocatable :: rbuf(:),sbuf(:)
+logical,allocatable :: done(:)
 
 ! MPI splitting
 do iproc=1,mpl%nproc
@@ -208,18 +218,27 @@ do iproc=1,mpl%nproc
    nc2_loc(iproc) = ic2_e(iproc)-ic2_s(iproc)+1
 end do
 
+! Allocation
+npack = curve(1)%npack
+allocate(rbuf(hdata%nc2*npack))
+allocate(done(nc2_loc(mpl%myproc)))
+
 ! Loop over points
+call prog_init(progint,done)
 do ic2_loc=1,nc2_loc(mpl%myproc)
    ic2 = ic2_s(mpl%myproc)+ic2_loc-1
-   call compute_fit(hdata,curve(ic2))
-end do
 
-! Allocation
-npack = curve(ic2_s(mpl%myproc))%npack
-allocate(rbuf(hdata%nc2*npack))
+   ! Compute fit
+   call compute_fit(hdata,curve(ic2))
+
+   ! Print progression
+   done(ic2_loc) = .true.
+   call prog_print(progint,done)
+end do
+write(mpl%unit,'(a)') '100%'
 
 ! Communication
-if (mpl%main) then 
+if (mpl%main) then
    do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
          ! Format data
@@ -259,38 +278,43 @@ do ic2=1,hdata%nc2
    call curve_unpack(hdata,curve(ic2),rbuf((ic2-1)*npack+1:ic2*npack))
 end do
 
+! Release memory
+deallocate(rbuf)
+
 end subroutine compute_fit_multi
 
 !----------------------------------------------------------------------
 ! Subroutine: define_fit
 !> Purpose: define the fit
 !----------------------------------------------------------------------
-subroutine define_fit(nam,geom,Dh,Dv,fit)
+subroutine define_fit(nc,nl0,disth,distv,rh,rv,fit)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam
-type(geomtype),intent(in) :: geom
-real(kind_real),intent(in) :: Dh(geom%nl0)
-real(kind_real),intent(in) :: Dv(geom%nl0)
-real(kind_real),intent(out) :: fit(nam%nc,geom%nl0,geom%nl0)
+integer,intent(in) :: nc                       !< Number of classes
+integer,intent(in) :: nl0                      !< Number of levels
+real(kind_real),intent(in) :: disth(nc)        !< Horizontal distance
+real(kind_real),intent(in) :: distv(nl0,nl0)   !< Vertical distance
+real(kind_real),intent(in) :: rh(nl0)          !< Horizontal support radius
+real(kind_real),intent(in) :: rv(nl0)          !< Vertical support radius
+real(kind_real),intent(out) :: fit(nc,nl0,nl0) !< Fit
 
 ! Local variables
 integer :: il0,jl0,kl0,ic,kc,ip,jp,np,np_new
 integer,allocatable :: plist(:,:),plist_new(:,:)
-real(kind_real) :: Dhsq,Dvsq,distnorm,disttest
+real(kind_real) :: rhsq,rvsq,distnorm,disttest
 real(kind_real),allocatable :: dist(:,:)
 logical :: add_to_front
 
 ! Initialization
 fit = 0.0
 
-do jl0=1,geom%nl0
+do jl0=1,nl0
    ! Allocation
-   allocate(plist(nam%nc*geom%nl0,2))
-   allocate(plist_new(nam%nc*geom%nl0,2))
-   allocate(dist(nam%nc,geom%nl0))
+   allocate(plist(nc*nl0,2))
+   allocate(plist_new(nc*nl0,2))
+   allocate(dist(nc,nl0))
 
    ! Initialize the front
    np = 1
@@ -309,26 +333,26 @@ do jl0=1,geom%nl0
          il0 = plist(ip,2)
 
          ! Loop over neighbors
-         do kc=max(ic-1,1),min(ic+1,nam%nc)
-            do kl0=max(il0-1,1),min(il0+1,geom%nl0)
-               if (isnotmsr(Dh(il0)).and.isnotmsr(Dh(kl0))) then
-                  Dhsq = 0.5*(Dh(il0)**2+Dh(kl0)**2)              
+         do kc=max(ic-1,1),min(ic+1,nc)
+            do kl0=max(il0-1,1),min(il0+1,nl0)
+               if (isnotmsr(rh(il0)).and.isnotmsr(rh(kl0))) then
+                  rhsq = 0.5*(rh(il0)**2+rh(kl0)**2)
                else
-                  Dhsq = 0.0
+                  rhsq = 0.0
                end if
-               if (isnotmsr(Dv(il0)).and.isnotmsr(Dv(kl0))) then
-                  Dvsq = 0.5*(Dv(il0)**2+Dv(kl0)**2)
+               if (isnotmsr(rv(il0)).and.isnotmsr(rv(kl0))) then
+                  rvsq = 0.5*(rv(il0)**2+rv(kl0)**2)
                else
-                  Dvsq = 0.0
+                  rvsq = 0.0
                end if
                distnorm = 0.0
-               if (Dhsq>0.0) then
-                  distnorm = distnorm+(geom%disth(kc)-geom%disth(ic))**2/Dhsq
+               if (rhsq>0.0) then
+                  distnorm = distnorm+(disth(kc)-disth(ic))**2/rhsq
                else
                   distnorm = huge(1.0)
-               end if 
-               if (Dvsq>0.0) then
-                  distnorm = distnorm+geom%distv(kl0,il0)**2/Dvsq
+               end if
+               if (rvsq>0.0) then
+                  distnorm = distnorm+distv(kl0,il0)**2/rvsq
                elseif (kl0/=il0) then
                   distnorm = huge(1.0)
                end if
@@ -366,8 +390,8 @@ do jl0=1,geom%nl0
       plist(1:np,:) = plist_new(1:np,:)
    end do
 
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
+   do il0=1,nl0
+      do ic=1,nc
          ! Gaspari-Cohn (1999) function
          distnorm = dist(ic,il0)
          if (distnorm<1.0) fit(ic,il0,jl0) = gc99(distnorm)
@@ -391,41 +415,38 @@ subroutine func(mindata,x,f)
 implicit none
 
 ! Passed variables
-type(mintype),intent(in) :: mindata !< Minimization data
-real(kind_real),intent(inout) :: x(mindata%nx)            !< Control vector
-real(kind_real),intent(out) :: f
+type(mintype),intent(in) :: mindata         !< Minimization data
+real(kind_real),intent(in) :: x(mindata%nx) !< Control vector
+real(kind_real),intent(out) :: f            !< Cost function value
 
 ! Local variables
 integer :: offset,ix
-real(kind_real) :: fit_rh(mindata%geom%nl0),fit_rv(mindata%geom%nl0)
-real(kind_real) :: fit(mindata%nam%nc,mindata%geom%nl0,mindata%geom%nl0)
-real(kind_real) :: fit_pack(mindata%ny),xx
-
-! Associate
-associate(nam=>mindata%nam,geom=>mindata%geom)
+real(kind_real) :: fit_rh(mindata%nl0),fit_rv(mindata%nl0)
+real(kind_real) :: fit(mindata%nc,mindata%nl0,mindata%nl0)
+real(kind_real) :: xtmp(mindata%nx),fit_pack(mindata%ny),xx
 
 ! Renormalize
-x = x*mindata%guess
+xtmp = x*mindata%norm
 
 ! Get data
 offset = 0
-if (nam%lhomh) then
-   fit_rh = x(offset+1)
+if (mindata%lhomh) then
+   fit_rh = xtmp(offset+1)
    offset = offset+1
 else
-   fit_rh = x(offset+1:offset+geom%nl0)
-   offset = offset+geom%nl0
+   fit_rh = xtmp(offset+1:offset+mindata%nl0)
+   offset = offset+mindata%nl0
 end if
-if (nam%lhomv) then
-   fit_rv = x(offset+1)
+if (mindata%lhomv) then
+   fit_rv = xtmp(offset+1)
    offset = offset+1
 else
-   fit_rv = x(offset+1:offset+geom%nl0)
-   offset = offset+geom%nl0
+   fit_rv = xtmp(offset+1:offset+mindata%nl0)
+   offset = offset+mindata%nl0
 end if
 
 ! Compute function
-call define_fit(nam,geom,fit_rh,fit_rv,fit)
+call define_fit(mindata%nc,mindata%nl0,mindata%disth,mindata%distv,fit_rh,fit_rv,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)
@@ -435,25 +456,15 @@ f = sum((mindata%obs-fit_pack)**2,mask=isnotmsr(mindata%obs))
 
 ! Bound penalty
 do ix=1,mindata%nx
-   xx = (x(ix)-mindata%binf(ix))/(mindata%bsup(ix)-mindata%binf(ix))
-   if (xx<0.0) then
-      f = f+mindata%f_guess*xx**2
-   elseif (xx>1.0) then
-      f = f+mindata%f_guess*(xx-1.0)**2 
+   if (mindata%bsup(ix)>mindata%binf(ix)) then
+      xx = (xtmp(ix)-mindata%binf(ix))/(mindata%bsup(ix)-mindata%binf(ix))
+      if (xx<0.0) then
+         f = f+mindata%f_guess*xx**2
+      elseif (xx>1.0) then
+         f = f+mindata%f_guess*(xx-1.0)**2
+      end if
    end if
 end do
-
-! Reset
-do ix=1,mindata%nx
-   if (abs(mindata%guess(ix))>0.0) then
-      x(ix) = x(ix)/mindata%guess(ix)
-   else
-      x(ix) = 1.0
-   end if
-end do
-
-! End associate
-end associate
 
 end subroutine func
 
@@ -466,7 +477,7 @@ subroutine dummy(mindata)
 implicit none
 
 ! Passed variables
-type(mintype),intent(in) :: mindata
+type(mintype),intent(in) :: mindata !< Minimization data
 
 ! Local variables
 real(kind_real) :: x(mindata%nx)

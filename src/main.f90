@@ -11,6 +11,7 @@
 program main
 
 use driver_hdiag, only: run_hdiag
+use driver_lct, only: run_lct
 use driver_nicas, only: run_nicas
 use driver_obsop, only: run_obsop
 use driver_test, only: run_test
@@ -66,9 +67,9 @@ call listing_setup(nam%colorlog,nam%logpres)
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- You are running nicas -----------------------------------------'
+write(mpl%unit,'(a)') '--- You are running hdiag_nicas -----------------------------------'
 write(mpl%unit,'(a)') '--- Author: Benjamin Menetrier ------------------------------------'
-write(mpl%unit,'(a)') '--- Copyright © 2017 METEO-FRANCE------------------ ---------------'
+write(mpl%unit,'(a)') '--- Copyright © 2017 METEO-FRANCE ---------------------------------'
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 
 !----------------------------------------------------------------------
@@ -89,7 +90,7 @@ write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI task
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Initialize random number generator'
-   
+
 call create_randgen(nam)
 
 !----------------------------------------------------------------------
@@ -135,17 +136,6 @@ write(mpl%unit,'(a)') '--- Call NICAS driver'
 
 call run_nicas(nam,geom,bpar,bdata,ndataloc)
 
-if (.false.) then
-   !----------------------------------------------------------------------
-   ! Call observation operator driver
-   !----------------------------------------------------------------------
-
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
-
-   call run_obsop(nam,geom,odataloc)   
-end if
-
 !----------------------------------------------------------------------
 ! Call test driver
 !----------------------------------------------------------------------
@@ -154,6 +144,24 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 write(mpl%unit,'(a)') '--- Call run_test driver'
 
 call run_test(nam,geom,bpar,bdata,ndataloc)
+
+!----------------------------------------------------------------------
+! Call LCT driver
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Call LCT driver'
+
+call run_lct(nam,geom,bpar)
+
+!----------------------------------------------------------------------
+! Call observation operator driver
+!----------------------------------------------------------------------
+
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
+
+call run_obsop(nam,geom,odataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats

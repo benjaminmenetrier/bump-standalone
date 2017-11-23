@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------
 // CoverTreePoint
-// Modified by Benjamin Menetrier for nicas
+// Modified by Benjamin Menetrier for hdiag_nicas
 //----------------------------------------------------------------------
 #ifndef _CTREE_POINT_H
 #define _CTREE_POINT_H

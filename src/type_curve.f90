@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_curve
 
@@ -26,15 +26,15 @@ implicit none
 
 ! Curve derived type
 type curvetype
-   character(len=1024) :: cname        !< Curve name
-   integer :: npack                             !< Pack format size
-   real(kind_real),allocatable :: raw(:,:,:)        !< Raw curve
+   character(len=1024) :: cname                   !< Curve name
+   integer :: npack                               !< Pack buffer size
+   real(kind_real),allocatable :: raw(:,:,:)      !< Raw curve
    real(kind_real),allocatable :: raw_coef_ens(:) !< Raw ensemble coefficient
    real(kind_real) :: raw_coef_sta                !< Raw static coefficient
-   real(kind_real),allocatable :: fit_wgt(:,:,:)    !< Fit weight
-   real(kind_real),allocatable :: fit(:,:,:)        !< Fit
-   real(kind_real),allocatable :: fit_rh(:)        !< Fit support radius
-   real(kind_real),allocatable :: fit_rv(:)        !< Fit support radius
+   real(kind_real),allocatable :: fit_wgt(:,:,:)  !< Fit weight
+   real(kind_real),allocatable :: fit(:,:,:)      !< Fit
+   real(kind_real),allocatable :: fit_rh(:)       !< Fit support radius
+   real(kind_real),allocatable :: fit_rv(:)       !< Fit support radius
 end type curvetype
 
 private
@@ -53,7 +53,7 @@ subroutine curve_alloc(hdata,cname,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< Sampling data
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
 character(len=*),intent(in) :: cname   !< Curve name
 type(curvetype),intent(inout) :: curve !< Curve
 
@@ -100,7 +100,7 @@ subroutine curve_dealloc(hdata,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< Sampling data
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
 type(curvetype),intent(inout) :: curve !< Curve
 
 ! Associate
@@ -130,8 +130,8 @@ subroutine curve_normalization(hdata,ib,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< Sampling data
-integer,intent(in) :: ib
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
+integer,intent(in) :: ib               !< Block index
 type(curvetype),intent(inout) :: curve !< Curve
 
 ! Local variables
@@ -162,16 +162,16 @@ end subroutine curve_normalization
 
 !----------------------------------------------------------------------
 ! Subroutine: curve_pack
-!> Purpose: averaged statistics object packing
+!> Purpose: curve packing
 !----------------------------------------------------------------------
 subroutine curve_pack(hdata,curve,buf)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-type(curvetype),intent(in) :: curve !< Averaged statistics
-real(kind_real),intent(out) :: buf(curve%npack)
+type(hdatatype),intent(in) :: hdata             !< HDIAG data
+type(curvetype),intent(in) :: curve             !< Curve
+real(kind_real),intent(out) :: buf(curve%npack) !< Buffer
 
 ! Local variables
 integer :: offset
@@ -194,16 +194,16 @@ end subroutine curve_pack
 
 !----------------------------------------------------------------------
 ! Subroutine: curve_unpack
-!> Purpose: averaged statistics object unpacking
+!> Purpose: curve unpacking
 !----------------------------------------------------------------------
 subroutine curve_unpack(hdata,curve,buf)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-type(curvetype),intent(inout) :: curve !< Averaged statistics
-real(kind_real),intent(in) :: buf(curve%npack)
+type(hdatatype),intent(in) :: hdata            !< HDIAG data
+type(curvetype),intent(inout) :: curve         !< Curve
+real(kind_real),intent(in) :: buf(curve%npack) !< Buffer
 
 ! Local variables
 integer :: offset
@@ -238,9 +238,9 @@ subroutine curve_write(hdata,ncid,curve)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< Sampling data
-integer,intent(in) :: ncid                  !< File ID
-type(curvetype),intent(inout) :: curve  !< Curve
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
+integer,intent(in) :: ncid             !< NetCDF file id
+type(curvetype),intent(inout) :: curve !< Curve
 
 ! Local variables
 integer :: one_id,nc_id,nl0_1_id,nl0_2_id
@@ -317,14 +317,14 @@ subroutine curve_write_all(hdata,filename,cor_1,cor_2,loc_1,loc_2,loc_3,loc_4)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-character(len=*),intent(in) :: filename
-type(curvetype),intent(inout) :: cor_1(hdata%bpar%nb+1) !< 
-type(curvetype),intent(inout) :: cor_2(hdata%bpar%nb+1) !< 
-type(curvetype),intent(inout) :: loc_1(hdata%bpar%nb+1) !< 
-type(curvetype),intent(inout) :: loc_2(hdata%bpar%nb+1) !< 
-type(curvetype),intent(inout) :: loc_3(hdata%bpar%nb+1) !< 
-type(curvetype),intent(inout) :: loc_4(hdata%bpar%nb+1) !< 
+type(hdatatype),intent(in) :: hdata                     !< HDIAG data
+character(len=*),intent(in) :: filename                 !< File name
+type(curvetype),intent(inout) :: cor_1(hdata%bpar%nb+1) !< Correlation 1
+type(curvetype),intent(inout) :: cor_2(hdata%bpar%nb+1) !< Correlation 2
+type(curvetype),intent(inout) :: loc_1(hdata%bpar%nb+1) !< Localization 1
+type(curvetype),intent(inout) :: loc_2(hdata%bpar%nb+1) !< Localization 2
+type(curvetype),intent(inout) :: loc_3(hdata%bpar%nb+1) !< Localization 3
+type(curvetype),intent(inout) :: loc_4(hdata%bpar%nb+1) !< Localization 4
 
 ! Local variables
 integer :: ncid,one_id,nc_id,nl0_1_id,nl0_2_id,disth_id,vunit_id
@@ -387,9 +387,9 @@ subroutine curve_write_local(hdata,filename,curve_nc2)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-character(len=*),intent(in) :: filename !<
-type(curvetype),intent(in) :: curve_nc2(hdata%nc2,hdata%bpar%nb+1) !< 
+type(hdatatype),intent(in) :: hdata                                !< HDIAG data
+character(len=*),intent(in) :: filename                            !< File name
+type(curvetype),intent(in) :: curve_nc2(hdata%nc2,hdata%bpar%nb+1) !< Curves array
 
 ! Local variables
 integer :: ncid

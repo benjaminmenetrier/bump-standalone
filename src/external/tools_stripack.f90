@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: tools_stripack.f90
-!> Purpose: stripack routines
+!> Purpose: STRIPACK routines
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -36,9 +36,9 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !    index is added to the data structure (INTADD or BDYADD),
 !    and a sequence of swaps (SWPTST and SWAP) are applied to
 !    the arcs opposite K so that all arcs incident on node K
-!    and opposite node K are locally optimal (satisfy the circumcircle test).  
+!    and opposite node K are locally optimal (satisfy the circumcircle test).
 !
-!    Thus, if a Delaunay triangulation of nodes 1 through K-1 is input, 
+!    Thus, if a Delaunay triangulation of nodes 1 through K-1 is input,
 !    a Delaunay triangulation of nodes 1 through K will be output.
 !
 !  Modified:
@@ -59,19 +59,19 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !
 !  Parameters:
 !
-!    Input, integer NST, the index of a node at which TRFIND 
-!    begins its search.  Search time depends on the proximity of this node to 
+!    Input, integer NST, the index of a node at which TRFIND
+!    begins its search.  Search time depends on the proximity of this node to
 !    K.  If NST < 1, the search is begun at node K-1.
 !
-!    Input, integer K, the nodal index (index for X, Y, Z, and 
+!    Input, integer K, the nodal index (index for X, Y, Z, and
 !    LEND) of the new node to be added.  4 <= K.
 !
 !    Input, real ( kind_real ) X(K), Y(K), Z(K), the coordinates of the nodes.
 !
-!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(K), 
-!    LNEW.  On input, the data structure associated with the triangulation of 
-!    nodes 1 to K-1.  On output, the data has been updated to include node 
-!    K.  The array lengths are assumed to be large enough to add node K. 
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(K),
+!    LNEW.  On input, the data structure associated with the triangulation of
+!    nodes 1 to K-1.  On output, the data has been updated to include node
+!    K.  The array lengths are assumed to be large enough to add node K.
 !    Refer to TRMESH.
 !
 !    Output, integer IER, error indicator:
@@ -314,10 +314,10 @@ function areas ( v1, v2, v3 )
 !  Parameters:
 !
 !    Input, real ( kind_real ) V1(3), V2(3), V3(3), the Cartesian coordinates
-!    of unit vectors (the three triangle vertices in any order).  These 
+!    of unit vectors (the three triangle vertices in any order).  These
 !    vectors, if nonzero, are implicitly scaled to have length 1.
 !
-!    Output, real ( kind_real ) AREAS, the area of the spherical triangle 
+!    Output, real ( kind_real ) AREAS, the area of the spherical triangle
 !    defined by V1, V2, and V3, in the range 0 to 2*PI (the area of a
 !    hemisphere).  AREAS = 0 (or 2*PI) if and only if V1, V2, and V3 lie in (or
 !    close to) a plane containing the origin.
@@ -462,20 +462,20 @@ subroutine bdyadd ( kk, i1, i2, list, lptr, lend, lnew )
 !
 !  Parameters:
 !
-!    Input, integer KK, the index of a node to be connected to 
+!    Input, integer KK, the index of a node to be connected to
 !    the sequence of all visible boundary nodes.  1 <= KK and
 !    KK must not be equal to I1 or I2.
 !
-!    Input, integer I1, the first (rightmost as viewed from KK) 
+!    Input, integer I1, the first (rightmost as viewed from KK)
 !    boundary node in the triangulation that is visible from
 !    node KK (the line segment KK-I1 intersects no arcs.
 !
-!    Input, integer I2, the last (leftmost) boundary node that 
+!    Input, integer I2, the last (leftmost) boundary node that
 !    is visible from node KK.  I1 and I2 may be determined by TRFIND.
 !
 !    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
-!    LNEW, the triangulation data structure created by TRMESH.  
-!    Nodes I1 and I2 must be included 
+!    LNEW, the triangulation data structure created by TRMESH.
+!    Nodes I1 and I2 must be included
 !    in the triangulation.  On output, the data structure is updated with
 !    the addition of node KK.  Node KK is connected to I1, I2, and
 !    all boundary nodes in between.
@@ -716,7 +716,7 @@ subroutine covsph ( kk, n0, list, lptr, lend, lnew )
 !    boundary nodes of a triangulation of KK-1 points on the
 !    unit sphere, producing a triangulation that covers the
 !    sphere.  The data structure is updated with the addition
-!    of node KK, but no optimization is performed.  All 
+!    of node KK, but no optimization is performed.  All
 !    boundary nodes must be visible from node KK.
 !
 !  Modified:
@@ -745,7 +745,7 @@ subroutine covsph ( kk, n0, list, lptr, lend, lnew )
 !
 !    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
 !    LNEW, the triangulation data structure created by TRMESH.  Node N0 must
-!    be included in the triangulation.  On output, updated with the addition 
+!    be included in the triangulation.  On output, updated with the addition
 !    of node KK as the last entry.  The updated triangulation contains no
 !    boundary nodes.
 !
@@ -823,7 +823,7 @@ subroutine det ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
 !
 !  DET(X1,...,Z0) >= 0 if and only if (X0,Y0,Z0) is in the
 !  (closed) left hemisphere defined by the plane containing (0,0,0),
-!  (X1,Y1,Z1), and (X2,Y2,Z2), where left is defined relative to an 
+!  (X1,Y1,Z1), and (X2,Y2,Z2), where left is defined relative to an
 !  observer at (X1,Y1,Z1) facing (X2,Y2,Z2).
 !
   implicit none
@@ -879,7 +879,7 @@ subroutine insert ( k, lp, list, lptr, lnew )
 !
 !    Input, integer LP, the LIST pointer of N2 as a neighbor of N1.
 !
-!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LNEW, 
+!    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LNEW,
 !    the data structure defining the triangulation, created by TRMESH.
 !    On output, updated with the addition of node K.
 !
@@ -960,14 +960,14 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !    Input, integer LV, the length of arrays XV, YV, and ZV.
 !
 !    Input, real ( kind_real ) XV(LV), YV(LV), ZV(LV), the coordinates of unit
-!    vectors (points on the unit sphere).  
+!    vectors (points on the unit sphere).
 !
-!    Input, integer NV, the number of vertices in the polygon. 
+!    Input, integer NV, the number of vertices in the polygon.
 !    3 <= NV <= LV.
 !
-!    Input, integer LISTV(NV), the indexes (for XV, YV, and ZV) 
+!    Input, integer LISTV(NV), the indexes (for XV, YV, and ZV)
 !    of a cyclically-ordered (and CCW-ordered) sequence of vertices that
-!    define R.  The last vertex (indexed by LISTV(NV)) is followed by the 
+!    define R.  The last vertex (indexed by LISTV(NV)) is followed by the
 !    first (indexed by LISTV(1)).  LISTV entries must be in the range 1 to LV.
 !
 !    Output, logical INSIDE, TRUE if and only if P lies inside R unless
@@ -977,10 +977,10 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
 !    0, if no errors were encountered.
 !    1, if LV or NV is outside its valid range.
 !    2, if a LISTV entry is outside its valid range.
-!    3, if the polygon boundary was found to be self-intersecting.  This 
+!    3, if the polygon boundary was found to be self-intersecting.  This
 !      error will not necessarily be detected.
-!    4, if every choice of Q (one for each boundary edge) led to failure of 
-!      some internal consistency check.  The most likely cause of this error 
+!    4, if every choice of Q (one for each boundary edge) led to failure of
+!      some internal consistency check.  The most likely cause of this error
 !      is invalid input:  P = (0,0,0), a null or self-intersecting polygon, etc.
 !
 !  Local parameters:
@@ -1178,7 +1178,7 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
     return
   end if
 
-  lft2 = 0.0_kind_real < cn(1) * xv(i2) + cn(2) * yv(i2) + cn(3) * zv(i2) 
+  lft2 = 0.0_kind_real < cn(1) * xv(i2) + cn(2) * yv(i2) + cn(3) * zv(i2)
 !
 !  Loop on boundary arcs I1->I2.
 !
@@ -1292,14 +1292,14 @@ subroutine intadd ( kk, i1, i2, i3, list, lptr, lend, lnew )
 !
 !  Parameters:
 !
-!    Input, integer KK, the index of the node to be inserted. 
+!    Input, integer KK, the index of the node to be inserted.
 !    1 <= KK and KK must not be equal to I1, I2, or I3.
 !
-!    Input, integer I1, I2, I3, indexes of the 
-!    counterclockwise-ordered sequence of vertices of a triangle which contains 
+!    Input, integer I1, I2, I3, indexes of the
+!    counterclockwise-ordered sequence of vertices of a triangle which contains
 !    node KK.
 !
-!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), LNEW, 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), LNEW,
 !    the data structure defining the triangulation, created by TRMESH.  Triangle
 !    (I1,I2,I3) must be included in the triangulation.
 !    On output, updated with the addition of node KK.  KK
@@ -1395,12 +1395,12 @@ subroutine intrsc ( p1, p2, cn, p, ier )
 !
 !    Input, real ( kind_real ) P1(3), P2(3), the coordinates of unit vectors.
 !
-!    Input, real ( kind_real ) CN(3), the coordinates of a nonzero vector 
-!    which defines C as the intersection of the plane whose normal is CN 
+!    Input, real ( kind_real ) CN(3), the coordinates of a nonzero vector
+!    which defines C as the intersection of the plane whose normal is CN
 !    with the unit sphere.  Thus, if C is to be the great circle defined
 !    by P and Q, CN should be P X Q.
 !
-!    Output, real ( kind_real ) P(3), point of intersection defined above 
+!    Output, real ( kind_real ) P(3), point of intersection defined above
 !    unless IER is not 0, in which case P is not altered.
 !
 !    Output, integer IER, error indicator.
@@ -1474,7 +1474,7 @@ subroutine jrand ( n, ix, iy, iz, output )
 !
 !  Discussion:
 !
-!   This function returns a uniformly distributed pseudorandom integer 
+!   This function returns a uniformly distributed pseudorandom integer
 !   in the range 1 to N.
 !
 !  Modified:
@@ -1485,20 +1485,20 @@ subroutine jrand ( n, ix, iy, iz, output )
 !
 !    Robert Renka
 !
-!  Reference:  
+!  Reference:
 !
-!    Brian Wichmann, David Hill, 
+!    Brian Wichmann, David Hill,
 !    An Efficient and Portable Pseudo-random Number Generator,
-!    Applied Statistics, 
+!    Applied Statistics,
 !    Volume 31, Number 2, 1982, pages 188-190.
 !
 !  Parameters:
 !
 !    Input, integer N, the maximum value to be returned.
 !
-!    Input/output, integer IX, IY, IZ = seeds initialized to 
-!    values in the range 1 to 30,000 before the first call to JRAND, and 
-!    not altered between subsequent calls (unless a sequence of random 
+!    Input/output, integer IX, IY, IZ = seeds initialized to
+!    values in the range 1 to 30,000 before the first call to JRAND, and
+!    not altered between subsequent calls (unless a sequence of random
 !    numbers is to be repeated by reinitializing the seeds).
 !
 !    Output, integer JRAND, a random integer in the range 1 to N.
@@ -1625,14 +1625,14 @@ subroutine lstptr ( lpl, nb, list, lptr, output )
 !
 !    Input, integer LPL, is LEND(N0).
 !
-!    Input, integer NB, index of the node whose pointer is to 
+!    Input, integer NB, index of the node whose pointer is to
 !    be returned.  NB must be connected to N0.
 !
-!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), the data 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), the data
 !    structure defining the triangulation, created by TRMESH.
 !
 !    Output, integer LSTPTR, pointer such that LIST(LSTPTR) = NB or
-!    LIST(LSTPTR) = -NB, unless NB is not a neighbor of N0, in which 
+!    LIST(LSTPTR) = -NB, unless NB is not a neighbor of N0, in which
 !    case LSTPTR = LPL.
 !
 !  Local parameters:
@@ -1769,7 +1769,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !    For large values of N, this procedure will be faster than
 !    the naive approach of computing the distance from P to every node.
 !
-!    Note that the number of candidates for NEARND (neighbors of P) 
+!    Note that the number of candidates for NEARND (neighbors of P)
 !    is limited to LMAX defined in the PARAMETER statement below.
 !
 !  Modified:
@@ -1790,13 +1790,13 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !
 !  Parameters:
 !
-!    Input, real ( kind_real ) P(3), the Cartesian coordinates of the point P to 
-!    be located relative to the triangulation.  It is assumed 
+!    Input, real ( kind_real ) P(3), the Cartesian coordinates of the point P to
+!    be located relative to the triangulation.  It is assumed
 !    that P(1)**2 + P(2)**2 + P(3)**2 = 1, that is, that the
 !    point lies on the unit sphere.
 !
 !    Input, integer IST, the index of the node at which the search
-!    is to begin.  The search time depends on the proximity of this 
+!    is to begin.  The search time depends on the proximity of this
 !    node to P.  If no good candidate is known, any value between
 !    1 and N will do.
 !
@@ -1806,7 +1806,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !    Input, real ( kind_real ) X(N), Y(N), Z(N), the Cartesian coordinates of
 !    the nodes.
 !
-!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
 !    the data structure defining the triangulation, created by TRMESH.
 !
 !    Output, real ( kind_real ) AL, the arc length between P and node NEARND.
@@ -1814,7 +1814,7 @@ function nearnd ( p, ist, n, x, y, z, list, lptr, lend, al )
 !    the angular separation in radians.
 !
 !    Output, integer NEARND, the index of the nearest node to P.
-!    NEARND will be 0 if N < 3 or the triangulation data structure 
+!    NEARND will be 0 if N < 3 or the triangulation data structure
 !    is invalid.
 !
 !  Local parameters:
@@ -2167,17 +2167,17 @@ subroutine swap ( in1, in2, io1, io2, list, lptr, lend, lp21 )
 !
 !  Parameters:
 !
-!    Input, integer IN1, IN2, IO1, IO2, nodal indexes of the 
-!    vertices of the quadrilateral.  IO1-IO2 is replaced by IN1-IN2.  
+!    Input, integer IN1, IN2, IO1, IO2, nodal indexes of the
+!    vertices of the quadrilateral.  IO1-IO2 is replaced by IN1-IN2.
 !    (IO1,IO2,IN1) and (IO2,IO1,IN2) must be triangles on input.
 !
 !    Input/output, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N),
-!    the data structure defining the triangulation, created by TRMESH.  
-!    On output, updated with the swap; triangles (IO1,IO2,IN1) an (IO2,IO1,IN2) 
+!    the data structure defining the triangulation, created by TRMESH.
+!    On output, updated with the swap; triangles (IO1,IO2,IN1) an (IO2,IO1,IN2)
 !    are replaced by (IN1,IN2,IO2) and (IN2,IN1,IO1) unless LP21 = 0.
 !
 !    Output, integer LP21, index of IN1 as a neighbor of IN2 after
-!    the swap is performed unless IN1 and IN2 are adjacent on input, in which 
+!    the swap is performed unless IN1 and IN2 are adjacent on input, in which
 !    case LP21 = 0.
 !
 !  Local parameters:
@@ -2285,12 +2285,12 @@ subroutine swptst ( n1, n2, n3, n4, x, y, z, output )
 !
 !  Parameters:
 !
-!    Input, integer N1, N2, N3, N4, indexes of the four nodes 
-!    defining the quadrilateral with N1 adjacent to N2, and (N1,N2,N3) in 
-!    counterclockwise order.  The arc connecting N1 to N2 should be replaced 
+!    Input, integer N1, N2, N3, N4, indexes of the four nodes
+!    defining the quadrilateral with N1 adjacent to N2, and (N1,N2,N3) in
+!    counterclockwise order.  The arc connecting N1 to N2 should be replaced
 !    by an arc connecting N3 to N4 if SWPTST = TRUE.  Refer to subroutine SWAP.
 !
-!    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of the nodes. 
+!    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of the nodes.
 !
 !    Output, logical SWPTST, TRUE if and only if the arc connecting N1
 !    and N2 should be swapped for an arc connecting N3 and N4.
@@ -2379,14 +2379,14 @@ subroutine trans ( n, rlat, rlon, x, y, z )
 !
 !  Parameters:
 !
-!    Input, integer N, the number of nodes (points on the unit 
+!    Input, integer N, the number of nodes (points on the unit
 !    sphere) whose coordinates are to be transformed.
 !
 !    Input, real ( kind_real ) RLAT(N), latitudes of the nodes in radians.
 !
 !    Input, real ( kind_real ) RLON(N), longitudes of the nodes in radians.
 !
-!    Output, real ( kind_real ) X(N), Y(N), Z(N), the coordinates in the 
+!    Output, real ( kind_real ) X(N), Y(N), Z(N), the coordinates in the
 !    range -1 to 1.  X(I)**2 + Y(I)**2 + Z(I)**2 = 1 for I = 1 to N.
 !
 !  Local parameters:
@@ -2436,7 +2436,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !
 !    This subroutine locates a point P relative to a triangulation
 !    created by TRMESH.  If P is contained in
-!    a triangle, the three vertex indexes and barycentric 
+!    a triangle, the three vertex indexes and barycentric
 !    coordinates are returned.  Otherwise, the indexes of the
 !    visible boundary nodes are returned.
 !
@@ -2470,20 +2470,20 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of the
 !    triangulation nodes (unit vectors).
 !
-!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the 
+!    Input, integer LIST(6*(N-2)), LPTR(6*(N-2)), LEND(N), the
 !    data structure defining the triangulation, created by TRMESH.
 !
 !    Output, real ( kind_real ) B1, B2, B3, the unnormalized barycentric
 !    coordinates of the central projection of P onto the underlying planar
-!    triangle if P is in the convex hull of the nodes.  These parameters 
+!    triangle if P is in the convex hull of the nodes.  These parameters
 !    are not altered if I1 = 0.
 !
-!    Output, integer I1, I2, I3, the counterclockwise-ordered 
+!    Output, integer I1, I2, I3, the counterclockwise-ordered
 !    vertex indexes of a triangle containing P if P is contained in a triangle.
-!    If P is not in the convex hull of the nodes, I1 and I2 are the rightmost 
-!    and leftmost (boundary) nodes that are visible from P, and I3 = 0.  (If 
+!    If P is not in the convex hull of the nodes, I1 and I2 are the rightmost
+!    and leftmost (boundary) nodes that are visible from P, and I3 = 0.  (If
 !    all boundary nodes are visible from P, then I1 and I2 coincide.)
-!    I1 = I2 = I3 = 0 if P and all of the nodes are coplanar (lie on a 
+!    I1 = I2 = I3 = 0 if P and all of the nodes are coplanar (lie on a
 !    common great circle.
 !
 !  Local parameters:
@@ -2902,7 +2902,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
         go to 13
       end if
 !
-!  P, NEXT, N1, and N2 are nearly collinear and N1 is the rightmost 
+!  P, NEXT, N1, and N2 are nearly collinear and N1 is the rightmost
 !  visible node.
 !
       nf = n1
@@ -2976,33 +2976,33 @@ subroutine trlist ( n, list, lptr, lend, nrow, nt, ltri, ier )
 !    list data structure defining the triangulation.  Refer to TRMESH.
 !
 !    Input, integer NROW, the number of rows (entries per triangle)
-!    reserved for the triangle list LTRI.  The value must be 6 if only the 
+!    reserved for the triangle list LTRI.  The value must be 6 if only the
 !    vertex indexes and neighboring triangle indexes are to be stored, or 9
 !    if arc indexes are also to be assigned and stored.  Refer to LTRI.
 !
-!    Output, integer NT, the number of triangles in the 
-!    triangulation unless IER /=0, in which case NT = 0.  NT = 2N-NB-2 if 
+!    Output, integer NT, the number of triangles in the
+!    triangulation unless IER /=0, in which case NT = 0.  NT = 2N-NB-2 if
 !    NB >= 3 or 2N-4 if NB = 0, where NB is the number of boundary nodes.
 !
 !    Output, integer LTRI(NROW,*).  The second dimension of LTRI
-!    must be at least NT, where NT will be at most 2*N-4.  The J-th column 
-!    contains the vertex nodal indexes (first three rows), neighboring triangle 
+!    must be at least NT, where NT will be at most 2*N-4.  The J-th column
+!    contains the vertex nodal indexes (first three rows), neighboring triangle
 !    indexes (second three rows), and, if NROW = 9, arc indexes (last three
 !    rows) associated with triangle J for J = 1,...,NT.  The vertices are
-!    ordered counterclockwise with the first vertex taken to be the one 
+!    ordered counterclockwise with the first vertex taken to be the one
 !    with smallest index.  Thus, LTRI(2,J) and LTRI(3,J) are larger than
-!    LTRI(1,J) and index adjacent neighbors of node LTRI(1,J).  For 
+!    LTRI(1,J) and index adjacent neighbors of node LTRI(1,J).  For
 !    I = 1,2,3, LTRI(I+3,J) and LTRI(I+6,J) index the triangle and arc,
 !    respectively, which are opposite (not shared by) node LTRI(I,J), with
 !    LTRI(I+3,J) = 0 if LTRI(I+6,J) indexes a boundary arc.  Vertex indexes
-!    range from 1 to N, triangle indexes from 0 to NT, and, if included, 
-!    arc indexes from 1 to NA, where NA = 3N-NB-3 if NB >= 3 or 3N-6 if 
+!    range from 1 to N, triangle indexes from 0 to NT, and, if included,
+!    arc indexes from 1 to NA, where NA = 3N-NB-3 if NB >= 3 or 3N-6 if
 !    NB = 0.  The triangles are ordered on first (smallest) vertex indexes.
 !
 !    Output, integer IER, error indicator.
 !    0, if no errors were encountered.
 !    1, if N or NROW is outside its valid range on input.
-!    2, if the triangulation data structure (LIST,LPTR,LEND) is invalid.  
+!    2, if the triangulation data structure (LIST,LPTR,LEND) is invalid.
 !      Note, however, that these arrays are not completely tested for validity.
 !
 !  Local parameters:
@@ -3259,7 +3259,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !     4)  The union of triangles is the convex hull of the set
 !           of nodes (the smallest convex set that contains
 !           the nodes).  If the nodes are not contained in a
-!           single hemisphere, their convex hull is the 
+!           single hemisphere, their convex hull is the
 !           entire sphere and there are no boundary nodes.
 !           Otherwise, there are at least three boundary nodes.
 !     5)  The interior of the circumcircle of each triangle
@@ -3360,33 +3360,33 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    3 <= N.
 !
 !    Input, real ( kind_real ) X(N), Y(N), Z(N), the coordinates of distinct
-!    nodes.  (X(K),Y(K), Z(K)) is referred to as node K, and K is referred 
+!    nodes.  (X(K),Y(K), Z(K)) is referred to as node K, and K is referred
 !    to as a nodal index.  It is required that X(K)**2 + Y(K)**2 + Z(K)**2 = 1
-!    for all K.  The first three nodes must not be collinear (lie on a 
+!    for all K.  The first three nodes must not be collinear (lie on a
 !    common great circle).
 !
-!    Output, integer LIST(6*(N-2)), nodal indexes which, along 
-!    with LPTR, LEND, and LNEW, define the triangulation as a set of N 
-!    adjacency lists; counterclockwise-ordered sequences of neighboring nodes 
-!    such that the first and last neighbors of a boundary node are boundary 
-!    nodes (the first neighbor of an interior node is arbitrary).  In order to 
-!    distinguish between interior and boundary nodes, the last neighbor of 
+!    Output, integer LIST(6*(N-2)), nodal indexes which, along
+!    with LPTR, LEND, and LNEW, define the triangulation as a set of N
+!    adjacency lists; counterclockwise-ordered sequences of neighboring nodes
+!    such that the first and last neighbors of a boundary node are boundary
+!    nodes (the first neighbor of an interior node is arbitrary).  In order to
+!    distinguish between interior and boundary nodes, the last neighbor of
 !    each boundary node is represented by the negative of its index.
 !
-!    Output, integer LPTR(6*(N-2)), = Set of pointers (LIST 
+!    Output, integer LPTR(6*(N-2)), = Set of pointers (LIST
 !    indexes) in one-to-one correspondence with the elements of LIST.
 !    LIST(LPTR(I)) indexes the node which follows LIST(I) in cyclical
 !    counterclockwise order (the first neighbor follows the last neighbor).
 !
-!    Output, integer LEND(N), pointers to adjacency lists.  
-!    LEND(K) points to the last neighbor of node K.  LIST(LEND(K)) < 0 if and 
+!    Output, integer LEND(N), pointers to adjacency lists.
+!    LEND(K) points to the last neighbor of node K.  LIST(LEND(K)) < 0 if and
 !    only if K is a boundary node.
 !
-!    Output, integer LNEW, pointer to the first empty location 
-!    in LIST and LPTR (list length plus one).  LIST, LPTR, LEND, and LNEW are 
+!    Output, integer LNEW, pointer to the first empty location
+!    in LIST and LPTR (list length plus one).  LIST, LPTR, LEND, and LNEW are
 !    not altered if IER < 0, and are incomplete if 0 < IER.
 !
-!    Workspace, integer NEAR(N), 
+!    Workspace, integer NEAR(N),
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
@@ -3394,7 +3394,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
-!    Workspace, real ( kind_real ) DIST(N), 
+!    Workspace, real ( kind_real ) DIST(N),
 !    used to efficiently determine the nearest triangulation node to each
 !    unprocessed node for use by ADDNOD.
 !
@@ -3402,7 +3402,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
 !     0, if no errors were encountered.
 !    -1, if N < 3 on input.
 !    -2, if the first three nodes are collinear.
-!     L, if nodes L and M coincide for some L < M.  The data structure 
+!     L, if nodes L and M coincide for some L < M.  The data structure
 !      represents a triangulation of nodes 1 to M-1 in this case.
 !
 !  Local parameters:

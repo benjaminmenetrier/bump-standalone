@@ -35,11 +35,11 @@ subroutine run_test(nam,geom,bpar,bdata,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),intent(inout) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom    !< Geometry
-type(bpartype),intent(in) :: bpar    !< Block parameters
-type(bdatatype),intent(in) :: bdata(bpar%nb+1) !< B data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling data,local
+type(namtype),intent(inout) :: nam                   !< Namelist
+type(geomtype),intent(in) :: geom                    !< Geometry
+type(bpartype),intent(in) :: bpar                    !< Block parameters
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)       !< B data
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data,local
 
 ! Local variables
 integer :: ib

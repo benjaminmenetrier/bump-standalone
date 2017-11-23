@@ -39,8 +39,8 @@ subroutine compute_mpi(ndata,ndataloc)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata       !< Sampling data
-type(ndataloctype),intent(inout) :: ndataloc !< Sampling data, local
+type(ndatatype),intent(inout) :: ndata       !< NICAS data
+type(ndataloctype),intent(inout) :: ndataloc !< NICAS data, local
 
 ! Local variables
 integer :: iproc,il0i,ic0,ic0a,ic1,ic2,jc2,ic1b,ic2b,il0,il1,isa,isb,isc,i_s,i_s_loc,is,js,s_n_s_max,s_n_s_max_loc

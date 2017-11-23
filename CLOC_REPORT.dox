@@ -3,13 +3,13 @@
 Code report obtained with <a target="_blank" href="https://github.com/AlDanial/cloc">CLOC</a>:
 <br><br>Internal code<br><table>
 <tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
-<tr><td align="center">Fortran 90</td><td align="center">34</td><td align="center">1842</td><td align="center">2961</td><td align="center">5680</td><td align="center">52 \%</td></tr>
-<tr><td align="center">C++</td><td align="center">4</td><td align="center">37</td><td align="center">71</td><td align="center">197</td><td align="center">36 \%</td></tr>
-<tr><td align="center">C/C++ Header</td><td align="center">4</td><td align="center">14</td><td align="center">40</td><td align="center">37</td><td align="center">108 \%</td></tr>
+<tr><td align="center">Fortran 90</td><td align="center">71</td><td align="center">3956</td><td align="center">6032</td><td align="center">12284</td><td align="center">49 \%</td></tr>
+<tr><td align="center">C++</td><td align="center">4</td><td align="center">37</td><td align="center">74</td><td align="center">205</td><td align="center">36 \%</td></tr>
+<tr><td align="center">C/C++ Header</td><td align="center">4</td><td align="center">16</td><td align="center">42</td><td align="center">43</td><td align="center">97 \%</td></tr>
 </table><br>External code<br><table>
 <tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
-<tr><td align="center">Fortran 90</td><td align="center">2</td><td align="center">826</td><td align="center">4001</td><td align="center">3823</td><td align="center">104 \%</td></tr>
-<tr><td align="center">C/C++ Header</td><td align="center">2</td><td align="center">52</td><td align="center">138</td><td align="center">535</td><td align="center">25 \%</td></tr>
+<tr><td align="center">Fortran 90</td><td align="center">7</td><td align="center">850</td><td align="center">3272</td><td align="center">3217</td><td align="center">101 \%</td></tr>
+<tr><td align="center">C/C++ Header</td><td align="center">2</td><td align="center">51</td><td align="center">138</td><td align="center">535</td><td align="center">25 \%</td></tr>
 <tr><td align="center">C++</td><td align="center">1</td><td align="center">10</td><td align="center">5</td><td align="center">33</td><td align="center">15 \%</td></tr>
 <tr><td align="center">C</td><td align="center">1</td><td align="center">1</td><td align="center">5</td><td align="center">6</td><td align="center">83 \%</td></tr>
 </table>

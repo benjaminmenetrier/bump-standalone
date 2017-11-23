@@ -4,20 +4,22 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_localization
 
 use module_fit, only: compute_fit
-use tools_display, only: msgwarning,msgerror
+use tools_display, only: msgwarning,msgerror,prog_init,prog_print
 use tools_fit, only: ver_smooth
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_avg, only: avgtype
 use type_curve, only: curvetype,curve_normalization
 use type_hdata, only: hdatatype
+use type_mpl, only: mpl
+
 implicit none
 
 interface compute_localization
@@ -39,9 +41,9 @@ subroutine compute_localization(hdata,ib,avg,loc)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata           !< Sampling data
-integer,intent(in) :: ib !< Block index
-type(avgtype),intent(in) :: avg               !< Averaged statistics
+type(hdatatype),intent(in) :: hdata  !< HDIAG data
+integer,intent(in) :: ib             !< Block index
+type(avgtype),intent(in) :: avg      !< Averaged statistics
 type(curvetype),intent(inout) :: loc !< Localizations
 
 ! Local variables
@@ -86,20 +88,28 @@ subroutine compute_localization_local(hdata,ib,avg,loc)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata           !< Sampling data
-integer,intent(in) :: ib !< Block index
-type(avgtype),intent(in) :: avg(hdata%nc2)               !< Averaged statistics
+type(hdatatype),intent(in) :: hdata             !< HDIAG data
+integer,intent(in) :: ib                        !< Block index
+type(avgtype),intent(in) :: avg(hdata%nc2)      !< Averaged statistics
 type(curvetype),intent(inout) :: loc(hdata%nc2) !< Localizations
 
 ! Local variables
-integer :: ic2
+integer :: ic2,progint
+logical :: done(hdata%nc2)
 
 ! Loop over points
-!$omp parallel do private(ic2)
+call prog_init(progint,done)
+!$omp parallel do schedule(static) private(ic2)
 do ic2=1,hdata%nc2
+   ! Compute localization
    call compute_localization(hdata,ib,avg(ic2),loc(ic2))
+
+   ! Print progression
+   done(ic2) = .true.
+   call prog_print(progint,done)
 end do
 !$omp end parallel do
+write(mpl%unit,'(a)') '100%'
 
 end subroutine compute_localization_local
 

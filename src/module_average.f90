@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code ic1 distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_average
 
@@ -16,7 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
 use tools_qsort, only: qsort
-use type_avg, only: avgtype,avg_alloc,avg_pack,avg_unpack
+use type_avg, only: avgtype,avg_alloc,avg_copy,avg_pack,avg_unpack
 use type_mom, only: momtype
 use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast
 use type_hdata, only: hdatatype
@@ -49,14 +49,14 @@ subroutine compute_avg_single(hdata,ib,mom,ic2,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata !< HDIAG data
 integer,intent(in) :: ib            !< Block index
 type(momtype),intent(in) :: mom     !< Moments
-integer,intent(in) :: ic2       !< Local index
+integer,intent(in) :: ic2           !< Subgrid index
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Local variables
-integer :: il0,jl0,ic,isub,jsub,ic1,nc1max,jc1
+integer :: il0,il0r,jl0,ic,isub,jsub,ic1,nc1max,jc1
 real(kind_real) :: m2m2
 real(kind_real),allocatable :: list_m11(:),list_m11m11(:,:,:),list_m2m2(:,:,:),list_m22(:,:),list_cor(:)
 logical :: valid
@@ -65,13 +65,15 @@ logical :: valid
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Average
-!$omp parallel do schedule(static) private(jl0,il0,nc1max,list_m11,list_m11m11,list_m2m2,list_m22,list_cor,ic,jc1,ic1), &
+!$omp parallel do schedule(static) private(jl0,il0r,il0,nc1max,list_m11,list_m11m11,list_m2m2,list_m22,list_cor,ic,jc1,ic1), &
 !$omp&                             private(valid,m2m2,jsub,isub)
 do jl0=1,geom%nl0
-   do il0=1,bpar%nl0(ib)
+   do il0r=1,bpar%nl0(ib)
+      il0 = bpar%il0off(jl0,ib)+il0r
+
       ! Allocation
       if (ic2>0) then
-         nc1max = count(hdata%local_mask(:,ic2,min(bpar%il0min(jl0,ib)+il0,geom%nl0i)))
+         nc1max = count(hdata%local_mask(:,ic2,min(il0,geom%nl0i)))
       else
          nc1max = nam%nc1
       end if
@@ -86,25 +88,25 @@ do jl0=1,geom%nl0
          jc1 = 0
          do ic1=1,nam%nc1
             ! Check validity
-            valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0min(jl0,ib)+il0)
-            if (ic2>0) valid = valid.and.hdata%local_mask(ic1,ic2,min(bpar%il0min(jl0,ib)+il0,geom%nl0i))
+            valid = hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)
+            if (ic2>0) valid = valid.and.hdata%local_mask(ic1,ic2,min(il0,geom%nl0i))
 
             if (valid) then
                ! Update
                jc1 = jc1+1
 
                ! Averages for diagnostics
-               list_m11(jc1) = sum(mom%m11(ic1,ic,il0,jl0,:))/float(avg%nsub)
+               list_m11(jc1) = sum(mom%m11(ic1,ic,il0r,jl0,:))/float(avg%nsub)
                do jsub=1,avg%nsub
                   do isub=1,avg%nsub
-                     list_m11m11(jc1,isub,jsub) = mom%m11(ic1,ic,il0,jl0,jsub)*mom%m11(ic1,ic,il0,jl0,isub)
-                     list_m2m2(jc1,isub,jsub) = mom%m2_1(ic1,ic,il0,jl0,jsub)*mom%m2_2(ic1,ic,il0,jl0,isub)
+                     list_m11m11(jc1,isub,jsub) = mom%m11(ic1,ic,il0r,jl0,jsub)*mom%m11(ic1,ic,il0r,jl0,isub)
+                     list_m2m2(jc1,isub,jsub) = mom%m2_1(ic1,ic,il0r,jl0,jsub)*mom%m2_2(ic1,ic,il0r,jl0,isub)
                   end do
-                  if (.not.nam%gau_approx) list_m22(jc1,jsub) = mom%m22(ic1,ic,il0,jl0,jsub)
+                  if (.not.nam%gau_approx) list_m22(jc1,jsub) = mom%m22(ic1,ic,il0r,jl0,jsub)
                end do
 
                ! Correlation
-               m2m2 = sum(mom%m2_1(ic1,ic,il0,jl0,:))*sum(mom%m2_2(ic1,ic,il0,jl0,:))/float(mom%nsub**2)
+               m2m2 = sum(mom%m2_1(ic1,ic,il0r,jl0,:))*sum(mom%m2_2(ic1,ic,il0r,jl0,:))/float(mom%nsub**2)
                if (m2m2>0.0) then
                   list_cor(jc1) = list_m11(jc1)/sqrt(m2m2)
                else
@@ -114,15 +116,15 @@ do jl0=1,geom%nl0
          end do
 
          ! Average
-         avg%m11(ic,il0,jl0) = taverage(jc1,list_m11(1:jc1))
+         avg%m11(ic,il0r,jl0) = taverage(jc1,list_m11(1:jc1))
          do jsub=1,avg%nsub
             do isub=1,avg%nsub
-               avg%m11m11(ic,il0,jl0,isub,jsub) = taverage(jc1,list_m11m11(1:jc1,isub,jsub))
-               avg%m2m2(ic,il0,jl0,isub,jsub) = taverage(jc1,list_m2m2(1:jc1,isub,jsub))
+               avg%m11m11(ic,il0r,jl0,isub,jsub) = taverage(jc1,list_m11m11(1:jc1,isub,jsub))
+               avg%m2m2(ic,il0r,jl0,isub,jsub) = taverage(jc1,list_m2m2(1:jc1,isub,jsub))
             end do
-            if (.not.nam%gau_approx) avg%m22(ic,il0,jl0,jsub) = taverage(jc1,list_m22(1:jc1,jsub))
+            if (.not.nam%gau_approx) avg%m22(ic,il0r,jl0,jsub) = taverage(jc1,list_m22(1:jc1,jsub))
          end do
-         avg%cor(ic,il0,jl0) = taverage(jc1,list_cor(1:jc1))
+         avg%cor(ic,il0r,jl0) = taverage(jc1,list_cor(1:jc1))
       end do
 
       ! Release memory
@@ -130,7 +132,7 @@ do jl0=1,geom%nl0
       deallocate(list_m11m11)
       deallocate(list_m2m2)
       deallocate(list_m22)
-      deallocate(list_cor) 
+      deallocate(list_cor)
    end do
 end do
 !$omp end parallel do
@@ -149,7 +151,7 @@ subroutine compute_avg_global(hdata,ib,mom,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata !< HDIAG data
 integer,intent(in) :: ib            !< Block index
 type(momtype),intent(in) :: mom     !< Moments
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
@@ -175,7 +177,7 @@ subroutine compute_avg_local(hdata,ib,mom,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata            !< Sampling data
+type(hdatatype),intent(in) :: hdata            !< HDIAG data
 integer,intent(in) :: ib                       !< Block index
 type(momtype),intent(in) :: mom                !< Moments
 type(avgtype),intent(inout) :: avg(hdata%nc2)  !< Averaged statistics
@@ -215,7 +217,7 @@ npack = avg(ic2_s(mpl%myproc))%npack
 allocate(rbuf(hdata%nc2*npack))
 
 ! Communication
-if (mpl%main) then 
+if (mpl%main) then
    do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
          ! Format data
@@ -269,7 +271,7 @@ subroutine compute_avg_lr(hdata,ib,mom,mom_lr,avg,avg_lr)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata   !< Sampling data
+type(hdatatype),intent(in) :: hdata   !< HDIAG data
 integer,intent(in) :: ib              !< Block index
 type(momtype),intent(in) :: mom       !< Moments
 type(momtype),intent(in) :: mom_lr    !< Low-resolution moments
@@ -277,23 +279,24 @@ type(avgtype),intent(inout) :: avg    !< Averaged statistics
 type(avgtype),intent(inout) :: avg_lr !< Low-resolution averaged statistics
 
 ! Local variables
-integer :: il0,jl0,ic
+integer :: il0,il0r,jl0,ic
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
 ! Average
 do jl0=1,geom%nl0
-   do il0=1,bpar%nl0(ib)
+   do il0r=1,bpar%nl0(ib)
+      il0 = bpar%il0off(jl0,ib)+il0r
       do ic=1,bpar%icmax(ib)
          ! LR covariance/HR covariance product average
-         avg_lr%m11lrm11(ic,il0,jl0) = sum(sum(mom_lr%m11(:,ic,il0,jl0,:),dim=2) &
-                                     & *sum(mom%m11(:,ic,il0,jl0,:),dim=2)*hdata%swgt(:,ic,bpar%il0min(jl0,ib)+il0,jl0), &
-                                     & mask=hdata%ic1il0_log(:,jl0).and.hdata%ic1icil0_log(:,ic,bpar%il0min(jl0,ib)+il0)) &
+         avg_lr%m11lrm11(ic,il0r,jl0) = sum(sum(mom_lr%m11(:,ic,il0r,jl0,:),dim=2) &
+                                     & *sum(mom%m11(:,ic,il0r,jl0,:),dim=2)*hdata%swgt(:,ic,il0r,jl0), &
+                                     & mask=hdata%ic1il0_log(:,jl0).and.hdata%ic1icil0_log(:,ic,il0)) &
                                      & /float(avg%nsub*avg_lr%nsub)
 
          ! LR covariance/HR asymptotic covariance product average
-         avg_lr%m11lrm11asy(ic,il0,jl0) = avg_lr%m11lrm11(ic,il0,jl0)
+         avg_lr%m11lrm11asy(ic,il0r,jl0) = avg_lr%m11lrm11(ic,il0r,jl0)
       end do
    end do
 end do
@@ -312,13 +315,13 @@ subroutine compute_avg_asy(hdata,ib,ne,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata !< HDIAG data
 integer,intent(in) :: ib            !< Block index
-integer,intent(in) :: ne            !< Ensemble sizes
+integer,intent(in) :: ne            !< Ensemble size
 type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Local variables
-integer :: n,il0,jl0,ic,isub,jsub
+integer :: n,il0r,jl0,ic,isub,jsub
 real(kind_real) :: P1,P3,P4,P7,P8,P9,P10,P11,P12,P13,P14,P15,P16,P17
 real(kind_real),allocatable :: m11asysq(:,:),m2m2asy(:,:),m22asy(:)
 
@@ -347,7 +350,7 @@ P17 = float((n-1)**2)/float((n-2)*(n+1))
 
 ! Asymptotic statistics
 do jl0=1,geom%nl0
-   do il0=1,bpar%nl0(ib)
+   do il0r=1,bpar%nl0(ib)
       do ic=1,bpar%icmax(ib)
          ! Allocation
          allocate(m11asysq(avg%nsub,avg%nsub))
@@ -361,54 +364,54 @@ do jl0=1,geom%nl0
                   ! Diagonal terms
                   if (nam%gau_approx) then
                      ! Gaussian approximation
-                     m11asysq(jsub,isub) = P17*avg%m11m11(ic,il0,jl0,jsub,isub)+P13*avg%m2m2(ic,il0,jl0,jsub,isub)
-                     m2m2asy(jsub,isub) = 2.0*P13*avg%m11m11(ic,il0,jl0,jsub,isub)+P12*avg%m2m2(ic,il0,jl0,jsub,isub)
+                     m11asysq(jsub,isub) = P17*avg%m11m11(ic,il0r,jl0,jsub,isub)+P13*avg%m2m2(ic,il0r,jl0,jsub,isub)
+                     m2m2asy(jsub,isub) = 2.0*P13*avg%m11m11(ic,il0r,jl0,jsub,isub)+P12*avg%m2m2(ic,il0r,jl0,jsub,isub)
                   else
                      ! General case
-                     m11asysq(jsub,isub) = P15*avg%m11m11(ic,il0,jl0,jsub,isub)+P8*avg%m2m2(ic,il0,jl0,jsub,isub) &
-                                         & +P9*avg%m22(ic,il0,jl0,isub)
-                     m2m2asy(jsub,isub) = 2.0*P8*avg%m11m11(ic,il0,jl0,jsub,isub)+P7*avg%m2m2(ic,il0,jl0,jsub,isub) &
-                                        & +P9*avg%m22(ic,il0,jl0,isub)
-                     m22asy(isub) = P10*(2.0*avg%m11m11(ic,il0,jl0,jsub,isub)+avg%m2m2(ic,il0,jl0,jsub,isub)) &
-                                  & +P11*avg%m22(ic,il0,jl0,isub)
+                     m11asysq(jsub,isub) = P15*avg%m11m11(ic,il0r,jl0,jsub,isub)+P8*avg%m2m2(ic,il0r,jl0,jsub,isub) &
+                                         & +P9*avg%m22(ic,il0r,jl0,isub)
+                     m2m2asy(jsub,isub) = 2.0*P8*avg%m11m11(ic,il0r,jl0,jsub,isub)+P7*avg%m2m2(ic,il0r,jl0,jsub,isub) &
+                                        & +P9*avg%m22(ic,il0r,jl0,isub)
+                     m22asy(isub) = P10*(2.0*avg%m11m11(ic,il0r,jl0,jsub,isub)+avg%m2m2(ic,il0r,jl0,jsub,isub)) &
+                                  & +P11*avg%m22(ic,il0r,jl0,isub)
                   end if
                else
                   ! Off-diagonal terms
-                  m11asysq(jsub,isub) = avg%m11m11(ic,il0,jl0,jsub,isub)
-                  m2m2asy(jsub,isub) = avg%m2m2(ic,il0,jl0,jsub,isub)
+                  m11asysq(jsub,isub) = avg%m11m11(ic,il0r,jl0,jsub,isub)
+                  m2m2asy(jsub,isub) = avg%m2m2(ic,il0r,jl0,jsub,isub)
                end if
             end do
          end do
 
          ! Sum
-         avg%m11asysq(ic,il0,jl0) = sum(m11asysq)/float(avg%nsub**2)
-         avg%m2m2asy(ic,il0,jl0) = sum(m2m2asy)/float(avg%nsub**2)
-         if (.not.nam%gau_approx) avg%m22asy(ic,il0,jl0) = sum(m22asy)/float(avg%nsub)
+         avg%m11asysq(ic,il0r,jl0) = sum(m11asysq)/float(avg%nsub**2)
+         avg%m2m2asy(ic,il0r,jl0) = sum(m2m2asy)/float(avg%nsub**2)
+         if (.not.nam%gau_approx) avg%m22asy(ic,il0r,jl0) = sum(m22asy)/float(avg%nsub)
 
          ! Check positivity
-         if (.not.(avg%m11asysq(ic,il0,jl0)>0.0)) call msr(avg%m11asysq(ic,il0,jl0))
-         if (.not.(avg%m2m2asy(ic,il0,jl0)>0.0)) call msr(avg%m2m2asy(ic,il0,jl0))
+         if (.not.(avg%m11asysq(ic,il0r,jl0)>0.0)) call msr(avg%m11asysq(ic,il0r,jl0))
+         if (.not.(avg%m2m2asy(ic,il0r,jl0)>0.0)) call msr(avg%m2m2asy(ic,il0r,jl0))
          if (.not.nam%gau_approx) then
-            if (.not.(avg%m22asy(ic,il0,jl0)>0.0)) call msr(avg%m22asy(ic,il0,jl0))
+            if (.not.(avg%m22asy(ic,il0r,jl0)>0.0)) call msr(avg%m22asy(ic,il0r,jl0))
          end if
 
          ! Squared covariance average for several ensemble sizes
          if (nam%gau_approx) then
             ! Gaussian approximation
-            if (isnotmsr(avg%m11asysq(ic,il0,jl0)).and.isnotmsr(avg%m2m2asy(ic,il0,jl0))) & 
-          & avg%m11sq(ic,il0,jl0) = P16*avg%m11asysq(ic,il0,jl0)+P4*avg%m2m2asy(ic,il0,jl0)
+            if (isnotmsr(avg%m11asysq(ic,il0r,jl0)).and.isnotmsr(avg%m2m2asy(ic,il0r,jl0))) &
+          & avg%m11sq(ic,il0r,jl0) = P16*avg%m11asysq(ic,il0r,jl0)+P4*avg%m2m2asy(ic,il0r,jl0)
          else
             ! General case
-            if (isnotmsr(avg%m22asy(ic,il0,jl0)).and.isnotmsr(avg%m11asysq(ic,il0,jl0)) &
-          & .and.isnotmsr(avg%m2m2asy(ic,il0,jl0))) & 
-          & avg%m11sq(ic,il0,jl0) = P1*avg%m22asy(ic,il0,jl0)+P14*avg%m11asysq(ic,il0,jl0) &
-                                  & +P3*avg%m2m2asy(ic,il0,jl0)
+            if (isnotmsr(avg%m22asy(ic,il0r,jl0)).and.isnotmsr(avg%m11asysq(ic,il0r,jl0)) &
+          & .and.isnotmsr(avg%m2m2asy(ic,il0r,jl0))) &
+          & avg%m11sq(ic,il0r,jl0) = P1*avg%m22asy(ic,il0r,jl0)+P14*avg%m11asysq(ic,il0r,jl0) &
+                                   & +P3*avg%m2m2asy(ic,il0r,jl0)
          end if
 
          ! Check value
-         if (.not.isnotmsr(avg%m11sq(ic,il0,jl0))) then
-            if (avg%m11sq(ic,il0,jl0)<avg%m11asysq(ic,il0,jl0)) call msr(avg%m11sq(ic,il0,jl0))
-            if (avg%m11sq(ic,il0,jl0)<avg%m11(ic,il0,jl0)**2) call msr(avg%m11sq(ic,il0,jl0))
+         if (.not.isnotmsr(avg%m11sq(ic,il0r,jl0))) then
+            if (avg%m11sq(ic,il0r,jl0)<avg%m11asysq(ic,il0r,jl0)) call msr(avg%m11sq(ic,il0r,jl0))
+            if (avg%m11sq(ic,il0r,jl0)<avg%m11(ic,il0r,jl0)**2) call msr(avg%m11sq(ic,il0r,jl0))
          end if
 
          ! Allocation
@@ -433,16 +436,16 @@ subroutine compute_avg_asy_local(hdata,ib,ne,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-integer,intent(in) :: ib            !< Block index
-integer,intent(in) :: ne            !< Ensemble sizes
+type(hdatatype),intent(in) :: hdata            !< HDIAG data
+integer,intent(in) :: ib                       !< Block index
+integer,intent(in) :: ne                       !< Ensemble size
 type(avgtype),intent(inout) :: avg(hdata%nc2)  !< Averaged statistics
 
 ! Local variables
 integer :: ic2
 
 ! Loop over points
-!$omp parallel do private(ic2)
+!$omp parallel do schedule(static) private(ic2)
 do ic2=1,hdata%nc2
    call compute_avg_asy(hdata,ib,ne,avg(ic2))
 end do
@@ -459,7 +462,7 @@ subroutine compute_bwgtsq(hdata,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata              !< Sampling data
+type(hdatatype),intent(inout) :: hdata         !< HDIAG data
 type(avgtype),intent(in) :: avg(hdata%bpar%nb) !< Averaged statistics
 
 ! Local variables
@@ -499,7 +502,7 @@ subroutine compute_bwavg(hdata,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata                !< Sampling data
+type(hdatatype),intent(in) :: hdata                 !< HDIAG data
 type(avgtype),intent(inout) :: avg(hdata%bpar%nb+1) !< Averaged statistics
 
 ! Local variables
@@ -613,18 +616,25 @@ subroutine compute_bwavg_local(hdata,avg)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata                !< Sampling data
+type(hdatatype),intent(in) :: hdata                           !< HDIAG data
 type(avgtype),intent(inout) :: avg(hdata%nc2,hdata%bpar%nb+1) !< Averaged statistics
 
 ! Local variables
-integer :: ic2
+integer :: ib,ic2
+type(avgtype) :: avg_tmp(hdata%bpar%nb+1,hdata%nc2)
+
+! Rotate input
+do ic2=1,hdata%nc2
+   do ib=1,hdata%bpar%nb+1
+      call avg_copy(hdata,ib,avg(ic2,ib),avg_tmp(ib,ic2))
+   end do
+end do
 
 ! Loop over points
-!$omp parallel do private(ic2)
+!$omp parallel do schedule(static) private(ic2)
 do ic2=1,hdata%nc2
-   ! TODO: rotate input array
-   call compute_bwavg(hdata,avg(ic2,:))
-end do 
+   call compute_bwavg(hdata,avg_tmp(:,ic2))
+end do
 !$omp end parallel do
 
 end subroutine compute_bwavg_local

@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_hdata
 
@@ -28,42 +28,42 @@ implicit none
 ! Sampling data derived type
 type hdatatype
    ! Namelist
-   type(namtype),pointer :: nam                    !< Namelist
+   type(namtype),pointer :: nam                      !< Namelist
 
    ! Geometry
-   type(geomtype),pointer :: geom                  !< Geometry
+   type(geomtype),pointer :: geom                    !< Geometry
 
    ! Block parameters
-   type(bpartype),pointer :: bpar                  !< Block parameters
+   type(bpartype),pointer :: bpar                    !< Block parameters
 
    ! Sampling
-   integer,allocatable :: ic1_to_ic0(:)               !< First sampling index
-   logical,allocatable :: ic1il0_log(:,:)             !< Log for the first sampling index
-   integer,allocatable :: ic1icil0_to_ic0(:,:,:)    !< Second horizontal sampling index
-   logical,allocatable :: ic1icil0_log(:,:,:)       !< Log for the second horizontal sampling index
-   real(kind_real),allocatable :: swgt(:,:,:,:)            !< Sampling weights
-   real(kind_real),allocatable :: bwgtsq(:,:,:,:)            !< Squared block weights
+   integer,allocatable :: ic1_to_ic0(:)              !< First sampling index
+   logical,allocatable :: ic1il0_log(:,:)            !< Log for the first sampling index
+   integer,allocatable :: ic1icil0_to_ic0(:,:,:)     !< Second horizontal sampling index
+   logical,allocatable :: ic1icil0_log(:,:,:)        !< Log for the second horizontal sampling index
+   real(kind_real),allocatable :: swgt(:,:,:,:)      !< Sampling weights
+   real(kind_real),allocatable :: bwgtsq(:,:,:,:)    !< Squared block weights
 
-   integer :: nc2
-   integer,allocatable :: ic2_to_ic1(:)               !< Horizontal sampling index
-   integer,allocatable :: ic2_to_ic0(:)               !< Horizontal sampling index
+   integer :: nc2                                    !< Subgrid size
+   integer,allocatable :: ic2_to_ic1(:)              !< Subgrid to diagnostic points
+   integer,allocatable :: ic2_to_ic0(:)              !< Subgrid to grid
 
    ! Cover tree and nearest neighbors
-   logical,allocatable ::  local_mask(:,:,:)
-   logical,allocatable ::  displ_mask(:,:,:)
-   integer,allocatable :: nn_nc2_index(:,:,:)  !< Nearest diagnostic neighbors from diagnostic points
-   real(kind_real),allocatable :: nn_nc2_dist(:,:,:)      !< Nearest diagnostic neighbors distance from diagnostic points
-   integer,allocatable :: nn_ldwv_index(:)      !< Nearest diagnostic neighbors for local diagnostics profiles
+   logical,allocatable ::  local_mask(:,:,:)         !< Local mask
+   logical,allocatable ::  displ_mask(:,:,:)         !< Displacement mask
+   integer,allocatable :: nn_nc2_index(:,:,:)        !< Nearest diagnostic neighbors from diagnostic points
+   real(kind_real),allocatable :: nn_nc2_dist(:,:,:) !< Nearest diagnostic neighbors distance from diagnostic points
+   integer,allocatable :: nn_ldwv_index(:)           !< Nearest diagnostic neighbors for local diagnostics profiles
 
    ! Sampling mesh
-   integer :: nt                                !< Number of triangles
-   integer,allocatable :: ltri(:,:)             !< Triangles indices
-   integer,allocatable :: larc(:,:)             !< Arcs indices
-   real(kind_real),allocatable :: bdist(:)                 !< Distance to the closest boundary arc
+   integer :: nt                                     !< Number of triangles
+   integer,allocatable :: ltri(:,:)                  !< Triangles indices
+   integer,allocatable :: larc(:,:)                  !< Arcs indices
+   real(kind_real),allocatable :: bdist(:)           !< Distance to the closest boundary arc
 
    ! Interpolations
-   type(linoptype),allocatable :: h(:)     !< Horizontal interpolation from Sc2 to Sc0
-   type(linoptype),allocatable :: s(:)     !< Horizontal interpolation from Sc2 to Sc1
+   type(linoptype),allocatable :: h(:)               !< Horizontal interpolation from Sc2 to Sc0
+   type(linoptype),allocatable :: s(:)               !< Horizontal interpolation from Sc2 to Sc1
 end type hdatatype
 
 private
@@ -81,7 +81,7 @@ subroutine hdata_alloc(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -142,7 +142,7 @@ subroutine hdata_dealloc(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0
@@ -191,7 +191,7 @@ integer function hdata_read(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,il0i,ic1,ic,ic2
@@ -373,7 +373,7 @@ subroutine hdata_write(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,il0i,ic1,ic,ic2

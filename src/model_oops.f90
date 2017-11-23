@@ -11,7 +11,7 @@
 module model_oops
 
 use netcdf
-use tools_const, only: pi,deg2rad,rad2deg,req
+use tools_const, only: pi,rad2deg,req
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
@@ -37,20 +37,20 @@ subroutine model_oops_coord(nam,geom,lats,lons,areas,levs,mask3d,mask2d,glbind)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(inout) :: geom !< Sampling data
-real(kind_real),intent(in) :: lats(geom%nc0a)
-real(kind_real),intent(in) :: lons(geom%nc0a)
-real(kind_real),intent(in) :: areas(geom%nc0a)
-real(kind_real),intent(in) :: levs(geom%nlev)
-integer,intent(in) :: mask3d(geom%nc0a*geom%nlev)
-integer,intent(in) :: mask2d(geom%nc0a)
-integer,intent(in) :: glbind(geom%nc0a)
+type(namtype),intent(in) :: nam                   !< Namelist
+type(geomtype),intent(inout) :: geom              !< Geometry
+real(kind_real),intent(in) :: lats(geom%nc0a)     !< Latitudes
+real(kind_real),intent(in) :: lons(geom%nc0a)     !< Longitudes
+real(kind_real),intent(in) :: areas(geom%nc0a)    !< Areas
+real(kind_real),intent(in) :: levs(geom%nlev)     !< Levels
+integer,intent(in) :: mask3d(geom%nc0a*geom%nlev) !< 3D mask
+integer,intent(in) :: mask2d(geom%nc0a)           !< 2D mask
+integer,intent(in) :: glbind(geom%nc0a)           !< Global index
 
 ! Local variables
 integer :: nc0ag(mpl%nproc),ic0,ic0a,il0,offset,iproc
 integer,allocatable :: glbindg(:),order(:)
-logical,allocatable :: lmask3d(:,:)
+logical,allocatable :: lmask3d(:,:),lmask2d(:)
 
 ! Communication
 if (mpl%main) then
@@ -81,11 +81,19 @@ geom%nl0 = nam%nl
 ! Global number of nodes
 geom%nc0 = sum(nc0ag)
 
+! Print summary
+write(mpl%unit,'(a7,a)') '','Distribution summary:'
+do iproc=1,mpl%nproc
+   write(mpl%unit,'(a10,a,i3,a,i8,a)') '','Proc #',iproc,': ',nc0ag(iproc),' grid-points'
+end do
+write(mpl%unit,'(a10,a,i8,a)') '','Total: ',geom%nc0,' grid-points'
+
 ! Allocation
 call geom_alloc(geom)
 allocate(geom%ic0_to_iproc(geom%nc0))
 allocate(geom%ic0_to_ic0a(geom%nc0))
 allocate(lmask3d(geom%nc0a,geom%nl0))
+allocate(lmask2d(geom%nc0a))
 allocate(glbindg(geom%nc0))
 
 ! Check TODO: check dimensions consistency of all arrays
@@ -114,6 +122,15 @@ do il0=1,geom%nl0
       end if
    end do
 end do
+do ic0a=1,geom%nc0a
+   if (mask2d(ic0a)==0) then
+      lmask2d(ic0a) = .false.
+   elseif (mask2d(ic0a)==1) then
+      lmask2d(ic0a) = .true.
+   else
+      call msgerror('wrong 2d mask value in model_oops_coord')
+   end if
+end do
 
 ! Communication and reordering
 if (mpl%main) then
@@ -122,8 +139,8 @@ if (mpl%main) then
    do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
          ! Copy data
-         geom%lon(offset+1:offset+nc0ag(iproc)) = lons*deg2rad
-         geom%lat(offset+1:offset+nc0ag(iproc)) = lats*deg2rad
+         geom%lon(offset+1:offset+nc0ag(iproc)) = lons
+         geom%lat(offset+1:offset+nc0ag(iproc)) = lats
          do il0=1,geom%nl0
             geom%mask(offset+1:offset+nc0ag(iproc),il0) = lmask3d(:,il0)
          end do
@@ -143,8 +160,8 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl_send(geom%nc0a,lons*deg2rad,mpl%ioproc,mpl%tag)
-   call mpl_send(geom%nc0a,lats*deg2rad,mpl%ioproc,mpl%tag+1)
+   call mpl_send(geom%nc0a,lons,mpl%ioproc,mpl%tag)
+   call mpl_send(geom%nc0a,lats,mpl%ioproc,mpl%tag+1)
    do il0=1,geom%nl0
       call mpl_send(geom%nc0a,lmask3d(:,il0),mpl%ioproc,mpl%tag+1+il0)
    end do
@@ -183,7 +200,7 @@ end if
 
 ! Normalized area
 do il0=1,geom%nl0
-   call mpl_allreduce_sum(sum(areas,mask=lmask3d(:,il0))/(float(count(lmask3d(:,il0)))*req**2),geom%area(il0))
+   call mpl_allreduce_sum(sum(areas,mask=lmask3d(:,il0))/req**2,geom%area(il0))
 end do
 
 ! Vertical unit
@@ -195,15 +212,14 @@ end subroutine model_oops_coord
 ! Subroutine: model_oops_write
 !> Purpose: write OOPS field
 !----------------------------------------------------------------------
-subroutine model_oops_write(nam,geom,ncid,varname,fld)
+subroutine model_oops_write(geom,ncid,varname,fld)
 
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(in) :: geom                     !< Sampling data
-integer,intent(in) :: ncid                              !< NetCDF file ID
-character(len=*),intent(in) :: varname                  !< Variable name
+type(geomtype),intent(in) :: geom                    !< Geometry
+integer,intent(in) :: ncid                           !< NetCDF file ID
+character(len=*),intent(in) :: varname               !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables

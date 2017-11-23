@@ -7,10 +7,6 @@ Copyright © 2017 METEO-FRANCE
 
 Contact: benjamin.menetrier@meteo.fr
 
-*To download the code:*
-* "archives page":https://opensource.cnrm-game-meteo.fr/projects/nicas/files
-* git repository: git clone git://opensource.cnrm-game-meteo.fr/nicas.git .
+*The codes "hybrid_diag" and "nicas" have been merged into "hdiag_nicas".*
 
-*Code documentation:*
-
-"http://benjaminmenetrier.free.fr/nicas/html/index.html":http://benjaminmenetrier.free.fr/nicas/html/index.html
+You can download "hdiag_nicas" here: https://github.com/benjaminmenetrier/hdiag_nicas

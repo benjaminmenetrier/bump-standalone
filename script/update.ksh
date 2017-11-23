@@ -28,43 +28,32 @@ source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
    sed -i 's/ *$//' ${file}
 done
-cd ../../doc
-source=`find . -type f -exec egrep -l " +$" {} \;`
-for file in ${source} ; do
-   sed -i 's/ *$//' ${file}
-done
 
 # Compile in DEBUG mode
 echo '--- Compile in DEBUG mode'
-cd ../build
+cd ../../build
 rm -fr CMakeCache.txt CMakeFiles cmake_install.cmake Makefile *.mod
-export NICAS_COMPILER=GNU
-export NICAS_BUILD=DEBUG
-export NICAS_NETCDF=$NETCDF
+export HDIAG_NICAS_BUILD=DEBUG
 cmake CMakeLists.txt
 make
 
-# Save and regenerate all namelists
-echo '--- Save and regenerate all namelists'
-cd ../run
-rm -fr old
-mkdir old
-mv namelist_* old
+# Save all namelists
+echo '--- Save all namelists'
 cd ../script
-./namelist_sql2nam.ksh
+./namelist_nam2sql.ksh
 
 # Recompute truth
 echo '--- Recompute truth'
 cd ../run
 export OMP_NUM_THREADS=1
-./nicas < namelist_truth
+./hdiag_nicas < namelist_truth
 
 # Pack everything
 echo '--- Pack everything'
 cd ../script
 ./pack.ksh
 mkdir -p ../versions
-mv -f ../nicas_*.tar.gz ../versions
+mv -f ../hdiag_nicas_*.tar.gz ../versions
 
 # Execute test
 echo '--- Execute test'
@@ -85,7 +74,7 @@ doxygen Doxyfile
 # Copy doc directory on ftp
 echo '--- Copy doc directory on ftp'
 cd ..
-lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc nicas;quit"
+lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc hdiag_nicas;quit"
 cd script
 
 # Git commands

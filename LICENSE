@@ -2,8 +2,10 @@ Copyright © 2017 METEO-FRANCE.
 
 e-mail: benjamin.menetrier@meteo.fr
 
-The nicas software is a computer program whose purpose is to 
-prepare coefficients to apply normalized interpolated convolution
+The HDIAG_NICAS software is a computer program whose purpose is to 
+estimate localization functions and hybridization coefficients for 
+covariance models used in ensemble-variational data assimilation systems,
+and to prepare coefficients to apply normalized interpolated convolution
 from adaptive subgrids.
 
 This software is governed by the CeCILL-C license under French law and

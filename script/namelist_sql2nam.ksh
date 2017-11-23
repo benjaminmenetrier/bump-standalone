@@ -21,7 +21,7 @@ generate_namelist() {
          echo "   Write block for table "${table}
 
          # Print block header
-         block=`echo ${table} | cut -c 4-`
+         block=`echo ${table} | cut -c 5-`
          printf "&"${block}"\n" >> ${filename}
 
          # Get keys

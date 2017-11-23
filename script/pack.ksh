@@ -52,15 +52,19 @@ cp -fr src/* pack/src
 mkdir pack/test
 cp -f test/grid.nc pack/test
 cp -f test/links.ksh pack/test
-cp -f test/truth_param.nc pack/test
+cp -f test/truth_bdata_common.nc pack/test
+cp -f test/truth_diag.nc pack/test
+cp -f test/truth_ndata_common.nc pack/test
+cp -f test/truth_ndataloc_2_0001-0001_common.nc pack/test
+cp -f test/truth_sampling.nc pack/test
 
 # Rename and pack everything
 find pack -type f -name '*~' -delete
 today=`date +%Y%m%d`
-rm -fr nicas
-mv pack nicas
-tar -cvzf nicas_${today}.tar.gz nicas
-ln -sf nicas_${today}.tar.gz nicas_latest.tar.gz
+rm -fr hdiag_nicas
+mv pack hdiag_nicas
+tar -cvzf hdiag_nicas${today}.tar.gz hdiag_nicas
+ln -sf hdiag_nicas_${today}.tar.gz hdiag_nicas_latest.tar.gz
 
 # Clean
-rm -fr nicas
+rm -fr hdiag_nicas

@@ -27,18 +27,18 @@ type comtype
    integer,allocatable :: iext_to_ired(:)
 
    ! Communication data
-   character(len=1024) :: prefix         !< Communication prefix
-   integer :: nred
-   integer :: next
+   character(len=1024) :: prefix          !< Communication prefix
+   integer :: nred                        !< Reduction size
+   integer :: next                        !< Extension size
    integer,allocatable :: ired_to_iext(:) !< Indices conversion
-   integer :: nhalo                      !< Halo buffer size
-   integer :: nexcl                      !< Exclusive interior buffer size
-   integer,allocatable :: jhalocounts(:) !< Halo counts
-   integer,allocatable :: jexclcounts(:) !< Exclusive interior counts
-   integer,allocatable :: jhalodispl(:)  !< Halo displacement
-   integer,allocatable :: jexcldispl(:)  !< Exclusive interior displacement
-   integer,allocatable :: halo(:)        !< Halo buffer
-   integer,allocatable :: excl(:)        !< Exclusive interior buffer
+   integer :: nhalo                       !< Halo buffer size
+   integer :: nexcl                       !< Exclusive interior buffer size
+   integer,allocatable :: jhalocounts(:)  !< Halo counts
+   integer,allocatable :: jexclcounts(:)  !< Exclusive interior counts
+   integer,allocatable :: jhalodispl(:)   !< Halo displacement
+   integer,allocatable :: jexcldispl(:)   !< Exclusive interior displacement
+   integer,allocatable :: halo(:)         !< Halo buffer
+   integer,allocatable :: excl(:)         !< Exclusive interior buffer
 end type comtype
 
 private
@@ -78,7 +78,7 @@ subroutine com_setup(nproc,com)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: nproc !< Number of MPI tasks
+integer,intent(in) :: nproc               !< Number of MPI tasks
 type(comtype),intent(inout) :: com(nproc) !< Communication
 
 ! Local variables
@@ -173,9 +173,9 @@ subroutine com_bcast(nproc,com_in,com_out)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: nproc !< Number of MPI tasks
-type(comtype),intent(in) :: com_in(nproc)     !< Input linear operator
-type(comtype),intent(inout) :: com_out !< Output linear operator
+integer,intent(in) :: nproc               !< Number of MPI tasks
+type(comtype),intent(in) :: com_in(nproc) !< Input linear operator
+type(comtype),intent(inout) :: com_out    !< Output linear operator
 
 ! Local variables
 integer :: iproc
@@ -261,8 +261,8 @@ subroutine com_ext(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com !< Sampling data
-real(kind_real),allocatable,intent(inout) :: vec(:)    !< Subgrid variable
+type(comtype),intent(in) :: com                     !< Communication data
+real(kind_real),allocatable,intent(inout) :: vec(:) !< Subgrid field
 
 ! Local variables
 real(kind_real) :: sbuf(com%nexcl),rbuf(com%nhalo),vec_tmp(com%nred)
@@ -302,8 +302,8 @@ subroutine com_red(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com !< Sampling data
-real(kind_real),allocatable,intent(inout) :: vec(:)    !< Subgrid variable
+type(comtype),intent(in) :: com                     !< Communication data
+real(kind_real),allocatable,intent(inout) :: vec(:) !< Subgrid field
 
 ! Local variables
 real(kind_real) :: sbuf(com%nhalo),rbuf(com%nexcl),vec_tmp(com%next)
@@ -343,10 +343,10 @@ subroutine com_read(nproc,ncid,prefix,com)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: nproc !< Number of MPI tasks
+integer,intent(in) :: nproc           !< Number of MPI tasks
 integer,intent(in) :: ncid            !< NetCDF file id
 character(len=*),intent(in) :: prefix !< Communication prefix
-type(comtype),intent(inout) :: com    !< Communication
+type(comtype),intent(inout) :: com    !< Communication data
 
 ! Local variables
 integer :: info
@@ -421,9 +421,9 @@ subroutine com_write(nproc,ncid,com)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: nproc !< Number of MPI tasks
+integer,intent(in) :: nproc     !< Number of MPI tasks
 integer,intent(in) :: ncid      !< NetCDF file id
-type(comtype),intent(in) :: com !< Communication
+type(comtype),intent(in) :: com !< Communication data
 
 ! Local variables
 integer :: info

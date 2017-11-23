@@ -1,40 +1,109 @@
 &general_param
 datadir = "../data/gem",
 prefix = "gem",
-colorlog = .true.,
 model = "gem",
-nl = 3,
-levs = 1,2,3,
+colorlog = .true.,
+sam_default_seed = .true.,
+/
+
+&driver_param
+method = "loc",
+strategy = "common",
+new_hdiag = .true.,
 new_param = .true.,
 new_mpi = .true.,
-check_adjoints = .true.,
+check_adjoints = .false.,
 check_pos_def = .false.,
-check_mpi = .true.,
+check_mpi = .false.,
+check_sqrt = .false.,
 check_dirac = .true.,
-check_perf = .true.,
-ndir = 3,
-levdir = 1,
-londir = -1.2,147.0,-79.8,
-latdir = -31.7,10.7,21.7,
+check_perf = .false.,
+check_hdiag = .false.,
+new_lct = .false.,
+/
+
+&model_param
+nl = 4,
+levs = 30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,
+logpres = .true.,
+nv = 1,
+varname = "ta","hus",
+addvar2d = "","",
+nts = 1,
+timeslot = 6,
+/
+
+&ens1_param
+ens1_ne = 10,
+ens1_ne_offset = 0,
+ens1_nsub = 1,
+/
+
+&ens2_param
+ens2_ne = 10,
+ens2_ne_offset = 0,
+ens2_nsub = 1,
 /
 
 &sampling_param
-sam_default_seed = .true.,
-mask_check = .false,
-ntry = 30,
-nrep = 20,
-logpres = .true.,
+sam_write = .false.,
+sam_read = .true.,
+mask_type = "none",
+mask_th = 0,
+mask_check = .false.,
+nc1 = 3500,
+ntry = 3,
+nrep = 2,
+nc = 50,
+dc = 100.0e3,
+/
+
+&diag_param
+ne = 10,
+gau_approx = .false.,
+full_var = .false.,
+local_diag = .false.,
+local_rad = 1000.0e3,
+displ_diag = .false.,
+displ_rad = 1000.0e3,
+displ_niter = 10,
+displ_rhflt = 500.0e3,
+displ_tol = 0.01,
+/
+
+&fit_param
+fit_type = "praxis",
+fit_wgt = .true.,
+lhomh = .false.,
+lhomv = .false.,
+rvflt = 0.0,
+lct_nl0 = 0,
+lct_diag = .false.,
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+flt_type = "average",
+diag_rhflt = 500.0e3,
 /
 
 &nicas_param
 lsqrt = .false.,
-Lbh_file = "none",
-Lbh = 1000.0e3,1500.0e3,2000.0e3,,
-Lbv_file = "none",
-Lbv = 2.0,2.0,2.0,
-resol = 10.0,
+rh = 0.0,
+rv = 0.0,
+resol = 8.0,
 network = .false.,
-nproc = 0,
-mpicom = 0,
+mpicom = 2,
+ndir = 12,
+londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
+latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
+levdir = 30,30,30,30,30,30,30,30,30,30,30,30,
+ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
+itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
 

@@ -41,11 +41,11 @@ subroutine run_nicas(nam,geom,bpar,bdata,ndataloc)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(inout) :: nam !< Namelist variables
-type(geomtype),target,intent(inout) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(bdatatype),intent(in) :: bdata(bpar%nb+1) !< B data
-type(ndataloctype),allocatable,intent(inout) :: ndataloc(:) !< Sampling data,local
+type(namtype),target,intent(inout) :: nam                   !< Namelist
+type(geomtype),target,intent(inout) :: geom                 !< Geometry
+type(bpartype),target,intent(in) :: bpar                    !< Block parameters
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)              !< B data
+type(ndataloctype),allocatable,intent(inout) :: ndataloc(:) !< NICAS data,local
 
 ! Local variables
 integer :: ib,ic0,ic0a
@@ -76,7 +76,7 @@ do ib=1,bpar%nb+1
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Compute NICAS parameters'
          call compute_parameters(bdata(ib),ndata)
-      
+
          ! Compute NICAS normalization
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Compute NICAS normalization'
@@ -107,7 +107,7 @@ do ib=1,bpar%nb+1
       end if
       call flush(mpl%unit)
    end if
-      
+
    if (nam%new_mpi) then
       if (bpar%nicas_block(ib)) then
          ! Compute NICAS MPI distribution
@@ -159,7 +159,7 @@ do ib=1,bpar%nb+1
          if (mpl%main) call test_nicas_adjoints(ndata)
          call flush(mpl%unit)
       end if
-      
+
       if (nam%check_pos_def) then
          ! Test NICAS positive definiteness
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -167,7 +167,7 @@ do ib=1,bpar%nb+1
          if (mpl%main) call test_nicas_pos_def(ndata)
          call flush(mpl%unit)
       end if
-      
+
       if (nam%check_mpi) then
          ! Test NICAS single/multi-procs equivalence
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'

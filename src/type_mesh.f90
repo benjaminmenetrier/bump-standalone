@@ -23,16 +23,16 @@ implicit none
 
 ! Linear operator derived type
 type meshtype
-   integer,allocatable :: redundant(:)
-   integer :: nnr                 !< 
-   real(kind_real),allocatable :: x(:)
-   real(kind_real),allocatable :: y(:)
-   real(kind_real),allocatable :: z(:)
-   integer,allocatable :: list(:) 
-   integer,allocatable :: lptr(:) 
-   integer,allocatable :: lend(:) 
-   integer,allocatable :: order(:)
-   integer,allocatable :: order_inv(:)
+   integer,allocatable :: redundant(:) !< Redundant points
+   integer :: nnr                      !< Number of non-redundant points
+   real(kind_real),allocatable :: x(:) !< x-coordinate
+   real(kind_real),allocatable :: y(:) !< y-coordinate
+   real(kind_real),allocatable :: z(:) !< z-coordinate
+   integer,allocatable :: list(:)      !< Stripack list
+   integer,allocatable :: lptr(:)      !< Stripack list pointer
+   integer,allocatable :: lend(:)      !< Stripack list end
+   integer,allocatable :: order(:)     !< Order of shuffled points
+   integer,allocatable :: order_inv(:) !< Inverse order of shuffled points
 end type meshtype
 
 private
@@ -50,11 +50,11 @@ subroutine create_mesh(n,lon,lat,lred,mesh)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n
-real(kind_real),intent(in) :: lon(n)
-real(kind_real),intent(in) :: lat(n)
-logical,intent(in) :: lred
-type(meshtype),intent(inout) :: mesh
+integer,intent(in) :: n               !< Mesh size
+real(kind_real),intent(in) :: lon(n)  !< Longitudes
+real(kind_real),intent(in) :: lat(n)  !< Latitudes
+logical,intent(in) :: lred            !< Redundant points check
+type(meshtype),intent(inout) :: mesh  !< Mesh
 
 ! Local variables
 integer :: i,j,k,lnew,info
@@ -86,7 +86,7 @@ if (lred) then
    ! Loop over points
    write(mpl%unit,'(a7,a)',advance='no') '','Look for redundant points: '
    call prog_init(progint,done)
-   !$omp parallel do private(i_loc,i,j)
+   !$omp parallel do schedule(static) private(i_loc,i,j)
    do i_loc=1,n_loc(mpl%myproc)
       i = i_glb(i_loc,mpl%myproc)
       do j=1,i-1
@@ -102,7 +102,7 @@ if (lred) then
    write(mpl%unit,'(a)') '100%'
 
    ! Communication
-   if (mpl%main) then 
+   if (mpl%main) then
       do iproc=1,mpl%nproc
          if (iproc/=mpl%ioproc) then
             ! Allocation
@@ -135,12 +135,21 @@ if (lred) then
 
    ! Broadcast data
    call mpl_bcast(mesh%redundant,mpl%ioproc)
+
+   ! Check for successive redundant points
+   do i=1,n
+      if (isnotmsi(mesh%redundant(i))) then
+         do while (isnotmsi(mesh%redundant(mesh%redundant(i))))
+            mesh%redundant(i) = mesh%redundant(mesh%redundant(i))
+         end do
+      end if
+   end do
 end if
 mesh%nnr = count(.not.isnotmsi(mesh%redundant))
 
 ! Allocation
 allocate(mesh%order(mesh%nnr))
-allocate(mesh%order_inv(mesh%nnr))
+allocate(mesh%order_inv(n))
 allocate(mesh%list(6*(mesh%nnr-2)))
 allocate(mesh%lptr(6*(mesh%nnr-2)))
 allocate(mesh%lend(mesh%nnr))
@@ -162,13 +171,14 @@ do j=1,n
 end do
 if (mpl%main) call rand_integer(1,mesh%nnr,jtab)
 call mpl_bcast(jtab,mpl%ioproc)
-do i=mesh%nnr,2,-1  
+do i=mesh%nnr,2,-1
    k = mesh%order(jtab(i))
    mesh%order(jtab(i)) = mesh%order(i)
    mesh%order(i) = k
 end do
 
 ! Inverse order
+call msi(mesh%order_inv)
 do i=1,mesh%nnr
    mesh%order_inv(mesh%order(i)) = i
 end do
@@ -191,7 +201,7 @@ subroutine mesh_dealloc(mesh)
 implicit none
 
 ! Passed variables
-type(meshtype),intent(inout) :: mesh
+type(meshtype),intent(inout) :: mesh !< Mesh
 
 ! Release memory
 deallocate(mesh%redundant)
@@ -215,12 +225,12 @@ subroutine check_mesh(n,lon,lat,nt,ltri,valid)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n   !< Number of vertices
-real(kind_real),intent(in) :: lon(n)       !< Mesh longitudes
-real(kind_real),intent(in) :: lat(n)       !< Mesh latitudes
-integer,intent(in) :: nt         !< Number of triangles
-integer,intent(in) :: ltri(3,nt) !< Mesh structure
-real(kind_real),intent(out) :: valid(n)    !< 1.0 if the vertex ic1 valid, else 0.0
+integer,intent(in) :: n                 !< Mesh size
+real(kind_real),intent(in) :: lon(n)    !< Longitudes
+real(kind_real),intent(in) :: lat(n)    !< Latitudes
+integer,intent(in) :: nt                !< Number of triangles
+integer,intent(in) :: ltri(3,nt)        !< Stripack triangles list
+real(kind_real),intent(out) :: valid(n) !< 1.0 if the vertex ic1 valid, else 0.0
 
 ! Local variables
 integer :: it
@@ -231,7 +241,7 @@ logical :: validt(nt)
 ! Transform to cartesian coordinates
 call trans(n,lat,lon,x,y,z)
 
-!$omp parallel do private(it,a,b,c,cd,v1,v2,cp)
+!$omp parallel do schedule(static) private(it,a,b,c,cd,v1,v2,cp)
 do it=1,nt
    ! Check vertices status
    if (isallnotmsr(x(ltri(:,it))).and.isallnotmsr(y(ltri(:,it))).and.isallnotmsr(z(ltri(:,it)))) then

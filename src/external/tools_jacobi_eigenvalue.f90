@@ -1,3 +1,13 @@
+!----------------------------------------------------------------------
+! Module: jacobi_eigenvalue.f90
+!> Purpose: Jacobi method to compte eigenvalues
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-C license
+!> <br>
+!> Copyright © 2017 METEO-FRANCE
+!----------------------------------------------------------------------
 module tools_jacobi_eigenvalue
 
 use tools_kinds, only: kind_real
@@ -18,7 +28,7 @@ subroutine jacobi_eigenvalue ( n, a, it_max, v, d, it_num, rot_num )
 !
 !    This function computes the eigenvalues and eigenvectors of a
 !    real symmetric matrix, using Rutishauser's modfications of the classical
-!    Jacobi rotation method with threshold pivoting. 
+!    Jacobi rotation method with threshold pivoting.
 !
 !  Licensing:
 !
@@ -114,7 +124,7 @@ subroutine jacobi_eigenvalue ( n, a, it_max, v, d, it_num, rot_num )
 
     thresh = sqrt ( thresh ) / real ( 4 * n, kind_real )
 
-    if ( .not.(abs(thresh) > 0.0) ) exit 
+    if ( .not.(abs(thresh) > 0.0) ) exit
 
     do p = 1, n
       do q = p + 1, n
@@ -143,7 +153,7 @@ subroutine jacobi_eigenvalue ( n, a, it_max, v, d, it_num, rot_num )
           else
             theta = 0.5 * h / a(p,q)
             t = 1.0 / ( abs ( theta ) + sqrt ( 1.0 + theta * theta ) )
-            if ( theta < 0.0 ) then 
+            if ( theta < 0.0 ) then
               t = - t
             end if
           end if
@@ -155,7 +165,7 @@ subroutine jacobi_eigenvalue ( n, a, it_max, v, d, it_num, rot_num )
 !
 !  Accumulate corrections to diagonal elements.
 !
-          zw(p) = zw(p) - h                  
+          zw(p) = zw(p) - h
           zw(q) = zw(q) + h
           d(p) = d(p) - h
           d(q) = d(q) + h

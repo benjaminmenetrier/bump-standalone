@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_sampling
 
@@ -27,7 +27,7 @@ implicit none
 integer,parameter :: irmax = 10000 !< Maximum number of random number draws
 
 private
-public :: setup_sampling,compute_sampling_ps,compute_sampling_mesh
+public :: setup_sampling,compute_sampling_zs,compute_sampling_lct,compute_sampling_mesh
 
 contains
 
@@ -40,7 +40,7 @@ subroutine setup_sampling(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: info,il0,ic0,ic1,ic2,ildw,ic,i_s,il0i,jc1
@@ -59,12 +59,16 @@ if (nam%nc1>maxval(count(geom%mask,dim=1))) then
    nam%nc1 = maxval(count(geom%mask,dim=1))
 end if
 
-if (nam%local_diag.or.nam%displ_diag) then
-   ! Define nc2
-   hdata%nc2 = int(2.0*maxval(geom%area)/(sqrt(3.0)*(nam%local_rad)**2))
-   write(mpl%unit,'(a7,a,i8)') '','Estimated nc2 from local diagnostic radius: ',hdata%nc2
-   hdata%nc2 = min(hdata%nc2,nam%nc1)
-   write(mpl%unit,'(a7,a,i8)') '','Final nc2: ',hdata%nc2
+! Define nc2
+if (nam%new_lct) then
+   hdata%nc2 = nam%nc1
+else
+   if (nam%local_diag.or.nam%displ_diag) then
+      hdata%nc2 = int(2.0*maxval(geom%area)/(sqrt(3.0)*(nam%local_rad)**2))
+      write(mpl%unit,'(a7,a,i8)') '','Estimated nc2 from local diagnostic radius: ',hdata%nc2
+      hdata%nc2 = min(hdata%nc2,nam%nc1)
+      write(mpl%unit,'(a7,a,i8)') '','Final nc2: ',hdata%nc2
+   end if
 end if
 
 ! Allocation
@@ -77,12 +81,17 @@ if (info==1) then
    ! Compute zero-separation sampling
    call compute_sampling_zs(hdata)
 
-   ! Compute positive separation sampling
-   call compute_sampling_ps(hdata)
+   if (nam%new_lct) then
+      ! Compute LCT sampling
+      call compute_sampling_lct(hdata)
+   else
+      ! Compute positive separation sampling
+      call compute_sampling_ps(hdata)
+   end if
 end if
 
 if (nam%local_diag.or.nam%displ_diag) then
-   if ((info==1).or.(info==2)) then   
+   if ((info==1).or.(info==2)) then
       ! Define subsampling
       mask_ind = 1
       rh0 = 1.0
@@ -172,7 +181,7 @@ if (nam%local_diag.or.nam%displ_diag) then
                   hdata%s(il0i)%S(hdata%s(il0i)%n_s) = hdata%h(il0i)%S(i_s)
                end if
             end do
-         end do         
+         end do
       end do
 
       ! Release memory
@@ -232,7 +241,7 @@ subroutine compute_sampling_zs(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: ic0,ic1,il0
@@ -287,7 +296,7 @@ subroutine compute_sampling_ps(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,jl0,irmaxloc,progint,ic,ic1,ir,ipt,jpt,i,nvc0,ic0,ivc0,icinf,icsup,ictest,ibnd
@@ -341,7 +350,7 @@ if (nam%nc>1) then
             ir = ir+1
             jpt = vipt(i)
 
-            !$omp parallel do private(ic1,ipt,d,icinf,icsup,found,ictest,ic,valid,x,y,z,v1,v2,va,ibnd,vp,t)
+            !$omp parallel do schedule(static) private(ic1,ipt,d,icinf,icsup,found,ictest,ic,valid,x,y,z,v1,v2,va,ibnd,vp,t)
             do ic1=1,nam%nc1
                ! Allocation
                allocate(x(2))
@@ -451,7 +460,7 @@ if (nam%nc>1) then
          deallocate(vipt)
       end if
    end do
-else
+elseif (nam%nc==1) then
    ! Special case with one class
    do ic1=1,nam%nc1
       ! Check location validity
@@ -488,6 +497,103 @@ end associate
 end subroutine compute_sampling_ps
 
 !----------------------------------------------------------------------
+! Subroutine: compute_sampling_lct
+!> Purpose: compute LCT sampling
+!----------------------------------------------------------------------
+subroutine compute_sampling_lct(hdata)
+
+implicit none
+
+! Passed variables
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
+
+! Local variables
+integer :: il0,ic1,ic0,jc0,ibnd,ic
+real(kind_real) :: dum(hdata%nam%nc)
+real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
+
+! Associate
+associate(nam=>hdata%nam,geom=>hdata%geom)
+
+write(mpl%unit,'(a7,a)') '','Compute LCT sampling'
+
+do il0=1,geom%nl0
+   do ic1=1,nam%nc1
+      ! Check location validity
+      if (isnotmsi(hdata%ic1_to_ic0(ic1))) then
+         ! Find neighbors
+         call find_nearest_neighbors(geom%ctree(min(il0,geom%nl0i)),dble(geom%lon(hdata%ic1_to_ic0(ic1))), &
+       & dble(geom%lat(hdata%ic1_to_ic0(ic1))),nam%nc,hdata%ic1icil0_to_ic0(ic1,:,il0),dum)
+         hdata%ic1icil0_log(ic1,:,il0) = .true.
+
+         if (nam%mask_check) then
+            ! Check that great circle to neighbors is not crossing mask boundaries
+            !$omp parallel do schedule(static) private(ic,x,y,z,v1,v2,va,vp,t,ic0,jc0)
+            do ic=1,nam%nc
+               ! Allocation
+               allocate(x(2))
+               allocate(y(2))
+               allocate(z(2))
+               allocate(v1(3))
+               allocate(v2(3))
+               allocate(va(3))
+               allocate(vp(3))
+               allocate(t(4))
+
+               ! Indices
+               ic0 = hdata%ic1_to_ic0(ic1)
+               jc0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
+
+               ! Transform to cartesian coordinates
+               call trans(2,geom%lat((/ic0,jc0/)),geom%lon((/ic0,jc0/)),x,y,z)
+
+               ! Compute arc orthogonal vector
+               v1 = (/x(1),y(1),z(1)/)
+               v2 = (/x(2),y(2),z(2)/)
+               call vector_product(v1,v2,va)
+
+               ! Check if arc is crossing boundary arcs
+               do ibnd=1,geom%nbnd(il0)
+                  call vector_product(va,geom%vbnd(:,ibnd,il0),vp)
+                  v1 = (/x(1),y(1),z(1)/)
+                  call vector_triple_product(v1,va,vp,t(1))
+                  v1 = (/x(2),y(2),z(2)/)
+                  call vector_triple_product(v1,va,vp,t(2))
+                  v1 = (/geom%xbnd(1,ibnd,il0),geom%ybnd(1,ibnd,il0),geom%zbnd(1,ibnd,il0)/)
+                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(3))
+                  v1 = (/geom%xbnd(2,ibnd,il0),geom%ybnd(2,ibnd,il0),geom%zbnd(2,ibnd,il0)/)
+                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(4))
+                  t(1) = -t(1)
+                  t(3) = -t(3)
+                  if (all(t>0).or.(all(t<0))) then
+                     call msi(hdata%ic1icil0_to_ic0(ic1,ic,il0))
+                     hdata%ic1icil0_log(ic1,ic,il0) = .false.
+                     exit
+                  end if
+               end do
+
+               ! Memory release
+               deallocate(x)
+               deallocate(y)
+               deallocate(z)
+               deallocate(v1)
+               deallocate(v2)
+               deallocate(va)
+               deallocate(vp)
+               deallocate(t)
+            end do
+            !$omp end parallel do
+         end if
+      end if
+   end do
+end do
+
+! End associate
+end associate
+
+end subroutine compute_sampling_lct
+
+!----------------------------------------------------------------------
 ! Subroutine: compute_sampling_mesh
 !> Purpose: compute sampling mesh
 !----------------------------------------------------------------------
@@ -496,7 +602,7 @@ subroutine compute_sampling_mesh(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< Sampling data
+type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: info,ic2

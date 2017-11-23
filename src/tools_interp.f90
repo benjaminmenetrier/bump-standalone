@@ -45,15 +45,15 @@ subroutine compute_interp_bilin_from_lat_lon(n_src,lon_src,lat_src,mask_src,n_ds
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n_src
-real(kind_real),intent(in) :: lon_src(n_src)
-real(kind_real),intent(in) :: lat_src(n_src)
-logical,intent(in) :: mask_src(n_src)
-integer,intent(in) :: n_dst
-real(kind_real),intent(in) :: lon_dst(n_dst)
-real(kind_real),intent(in) :: lat_dst(n_dst)
-logical,intent(in) :: mask_dst(n_dst)
-type(linoptype),intent(inout) :: interp
+integer,intent(in) :: n_src                  !< Source size
+real(kind_real),intent(in) :: lon_src(n_src) !< Source longitudes
+real(kind_real),intent(in) :: lat_src(n_src) !< Source latitudes
+logical,intent(in) :: mask_src(n_src)        !< Source mask
+integer,intent(in) :: n_dst                  !< Destination size
+real(kind_real),intent(in) :: lon_dst(n_dst) !< Destination longitudes
+real(kind_real),intent(in) :: lat_dst(n_dst) !< Destination latitudes
+logical,intent(in) :: mask_dst(n_dst)        !< Destination mask
+type(linoptype),intent(inout) :: interp      !< Interpolation data
 
 ! Local variables
 logical,allocatable :: mask_ctree(:)
@@ -87,23 +87,24 @@ subroutine compute_interp_bilin_from_mesh_ctree(mesh,ctree,n_src,mask_src,n_dst,
 implicit none
 
 ! Passed variables
-type(meshtype),intent(in) :: mesh
-type(ctreetype),intent(in) :: ctree
-integer,intent(in) :: n_src
-logical,intent(in) :: mask_src(n_src)
-integer,intent(in) :: n_dst
-real(kind_real),intent(in) :: lon_dst(n_dst)
-real(kind_real),intent(in) :: lat_dst(n_dst)
-logical,intent(in) :: mask_dst(n_dst)
-type(linoptype),intent(inout) :: interp
+type(meshtype),intent(in) :: mesh            !< Mesh
+type(ctreetype),intent(in) :: ctree          !< Cover tree
+integer,intent(in) :: n_src                  !< Source size
+logical,intent(in) :: mask_src(n_src)        !< Source mask
+integer,intent(in) :: n_dst                  !< Destination size
+real(kind_real),intent(in) :: lon_dst(n_dst) !< Destination longitudes
+real(kind_real),intent(in) :: lat_dst(n_dst) !< Destination latitudes
+logical,intent(in) :: mask_dst(n_dst)        !< Destination mask
+type(linoptype),intent(inout) :: interp      !< Interpolation data
 
 ! Local variables
-integer :: i,i_dst,inn(1),n_s,offset,progint
+integer :: i,i_dst,inn(1),n_s,offset,progint,i_s
 integer :: ib(3)
 integer :: iproc,i_dst_s(mpl%nproc),i_dst_e(mpl%nproc),n_dst_loc(mpl%nproc),i_dst_loc,n_sg(mpl%nproc)
 integer,allocatable :: row(:),col(:)
 real(kind_real) :: dist(1),p(3),b(3)
 real(kind_real),allocatable :: S(:)
+logical :: test_src(n_src)
 logical,allocatable :: done(:)
 
 ! MPI splitting
@@ -132,31 +133,39 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
       call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)), &
     & dble(lat_dst(i_dst)),1,inn,dist)
 
-      ! Transform to cartesian coordinates
-      call trans(1,lat_dst(i_dst),lon_dst(i_dst),p(1),p(2),p(3))
+      if (abs(dist(1))>0.0) then
+         ! Transform to cartesian coordinates
+         call trans(1,lat_dst(i_dst),lon_dst(i_dst),p(1),p(2),p(3))
 
-      ! Compute barycentric coordinates
-      call trfind(mesh%order_inv(inn(1)),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
-    & b(1),b(2),b(3),ib(1),ib(2),ib(3))
+         ! Compute barycentric coordinates
+         call trfind(mesh%order_inv(inn(1)),dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend, &
+       & b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
-      if (all(ib>0)) then
-         if (all(mask_src(mesh%order(ib)))) then
-            ! Valid interpolation
-            if (sum(b)>0.0) then
-               ! Normalize barycentric coordinates
-               b = b/sum(b)
+         if (all(ib>0)) then
+            if (all(mask_src(mesh%order(ib)))) then
+               ! Valid interpolation
+               if (sum(b)>0.0) then
+                  ! Normalize barycentric coordinates
+                  b = b/sum(b)
 
-               ! Add interpolation elements
-               do i=1,3
-                  if (b(i)>S_inf) then
-                     n_s = n_s+1
-                     row(n_s) = i_dst
-                     col(n_s) = mesh%order(ib(i))
-                     S(n_s) = b(i)
-                  end if
-               end do
+                  ! Add interpolation elements
+                  do i=1,3
+                     if (b(i)>S_inf) then
+                        n_s = n_s+1
+                        row(n_s) = i_dst
+                        col(n_s) = mesh%order(ib(i))
+                        S(n_s) = b(i)
+                     end if
+                  end do
+               end if
             end if
          end if
+      else
+         ! Subsampled point
+         n_s = n_s+1
+         row(n_s) = i_dst
+         col(n_s) = inn(1)
+         S(n_s) = 1.0
       end if
    end if
 
@@ -223,6 +232,13 @@ call mpl_bcast(interp%row,mpl%ioproc)
 call mpl_bcast(interp%col,mpl%ioproc)
 call mpl_bcast(interp%S,mpl%ioproc)
 
+! Test interpolation
+test_src = mask_src
+do i_s=1,interp%n_s
+   test_src(interp%col(i_s)) = .false.
+end do
+if (any(test_src)) call msgerror('error with the grid interpolation src')
+
 end subroutine compute_interp_bilin_from_mesh_ctree
 
 !----------------------------------------------------------------------
@@ -234,25 +250,26 @@ subroutine compute_grid_interp_bilin(geom,nc1,ic1_to_ic0,mask_check,vbot,vtop,h)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom
-integer,intent(in) :: nc1
-integer,intent(in) :: ic1_to_ic0(nc1)
-logical,intent(in) :: mask_check
-integer,intent(in) :: vbot(nc1)
-integer,intent(in) :: vtop(nc1)
-type(linoptype),intent(inout) :: h(geom%nl0i)
+type(geomtype),intent(in) :: geom             !< Geometry
+integer,intent(in) :: nc1                     !< Subset Sc1 size
+integer,intent(in) :: ic1_to_ic0(nc1)         !< Subset Sc1 to subset Sc0
+logical,intent(in) :: mask_check              !< Mask check key
+integer,intent(in) :: vbot(nc1)               !< Bottom level
+integer,intent(in) :: vtop(nc1)               !< Top level
+type(linoptype),intent(inout) :: h(geom%nl0i) !< Horizontal interpolation data
 
 ! Local variables
 integer :: ic0,ic1,i_s,il0i
 real(kind_real) :: dum(1)
 real(kind_real) :: renorm(geom%nc0)
+logical :: test_nc0(geom%nc0),test_nc1(nc1)
 logical,allocatable :: mask_extra(:),valid(:),missing(:)
 type(linoptype) :: hbase,htmp
 type(ctreetype) :: ctree
 
 ! Compute interpolation
 call compute_interp_bilin(nc1,geom%lon(ic1_to_ic0),geom%lat(ic1_to_ic0), any(geom%mask(ic1_to_ic0,:),dim=2), &
- & geom%nc0,geom%lon,geom%lat,any(geom%mask,dim=2),hbase) 
+ & geom%nc0,geom%lon,geom%lat,any(geom%mask,dim=2),hbase)
 
 ! Allocation
 allocate(valid(hbase%n_s))
@@ -264,7 +281,7 @@ do il0i=1,geom%nl0i
    valid = .true.
 
    ! Check mask boundaries
-   if (mask_check) then 
+   if (mask_check) then
       write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Sublevel ',il0i,': '
       call check_mask_bnd(geom,htmp,valid,il0i,col_to_ic0=ic1_to_ic0)
    else
@@ -363,6 +380,16 @@ do il0i=1,geom%nl0i
 
    ! Release memory
    deallocate(missing)
+
+   ! Test interpolation
+   test_nc0 = geom%mask(:,min(il0i,geom%nl0i))
+   test_nc1 = .true.
+   do i_s=1,h(il0i)%n_s
+      test_nc0(h(il0i)%row(i_s)) = .false.
+      test_nc1(h(il0i)%col(i_s)) = .false.
+   end do
+   if (any(test_nc0)) call msgerror('error with the grid interpolation row')
+   if (any(test_nc1)) call msgerror('error with the grid interpolation col')
 end do
 
 ! Release memory
@@ -381,9 +408,9 @@ subroutine check_mask_bnd(geom,interp,valid,il0,row_to_ic0,col_to_ic0)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom          !< Sampling data
-type(linoptype),intent(inout) :: interp          !< Interpolation
-logical,intent(inout) :: valid(interp%n_s)   !< Valid vector
+type(geomtype),intent(in) :: geom                       !< Geometry
+type(linoptype),intent(inout) :: interp                 !< Interpolation data
+logical,intent(inout) :: valid(interp%n_s)              !< Valid points
 integer,intent(in),optional :: row_to_ic0(interp%n_dst) !< Conversion from row to ic0 (identity if missing)
 integer,intent(in),optional :: col_to_ic0(interp%n_src) !< Conversion from col to ic0 (identity if missing)
 
@@ -405,7 +432,7 @@ allocate(done(n_s_loc(mpl%myproc)))
 
 ! Check that interpolations are not crossing mask boundaries
 call prog_init(progint,done)
-!$omp parallel do private(i_s_loc,i_s,x,y,z,v1,v2,va,vp,t,ic0,jc1,jc0)
+!$omp parallel do schedule(static) private(i_s_loc,i_s,x,y,z,v1,v2,va,vp,t,ic0,jc1,jc0)
 do i_s_loc=1,n_s_loc(mpl%myproc)
    ! Indices
    i_s = i_s_s(mpl%myproc)+i_s_loc-1

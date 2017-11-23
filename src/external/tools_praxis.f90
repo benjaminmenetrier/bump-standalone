@@ -1,3 +1,13 @@
+!----------------------------------------------------------------------
+! Module: tools_praxis.f90
+!> Purpose: PRAXIS minimization routines
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-C license
+!> <br>
+!> Copyright © 2017 METEO-FRANCE
+!----------------------------------------------------------------------
 module tools_praxis
 
 use tools_kinds, only: kind_real
@@ -21,7 +31,7 @@ subroutine flin ( mindata, func, n, jsearch, l, x, nf, v, q0, q1, qd0, qd1, qa, 
 !
 !    A minimizer of F(X) is sought along a line or parabola.
 !
-!    This function has been modified, by removing the occurrence of a 
+!    This function has been modified, by removing the occurrence of a
 !    common block, so that it looks more like a "normal" function that does
 !    not rely so strongly on peculiarities of FORTRAN.
 !
@@ -54,13 +64,13 @@ subroutine flin ( mindata, func, n, jsearch, l, x, nf, v, q0, q1, qd0, qd1, qa, 
 !    Otherwise, then the search is parabolic, based on X, Q0 and Q1.
 !
 !    Input, real ( kind_real ) L, is the parameter determining the particular
-!    point at which F is to be evaluated.  
+!    point at which F is to be evaluated.
 !    For a linear search, L is the step size.
 !    For a quadratic search, L is a parameter which specifies
 !    a point in the plane of X, Q0 and Q1.
 !
 !    Input, external F, is the name of the function to be minimized.
-!    The function should have the form 
+!    The function should have the form
 !      function f(x,n)
 !      integer n
 !      real ( kind_real ) f
@@ -71,19 +81,19 @@ subroutine flin ( mindata, func, n, jsearch, l, x, nf, v, q0, q1, qd0, qd1, qa, 
 !
 !    Input/output, integer NF, the function evaluation counter.
 !
-!    Input, real ( kind_real ) V(N,N), a matrix whose columns constitute 
+!    Input, real ( kind_real ) V(N,N), a matrix whose columns constitute
 !    search directions.
 !
 !    Input, real ( kind_real ) Q0(N), Q1(N), two auxiliary points used to
 !    determine the plane when a quadratic search is performed.
 !
-!    Input, real ( kind_real ) QD0, QD1, values needed to compute the 
+!    Input, real ( kind_real ) QD0, QD1, values needed to compute the
 !    coefficients QA, QB, QC.
 !
 !    Output, real ( kind_real ) QA, QB, QC, coefficients used to combine
 !    Q0, X, and A1 if a quadratic search is used.
 !
-!    Output, real ( kind_real ) FLIN, the value of the function at the 
+!    Output, real ( kind_real ) FLIN, the value of the function at the
 !    minimizing point.
 !
   implicit none
@@ -94,7 +104,7 @@ subroutine flin ( mindata, func, n, jsearch, l, x, nf, v, q0, q1, qd0, qd1, qa, 
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface
@@ -200,7 +210,7 @@ subroutine minfit ( n, tol, a, q )
 !    Volume II, Linear Algebra, Part 2,
 !    Springer Verlag, 1971.
 !
-!    Brian Smith, James Boyle, Jack Dongarra, Burton Garbow, Yasuhiko Ikebe, 
+!    Brian Smith, James Boyle, Jack Dongarra, Burton Garbow, Yasuhiko Ikebe,
 !    Virginia Klema, Cleve Moler,
 !    Matrix Eigensystem Routines, EISPACK Guide,
 !    Lecture Notes in Computer Science, Volume 6,
@@ -288,7 +298,7 @@ subroutine minfit ( n, tol, a, q )
 
         a(i:n,j) = a(i:n,j) + f * a(i:n,i)
 
-      end do 
+      end do
 
     end if
 
@@ -415,7 +425,7 @@ subroutine minfit ( n, tol, a, q )
         s = 1.0
 
         do i = l, k
-   
+
           f = s * e(i)
           e(i) = c * e(i)
           if ( abs ( f ) <= eps ) then
@@ -426,7 +436,7 @@ subroutine minfit ( n, tol, a, q )
 !  q(i) = h = sqrt(g*g + f*f).
 !
           call r8_hypot ( f, g, h )
-  
+
           q(i) = h
 
           if ( .not.(abs(h) > 0.0) ) then
@@ -580,23 +590,23 @@ subroutine minny ( mindata, func, n, jsearch, nits, d2, x1, f1, fk, x, t, h, v, 
 !    If JSEARCH is a legal column index, linear search in direction of V(*,J).
 !    Otherwise, the search is parabolic, based on X, Q0 and Q1.
 !
-!    Input, integer NITS, the maximum number of times the interval 
+!    Input, integer NITS, the maximum number of times the interval
 !    may be halved to retry the calculation.
 !
-!    Input/output, real ( kind_real ) D2, is either zero, or an approximation to 
+!    Input/output, real ( kind_real ) D2, is either zero, or an approximation to
 !    the value of (1/2) times the second derivative of F.
 !
-!    Input/output, real ( kind_real ) X1, on entry, an estimate of the 
-!    distance from X to the minimum along V(*,J), or, if J = 0, a curve.  
+!    Input/output, real ( kind_real ) X1, on entry, an estimate of the
+!    distance from X to the minimum along V(*,J), or, if J = 0, a curve.
 !    On output, the distance between X and the minimizer that was found.
 !
 !    Input/output, real ( kind_real ) F1, ?
 !
-!    Input, logical FK; if FK is TRUE, then on input F1 contains 
+!    Input, logical FK; if FK is TRUE, then on input F1 contains
 !    the value FLIN(X1).
 !
-!    Input, external real ( kind_real ) F, is the name of the function to 
-!    be minimized.  The function should have the form 
+!    Input, external real ( kind_real ) F, is the name of the function to
+!    be minimized.  The function should have the form
 !      function f(x,n)
 !      integer n
 !      real ( kind_real ) f
@@ -640,7 +650,7 @@ subroutine minny ( mindata, func, n, jsearch, nits, d2, x1, f1, fk, x, t, h, v, 
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface
@@ -700,7 +710,7 @@ subroutine minny ( mindata, func, n, jsearch, nits, d2, x1, f1, fk, x, t, h, v, 
   dz = ( d2 < machep )
 !
 !  Find the step size.
-! 
+!
   s = sqrt ( sum ( x(1:n) ** 2 ) )
 
   if ( dz ) then
@@ -881,14 +891,14 @@ function praxis ( mindata, func, t0, h0, n, prin, x )
 !
 !      Q(x') = F(x,n) + (1/2) * (x'-x)' * A * (x'-x)
 !
-!    where X is the best estimate of the minimum and 
+!    where X is the best estimate of the minimum and
 !
 !      A = inverse(V') * D * inverse(V)
 !
-!    V(*,*) is the matrix of search directions; 
-!    D(*) is the array of second differences.  
+!    V(*,*) is the matrix of search directions;
+!    D(*) is the array of second differences.
 !
-!    If F(X) has continuous second derivatives near X0, then A will tend 
+!    If F(X) has continuous second derivatives near X0, then A will tend
 !    to the hessian of F at X0 as X approaches X0.
 !
 !    Thanks to Andreas Zuend for pointing out an error in the form of the
@@ -919,12 +929,12 @@ function praxis ( mindata, func, t0, h0, n, prin, x )
 !
 !  Parameters:
 !
-!    Input, real ( kind_real ) T0, is a tolerance.  PRAXIS attempts to return 
+!    Input, real ( kind_real ) T0, is a tolerance.  PRAXIS attempts to return
 !    praxis = f(x) such that if X0 is the true local minimum near X, then
 !    norm ( x - x0 ) < T0 + sqrt ( EPSILON ( X ) ) * norm ( X ),
 !    where EPSILON ( X ) is the machine precision for X.
 !
-!    Input, real ( kind_real ) H0, is the maximum step size.  H0 should be 
+!    Input, real ( kind_real ) H0, is the maximum step size.  H0 should be
 !    set to about the maximum distance from the initial guess to the minimum.
 !    If H0 is set too large or too small, the initial rate of
 !    convergence may be slow.
@@ -933,20 +943,20 @@ function praxis ( mindata, func, t0, h0, n, prin, x )
 !
 !    Input, integer PRIN, controls printing intermediate results.
 !    0, nothing is printed.
-!    1, F is printed after every n+1 or n+2 linear minimizations.  
-!       final X is printed, but intermediate X is printed only 
+!    1, F is printed after every n+1 or n+2 linear minimizations.
+!       final X is printed, but intermediate X is printed only
 !       if N is at most 4.
-!    2, the scale factors and the principal values of the approximating 
+!    2, the scale factors and the principal values of the approximating
 !       quadratic form are also printed.
 !    3, X is also printed after every few linear minimizations.
-!    4, the principal vectors of the approximating quadratic form are 
+!    4, the principal vectors of the approximating quadratic form are
 !       also printed.
 !
 !    Input/output, real ( kind_real ) X(N), is an array containing on entry a
 !    guess of the point of minimum, on return the estimated point of minimum.
 !
 !    Input, external real ( kind_real ) F, is the name of the function to be
-!    minimized.  The function should have the form 
+!    minimized.  The function should have the form
 !      function f(x,n)
 !      integer n
 !      real ( kind_real ) f
@@ -977,7 +987,7 @@ function praxis ( mindata, func, t0, h0, n, prin, x )
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface
@@ -1432,7 +1442,7 @@ function praxis ( mindata, func, t0, h0, n, prin, x )
 
       if ( 1.0 < scbd ) then
         call r8vec_print ( n, z, '  The scale factors:' )
-      end if 
+      end if
 
       call r8vec_print ( n, d, '  Principal values of the quadratic form:' )
 
@@ -1488,13 +1498,13 @@ subroutine print2 ( n, x, prin, fx, nf, nl )
 !
 !    Input, integer PRIN, the user-specifed print level.
 !    0, nothing is printed.
-!    1, F is printed after every n+1 or n+2 linear minimizations.  
-!       final X is printed, but intermediate X is printed only 
+!    1, F is printed after every n+1 or n+2 linear minimizations.
+!       final X is printed, but intermediate X is printed only
 !       if N is at most 4.
-!    2, the scale factors and the principal values of the approximating 
+!    2, the scale factors and the principal values of the approximating
 !       quadratic form are also printed.
 !    3, X is also printed after every few linear minimizations.
-!    4, the principal vectors of the approximating quadratic form are 
+!    4, the principal vectors of the approximating quadratic form are
 !       also printed.
 !
 !    Input, real ( kind_real ) FX, the smallest value of F(X) found so far.
@@ -1515,7 +1525,7 @@ subroutine print2 ( n, x, prin, fx, nf, nl )
 
   write ( *, '(a)' ) ' '
   write ( *, '(a,i8)' ) '  Linear searches      ', nl
-  write ( *, '(a,i8)' ) '  Function evaluations ', nf 
+  write ( *, '(a,i8)' ) '  Function evaluations ', nf
 
   if ( n <= 4 .or. 2 < prin ) then
     write ( *, '(a)' ) ' '
@@ -1567,8 +1577,8 @@ subroutine quad ( mindata, func, n, x, t, h, v, q0, q1, nl, nf, dmin, ldt, fx, q
 !
 !    Input, integer N, the number of variables.
 !
-!    Input, external real ( kind_real ) F, is the name of the function to 
-!    be minimized.  The function should have the form 
+!    Input, external real ( kind_real ) F, is the name of the function to
+!    be minimized.  The function should have the form
 !      function f(x,n)
 !      integer n
 !      real ( kind_real ) f
@@ -1606,7 +1616,7 @@ subroutine quad ( mindata, func, n, x, t, h, v, q0, q1, nl, nf, dmin, ldt, fx, q
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface
@@ -2071,7 +2081,7 @@ subroutine r8vec_swap ( n, a1, a2 )
 
   return
 end
-subroutine svsort ( n, d, v ) 
+subroutine svsort ( n, d, v )
 
 !*****************************************************************************80
 !
@@ -2105,10 +2115,10 @@ subroutine svsort ( n, d, v )
 !
 !    Input, integer N, the length of D, and the order of V.
 !
-!    Input/output, real ( kind_real ) D(N), the vector to be sorted.  
+!    Input/output, real ( kind_real ) D(N), the vector to be sorted.
 !    On output, the entries of D are in descending order.
 !
-!    Input/output, real ( kind_real ) V(N,N), an N by N array to be adjusted 
+!    Input/output, real ( kind_real ) V(N,N), an N by N array to be adjusted
 !    as D is sorted.  In particular, if the value that was in D(I) on input is
 !    moved to D(J) on output, then the input column V(*,I) is moved to
 !    the output column V(*,J).

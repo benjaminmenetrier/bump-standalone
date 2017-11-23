@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_dualens
 
@@ -34,10 +34,10 @@ subroutine compute_dualens(hdata,ib,avg,avg_lr,loc_deh,loc_deh_lr)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata                  !< Sampling data
-integer,intent(in) :: ib !< Block index
-type(avgtype),intent(in) :: avg                      !< Averaged statistics
-type(avgtype),intent(in) :: avg_lr                   !< Low-resolution averaged statistics
+type(hdatatype),intent(in) :: hdata         !< HDIAG data
+integer,intent(in) :: ib                    !< Block index
+type(avgtype),intent(in) :: avg             !< Averaged statistics
+type(avgtype),intent(in) :: avg_lr          !< Low-resolution averaged statistics
 type(curvetype),intent(inout) :: loc_deh    !< Adapted high-resolution localizations
 type(curvetype),intent(inout) :: loc_deh_lr !< Adapted low-resolution localizations
 

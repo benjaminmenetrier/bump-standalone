@@ -39,11 +39,11 @@ subroutine apply_localization(nam,geom,bpar,ndataloc,fld)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)  !< Field
+type(namtype),target,intent(in) :: nam                                  !< Namelist
+type(geomtype),target,intent(in) :: geom                                !< Geometry
+type(bpartype),target,intent(in) :: bpar                                !< Blocal parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                    !< NICAS data, local
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
 
 ! Local variable
 integer :: ib,its,iv,jv,i,nullty,info
@@ -195,17 +195,16 @@ subroutine apply_localization_sqrt(nam,geom,bpar,ndataloc,cv,fld)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
-type(cvtype),intent(in) :: cv(bpar%nb+1)
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)  !< Field
+type(namtype),target,intent(in) :: nam                                !< Namelist
+type(geomtype),target,intent(in) :: geom                              !< Geometry
+type(bpartype),target,intent(in) :: bpar                              !< Blocal parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                  !< NICAS data, local
+type(cvtype),intent(in) :: cv(bpar%nb+1)                              !< Control variable
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
 
 ! Local variable
-integer :: ib,its,iv,jv,i,nullty,info
-real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:)
-real(kind_real),allocatable :: wgt(:,:),wgt_diag(:),a(:),u(:),wgtU(:,:)
+integer :: ib,its,iv
+real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:)
 
 select case (nam%strategy)
 case ('common')
@@ -262,17 +261,16 @@ subroutine apply_localization_sqrt_ad(nam,geom,bpar,ndataloc,fld,cv)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)  !< Field
-type(cvtype),intent(out) :: cv(bpar%nb+1)
+type(namtype),target,intent(in) :: nam                               !< Namelist
+type(geomtype),target,intent(in) :: geom                             !< Geometry
+type(bpartype),target,intent(in) :: bpar                             !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                 !< NICAS data, local
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
+type(cvtype),intent(out) :: cv(bpar%nb+1)                            !< Control variable
 
 ! Local variable
-integer :: ib,its,iv,jv,i,nullty,info
-real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:)
-real(kind_real),allocatable :: wgt(:,:),wgt_diag(:),a(:),u(:),wgtU(:,:)
+integer :: ib,its,iv
+real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:)
 
 ! Allocation
 call cv_alloc(bpar,ndataloc,cv)
@@ -334,11 +332,11 @@ subroutine apply_localization_from_sqrt(nam,geom,bpar,ndataloc,fld)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)  !< Field
+type(namtype),target,intent(in) :: nam                                  !< Namelist
+type(geomtype),target,intent(in) :: geom                                !< Geometry
+type(bpartype),target,intent(in) :: bpar                                !< Blocal parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                    !< NICAS data, local
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
 
 ! Local variable
 type(cvtype) :: cv(bpar%nb+1)
@@ -355,17 +353,17 @@ end subroutine apply_localization_from_sqrt
 ! Subroutine: randomize_localization
 !> Purpose: randomize localization from square-root
 !----------------------------------------------------------------------
-subroutine randomize_localization(nam,geom,bpar,ndataloc,ne,fld)
+subroutine randomize_localization(nam,geom,bpar,ndataloc,ne,ens)
 
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< Sampling
-integer,intent(in) :: ne
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ne)  !< Field
+type(namtype),target,intent(in) :: nam                                   !< Namelist
+type(geomtype),target,intent(in) :: geom                                 !< Geometry
+type(bpartype),target,intent(in) :: bpar                                 !< Blocal parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                     !< NICAS data, local
+integer,intent(in) :: ne                                                 !< Number of members
+real(kind_real),intent(out) :: ens(geom%nc0a,geom%nl0,nam%nv,nam%nts,ne) !< Ensemble, local
 
 ! Local variable
 integer :: ie
@@ -376,7 +374,7 @@ call cv_random(bpar,ndataloc,ne,cv)
 
 do ie=1,ne
    ! Apply square-root
-   call apply_localization_sqrt(nam,geom,bpar,ndataloc,cv(:,ie),fld(:,:,:,:,ie))
+   call apply_localization_sqrt(nam,geom,bpar,ndataloc,cv(:,ie),ens(:,:,:,:,ie))
 end do
 
 end subroutine randomize_localization

@@ -410,7 +410,7 @@ implicit none
 
 ! Passed variables
 real(kind_real),dimension(:,:,:,:),intent(in) :: var !< Real array, 4d
-integer,intent(in) :: root                         !< Root task
+integer,intent(in) :: root                           !< Root task
 
 ! Local variable
 integer :: info
@@ -513,8 +513,8 @@ subroutine mpl_bcast_string(var,root)
 implicit none
 
 ! Passed variables
-character(len=*),intent(in) :: var  !< String
-integer,intent(in) :: root          !< Root task
+character(len=*),intent(in) :: var !< String
+integer,intent(in) :: root         !< Root task
 
 ! Local variable
 integer :: info
@@ -540,7 +540,7 @@ implicit none
 
 ! Passed variables
 character(len=*),dimension(:),intent(in) :: var !< Logical array, 1d
-integer,intent(in) :: root             !< Root task
+integer,intent(in) :: root                      !< Root task
 
 ! Local variable
 integer :: i
@@ -766,14 +766,14 @@ subroutine mpl_alltoallv_real(ns,sbuf,scounts,sdispl,nr,rbuf,rcounts,rdispl)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ns            
-real(kind_real),intent(in) :: sbuf(ns)  !< Sent buffer
-integer,intent(in) :: scounts(mpl%nproc)       !< Sending counts
-integer,intent(in) :: sdispl(mpl%nproc)        !< Sending displacement
-integer,intent(in) :: nr
-real(kind_real),intent(out) :: rbuf(nr) !< Received buffer
-integer,intent(in) :: rcounts(mpl%nproc)      !< Receiving counts
-integer,intent(in) :: rdispl(mpl%nproc)       !< SenReceivingding displacement
+integer,intent(in) :: ns                 !< Sent buffer size
+real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
+integer,intent(in) :: scounts(mpl%nproc) !< Sending counts
+integer,intent(in) :: sdispl(mpl%nproc)  !< Sending displacement
+integer,intent(in) :: nr                 !< Received buffer size
+real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
+integer,intent(in) :: rcounts(mpl%nproc) !< Receiving counts
+integer,intent(in) :: rdispl(mpl%nproc)  !< SenReceivingding displacement
 
 ! Local variable
 integer :: info

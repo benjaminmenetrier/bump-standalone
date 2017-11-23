@@ -6,6 +6,18 @@
 # Copyright © 2017 METEO-FRANCE
 # ----------------------------------------------------------------------
 
+# Link members (converted into NetCDF using EPyGrAM)
+for date in 20160206H00A;  do
+   i=1
+   typeset -RZ4 i
+   while [[ ${i} -le 25 ]] ; do
+      i3=$i
+      typeset -RZ3 i3
+      ln -sf /scratch/work/menetrie/data/AROME/5840/${date}/member_${i3}/forecast_GP/ICMSHAROM+0003.nc ens1_03_${i}.nc
+      let i=i+1
+   done
+done
+
 # Generate grid.nc with EPyGrAM
 ORIGIN_FILE="/scratch/work/menetrie/data/AROME/5840/20160206H00A/member_001/forecast_GP/ICMSHAROM+0003"
 rm -f grid.nc

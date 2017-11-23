@@ -4,9 +4,11 @@ Copyright © 2017 METEO-FRANCE.
 
 e-mail: benjamin.menetrier@meteo.fr
 
-Le logiciel nicas est un programme informatique servant à
-préparer des coefficients pour appliquer des convolutions normalisées
-interpolées à partir de grilles réduites adaptatives.
+Le logiciel HDIAG_NICAS est un programme informatique servant à estimer des 
+fonctions de localisation et des coefficients d'hybridation pour les modèles 
+de covariance utilisés dans les systèmes d'assimilation de données 
+ensemblistes-variationnels, et à préparer des coefficients pour appliquer des 
+convolutions normalisées interpolées à partir de grilles réduites adaptatives.
 
 Ce logiciel est régi par la licence CeCILL-C soumise au droit français et
 respectant les principes de diffusion des logiciels libres. Vous pouvez

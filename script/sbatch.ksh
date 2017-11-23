@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/home/gmap/mrpa/menetrie/codes/nicas
+rootdir=/home/gmap/mrpa/menetrie/codes/hdiag_nicas
 
 # Define model and xp
 model=arp
@@ -51,7 +51,7 @@ mkdir ${workdir}
 ln -sf ${datadir}/${model}_${xp}_distribution_${nproc}.nc ${datadir}/${model}_${xp}_resol-${resol}_distribution_${nproc}.nc
 
 #----------------------------------------------------------------------
-# Compute NICAS parameters
+# Compute HDIAG_NICAS parameters
 #----------------------------------------------------------------------
 
 # Namelist
@@ -60,7 +60,7 @@ sed -e "s|_DATADIR_|${datadir}|g" -e "s|_PREFIX_|${prefix}|g" -e "s|_RESOL_|${re
 
 # Job
 #----------------------------------------------------------------------
-cat<<EOFNAM >${workdir}/job_nicas.ksh
+cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
 #!/bin/bash
 #SBATCH -N ${nnodes}
 #SBATCH -n ${ntasks}
@@ -76,11 +76,10 @@ module load gcc netcdf openmpi
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-srun --mpi=pmi2 ${rootdir}/run/nicas < namelist
+srun --mpi=pmi2 ${rootdir}/run/hdiag_nicas < namelist
 EOFNAM
 
 #----------------------------------------------------------------------
 
 # Execute
-sbatch ${workdir}/job_nicas.ksh
-exit 0
+sbatch ${workdir}/job_hdiag_nicas.ksh

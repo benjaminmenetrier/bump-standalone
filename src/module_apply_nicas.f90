@@ -56,8 +56,8 @@ subroutine apply_nicas_global(ndata,fld)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
-real(kind_real),intent(inout) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
+type(ndatatype),intent(in) :: ndata                                 !< NICAS data
+real(kind_real),intent(inout) :: fld(ndata%geom%nc0,ndata%geom%nl0) !< Field
 
 ! Local variables
 real(kind_real) :: alpha(ndata%ns)
@@ -82,10 +82,10 @@ subroutine apply_nicas_local(nam,geom,ndataloc,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist
-type(geomtype),intent(in) :: geom !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0)  !< Field
+type(namtype),intent(in) :: nam                          !< Namelist
+type(geomtype),intent(in) :: geom                        !< Geometry
+type(ndataloctype),intent(in) :: ndataloc                !< NICAS data, local
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0) !< Field, local
 
 ! Local variables
 real(kind_real),allocatable :: alpha(:),alpha_tmp(:)
@@ -98,7 +98,7 @@ call interp_ad(nam,geom,ndataloc,fld,alpha)
 
 ! Communication
 if (nam%mpicom==1) then
-   ! Allocation 
+   ! Allocation
    allocate(alpha_tmp(ndataloc%nsb))
 
    ! Copy zone B
@@ -120,7 +120,7 @@ elseif (nam%mpicom==2) then
    ! Halo reduction from zone B to zone A
    call com_red(ndataloc%AB,alpha)
 
-   ! Allocation 
+   ! Allocation
    allocate(alpha_tmp(ndataloc%nsb))
 
    ! Copy zone A
@@ -166,9 +166,9 @@ subroutine apply_nicas_sqrt_global(ndata,alpha,fld)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
-real(kind_real),intent(in) :: alpha(ndata%ns) !< Subgrid variable
-real(kind_real),intent(out) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
+type(ndatatype),intent(in) :: ndata                               !< NICAS data
+real(kind_real),intent(in) :: alpha(ndata%ns)                     !< Subgrid field
+real(kind_real),intent(out) :: fld(ndata%geom%nc0,ndata%geom%nl0) !< Field
 
 ! Local variable
 real(kind_real) :: alpha_tmp(ndata%ns)
@@ -193,11 +193,11 @@ subroutine apply_nicas_sqrt_local(nam,geom,ndataloc,alpha,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist
-type(geomtype),intent(in) :: geom !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(in) :: alpha(ndataloc%nsa) !< Subgrid variable
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
+type(namtype),intent(in) :: nam                        !< Namelist
+type(geomtype),intent(in) :: geom                      !< Geometry
+type(ndataloctype),intent(in) :: ndataloc              !< NICAS data, local
+real(kind_real),intent(in) :: alpha(ndataloc%nsa)      !< Subgrid field, local
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0) !< Field, local
 
 ! Local variable
 real(kind_real),allocatable :: alpha_tmp(:),alpha_tmp2(:)
@@ -251,9 +251,9 @@ subroutine apply_nicas_sqrt_ad_global(ndata,fld,alpha)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata    !< Sampling data
-real(kind_real),intent(in) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
-real(kind_real),intent(out) :: alpha(ndata%ns) !< Subgrid variable
+type(ndatatype),intent(in) :: ndata                              !< NICAS data
+real(kind_real),intent(in) :: fld(ndata%geom%nc0,ndata%geom%nl0) !< Field
+real(kind_real),intent(out) :: alpha(ndata%ns)                   !< Subgrid field
 
 ! Adjoint interpolation
 call interp_ad(ndata,fld,alpha)
@@ -272,11 +272,11 @@ subroutine apply_nicas_sqrt_ad_local(nam,geom,ndataloc,fld,alpha)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist
-type(geomtype),intent(in) :: geom !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)  !< Field
-real(kind_real),intent(out) :: alpha(ndataloc%nsa) !< Subgrid variable
+type(namtype),intent(in) :: nam                       !< Namelist
+type(geomtype),intent(in) :: geom                     !< Geometry
+type(ndataloctype),intent(in) :: ndataloc             !< NICAS data, local
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field, local
+real(kind_real),intent(out) :: alpha(ndataloc%nsa)    !< Subgrid field, local
 
 ! Local variable
 real(kind_real),allocatable :: alpha_tmp(:),alpha_tmp2(:)
@@ -329,8 +329,8 @@ subroutine apply_nicas_from_sqrt_global(ndata,fld)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< Sampling data
-real(kind_real),intent(inout) :: fld(ndata%geom%nc0,ndata%geom%nl0)  !< Field
+type(ndatatype),intent(in) :: ndata                                 !< NICAS data
+real(kind_real),intent(inout) :: fld(ndata%geom%nc0,ndata%geom%nl0) !< Field
 
 ! Local variables
 real(kind_real) :: alpha(ndata%ns)
@@ -352,10 +352,10 @@ subroutine apply_nicas_from_sqrt_local(nam,geom,ndataloc,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist
-type(geomtype),intent(in) :: geom !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0)  !< Field
+type(namtype),intent(in) :: nam                          !< Namelist
+type(geomtype),intent(in) :: geom                        !< Geometry
+type(ndataloctype),intent(in) :: ndataloc                !< NICAS data, local
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0) !< Field, local
 
 ! Local variables
 real(kind_real) :: alpha(ndataloc%nsa)

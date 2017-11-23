@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_cv
 
@@ -20,7 +20,7 @@ implicit none
 
 ! Control vector derived type
 type cvtype
-   real(kind_real),allocatable :: alpha(:)
+   real(kind_real),allocatable :: alpha(:) !< Control vector field
 end type cvtype
 
 private
@@ -38,9 +38,9 @@ subroutine cv_alloc(bpar,ndataloc,cv)
 implicit none
 
 ! Passed variables
-type(bpartype),target,intent(in) :: bpar    !< Block information
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)   !< 
-type(cvtype),intent(inout) :: cv(bpar%nb+1) !< Control vector
+type(bpartype),target,intent(in) :: bpar             !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
+type(cvtype),intent(inout) :: cv(bpar%nb+1)          !< Control vector
 
 ! Local variables
 integer :: ib
@@ -61,10 +61,10 @@ subroutine cv_random(bpar,ndataloc,ne,cv)
 implicit none
 
 ! Passed variables
-type(bpartype),target,intent(in) :: bpar    !< Block information
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)   !< 
-integer,intent(in) :: ne
-type(cvtype),intent(inout) :: cv(bpar%nb+1,ne) !< Control vector
+type(bpartype),target,intent(in) :: bpar             !< Block parameters
+type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
+integer,intent(in) :: ne                             !< Ensemble size
+type(cvtype),intent(inout) :: cv(bpar%nb+1,ne)       !< Control vector
 
 ! Local variables
 integer :: ib,ie
@@ -72,7 +72,7 @@ type(cvtype) :: mean(bpar%nb+1)
 
 ! Allocation
 do ib=1,bpar%nb+1
-   if (bpar%nicas_block(ib)) then 
+   if (bpar%nicas_block(ib)) then
       allocate(mean(ib)%alpha(ndataloc(ib)%nsa))
       do ie=1,ne
          allocate(cv(ib,ie)%alpha(ndataloc(ib)%nsa))
@@ -82,7 +82,7 @@ end do
 
 ! Random initialization
 do ib=1,bpar%nb+1
-   if (bpar%nicas_block(ib)) then 
+   if (bpar%nicas_block(ib)) then
       mean(ib)%alpha = 0.0
       do ie=1,ne
          call rand_gau(cv(ib,ie)%alpha)
@@ -94,7 +94,7 @@ end do
 
 ! Remove mean
 do ib=1,bpar%nb+1
-   if (bpar%nicas_block(ib)) then 
+   if (bpar%nicas_block(ib)) then
       do ie=1,ne
          cv(ib,ie)%alpha = cv(ib,ie)%alpha-mean(ib)%alpha
       end do

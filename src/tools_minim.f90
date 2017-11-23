@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module tools_minim
 
@@ -21,12 +21,12 @@ use type_mpl, only: mpl
 implicit none
 
 ! Minimization parameters
-real(kind_real),parameter :: reqmin = 1.0e-8
-integer,parameter :: konvge = 10
-integer,parameter :: kcount = 1000
-real(kind_real),parameter :: delta_tol = 1.0e-3
-integer,parameter :: k_max = 500
-real(kind_real),parameter :: t0 = 1.0e-3
+real(kind_real),parameter :: reqmin = 1.0e-8    !< Nelder-Mead parameter
+integer,parameter :: konvge = 10                !< Nelder-Mead parameter
+integer,parameter :: kcount = 1000              !< Nelder-Mead parameter
+real(kind_real),parameter :: delta_tol = 1.0e-3 !< Compass search parameter
+integer,parameter :: k_max = 500                !< Compass search parameter
+real(kind_real),parameter :: t0 = 1.0e-3        !< PRAXIS parameter
 
 private
 public :: minim
@@ -37,49 +37,53 @@ contains
 ! subroutine: minim
 !> Purpose: minimize ensuring bounds constraints
 !----------------------------------------------------------------------
-subroutine minim(mindata,func)
+subroutine minim(mindata,func,lprt)
 
 implicit none
 
 ! Passed variables
-type(mintype),intent(inout) :: mindata !< Minimization data
+type(mintype),intent(inout) :: mindata         !< Minimization data
 interface
-   subroutine func(mindata,x,f)
+   subroutine func(mindata,x,f)                !< Cost function
    use tools_kinds, only: kind_real
    use type_min, only: mintype
-   type(mintype),intent(in) :: mindata
-   real(kind_real),intent(inout) :: x(mindata%nx)
-   real(kind_real),intent(out) :: f
+   type(mintype),intent(in) :: mindata         !< Minimization data
+   real(kind_real),intent(in) :: x(mindata%nx) !< Control vector
+   real(kind_real),intent(out) :: f            !< Cost function value
    end subroutine
 end interface
+logical,intent(in) :: lprt                     !< Print key
 
 ! Local variables
-integer :: icount,numres,info
+integer :: icount,numres,info,ix
 real(kind_real) :: guess(mindata%nx),xmin(mindata%nx),y,ynewlo,step(mindata%nx)
 real(kind_real) :: delta_init,h0
 
-! Associate
-associate(nam=>mindata%nam)
-
 ! Initialization
-guess = 1.0
+do ix=1,mindata%nx
+   if (abs(mindata%norm(ix))>0.0) then
+      guess(ix) = mindata%guess(ix)/mindata%norm(ix)
+   else
+      guess(ix) = 0.0
+   end if
+end do
 
 ! Initial cost
 mindata%f_guess = 0.0
 call func(mindata,guess,y)
 mindata%f_guess = y
 
-select case (trim(nam%fit_type))
+select case (trim(mindata%fit_type))
 case ('nelder_mead')
    ! Initialization
    step = 0.1
-     
+
    ! Nelder-Mead algorithm
    call nelmin(mindata,func,mindata%nx,guess,xmin,ynewlo,reqmin,step,konvge,kcount,icount,numres,info)
 case ('compass_search')
-   ! Initialization  
+   ! Initialization
    delta_init = 0.1
-  
+
    ! Compass search
    call compass_search(mindata,func,mindata%nx,guess,delta_tol,delta_init,k_max,xmin,ynewlo,icount)
 case ('praxis')
@@ -93,15 +97,13 @@ end select
 
 ! Test
 if (ynewlo<y) then
-   mindata%x = xmin*mindata%guess
-   write(mpl%unit,'(a7,a,f6.1,a)') '','Minimizer '//trim(nam%fit_type)//', cost function decrease:',abs(ynewlo-y)/y*100.0,'%'
+   mindata%x = xmin*mindata%norm
+   if (lprt) write(mpl%unit,'(a7,a,f6.1,a)') '','Minimizer '//trim(mindata%fit_type)//', cost function decrease:', &
+ & abs(ynewlo-y)/y*100.0,'%'
 else
    mindata%x = mindata%guess
-   call msgwarning('Minimizer '//trim(nam%fit_type)//' failed')
+   if (lprt) call msgwarning('Minimizer '//trim(mindata%fit_type)//' failed')
 end if
-
-! End associate
-end associate
 
 end subroutine minim
 

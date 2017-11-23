@@ -1,5 +1,5 @@
 
-                   How to install and compile NICAS
+                   How to install and compile HDIAG_NICAS
 
                                                                2017/07/31
 
@@ -15,10 +15,10 @@ and:
 
     cd  /glade/p/work/$USER
 
-3) Untar the code and go to the newly created nicas directory:
+3) Untar the code and go to the newly created hdiag_nicas directory:
 
-    tar xzf ~menetrie/nicas/versions/nicas_latest.tar.gz
-    cd nicas
+    tar xzf ~menetrie/hdiag_nicas/versions/hdiag_nicas_latest.tar.gz
+    cd hdiag_nicas
 
 4) Generate HTML documentation (optional):
 
@@ -28,7 +28,7 @@ and:
    To read the documentation, you can use w3m, e.g:
 
    cd html
-   w3m nicas_8f90.htm
+   w3m hdiag_nicas_8f90.htm
 
    or use firefox (slower, require the -X option at login with ssh)
 
@@ -51,16 +51,16 @@ and:
 
 7) Set the environment (e.g. for a bash shell):
 
-   export NICAS_COMPILER=GNU
-   export NICAS_BUILD=DEBUG
-   export NICAS_NETCDF=$NETCDF
+   export HDIAG_NICAS_COMPILER=GNU
+   export HDIAG_NICAS_BUILD=DEBUG
+   export HDIAG_NICAS_NETCDF=$NETCDF
 
 8) Compile with:
 
    cmake CMakeLists.txt
    make
 
-The executables will be generated under nicas/run/nicas
+The executables will be generated under hdiag_nicas/run/hdiag_nicas
 
 Reminder for disks on cheyenne:
  - home directory (25Gb hourly backed up): /glade/u/home/$USER

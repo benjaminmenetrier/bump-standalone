@@ -42,7 +42,7 @@ subroutine compute_convol_network(ndata,rh0,rv0)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata                 !< Sampling data
+type(ndatatype),intent(inout) :: ndata                           !< NICAS data
 real(kind_real),intent(in) :: rh0(ndata%geom%nc0,ndata%geom%nl0) !< Scaled horizontal support radius
 real(kind_real),intent(in) :: rv0(ndata%geom%nc0,ndata%geom%nl0) !< Scaled vertical support radius
 
@@ -79,8 +79,8 @@ allocate(done(ns_loc(mpl%myproc)))
 write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
 call prog_init(progint,done)
 c_n_s = 0
-!$omp parallel do private(is_loc,is,ithread,ic1,il1,ic0,il0,plist,plist_new,dist,valid,np,np_new), &
-!$omp&            private(ip,jc0,jl0,i,kc0,kl0,rh0sq,rv0sq,distnorm,disttest,add_to_front,jp,js)
+!$omp parallel do schedule(static) private(is_loc,is,ithread,ic1,il1,ic0,il0,plist,plist_new,dist,valid,np,np_new), &
+!$omp&                             private(ip,jc0,jl0,i,kc0,kl0,rh0sq,rv0sq,distnorm,disttest,add_to_front,jp,js)
 do is_loc=1,ns_loc(mpl%myproc)
    ! Indices
    is = is_s(mpl%myproc)+is_loc-1
@@ -119,7 +119,7 @@ do is_loc=1,ns_loc(mpl%myproc)
             kc0 = geom%net_inb(i,jc0)
             do kl0=max(jl0-1,1),min(jl0+1,geom%nl0)
                if (geom%mask(kc0,kl0)) then
-                  rh0sq = 0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)            
+                  rh0sq = 0.5*(rh0(jc0,jl0)**2+rh0(kc0,kl0)**2)
                   rv0sq = 0.5*(rv0(jc0,jl0)**2+rv0(kc0,kl0)**2)
                   distnorm = 0.0
                   if (rh0sq>0.0) distnorm = distnorm+geom%net_dnb(i,jc0)**2/rh0sq
@@ -229,9 +229,9 @@ subroutine compute_convol_distance(ndata,rhs,rvs)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata             !< Sampling data
-real(kind_real),intent(in) :: rhs(ndata%ns)        !< Scaled horizontal support radius
-real(kind_real),intent(in) :: rvs(ndata%ns)        !< Scaled vertical support radius
+type(ndatatype),intent(inout) :: ndata      !< NICAS data
+real(kind_real),intent(in) :: rhs(ndata%ns) !< Scaled horizontal support radius
+real(kind_real),intent(in) :: rvs(ndata%ns) !< Scaled vertical support radius
 
 ! Local variables
 integer :: ms,n_s_max,progint,ithread,is,ic1,il1,il0,jc1,jl1,jl0,js,i,iproc
@@ -306,7 +306,7 @@ if (mpl%main) then
             nn_index(:,ic1) = rbuf_index((ic1_loc-1)*ms+1:ic1_loc*ms)
             nn_dist(:,ic1) = rbuf_dist((ic1_loc-1)*ms+1:ic1_loc*ms)
          end do
- 
+
          ! Release memory
          deallocate(rbuf_index)
          deallocate(rbuf_dist)
@@ -357,7 +357,7 @@ allocate(done(ns_loc(mpl%myproc)))
 write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
 call prog_init(progint,done)
 c_n_s = 0
-!$omp parallel do private(is_loc,is,ithread,ic1,il1,il0,i,jc1,jl1,jl0,js,distnorm,S_test)
+!$omp parallel do schedule(static) private(is_loc,is,ithread,ic1,il1,il0,i,jc1,jl1,jl0,js,distnorm,S_test)
 do is_loc=1,ns_loc(mpl%myproc)
    ! Indices
    is = is_s(mpl%myproc)+is_loc-1
@@ -439,11 +439,11 @@ subroutine check_convol(is,js,S_test,c_n_s,c)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: is
-integer,intent(in) :: js
-real(kind_real),intent(in) :: S_test
-integer,intent(inout) :: c_n_s
-type(linoptype),intent(inout) :: c         
+integer,intent(in) :: is             !< First point index
+integer,intent(in) :: js             !< Second point index
+real(kind_real),intent(in) :: S_test !< Test interpolation convolution value
+integer,intent(inout) :: c_n_s       !< Number of convolution operations
+type(linoptype),intent(inout) :: c   !< Convolution data
 
 ! Local variables
 type(linoptype) :: ctmp
@@ -486,8 +486,8 @@ implicit none
 
 ! Passed variables
 integer,intent(in) :: c_n_s(mpl%nthread)       !< Number of operations handled by each thread
-type(linoptype),intent(in) :: cin(mpl%nthread) !< Linear operator for each thread
-type(linoptype),intent(inout) :: cout          !< Gathered linear operator
+type(linoptype),intent(in) :: cin(mpl%nthread) !< Convolution data for each thread
+type(linoptype),intent(inout) :: cout          !< Gathered convolution data
 
 ! Local variables
 integer :: ithread,offset,iproc

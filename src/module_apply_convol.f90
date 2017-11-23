@@ -38,8 +38,8 @@ subroutine convol_global(ndata,alpha)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata    !< Sampling data
-real(kind_real),intent(inout) :: alpha(ndata%ns) !< Subgrid variable
+type(ndatatype),intent(in) :: ndata              !< NICAS data
+real(kind_real),intent(inout) :: alpha(ndata%ns) !< Subgrid field
 
 ! Apply linear operator, symmetric
 call apply_linop_sym(ndata%c,alpha)
@@ -55,8 +55,8 @@ subroutine convol_local(ndataloc,alpha)
 implicit none
 
 ! Passed variables
-type(ndataloctype),intent(in) :: ndataloc !< Sampling data
-real(kind_real),intent(inout) :: alpha(ndataloc%nsc) !< Subgrid variable
+type(ndataloctype),intent(in) :: ndataloc            !< NICAS data, local
+real(kind_real),intent(inout) :: alpha(ndataloc%nsc) !< Subgrid field, local
 
 ! Apply linear operator, symmetric
 call apply_linop_sym(ndataloc%c,alpha)

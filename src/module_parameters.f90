@@ -40,8 +40,8 @@ subroutine compute_parameters(bdata,ndata)
 implicit none
 
 ! Passed variables
-type(bdatatype),intent(in) :: bdata !< B data
-type(ndatatype),intent(inout) :: ndata !< Sampling data
+type(bdatatype),intent(in) :: bdata    !< B data
+type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: il0,il0_prev,il1,ic0,ic1,ic2,is,il0i
@@ -142,7 +142,7 @@ write(mpl%unit,'(a)') ''
 ! Find bottom and top for each point of S1
 allocate(ndata%vbot(ndata%nc1))
 allocate(ndata%vtop(ndata%nc1))
-!$omp parallel do private(ic1,ic0,inside,il1,il0)
+!$omp parallel do schedule(static) private(ic1,ic0,inside,il1,il0)
 do ic1=1,ndata%nc1
    ic0 = ndata%ic1_to_ic0(ic1)
    inside = .false.
@@ -184,6 +184,7 @@ end do
 allocate(ndata%nc2(ndata%nl1))
 allocate(ndata%ic2il1_to_ic1(ndata%nc1,ndata%nl1))
 allocate(mask_ind(ndata%nc1,ndata%nl1))
+call msi(ndata%ic2il1_to_ic1)
 mask_ind = 0
 do il1=1,ndata%nl1
    il0 = ndata%il1_to_il0(il1)
@@ -221,6 +222,7 @@ allocate(ndata%ic2il1_to_ic0(ndata%nc1,ndata%nl1))
 allocate(ndata%ic2il1_to_is(ndata%nc1,ndata%nl1))
 allocate(ndata%ic1il1_to_is(ndata%nc1,ndata%nl1))
 call msi(ndata%ic0il0_to_is)
+call msi(ndata%ic2il1_to_ic0)
 call msi(ndata%ic2il1_to_is)
 call msi(ndata%ic1il1_to_is)
 is = 0

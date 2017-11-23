@@ -6,8 +6,17 @@
 # Copyright © 2017 METEO-FRANCE
 # ----------------------------------------------------------------------
 
+# Link members (requested from MARS using a full Gaussian grid, and converted into NetCDF with grib_to_netcdf)
+i=1
+typeset -RZ4 i
+while [[ ${i} -le 25 ]] ; do
+   i1=$i
+   ln -sf ../../../../data/IFS/ens1_${i1}.nc _${i}.nc
+   let i=i+1
+done
+
 # Generate grid.nc with ncks
-ORIGIN_FILE=../../../../data/IFS/member_1.nc
+ORIGIN_FILE="ens1_0001.nc"
 rm -f grid.nc
 ncks -O -v latitude,longitude,level ${ORIGIN_FILE} grid.nc
 

@@ -1,3 +1,13 @@
+!----------------------------------------------------------------------
+! Module: tools_compass_search.f90
+!> Purpose: compass search minimization routine
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-C license
+!> <br>
+!> Copyright © 2017 METEO-FRANCE
+!----------------------------------------------------------------------
 module tools_compass_search
 
 use tools_kinds, only: kind_real
@@ -31,10 +41,10 @@ subroutine compass_search ( mindata, func, m, x0, delta_tol, delta_init, &
 !  Reference:
 !
 !    Tamara Kolda, Robert Michael Lewis, Virginia Torczon,
-!    Optimization by Direct Search: New Perspectives on Some Classical 
+!    Optimization by Direct Search: New Perspectives on Some Classical
 !    and Modern Methods,
 !    SIAM Review,
-!    Volume 45, Number 3, 2003, pages 385-482. 
+!    Volume 45, Number 3, 2003, pages 385-482.
 !
 !  Parameters:
 !
@@ -48,7 +58,7 @@ subroutine compass_search ( mindata, func, m, x0, delta_tol, delta_init, &
 !
 !    Input, real ( kind_real ) DELTA_TOL, the smallest step size that is allowed.
 !
-!    Input, real ( kind_real ) DELTA_INIT, the starting stepsize.  
+!    Input, real ( kind_real ) DELTA_INIT, the starting stepsize.
 !
 !    Input, integer K_MAX, the maximum number of steps allowed.
 !
@@ -66,7 +76,7 @@ subroutine compass_search ( mindata, func, m, x0, delta_tol, delta_init, &
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface

@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/glade/u/home/menetrie/nicas
+rootdir=/glade/u/home/menetrie/hdiag_nicas
 
 # Define model and xp
 model=arp
@@ -51,7 +51,7 @@ mkdir ${workdir}
 ln -sf ${datadir}/${model}_${xp}_distribution_${nproc}.nc ${datadir}/${model}_${xp}_resol-${resol}_distribution_${nproc}.nc
 
 #----------------------------------------------------------------------
-# Compute NICAS parameters
+# Compute HDIAG_NICAS parameters
 #----------------------------------------------------------------------
 
 # Namelist
@@ -60,7 +60,7 @@ sed -e "s|_DATADIR_|${datadir}|g" -e "s|_PREFIX_|${prefix}|g" -e "s|_RESOL_|${re
 
 # Job
 #----------------------------------------------------------------------
-cat<<EOFNAM >${workdir}/job_nicas.ksh
+cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
 #!/bin/ksh
 #set -ex
 #BSUB -a poe
@@ -79,10 +79,10 @@ export OMP_NUM_THREADS=${nthreads}
 export MP_TASK_AFFINITY=core:$OMP_NUM_THREADS
 
 cd ${workdir}
-mpirun.lsf ${rootdir}/run/nicas < namelist
+mpirun.lsf ${rootdir}/run/hdiag_nicas < namelist
 EOFNAM
 
 #----------------------------------------------------------------------
 
 # Execute
-bsub < ${workdir}/job_nicas.ksh
+bsub < ${workdir}/job_hdiag_nicas.ksh

@@ -1,17 +1,14 @@
-# NICAS
-Normalized Interpolated Convolution from an Adaptive Subgrid
+# HDIAG_NICAS
+Hybridization and localization diagnostics - Normalized Interpolated Convolution on an Adaptive Subgrid method
 
-The documentation has to be built from the source code using "doxygen"
-(see: http://www.doxygen.org). This is done like this:
- - cd doc
- - doxygen doxyfile
+The HDIAG_NICAS software is a computer program whose purpose is to estimate localization functions and hybridization coefficients for covariance models used in ensemble-variational data assimilation systems, and to prepare coefficients to apply normalized interpolated convolution from adaptive subgrids.
 
-You can control the contents of the documentation by editing doxyfile.
-For example, if the "dot" tool from graphviz (www.graphviz.org) is
-available on your system, you can generate call graphs by setting
-CALL_GRAPH to YES.
+This code is distributed under the CeCILL-C license (Copyright © 2017 METEO-FRANCE).
 
-Once the documentation is built, point your web browser at:
-doc/html/index.html
+The fact that you are downloading this code means that you have had knowledge of the CeCILL-C license and that you accept its terms.
 
-If you don't want to use doxygen, please read doc/mainpage.h.
+A theoretical documentation is available: 
+ - about covariance filtering at: http://benjaminmenetrier.free.fr/hdiag_nicas/covariance_filtering.pdf
+ - about the NICAS method at: http://benjaminmenetrier.free.fr/hdiag_nicas/nicas.pdf
+
+The code can be browsed easily browsed via the doxygen documentation: http://benjaminmenetrier.free.fr/nicas/html/index.html

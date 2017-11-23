@@ -11,7 +11,7 @@
 module module_normalization
 
 use omp_lib
-use tools_display, only: msgerror,ddis,prog_init,prog_print
+use tools_display, only: msgerror,prog_init,prog_print
 use tools_kinds,only: kind_real
 use tools_missing, only: msr,isnotmsi,msi
 use tools_qsort, only: qsort
@@ -34,7 +34,7 @@ subroutine compute_normalization(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
+type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: il0i,i_s,ic1,jc2,is,js,ic0,il0,il1,ih,iv,nlr,ilr,jlr,ic,progint,is_add
@@ -199,9 +199,9 @@ do il0=1,geom%nl0
    il0i = min(il0,geom%nl0i)
    write(mpl%unit,'(a7,a,i3,a)',advance='no') '','Level ',nam%levs(il0),': '
    call prog_init(progint,done)
- 
-   !$omp parallel do private(ic0_loc,ic0,is_list,order,S_list,S_list_tmp,valid_list_tmp,nlr) &
-   !$omp&            private(is_add,S_add,ih,ic1,iv,il1,is,ilr,conv,ic,jlr,js)
+
+   !$omp parallel do schedule(static) private(ic0_loc,ic0,is_list,order,S_list,S_list_tmp,valid_list_tmp,nlr) &
+   !$omp&                             private(is_add,S_add,ih,ic1,iv,il1,is,ilr,conv,ic,jlr,js)
    do ic0_loc=1,nc0_loc(mpl%myproc)
       ! MPI offset
       ic0 = ic0_s(mpl%myproc)+ic0_loc-1
@@ -297,13 +297,17 @@ do il0=1,geom%nl0
                ic = 1
                do jlr=ilr+1,nlr
                   js = is_list(jlr)
-                  do while (convol_c(ic,is)/=js)
-                     ic = ic+1
-                     if (ic>inec(is)) then
-                        conv = .false.
-                        exit
-                     end if
-                  end do
+                  if (ic<=inec(is)) then
+                     do while (convol_c(ic,is)/=js)
+                        ic = ic+1
+                        if (ic>inec(is)) then
+                           conv = .false.
+                           exit
+                        end if
+                     end do
+                  else
+                     conv = .false.
+                  end if
                   if (conv) then
                      S_list(ilr) = S_list(ilr)+convol_c_S(ic,is)*S_list_tmp(jlr)
                      S_list(jlr) = S_list(jlr)+convol_c_S(ic,is)*S_list_tmp(ilr)
@@ -331,7 +335,7 @@ do il0=1,geom%nl0
    write(mpl%unit,'(a)') '100%'
 
    ! Communication
-   if (mpl%main) then 
+   if (mpl%main) then
       do iproc=1,mpl%nproc
          if (iproc/=mpl%ioproc) then
             ! Receive data on ioproc

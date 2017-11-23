@@ -52,11 +52,11 @@ subroutine run_hdiag(nam,geom,bpar,bdata,ens1)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(inout) :: nam !< Namelist variables
-type(geomtype),target,intent(in) :: geom    !< Sampling data
-type(bpartype),target,intent(in) :: bpar    !< Sampling data
-type(bdatatype),allocatable,intent(inout) :: bdata(:) !< B data
-real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne)
+type(namtype),target,intent(inout) :: nam                                                  !< Namelist
+type(geomtype),target,intent(in) :: geom                                                   !< Geometry
+type(bpartype),target,intent(in) :: bpar                                                   !< Block parameters
+type(bdatatype),allocatable,intent(inout) :: bdata(:)                                      !< B data
+real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: ib,il0,ic2,ildw
@@ -100,7 +100,7 @@ if (nam%new_hdiag) then
       ! Compute displacement diagnostic
       write(*,'(a)') '-------------------------------------------------------------------'
       write(*,'(a)') '--- Compute displacement diagnostic'
-   
+
       if (present(ens1)) then
          call compute_displacement(hdata,displ,ens1)
       else
@@ -111,7 +111,7 @@ if (nam%new_hdiag) then
    ! Compute sample moments
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute sample moments'
-   
+
    ! Compute ensemble 1 sample moments
    write(mpl%unit,'(a7,a)') '','Ensemble 1:'
    if (present(ens1)) then
@@ -119,7 +119,7 @@ if (nam%new_hdiag) then
    else
       call compute_moments(hdata,'ens1',displ,mom_1)
    end if
-   
+
    if ((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens')) then
       ! Compute randomized sample moments
       write(mpl%unit,'(a7,a)') '','Ensemble 2:'
@@ -129,7 +129,7 @@ if (nam%new_hdiag) then
    ! Compute statistics
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute statistics'
-   
+
    ! Allocation
    if (nam%local_diag) then
       allocate(avg_1_nc2(hdata%nc2,bpar%nb+1))
@@ -143,11 +143,11 @@ if (nam%new_hdiag) then
 
          ! Compute global statistics
          call compute_avg(hdata,ib,mom_1(ib),avg_1(ib))
-   
+
          ! Compute global asymptotic statistics
          call compute_avg_asy(hdata,ib,nam%ne,avg_1(ib))
-   
-         if (nam%local_diag) then             
+
+         if (nam%local_diag) then
             write(mpl%unit,'(a7,a)') '','Compute local statistics'
 
             ! Compute local statistics
@@ -156,7 +156,7 @@ if (nam%new_hdiag) then
             ! Compute local asymptotic statistics
             call compute_avg_asy(hdata,ib,nam%ne,avg_1_nc2(:,ib))
          end if
-         
+
          ! Print results
          do il0=1,geom%nl0
             write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
@@ -171,7 +171,7 @@ if (nam%new_hdiag) then
          elseif (trim(nam%method)=='hyb-rnd') then
             ! Compute randomized averaged statistics
             call compute_avg(hdata,ib,mom_2(ib),avg_2(ib))
-         
+
             ! Static covariance = randomized covariance
             avg_1(ib)%m11sta = avg_1(ib)%m11*avg_2(ib)%m11
             avg_1(ib)%stasq = avg_2(ib)%m11**2
@@ -179,7 +179,7 @@ if (nam%new_hdiag) then
             ! Compute low-resolution averaged statistics
             call compute_avg(hdata,ib,mom_2(ib),avg_2(ib))
             call compute_avg_asy(hdata,ib,nam%ens2_ne,avg_2(ib))
-         
+
             ! LR covariance/HR covariance product average
             call compute_avg_lr(hdata,ib,mom_1(ib),mom_2(ib),avg_1(ib),avg_2(ib))
          end if
@@ -220,7 +220,7 @@ if (nam%new_hdiag) then
          case ('dual-ens')
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_lr',cor_2(ib))
          end select
-   
+
          ! Copy
          cor_1(ib)%raw = avg_1(ib)%cor
          call curve_normalization(hdata,ib,cor_1(ib))
@@ -237,7 +237,7 @@ if (nam%new_hdiag) then
             do ic2=1,hdata%nc2
                ! Allocation
                call curve_alloc(hdata,trim(bpar%blockname(ib))//'_cor_nc2',cor_1_nc2(ic2,ib))
-      
+
                ! Copy
                cor_1_nc2(ic2,ib)%raw = avg_1_nc2(ic2,ib)%cor
                cor_1_nc2(ic2,ib)%raw_coef_ens = 1.0
@@ -250,21 +250,21 @@ if (nam%new_hdiag) then
       ! Compute first ensemble correlation fit
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Compute first ensemble correlation fit'
-   
+
       do ib=1,bpar%nb+1
          if (bpar%fit_block(ib)) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
-   
+
             ! Compute global fit
             write(mpl%unit,'(a7,a)') '','Compute global fit'
             call compute_fit(hdata,cor_1(ib))
-   
+
             if (nam%local_diag) then
                ! Compute local fit
-               write(mpl%unit,'(a7,a)') '','Compute local fit'
+               write(mpl%unit,'(a7,a)',advance='no') '','Compute local fit:'
                call compute_fit(hdata,cor_1_nc2(:,ib))
             end if
-   
+
             ! Print results
              do il0=1,geom%nl0
                 write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
@@ -273,21 +273,21 @@ if (nam%new_hdiag) then
              end do
          end if
       end do
-   
+
       select case (trim(nam%method))
       case ('hyb-avg','hyb-rnd','dual-ens')
          ! Compute second ensemble correlation fit
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Compute second ensemble correlation fit'
-   
+
          do ib=1,bpar%nb+1
             if (bpar%fit_block(ib)) then
                write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
-   
+
                ! Compute global fit
                write(mpl%unit,'(a7,a)') '','Compute global fit'
                call compute_fit(hdata,cor_2(ib))
-   
+
                ! Print results
                do il0=1,geom%nl0
                    write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(il0), &
@@ -304,10 +304,10 @@ if (nam%new_hdiag) then
       ! Compute localization diagnostic and fit
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Compute localization diagnostic and fit'
-   
+
       ! Allocation
       if (nam%local_diag) allocate(loc_1_nc2(hdata%nc2,bpar%nb+1))
-   
+
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
@@ -319,17 +319,17 @@ if (nam%new_hdiag) then
                   call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_nc2',loc_1_nc2(ic2,ib))
                end do
             end if
-   
+
             ! Compute global localization
             write(mpl%unit,'(a7,a)') '','Compute global localization'
             call compute_localization(hdata,ib,avg_1(ib),loc_1(ib))
 
             if (nam%local_diag) then
                ! Compute local localization
-               write(mpl%unit,'(a7,a)') '','Compute local localization'
+               write(mpl%unit,'(a7,a)',advance='no') '','Compute local localization:'
                call compute_localization(hdata,ib,avg_1_nc2(:,ib),loc_1_nc2(:,ib))
             end if
-   
+
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
@@ -342,24 +342,24 @@ if (nam%new_hdiag) then
          end if
       end do
    end select
-   
+
    select case (trim(nam%method))
    case ('hyb-avg','hyb-rnd')
       ! Compute static hybridization diagnostic and fit
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Compute static hybridization diagnostic and fit'
-   
+
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
             ! Allocation
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_hyb',loc_2(ib))
-   
+
             ! Compute global static hybridization
             write(mpl%unit,'(a7,a)') '','Compute global static hybridization'
             call compute_hybridization(hdata,ib,avg_1(ib),loc_2(ib))
-   
+
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
@@ -373,21 +373,21 @@ if (nam%new_hdiag) then
          end if
       end do
    end select
-   
+
    if (trim(nam%method)=='dual-ens') then
       ! Compute low-resolution localization diagnostic and fit
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Compute low-resolution localization diagnostic and fit'
-   
+
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_lr',loc_2(ib))
-   
+
             ! Compute global low-resolution localization
             write(mpl%unit,'(a7,a)') '','Compute global low-resolution localization'
             call compute_localization(hdata,ib,avg_2(ib),loc_2(ib))
-   
+
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
@@ -403,17 +403,17 @@ if (nam%new_hdiag) then
       ! Compute dual-ensemble hybridization diagnostic and fit
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Compute dual-ensemble hybridization diagnostic and fit'
-   
+
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh',loc_3(ib))
             call curve_alloc(hdata,trim(bpar%blockname(ib))//'_loc_deh_lr',loc_4(ib))
-   
+
             ! Compute global dual-ensemble hybridization
             write(mpl%unit,'(a7,a)') '','Compute global dual-ensemble hybridization'
             call compute_dualens(hdata,ib,avg_1(ib),avg_2(ib),loc_3(ib),loc_4(ib))
-   
+
             ! Print results
             do il0=1,geom%nl0
                write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(il0),' ~> ', &
@@ -429,12 +429,12 @@ if (nam%new_hdiag) then
          end if
       end do
    end if
-   
+
    if (trim(nam%fit_type)/='none') then
       ! Copy diagnostics into B data
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Copy diagnostics into B data'
-   
+
       select case (trim(nam%method))
       case ('cor')
          do ib=1,bpar%nb+1
@@ -459,12 +459,12 @@ if (nam%new_hdiag) then
       case default
          call msgerror('bdata not implemented yet for this method')
       end select
-   
+
       if (mpl%main) then
          ! Write B data
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a,i5,a)') '--- Write B data'
-   
+
          do ib=1,bpar%nb+1
             if (bpar%diag_block(ib)) call bdata_write(bdata(ib))
          end do
@@ -475,10 +475,10 @@ if (nam%new_hdiag) then
       ! Write data
       write(mpl%unit,'(a)') '-------------------------------------------------------------------'
       write(mpl%unit,'(a)') '--- Write data'
-      
+
       ! Displacement
       if (nam%displ_diag) call displ_write(hdata,trim(nam%prefix)//'_displ_diag.nc',displ)
-      
+
       ! Full variances
       if (nam%full_var) then
          filename = trim(nam%prefix)//'_full_var.nc'
@@ -487,11 +487,11 @@ if (nam%new_hdiag) then
           & sum(mom_1(ib)%m2full,dim=3)/float(mom_1(ib)%nsub))
          end do
       end if
-      
+
       ! Diagnostics
       call curve_write_all(hdata,trim(nam%prefix)//'_diag.nc',cor_1,cor_2,loc_1,loc_2,loc_3,loc_4)
 
-      if (nam%local_diag) then  
+      if (nam%local_diag) then
          ! Fit support radii maps
          if (any(bpar%fit_block)) then
             call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_cor.nc',cor_1_nc2)
@@ -501,13 +501,13 @@ if (nam%new_hdiag) then
                call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_loc.nc',loc_1_nc2)
             end select
          end if
-      
+
          ! Local diagnostics
          do ildw=1,nam%nldwv
             if (isnotmsi(hdata%nn_ldwv_index(ildw))) then
                write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
                write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
-      
+
                call curve_write_all(hdata,trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc', &
              & cor_1_nc2(hdata%nn_ldwv_index(ildw),:),cor_2,loc_1_nc2(hdata%nn_ldwv_index(ildw),:),loc_2,loc_3,loc_4)
             else
@@ -515,6 +515,20 @@ if (nam%new_hdiag) then
             end if
          end do
       end if
+
+
+      ! Write local diagnostic profiles
+      do ildw=1,nam%nldwv
+         if (isnotmsi(hdata%nn_ldwv_index(ildw))) then
+            ! Diagnostic profile
+            write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
+            write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
+            call curve_write_all(hdata,trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc', &
+          & cor_1_nc2(:,hdata%nn_ldwv_index(ildw)),cor_2,loc_1_nc2(:,hdata%nn_ldwv_index(ildw)),loc_2,loc_3,loc_4)
+         else
+            call msgwarning('missing local profile')
+         end if
+      end do
    end if
 elseif (nam%new_param) then
    ! Read B data

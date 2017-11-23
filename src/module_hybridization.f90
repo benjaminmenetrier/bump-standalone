@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_hybridization
 
@@ -34,9 +34,9 @@ subroutine compute_hybridization(hdata,ib,avg,loc_hyb)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata               !< Sampling data
-integer,intent(in) :: ib !< Block index
-type(avgtype),intent(in) :: avg                   !< Averaged statistics
+type(hdatatype),intent(in) :: hdata      !< HDIAG data
+integer,intent(in) :: ib                 !< Block index
+type(avgtype),intent(in) :: avg          !< Averaged statistics
 type(curvetype),intent(inout) :: loc_hyb !< Adapted localizations
 
 ! Local variables
@@ -70,7 +70,7 @@ do jl0=1,geom%nl0
             ! Compute localization
             loc_hyb%raw(ic,il0,jl0) = (avg%m11asysq(ic,il0,jl0)-loc_hyb%raw_coef_sta &
                                     & *avg%m11sta(ic,il0,jl0))/avg%m11sq(ic,il0,jl0)
-  
+
             ! Lower bound
             if (loc_hyb%raw(ic,il0,jl0)<0.0) call msr(loc_hyb%raw(ic,il0,jl0))
          end if

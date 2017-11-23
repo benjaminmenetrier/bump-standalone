@@ -19,7 +19,7 @@ while [[ ${i} -le 50 ]] ; do
 done
 
 # Generate grid.nc with EPyGrAM
-ORIGIN_FILE="../../../../../data/ARPEGE/6B60/20160928H00A/4dupd1/ICMSHARPE+0000"
+ORIGIN_FILE="../../../../../data/ARPEGE/877D/20170114H00A/ensemble4D/001/ICMSHARPE+0000"
 rm -f grid.nc
 cat<<EOFNAM >epygram_request.py
 #!/usr/bin/env python

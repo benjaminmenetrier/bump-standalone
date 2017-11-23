@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_diag_tools
 
@@ -44,16 +44,16 @@ contains
 ! Subroutine: diag_filter_2d
 !> Purpose: filter diagnostics, on a single level
 !----------------------------------------------------------------------
-subroutine diag_filter_2d(hdata,il0,filter,r,diag)
+subroutine diag_filter_2d(hdata,il0,filter_type,r,diag)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata   !< Sampling data
-integer,intent(in) :: il0              !< Level
-character(len=*),intent(in) :: filter !< Filter type
+type(hdatatype),intent(in) :: hdata              !< HDIAG data
+integer,intent(in) :: il0                        !< Level
+character(len=*),intent(in) :: filter_type       !< Filter type
 real(kind_real),intent(in) :: r                  !< Filter support radius
-real(kind_real),intent(inout) :: diag(hdata%nc2)        !< Filtered diagnostics
+real(kind_real),intent(inout) :: diag(hdata%nc2) !< Filtered diagnostics
 
 ! Local variables
 integer :: ic2,jc2,nc2eff
@@ -66,7 +66,7 @@ associate(nam=>hdata%nam,geom=>hdata%geom)
 ! Copy diagnostics
 diag_tmp = diag
 
-!$omp parallel do private(ic2,list,list_dist,nc2eff,jc2,distnorm,norm,wgt)
+!$omp parallel do schedule(static) private(ic2,list,list_dist,nc2eff,jc2,distnorm,norm,wgt)
 do ic2=1,hdata%nc2
    if (hdata%ic1il0_log(hdata%ic2_to_ic1(ic2),il0)) then
       ! Allocation
@@ -89,7 +89,7 @@ do ic2=1,hdata%nc2
 
       ! Apply filter
       if (nc2eff>0) then
-         select case (trim(filter))
+         select case (trim(filter_type))
          case ('average')
             ! Compute average
             diag(ic2) = sum(list(1:nc2eff))/float(nc2eff)
@@ -131,15 +131,15 @@ end subroutine diag_filter_2d
 ! Subroutine: diag_filter_3d
 !> Purpose: filter diagnostics, on multiple levels
 !----------------------------------------------------------------------
-subroutine diag_filter_3d(hdata,filter,r,diag)
+subroutine diag_filter_3d(hdata,filter_type,r,diag)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata   !< Sampling data
-character(len=*),intent(in) :: filter !< Filter type
-real(kind_real),intent(in) :: r                  !< Filter support radius
-real(kind_real),intent(inout) :: diag(hdata%nc2,hdata%geom%nl0)     !< Filtered diagnostics
+type(hdatatype),intent(in) :: hdata                             !< HDIAG data
+character(len=*),intent(in) :: filter_type                      !< Filter type
+real(kind_real),intent(in) :: r                                 !< Filter support radius
+real(kind_real),intent(inout) :: diag(hdata%nc2,hdata%geom%nl0) !< Filtered diagnostics
 
 ! Local variables
 integer :: il0
@@ -149,7 +149,7 @@ associate(geom=>hdata%geom)
 
 do il0=1,geom%nl0
    ! Filter diagnostics on a single level
-   call diag_filter_2d(hdata,il0,filter,r,diag(:,il0))
+   call diag_filter_2d(hdata,il0,filter_type,r,diag(:,il0))
 end do
 
 ! End associate
@@ -166,10 +166,10 @@ subroutine diag_interpolation_2d(hdata,il0,fld_nc2,fld)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata   !< Sampling data
-integer,intent(in) :: il0              !< Level
-real(kind_real),intent(in) :: fld_nc2(hdata%nc2)         !< Field at diagnostic points
-real(kind_real),intent(out) :: fld(hdata%geom%nc0) !< Field at grid-points
+type(hdatatype),intent(in) :: hdata                !< HDIAG data
+integer,intent(in) :: il0                          !< Level
+real(kind_real),intent(in) :: fld_nc2(hdata%nc2)   !< Subgrid field
+real(kind_real),intent(out) :: fld(hdata%geom%nc0) !< Field
 
 ! Associate
 associate(geom=>hdata%geom)
@@ -191,9 +191,9 @@ subroutine diag_interpolation_3d(hdata,fld_nc2,fld)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata      !< Sampling data
-real(kind_real),intent(in) :: fld_nc2(hdata%nc2,hdata%geom%nl0)         !< Field at diagnostic points
-real(kind_real),intent(out) :: fld(hdata%geom%nc0,hdata%geom%nl0) !< Field at grid-points
+type(hdatatype),intent(in) :: hdata                               !< HDIAG data
+real(kind_real),intent(in) :: fld_nc2(hdata%nc2,hdata%geom%nl0)   !< Subgrid field
+real(kind_real),intent(out) :: fld(hdata%geom%nc0,hdata%geom%nl0) !< Field
 
 ! Local variables
 integer :: il0
@@ -220,10 +220,10 @@ subroutine diag_write_2d(filename,varname,hdata,fld)
 implicit none
 
 ! Passed variables
-character(len=*),intent(in) :: filename !< File name
-character(len=*),intent(in) :: varname  !< Variable name
-type(hdatatype),intent(in) :: hdata     !< Sampling data
-real(kind_real),intent(in) :: fld(hdata%nc2)              !< Written field
+character(len=*),intent(in) :: filename      !< File name
+character(len=*),intent(in) :: varname       !< Variable name
+type(hdatatype),intent(in) :: hdata          !< HDIAG data
+real(kind_real),intent(in) :: fld(hdata%nc2) !< Written field
 
 ! Local variables
 integer :: ierr
@@ -289,10 +289,10 @@ subroutine diag_write_3d(filename,varname,hdata,fld)
 implicit none
 
 ! Passed variables
-character(len=*),intent(in) :: filename !< File name
-character(len=*),intent(in) :: varname  !< Variable name
-type(hdatatype),intent(in) :: hdata     !< Sampling data
-real(kind_real),intent(in) :: fld(hdata%nc2,hdata%geom%nl0)           !< Written field
+character(len=*),intent(in) :: filename                     !< File name
+character(len=*),intent(in) :: varname                      !< Variable name
+type(hdatatype),intent(in) :: hdata                         !< HDIAG data
+real(kind_real),intent(in) :: fld(hdata%nc2,hdata%geom%nl0) !< Written field
 
 ! Local variables
 integer :: ierr

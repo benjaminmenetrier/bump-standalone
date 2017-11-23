@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_bdata
 
@@ -27,20 +27,20 @@ implicit none
 ! B data derived type
 type bdatatype
    ! Block name
-   character(len=1024) :: cname                  !< Block name
+   character(len=1024) :: cname                 !< Block name
 
    ! Namelist
-   type(namtype),pointer :: nam                    !< Namelist
+   type(namtype),pointer :: nam                 !< Namelist
 
    ! Geometry
-   type(geomtype),pointer :: geom                  !< Geometry
+   type(geomtype),pointer :: geom               !< Geometry
 
    ! Data
-   real(kind_real),allocatable :: coef_ens(:,:)  !< Ensemble coefficient
-   real(kind_real),allocatable :: rh0(:,:)       !< Fit support radius
-   real(kind_real),allocatable :: rv0(:,:)       !< Fit support radius
-   real(kind_real),allocatable :: coef_sta(:,:)  !< Static coefficient
-   real(kind_real) :: wgt                        !< Block weight
+   real(kind_real),allocatable :: coef_ens(:,:) !< Ensemble coefficient
+   real(kind_real),allocatable :: rh0(:,:)      !< Fit support radius
+   real(kind_real),allocatable :: rv0(:,:)      !< Fit support radius
+   real(kind_real),allocatable :: coef_sta(:,:) !< Static coefficient
+   real(kind_real) :: wgt                       !< Block weight
 end type bdatatype
 
 interface diag_to_bdata
@@ -151,10 +151,10 @@ subroutine diag_nc2_to_bdata(hdata,ib,diag,bdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata
-integer,intent(in) :: ib
-type(curvetype),intent(in) :: diag(hdata%nc2)
-type(bdatatype),intent(inout) :: bdata !< Sampling data
+type(hdatatype),intent(in) :: hdata           !< HDIAG data
+integer,intent(in) :: ib                      !< Block index
+type(curvetype),intent(in) :: diag(hdata%nc2) !< Diagnostic curves
+type(bdatatype),intent(inout) :: bdata        !< B data
 
 ! Local variables
 integer :: ic2
@@ -209,7 +209,7 @@ subroutine bdata_read(bdata)
 implicit none
 
 ! Passed variables
-type(bdatatype),intent(inout) :: bdata !< Sampling data
+type(bdatatype),intent(inout) :: bdata !< B data
 
 ! Local variables
 integer :: nc0_test,nl0_test,il0
@@ -229,13 +229,13 @@ if (info==nf90_noerr) then
    call ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
    call ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
    if ((geom%nc0/=nc0_test).or.(geom%nl0/=nl0_test)) call msgerror('wrong dimension when reading B')
-  
+
    ! Get arrays ID
    call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
    call ncerr(subr,nf90_inq_varid(ncid,'rh0',rh0_id))
    call ncerr(subr,nf90_inq_varid(ncid,'rv0',rv0_id))
    call ncerr(subr,nf90_inq_varid(ncid,'coef_sta',coef_sta_id))
-   
+
    ! Read arrays
    call ncerr(subr,nf90_get_var(ncid,coef_ens_id,bdata%coef_ens))
    call ncerr(subr,nf90_get_var(ncid,rh0_id,bdata%rh0))
@@ -244,7 +244,7 @@ if (info==nf90_noerr) then
 
    ! Get main weight
    call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',bdata%wgt))
-   
+
    ! Close file
    call ncerr(subr,nf90_close(ncid))
 else
@@ -276,7 +276,7 @@ subroutine bdata_write(bdata)
 implicit none
 
 ! Passed variables
-type(bdatatype),intent(in) :: bdata !< Sampling data
+type(bdatatype),intent(in) :: bdata !< B data
 
 ! Local variables
 integer :: ncid,nc0_id,nl0_id

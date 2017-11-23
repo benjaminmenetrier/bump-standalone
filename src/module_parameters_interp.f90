@@ -40,7 +40,7 @@ subroutine compute_interp_h(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
+type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
@@ -65,8 +65,8 @@ subroutine compute_interp_v(ndata,llev)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
-logical,intent(in) :: llev(ndata%geom%nl0) 
+type(ndatatype),intent(inout) :: ndata     !< NICAS data
+logical,intent(in) :: llev(ndata%geom%nl0) !< Levels selection
 
 ! Local variables
 integer :: il0,jl0,il1,il0inf,il0sup
@@ -107,7 +107,7 @@ do il0=1,geom%nl0
          ndata%v%n_s = ndata%v%n_s+1
          ndata%v%row(ndata%v%n_s) = jl0
          ndata%v%col(ndata%v%n_s) = il0inf
-         ndata%v%S(ndata%v%n_s) = abs(geom%vunit(il0sup)-geom%vunit(jl0)) & 
+         ndata%v%S(ndata%v%n_s) = abs(geom%vunit(il0sup)-geom%vunit(jl0)) &
                             & /abs(geom%vunit(il0sup)-geom%vunit(il0inf))
 
          ndata%v%n_s = ndata%v%n_s+1
@@ -140,7 +140,7 @@ subroutine compute_interp_s(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< Sampling data
+type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: ic1,il1,i_s
@@ -173,16 +173,16 @@ do il1=1,ndata%nl1
       end do
    else
       ! Compute interpolation
-      call compute_interp_bilin(ndata%nc2(il1),geom%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), & 
+      call compute_interp_bilin(ndata%nc2(il1),geom%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), &
     & geom%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1)), &
     & geom%mask(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1),ndata%il1_to_il0(il1)), &
     & ndata%nc1,geom%lon(ndata%ic1_to_ic0),geom%lat(ndata%ic1_to_ic0), &
     & geom%mask(ndata%ic1_to_ic0,ndata%il1_to_il0(il1)),stmp)
-   
+
       ! Allocation
       allocate(valid(stmp%n_s))
       valid = .true.
-   
+
       ! Check mask boundaries
       if (nam%mask_check) then
          write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Sublevel ',il1,': '
@@ -191,13 +191,13 @@ do il1=1,ndata%nl1
       else
          write(mpl%unit,'(a10,a,i3)') '','Sublevel ',il1
       end if
-   
+
       ! Renormalization
       renorm = 0.0
       do i_s=1,stmp%n_s
          if (valid(i_s)) renorm(stmp%row(i_s)) = renorm(stmp%row(i_s))+stmp%S(i_s)
       end do
-   
+
       ! Copy valid operations
       ndata%s(il1)%n_s = count(valid)
       call linop_alloc(ndata%s(il1))
@@ -210,14 +210,14 @@ do il1=1,ndata%nl1
             ndata%s(il1)%S(ndata%s(il1)%n_s) = stmp%S(i_s)/renorm(stmp%row(i_s))
          end if
       end do
-   
+
       ! Release memory
       call linop_dealloc(stmp)
       deallocate(valid)
-   
+
       ! Allocation
       allocate(missing(ndata%nc1))
-   
+
       ! Count points that are not interpolated
       missing = .false.
       do ic1=1,ndata%nc1
@@ -229,22 +229,22 @@ do il1=1,ndata%nl1
       if (count(missing)>0) then
          ! Copy
          call linop_copy(ndata%s(il1),stmp)
-   
+
          ! Reallocate permanent arrays
          call linop_dealloc(ndata%s(il1))
          ndata%s(il1)%n_s = ndata%s(il1)%n_s+count(missing)
          call linop_alloc(ndata%s(il1))
-   
+
          ! Fill permanent arrays
          ndata%s(il1)%row(1:stmp%n_s) = stmp%row
          ndata%s(il1)%col(1:stmp%n_s) = stmp%col
          ndata%s(il1)%S(1:stmp%n_s) = stmp%S
-   
+
          ! Compute cover tree
          ctree = create_ctree(ndata%nc2(il1),dble(geom%lon(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))), &
        & dble(geom%lat(ndata%ic2il1_to_ic0(1:ndata%nc2(il1),il1))), &
        & geom%mask(ndata%ic1_to_ic0(ndata%ic2il1_to_ic1(1:ndata%nc2(il1),il1)),ndata%il1_to_il0(il1)))
-  
+
          ! Compute nearest neighbors
          do ic1=1,ndata%nc1
             if (missing(ic1)) then
@@ -255,15 +255,15 @@ do il1=1,ndata%nl1
                ndata%s(il1)%S(stmp%n_s) = 1.0
             end if
          end do
-   
+
          ! Release memory
          call linop_dealloc(stmp)
          call delete_ctree(ctree)
       end if
-   
+
       ! Reorder linear operator
       call linop_reorder(ndata%s(il1))
-   
+
       ! Release memory
       deallocate(missing)
    end if

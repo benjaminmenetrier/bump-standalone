@@ -1,3 +1,13 @@
+!----------------------------------------------------------------------
+! Module: tools_asa047.f90
+!> Purpose: Nelder-Mead minimization routines
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-C license
+!> <br>
+!> Copyright © 2017 METEO-FRANCE
+!----------------------------------------------------------------------
 module tools_asa047
 
 use tools_kinds, only: kind_real
@@ -105,13 +115,13 @@ subroutine nelmin ( mindata, func, n, start, xmin, ynewlo, reqmin, step, konvge,
 !
   implicit none
 
-  type(mintype),intent(inout) :: mindata !< Minimization data
+  type(mintype),intent(inout) :: mindata
   interface
     subroutine func(mindata,x,f)
     use tools_kinds, only: kind_real
     use type_min, only: mintype
     type(mintype),intent(in) :: mindata
-    real(kind_real),intent(inout) :: x(mindata%nx)
+    real(kind_real),intent(in) :: x(mindata%nx)
     real(kind_real),intent(out) :: f
     end subroutine
   end interface

@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module tools_fit
 
@@ -33,11 +33,11 @@ subroutine fast_fit(n,iz,dist,raw,fit_r)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n
-integer,intent(in) :: iz
-real(kind_real),intent(in) :: dist(n)
-real(kind_real),intent(in) :: raw(n)
-real(kind_real),intent(out) :: fit_r
+integer,intent(in) :: n               !< Vector size
+integer,intent(in) :: iz              !< Zero separation index
+real(kind_real),intent(in) :: dist(n) !< Distance
+real(kind_real),intent(in) :: raw(n)  !< Raw data
+real(kind_real),intent(out) :: fit_r  !< Fast fit result
 
 ! Local variables
 integer :: di,i,im,ip,iter
@@ -63,7 +63,7 @@ if (raw(iz)>0.0) then
       else
          ! Curve-dependent threshold
          th = minval(raw/raw(iz),mask=(raw>0.0))+1.0e-6
-      
+
          ! Find inverse threshold by dichotomy
          thinv = 0.5
          dthinv = 0.25
@@ -77,7 +77,7 @@ if (raw(iz)>0.0) then
             dthinv = 0.5*dthinv
          end do
       end if
-      
+
       ! Find support radius
       call msr(fit_rm)
       call msr(fit_rp)
@@ -132,7 +132,7 @@ implicit none
 integer,intent(in) :: n                     !< Vector size
 real(kind_real),intent(in) :: x(n)          !< Coordinate
 real(kind_real),intent(in) :: rv            !< Filtering support radius
-real(kind_real),intent(inout) :: profile(n) !< Vertical profile to filter
+real(kind_real),intent(inout) :: profile(n) !< Vertical profile
 
 ! Local variables
 integer :: i,j

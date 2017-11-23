@@ -134,34 +134,34 @@ implicit none
 type(linoptype),intent(inout) :: linop !< Linear operator
 
 ! Local variables
-integer :: col,i_s_s,i_s_e,n_s,i_s
+integer :: row,i_s_s,i_s_e,n_s,i_s
 integer,allocatable :: order(:)
 
-! Sort with respect to col
+! Sort with respect to row
 allocate(order(linop%n_s))
-call qsort(linop%n_s,linop%col,order)
+call qsort(linop%n_s,linop%row,order)
 
-! Sort row and S
-linop%row = linop%row(order)
+! Sort col and S
+linop%col = linop%col(order)
 linop%S = linop%S(order)
 deallocate(order)
 
-! Sort with respect to row for each col
-col = minval(linop%col)
+! Sort with respect to col for each row
+row = minval(linop%row)
 i_s_s = 1
 call msi(i_s_e)
 do i_s=1,linop%n_s
-   if (linop%col(i_s)==col) then
+   if (linop%row(i_s)==row) then
       i_s_e = i_s
    else
       n_s = i_s_e-i_s_s+1
       allocate(order(n_s))
-      call qsort(n_s,linop%row(i_s_s:i_s_e),order)
+      call qsort(n_s,linop%col(i_s_s:i_s_e),order)
       order = order+i_s_s-1
       linop%S(i_s_s:i_s_e) = linop%S(order)
       deallocate(order)
       i_s_s = i_s+1
-      col = linop%col(i_s)
+      row = linop%row(i_s)
    end if
 end do
 
@@ -288,7 +288,7 @@ end if
 fld_tmp = 0.0
 
 ! Apply weights
-!$omp parallel do private(i_s,ithread)
+!$omp parallel do schedule(static) private(i_s,ithread)
 do i_s=1,linop%n_s
    ithread = omp_get_thread_num()+1
    fld_tmp(linop%row(i_s),ithread) = fld_tmp(linop%row(i_s),ithread)+linop%S(i_s)*fld(linop%col(i_s))

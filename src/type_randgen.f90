@@ -13,6 +13,7 @@ module type_randgen
 use iso_c_binding, only: c_ptr,c_int,c_double
 use tools_kinds, only: kind_real
 use tools_missing, only: msi
+use type_mpl, only: mpl,mpl_bcast
 use type_nam, only: namtype
 
 implicit none
@@ -146,9 +147,9 @@ subroutine rand_integer_0d(binf,bsup,ir)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: binf            !< Lower bound
-integer,intent(in) :: bsup            !< Upper bound
-integer,intent(out) :: ir             !< Random integer
+integer,intent(in) :: binf !< Lower bound
+integer,intent(in) :: bsup !< Upper bound
+integer,intent(out) :: ir  !< Random integer
 
 ! Call C++ function
 call rand_integer_c(rng%ptr,binf,bsup,ir)
@@ -164,9 +165,9 @@ subroutine rand_integer_1d(binf,bsup,ir)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: binf            !< Lower bound
-integer,intent(in) :: bsup            !< Upper bound
-integer,intent(out) :: ir(:)          !< Random integer
+integer,intent(in) :: binf   !< Lower bound
+integer,intent(in) :: bsup   !< Upper bound
+integer,intent(out) :: ir(:) !< Random integer
 
 ! Local variables
 integer :: i
@@ -187,9 +188,9 @@ subroutine rand_real_0d(binf,bsup,rr)
 implicit none
 
 ! Passed variables
-real(kind_real),intent(in) :: binf    !< Lower bound
-real(kind_real),intent(in) :: bsup    !< Upper bound
-real(kind_real),intent(out) :: rr     !< Random integer
+real(kind_real),intent(in) :: binf !< Lower bound
+real(kind_real),intent(in) :: bsup !< Upper bound
+real(kind_real),intent(out) :: rr  !< Random integer
 
 ! Call C++ function
 call rand_real_c(rng%ptr,binf,bsup,rr)
@@ -335,9 +336,9 @@ do i=1,size(rr,1)
    else
       gasdev = gset
       iset = 0
-   end if                        
+   end if
    rr(i) = gasdev
-end do   
+end do
 
 end subroutine rand_gau_1d
 
@@ -350,15 +351,15 @@ subroutine initialize_sampling(n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n               !< Number of grid points
-real(kind_real),intent(in) :: lon(n)  !< Grid points longitude
-real(kind_real),intent(in) :: lat(n)  !< Grid points latitude
-integer,intent(in) :: mask(n)         !< Grid mask
-real(kind_real),intent(in) :: rh(n)   !< Horizontal support radius
-integer,intent(in) :: ntry            !< Number of tries
-integer,intent(in) :: nrep            !< Number of replacements
-integer,intent(in) :: ns              !< Number of samplings points
-integer,intent(out) :: ihor(ns)       !< Horizontal sampling index
+integer,intent(in) :: n              !< Number of points
+real(kind_real),intent(in) :: lon(n) !< Longitudes
+real(kind_real),intent(in) :: lat(n) !< Latitudes
+integer,intent(in) :: mask(n)        !< Mask
+real(kind_real),intent(in) :: rh(n)  !< Horizontal support radius
+integer,intent(in) :: ntry           !< Number of tries
+integer,intent(in) :: nrep           !< Number of replacements
+integer,intent(in) :: ns             !< Number of samplings points
+integer,intent(out) :: ihor(ns)      !< Horizontal sampling index
 
 ! Local variables
 integer :: i,is
@@ -372,7 +373,8 @@ if (ns>=sum(mask)) then
       ihor(is) = i
    end do
 else
-   call initialize_sampling_c(rng%ptr,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
+   if (mpl%main) call initialize_sampling_c(rng%ptr,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
+   call mpl_bcast(ihor,mpl%ioproc)
 end if
 
 end subroutine initialize_sampling

@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distritsuted under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_displ
 
@@ -26,17 +26,17 @@ implicit none
 
 ! Displacement data derived type
 type displtype
-   integer :: niter                                  !< Number of stored iterations
-   real(kind_real),allocatable :: dist(:,:,:)        !< Displacement distance
-   real(kind_real),allocatable :: valid(:,:,:)       !< Displacement validity
-   real(kind_real),allocatable :: rhflt(:,:,:)       !< Displacement filtering support radius
+   integer :: niter                               !< Number of stored iterations
+   real(kind_real),allocatable :: dist(:,:,:)     !< Displacement distance
+   real(kind_real),allocatable :: valid(:,:,:)    !< Displacement validity
+   real(kind_real),allocatable :: rhflt(:,:,:)    !< Displacement filtering support radius
 
-   real(kind_real),allocatable :: dlon_raw(:,:,:)    !< Longitude displacement, raw
-   real(kind_real),allocatable :: dlat_raw(:,:,:)    !< Latitude displacement, raw
-   real(kind_real),allocatable :: dlon_flt(:,:,:)    !< Longitude displacement, filtered
-   real(kind_real),allocatable :: dlat_flt(:,:,:)    !< Latitude displacement, filtered
+   real(kind_real),allocatable :: dlon_raw(:,:,:) !< Longitude displacement, raw
+   real(kind_real),allocatable :: dlat_raw(:,:,:) !< Latitude displacement, raw
+   real(kind_real),allocatable :: dlon_flt(:,:,:) !< Longitude displacement, filtered
+   real(kind_real),allocatable :: dlat_flt(:,:,:) !< Latitude displacement, filtered
 
-   type(linoptype),allocatable :: d(:,:)             !< Sampling interpolation
+   type(linoptype),allocatable :: d(:,:)          !< Sampling interpolation
 end type displtype
 
 private
@@ -54,7 +54,7 @@ subroutine displ_alloc(hdata,displ)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
 type(displtype),intent(inout) :: displ !< Displacement data
 
 ! Associate
@@ -93,7 +93,7 @@ subroutine displ_dealloc(hdata,displ)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
 type(displtype),intent(inout) :: displ !< Displacement data
 
 ! Local variables
@@ -131,9 +131,9 @@ subroutine displ_write(hdata,filename,displ)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !<
-character(len=*),intent(in) :: filename
-type(displtype),intent(in) :: displ !< Displacement data
+type(hdatatype),intent(in) :: hdata     !< HDIAG data
+character(len=*),intent(in) :: filename !< File name
+type(displtype),intent(in) :: displ     !< Displacement data
 
 ! Local variables
 integer :: its,ncid,nts_id,nl0_1_id,na_id,two_id,displ_niter_id,vunit_id,larc_id,valid_id,dist_id,rhflt_id

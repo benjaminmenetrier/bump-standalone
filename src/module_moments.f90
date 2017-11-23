@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code ic1 distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_moments
 
@@ -37,11 +37,11 @@ subroutine compute_moments(hdata,filename,displ,mom,ens1)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-character(len=*),intent(in) :: filename
-type(displtype),intent(in) :: displ !< Displacement
-type(momtype),intent(inout) :: mom(hdata%bpar%nb)     !< Moments
-real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne)
+type(hdatatype),intent(in) :: hdata                                                                                      !< HDIAG data
+character(len=*),intent(in) :: filename                                                                                  !< File name
+type(displtype),intent(in) :: displ                                                                                      !< Displacement
+type(momtype),intent(inout) :: mom(hdata%bpar%nb)                                                                        !< Moments
+real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: ne,ne_offset,nsub,ie,ic0,jc0,il0,jl0,isub,jsub,ic,ic1,ib,iv,jv,its,jts
@@ -87,7 +87,7 @@ do ib=1,bpar%nb
          allocate(mom(ib)%m1full(geom%nc0,geom%nl0,mom(ib)%nsub))
          allocate(mom(ib)%m2full(geom%nc0,geom%nl0,mom(ib)%nsub))
       end if
-      
+
       ! Initialization
       mom(ib)%m1_1 = 0.0
       mom(ib)%m2_1 = 0.0
@@ -132,6 +132,7 @@ do isub=1,nsub
          allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
          fld = ens1(:,:,:,:,ie+(isub-1)*nsub)
          call fld_com_lg(nam,geom,fld)
+         if (.not.mpl%main) allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
          call mpl_bcast(fld,mpl%ioproc)
       else
          ! Load field
@@ -164,21 +165,21 @@ do isub=1,nsub
                ! Copy all separations points
                !$omp parallel do schedule(static) private(jl0,il0,ic,ic1,ic0,jc0)
                do jl0=1,geom%nl0
-                  do il0=1,geom%nl0
-                     do ic=1,nam%nc
+                  do il0=1,bpar%nl0(ib)
+                     do ic=1,bpar%icmax(ib)
                         do ic1=1,nam%nc1
-                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0min(jl0,ib)+il0)) then
+                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,bpar%il0off(jl0,ib)+il0)) then
                               ! Indices
-                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,bpar%il0min(jl0,ib)+il0)
+                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,bpar%il0off(jl0,ib)+il0)
                               jc0 = hdata%ic1_to_ic0(ic1)
 
                               ! Copy points
                               fld_1(ic1,ic,il0,jl0) = fld(jc0,jl0,jv,jts)
-                              fld_2(ic1,ic,il0,jl0) = fld(ic0,bpar%il0min(jl0,ib)+il0,iv,its)
+                              fld_2(ic1,ic,il0,jl0) = fld(ic0,bpar%il0off(jl0,ib)+il0,iv,its)
                            end if
                         end do
                      end do
-                  end do           
+                  end do
                end do
                !$omp end parallel do
             else
@@ -202,7 +203,7 @@ do isub=1,nsub
                            fld_2(ic1,1,1,jl0) = fld(jc0,jl0,iv,its)
                         end if
                      end do
-                  end do           
+                  end do
                   !$omp end parallel do
                end if
             end if
@@ -221,38 +222,38 @@ do isub=1,nsub
                                                   & -fac1*(mom(ib)%m12(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
                                                   & +mom(ib)%m21(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
                                                   & +fac2*(4.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0) &
-                                                  & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)**2 & 
+                                                  & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)**2 &
                                                   & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)**2) &
                                                   & +fac3*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)**2
-         
+
                         ! Third-order moments
                         mom(ib)%m12(:,:,:,jl0,isub) = mom(ib)%m12(:,:,:,jl0,isub) &
                                                   & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_2(:,:,:,jl0) &
                                                   & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)) &
                                                   & +fac5*fld_2(:,:,:,jl0)**2*fld_1(:,:,:,jl0)
-      
+
                         mom(ib)%m21(:,:,:,jl0,isub) = mom(ib)%m21(:,:,:,jl0,isub) &
                                                   & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
                                                   & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
                                                   & +fac5*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)
                   end if
-         
+
                   ! Covariance
                   mom(ib)%m11(:,:,:,jl0,isub) = mom(ib)%m11(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0)
-         
+
                   ! Variances
                   mom(ib)%m2_1(:,:,:,jl0,isub) = mom(ib)%m2_1(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)**2
                   mom(ib)%m2_2(:,:,:,jl0,isub) = mom(ib)%m2_2(:,:,:,jl0,isub)+fac6*fld_2(:,:,:,jl0)**2
-         
+
                   ! Full variance
                   if (nam%full_var) mom(ib)%m2full(:,jl0,isub) = mom(ib)%m2full(:,jl0,isub) &
                                                              & +fac6*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))**2
                end if
-         
+
                ! Update means
                mom(ib)%m1_1(:,:,:,jl0,isub) = mom(ib)%m1_1(:,:,:,jl0,isub)+fac4*fld_1(:,:,:,jl0)
                mom(ib)%m1_2(:,:,:,jl0,isub) = mom(ib)%m1_2(:,:,:,jl0,isub)+fac4*fld_2(:,:,:,jl0)
-   
+
                ! Full mean
                if (nam%full_var) mom(ib)%m1full(:,jl0,isub) = mom(ib)%m1full(:,jl0,isub) &
                                                             & +fac4*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))

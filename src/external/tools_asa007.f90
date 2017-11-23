@@ -1,3 +1,13 @@
+!----------------------------------------------------------------------
+! Module: tools_asa047.f90
+!> Purpose: Cholesky and symmetric matrix inversion routines
+!> <br>
+!> Author: Benjamin Menetrier
+!> <br>
+!> Licensing: this code is distributed under the CeCILL-C license
+!> <br>
+!> Copyright © 2017 METEO-FRANCE
+!----------------------------------------------------------------------
 module tools_asa007
 
 use tools_kinds, only: kind_real
@@ -210,7 +220,7 @@ subroutine syminv ( a, n, c, w, nullty, ifault )
 !  Parameters:
 !
 !    Input, real ( kind_real ) A((N*(N+1))/2), a positive definite matrix stored
-!    by rows in lower triangular form as a one dimensional array, in the 
+!    by rows in lower triangular form as a one dimensional array, in the
 !    sequence
 !    A(1,1),
 !    A(2,1), A(2,2),
@@ -220,12 +230,12 @@ subroutine syminv ( a, n, c, w, nullty, ifault )
 !
 !    Output, real ( kind_real ) C((N*(N+1))/2), the inverse of A, or generalized
 !    inverse if A is singular, stored using the same storage scheme employed
-!    for A.  The program is written in such a way that A and U can share 
+!    for A.  The program is written in such a way that A and U can share
 !    storage.
 !
 !    Workspace, real ( kind_real ) W(N).
 !
-!    Output, integer NULLTY, the rank deficiency of A.  If NULLTY 
+!    Output, integer NULLTY, the rank deficiency of A.  If NULLTY
 !    is zero, the matrix is judged to have full rank.
 !
 !    Output, integer IFAULT, error indicator.

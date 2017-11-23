@@ -37,76 +37,78 @@ subroutine run_obsop(nam,geom,odataloc)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam !< Namelist variables
-type(geomtype),target,intent(inout) :: geom    !< Sampling data
-type(odataloctype),intent(inout) :: odataloc !< Sampling data
+type(namtype),target,intent(in) :: nam       !< Namelist
+type(geomtype),target,intent(inout) :: geom  !< Geometry
+type(odataloctype),intent(inout) :: odataloc !< Observation operator data
 
 ! Local variables
 type(odatatype) :: odata
 
-! Set namelist
-odata%nam => nam
-odataloc%nam => nam
+if (.false.) then
+   ! Set namelist
+   odata%nam => nam
+   odataloc%nam => nam
 
-! Set geometry
-odata%geom => geom
-odataloc%geom => geom
+   ! Set geometry
+   odata%geom => geom
+   odataloc%geom => geom
 
-!if (nam%new_param) then
-   ! Compute observation operator parameters
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute observation operator parameters'
-   call compute_parameters_obsop(odata)
+   !if (nam%new_param) then
+      ! Compute observation operator parameters
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Compute observation operator parameters'
+      call compute_parameters_obsop(odata)
 
-!   if (mpl%main) then
-!      ! Write observation operator parameters
-!      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-!      write(mpl%unit,'(a)') '--- Write observation operator parameters'
-!      call odata_write_param(odata)
-!   end if
-!else
-!   ! Read observation operator parameters
-!   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-!   write(mpl%unit,'(a)') '--- Read observation operator parameters'
-!   call odata_read_param(odata)
-!end if
-call flush(mpl%unit)
-
-!if (nam%new_mpi) then
-   ! Compute observation operator MPI distribution
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute observation operator MPI distribution'
-   call compute_mpi_obsop(odata,odataloc)
-
-!   if (mpl%main) then
-!      ! Write observation operator MPI distribution
-!      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-!      write(mpl%unit,'(a)') '--- Write observation operator MPI distribution'
-!      call odata_write_mpi(odataloc_arr)
-!   end if
-!else
-!   ! Read observation operator MPI distribution
-!   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-!   write(mpl%unit,'(a)') '--- Read observation operator MPI distribution'
-!   call odata_read_mpi(odataloc)
-!end if
-call flush(mpl%unit)
-
-if (nam%check_adjoints) then
-   ! Test adjoints
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test observation operator adjoint'
-   call test_adjoint_obsop(odata)
+   !   if (mpl%main) then
+   !      ! Write observation operator parameters
+   !      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   !      write(mpl%unit,'(a)') '--- Write observation operator parameters'
+   !      call odata_write_param(odata)
+   !   end if
+   !else
+   !   ! Read observation operator parameters
+   !   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   !   write(mpl%unit,'(a)') '--- Read observation operator parameters'
+   !   call odata_read_param(odata)
+   !end if
    call flush(mpl%unit)
-end if
 
-if (nam%check_mpi.and.(mpl%nproc>0)) then
-   ! Test single/multi-procs equivalence
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test observation operator single/multi-procs equivalence'
-   call test_mpi_obsop(odata,odataloc)
-   call test_mpi_obsop_ad(odata,odataloc)
+   !if (nam%new_mpi) then
+      ! Compute observation operator MPI distribution
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Compute observation operator MPI distribution'
+      call compute_mpi_obsop(odata,odataloc)
+
+   !   if (mpl%main) then
+   !      ! Write observation operator MPI distribution
+   !      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   !      write(mpl%unit,'(a)') '--- Write observation operator MPI distribution'
+   !      call odata_write_mpi(odataloc_arr)
+   !   end if
+   !else
+   !   ! Read observation operator MPI distribution
+   !   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   !   write(mpl%unit,'(a)') '--- Read observation operator MPI distribution'
+   !   call odata_read_mpi(odataloc)
+   !end if
    call flush(mpl%unit)
+
+   if (nam%check_adjoints) then
+      ! Test adjoints
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Test observation operator adjoint'
+      call test_adjoint_obsop(odata)
+      call flush(mpl%unit)
+   end if
+
+   if (nam%check_mpi.and.(mpl%nproc>0)) then
+      ! Test single/multi-procs equivalence
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Test observation operator single/multi-procs equivalence'
+      call test_mpi_obsop(odata,odataloc)
+      call test_mpi_obsop_ad(odata,odataloc)
+      call flush(mpl%unit)
+   end if
 end if
 
 end subroutine run_obsop

@@ -19,7 +19,7 @@
  * Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Modified by Benjamin Menetrier for nicas
+ * Modified by Benjamin Menetrier for hdiag_nicas
  */
 
 
@@ -272,7 +272,8 @@ bool CoverTree<Point>::insert_rec(const Point& p,
     std::vector<std::pair<double, CoverTreeNode*> > Qj;
     double sep = pow(2.0,level);
     double minDist = DBL_MAX;
-    std::pair<double,CoverTreeNode*> minQiDist(DBL_MAX,NULL);
+    CoverTreeNode * tmp = NULL;
+    std::pair<double,CoverTreeNode*> minQiDist(DBL_MAX,tmp);
     typename  std::vector<std::pair<double, CoverTreeNode*> >::const_iterator it;
     for(it=Qi.begin(); it!=Qi.end(); ++it) {
         if(it->first<minQiDist.first) minQiDist = *it;

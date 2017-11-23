@@ -17,126 +17,119 @@ use tools_const, only: req
 use tools_display, only: msgerror,msgwarning
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr
-use tools_nc, only: ncerr
+use tools_nc, only: ncerr,put_att
 use type_mpl, only: mpl,mpl_bcast
 
 implicit none
 
 ! Namelist parameters maximum sizes
-integer,parameter :: nvmax = 20                      !< Maximum number of variables
-integer,parameter :: ntsmax = 20                      !< Maximum number of time slots
-integer,parameter :: nlmax = 200                     !< Maximum number of levels
-integer,parameter :: ncmax = 1000                    !< Maximum number of classes
-integer,parameter :: nldwvmax = 100                  !< Maximum number of local diagnostic profiles
-integer,parameter :: ndirmax = 100 !< Maximum number of diracs
+integer,parameter :: nvmax = 20                     !< Maximum number of variables
+integer,parameter :: ntsmax = 20                    !< Maximum number of time slots
+integer,parameter :: nlmax = 200                    !< Maximum number of levels
+integer,parameter :: ncmax = 1000                   !< Maximum number of classes
+integer,parameter :: nldwvmax = 100                 !< Maximum number of local diagnostic profiles
+integer,parameter :: ndirmax = 100                  !< Maximum number of diracs
 
 type namtype
    ! general_param
-   character(len=1024) :: datadir     !< Data directory
-   character(len=1024) :: prefix      !< Files prefix
-   character(len=1024) :: model       !< Model name ('aro', 'arp', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
-   logical :: colorlog                !< Add colors to the log (for display on terminal)
-   logical :: sam_default_seed        !< Default seed for random numbers
-   
-   ! driver_param
-   character(len=1024) :: method      !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
-   character(len=1024) :: strategy    !< Localization strategy ('common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
-   logical :: new_hdiag               !< Compute new hybrid_diag parameters (if false, read file)
-   logical :: new_param               !< Compute new parameters (if false, read file)
-   logical :: new_mpi                 !< Compute new mpi splitting (if false, read file)
-   logical :: check_adjoints          !< Test adjoints
-   logical :: check_pos_def           !< Test positive definiteness
-   logical :: check_mpi               !< Test single proc/multi-procs equivalence
-   logical :: check_sqrt              !< Test full/square-root equivalence
-   logical :: check_dirac             !< Test NICAS application on diracs
-   logical :: check_perf              !< Test NICAS performance
-   logical :: check_hdiag             !< Test hdiag consistency
-   
-   ! model_param
-   integer :: nl                      !< Number of levels
-   integer :: levs(nlmax)             !< Levels
-   logical :: logpres                                   !< Use pressure logarithm as vertical coordinate (model level if .false.)
-   integer :: nv                                        !< Number of variables
-   character(len=1024),dimension(nvmax) :: varname !< Variables names
-   character(len=1024),dimension(nvmax) :: addvar2d !< Additionnal 2d variables names
-   integer :: nts                                      !< Number of time slots
-   integer,dimension(ntsmax) :: timeslot ! < Time slots
-   
-   ! ens1_param
-   integer :: ens1_ne                                   !< Ensemble 1 size
-   integer :: ens1_ne_offset                            !< Ensemble 1 index offset
-   integer :: ens1_nsub                                 !< Ensemble 1 sub-ensembles number
-   
-   ! ens2_param
-   integer :: ens2_ne                                   !< Ensemble 2 size
-   integer :: ens2_ne_offset                            !< Ensemble 2 index offset
-   integer :: ens2_nsub                                 !< Ensemble 2 sub-ensembles number
-   
-   ! sampling_param
-   logical :: sam_write                                 !< Write sampling
-   logical :: sam_read                                  !< Read sampling
-   character(len=1024) :: mask_type                     !< Mask restriction type
-   real(kind_real) ::  mask_th                                      !< Mask threshold
-   logical :: mask_check                                !< Check that sampling couples and interpolations do not cross mask boundaries
-   integer :: nc1                                        !< Number of sampling points
-   integer :: ntry                                      !< Number of tries to get the most separated point for the zero-separation sampling
-   integer :: nrep                                      !< Number of replacement to improve homogeneity of the zero-separation sampling
-   integer :: nc                                        !< Number of classes
-   real(kind_real) ::  dc                                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
-   
-   ! diag_param
-   integer :: ne                                        !< Ensemble sizes
-   logical :: gau_approx                                !< Gaussian approximation for asymptotic quantities
-   logical :: full_var                                  !< Compute full variances
-   logical :: local_diag                                !< Activate local diagnostics
-   real(kind_real) ::  local_rad                                    !< Local diagnostics calculation radius
-   logical :: displ_diag                                !< Activate displacement diagnostics
-   real(kind_real) ::  displ_rad                                    !< Displacement diagnostics calculation radius
-   integer :: displ_niter                               !< Number of iteration for the displacement filtering (for displ_diag = .true.)
-   real(kind_real) ::  displ_rhflt                                   !< Displacement initial filtering support radius (for displ_diag = .true.)
-   real(kind_real) ::  displ_tol                                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
-   
-   ! fit_param
-   character(len=1024) :: fit_type                      !< Fit type ('none', 'fast', 'nelder_mead', 'compass_search' or 'praxis')
-   logical :: fit_wgt                                   !< Apply a fit weight given by the curve on which localization is applied
-   logical :: lhomh                                     !< Vertically homogenous horizontal support radius
-   logical :: lhomv                                     !< Vertically homogenous vertical support radius
-   real(kind_real) ::  rvflt                                      !< Vertical smoother support radius
-   
-   ! output_param
-   integer :: nldwh                                     !< Number of local diagnostics fields to write (for local_diag = .true.)
-   integer :: il_ldwh(nlmax*ncmax)                      !< Levels of local diagnostics fields to write (for local_diag = .true.)
-   integer :: ic_ldwh(nlmax*ncmax)                      !< Classes of local diagnostics fields to write (for local_diag = .true.)
-   integer :: nldwv                                     !< Number of local diagnostics profiles to write (for local_diag = .true.)
-   real(kind_real) ::  lon_ldwv(nldwvmax)                           !< Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-   real(kind_real) ::  lat_ldwv(nldwvmax)                           !< Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-   character(len=1024) :: flt_type                      !< Diagnostics filtering type ('none', 'average', 'gc99', 'median')
-   real(kind_real) ::  diag_rhflt                                        !< Diagnostics filtering radius
-   
-   ! nicas_param
-   logical :: lsqrt                   !< Square-root formulation
-   real(kind_real) :: rh(nlmax)      !< Default horizontal support radius
-   real(kind_real) :: rv(nlmax)      !< Default vertical support radius
-   real(kind_real) :: resol           !< Resolution
-   logical :: network                 !< Network-base convolution calculation (distance-based if false)
-   integer :: mpicom                  !< Number of communication steps
-   integer :: ndir                    !< Number of Diracs
-   real(kind_real) :: londir(ndirmax) !< Diracs longitudes
-   real(kind_real) :: latdir(ndirmax) !< Diracs latitudes
-   integer :: levdir(ndirmax)         !< Diracs level
-   integer :: ivdir(ndirmax)          !< Diracs variable
-   integer :: itsdir(ndirmax)         !< Diracs timeslot
-end type namtype
+   character(len=1024) :: datadir                   !< Data directory
+   character(len=1024) :: prefix                    !< Files prefix
+   character(len=1024) :: model                     !< Model name ('aro', 'arp', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
+   logical :: colorlog                              !< Add colors to the log (for display on terminal)
+   logical :: sam_default_seed                      !< Default seed for random numbers
 
-interface namncwrite_param
-  module procedure namncwrite_integer
-  module procedure namncwrite_integer_array
-  module procedure namncwrite_real
-  module procedure namncwrite_real_array
-  module procedure namncwrite_logical
-  module procedure namncwrite_string
-  module procedure namncwrite_string_array
-end interface
+   ! driver_param
+   character(len=1024) :: method                    !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
+   character(len=1024) :: strategy                  !< Localization strategy ('common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
+   logical :: new_hdiag                             !< Compute new hybrid_diag parameters (if false, read file)
+   logical :: new_param                             !< Compute new parameters (if false, read file)
+   logical :: new_mpi                               !< Compute new mpi splitting (if false, read file)
+   logical :: check_adjoints                        !< Test adjoints
+   logical :: check_pos_def                         !< Test positive definiteness
+   logical :: check_mpi                             !< Test single proc/multi-procs equivalence
+   logical :: check_sqrt                            !< Test full/square-root equivalence
+   logical :: check_dirac                           !< Test NICAS application on diracs
+   logical :: check_perf                            !< Test NICAS performance
+   logical :: check_hdiag                           !< Test hdiag consistency
+   logical :: new_lct                               !< Compute new LCT
+
+   ! model_param
+   integer :: nl                                    !< Number of levels
+   integer :: levs(nlmax)                           !< Levels
+   logical :: logpres                               !< Use pressure logarithm as vertical coordinate (model level if .false.)
+   integer :: nv                                    !< Number of variables
+   character(len=1024),dimension(nvmax) :: varname  !< Variables names
+   character(len=1024),dimension(nvmax) :: addvar2d !< Additionnal 2d variables names
+   integer :: nts                                   !< Number of time slots
+   integer,dimension(ntsmax) :: timeslot            !< Timeslots
+
+   ! ens1_param
+   integer :: ens1_ne                               !< Ensemble 1 size
+   integer :: ens1_ne_offset                        !< Ensemble 1 index offset
+   integer :: ens1_nsub                             !< Ensemble 1 sub-ensembles number
+
+   ! ens2_param
+   integer :: ens2_ne                               !< Ensemble 2 size
+   integer :: ens2_ne_offset                        !< Ensemble 2 index offset
+   integer :: ens2_nsub                             !< Ensemble 2 sub-ensembles number
+
+   ! sampling_param
+   logical :: sam_write                             !< Write sampling
+   logical :: sam_read                              !< Read sampling
+   character(len=1024) :: mask_type                 !< Mask restriction type
+   real(kind_real) ::  mask_th                      !< Mask threshold
+   logical :: mask_check                            !< Check that sampling couples and interpolations do not cross mask boundaries
+   integer :: nc1                                   !< Number of sampling points
+   integer :: ntry                                  !< Number of tries to get the most separated point for the zero-separation sampling
+   integer :: nrep                                  !< Number of replacement to improve homogeneity of the zero-separation sampling
+   integer :: nc                                    !< Number of classes
+   real(kind_real) ::  dc                           !< Class size (for sam_type='hor'), should be larger than the typical grid cell size
+
+   ! diag_param
+   integer :: ne                                    !< Ensemble sizes
+   logical :: gau_approx                            !< Gaussian approximation for asymptotic quantities
+   logical :: full_var                              !< Compute full variances
+   logical :: local_diag                            !< Activate local diagnostics
+   real(kind_real) ::  local_rad                    !< Local diagnostics calculation radius
+   logical :: displ_diag                            !< Activate displacement diagnostics
+   real(kind_real) ::  displ_rad                    !< Displacement diagnostics calculation radius
+   integer :: displ_niter                           !< Number of iteration for the displacement filtering (for displ_diag = .true.)
+   real(kind_real) ::  displ_rhflt                  !< Displacement initial filtering support radius (for displ_diag = .true.)
+   real(kind_real) ::  displ_tol                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
+
+   ! fit_param
+   character(len=1024) :: fit_type                  !< Fit type ('none', 'fast', 'nelder_mead', 'compass_search' or 'praxis')
+   logical :: fit_wgt                               !< Apply a fit weight given by the curve on which localization is applied
+   logical :: lhomh                                 !< Vertically homogenous horizontal support radius
+   logical :: lhomv                                 !< Vertically homogenous vertical support radius
+   real(kind_real) ::  rvflt                        !< Vertical smoother support radius
+   integer :: lct_nl0                               !< Half-number of vertical levels for LCT diagnostics
+   logical :: lct_diag                              !< Diagnostic of diagonal LCT components only
+
+   ! output_param
+   integer :: nldwh                                 !< Number of local diagnostics fields to write (for local_diag = .true.)
+   integer :: il_ldwh(nlmax*ncmax)                  !< Levels of local diagnostics fields to write (for local_diag = .true.)
+   integer :: ic_ldwh(nlmax*ncmax)                  !< Classes of local diagnostics fields to write (for local_diag = .true.)
+   integer :: nldwv                                 !< Number of local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lon_ldwv(nldwvmax)           !< Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lat_ldwv(nldwvmax)           !< Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
+   character(len=1024) :: flt_type                  !< Diagnostics filtering type ('none', 'average', 'gc99', 'median')
+   real(kind_real) ::  diag_rhflt                   !< Diagnostics filtering radius
+
+   ! nicas_param
+   logical :: lsqrt                                 !< Square-root formulation
+   real(kind_real) :: rh(nlmax)                     !< Default horizontal support radius
+   real(kind_real) :: rv(nlmax)                     !< Default vertical support radius
+   real(kind_real) :: resol                         !< Resolution
+   logical :: network                               !< Network-base convolution calculation (distance-based if false)
+   integer :: mpicom                                !< Number of communication steps
+   integer :: ndir                                  !< Number of Diracs
+   real(kind_real) :: londir(ndirmax)               !< Diracs longitudes
+   real(kind_real) :: latdir(ndirmax)               !< Diracs latitudes
+   integer :: levdir(ndirmax)                       !< Diracs level
+   integer :: ivdir(ndirmax)                        !< Diracs variable
+   integer :: itsdir(ndirmax)                       !< Diracs timeslot
+end type namtype
 
 private
 public :: namtype
@@ -153,19 +146,19 @@ subroutine namread(nam)
 implicit none
 
 ! Passed variable
-type(namtype),intent(out) :: nam !< Namelist variables
+type(namtype),intent(out) :: nam !< Namelist
 
 ! Local variables
 integer :: iv
 
 ! Namelist variables
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
-integer :: nc1,ntry,nrep,nc,ne,displ_niter,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
+integer :: nc1,ntry,nrep,nc,ne,displ_niter,lct_nl0,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
 integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax)
 logical :: colorlog,sam_default_seed
-logical :: new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac,check_perf,check_hdiag
+logical :: new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac,check_perf,check_hdiag,new_lct
 logical :: logpres,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag,displ_diag
-logical :: fit_wgt,lhomh,lhomv,lsqrt,network
+logical :: fit_wgt,lhomh,lhomv,lct_diag,lsqrt,network
 real(kind_real) :: mask_th,dc,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt
 real(kind_real) :: rh(nlmax),rv(nlmax),resol,londir(ndirmax),latdir(ndirmax)
 character(len=1024) :: datadir,prefix,model,strategy,method,mask_type,fit_type,flt_type
@@ -174,13 +167,13 @@ character(len=1024),dimension(nvmax) :: varname,addvar2d
 ! Namelist blocks
 namelist/general_param/datadir,prefix,model,colorlog,sam_default_seed
 namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac, &
-                    & check_perf,check_hdiag
+                    & check_perf,check_hdiag,new_lct
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc
 namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
-namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt
+namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_nl0,lct_diag
 namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
 namelist/nicas_param/lsqrt,rh,rv,resol,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
 
@@ -206,6 +199,7 @@ check_mpi = .false.
 check_dirac = .false.
 check_perf = .false.
 check_hdiag = .false.
+new_lct = .false.
 
 ! model_param default
 call msi(nl)
@@ -258,6 +252,8 @@ fit_wgt = .false.
 lhomh = .false.
 lhomv = .false.
 call msr(rvflt)
+call msi(lct_nl0)
+lct_diag = .false.
 
 ! output_param default
 call msi(nldwh)
@@ -308,6 +304,7 @@ if (mpl%main) then
    nam%check_dirac = check_dirac
    nam%check_perf = check_perf
    nam%check_hdiag = check_hdiag
+   nam%new_lct = new_lct
 
    ! model_param
    read(*,nml=model_param)
@@ -365,6 +362,8 @@ if (mpl%main) then
    nam%lhomh = lhomh
    nam%lhomv = lhomv
    nam%rvflt = rvflt
+   nam%lct_nl0 = lct_nl0
+   nam%lct_diag = lct_diag
 
    ! output_param
    read(*,nml=output_param)
@@ -378,7 +377,7 @@ if (mpl%main) then
    nam%diag_rhflt = diag_rhflt/req
 
    ! nicas_param
-   read(*,nml=nicas_param) 
+   read(*,nml=nicas_param)
    nam%lsqrt = lsqrt
    nam%rh = rh/req
    nam%rv = rv
@@ -415,6 +414,7 @@ call mpl_bcast(nam%check_sqrt,mpl%ioproc)
 call mpl_bcast(nam%check_dirac,mpl%ioproc)
 call mpl_bcast(nam%check_perf,mpl%ioproc)
 call mpl_bcast(nam%check_hdiag,mpl%ioproc)
+call mpl_bcast(nam%new_lct,mpl%ioproc)
 
 ! model_param
 call mpl_bcast(nam%nl,mpl%ioproc)
@@ -466,6 +466,8 @@ call mpl_bcast(nam%fit_wgt,mpl%ioproc)
 call mpl_bcast(nam%lhomh,mpl%ioproc)
 call mpl_bcast(nam%lhomv,mpl%ioproc)
 call mpl_bcast(nam%rvflt,mpl%ioproc)
+call mpl_bcast(nam%lct_nl0,mpl%ioproc)
+call mpl_bcast(nam%lct_diag,mpl%ioproc)
 
 ! output_param
 call mpl_bcast(nam%nldwh,mpl%ioproc)
@@ -502,7 +504,7 @@ subroutine namcheck(nam)
 implicit none
 
 ! Passed variable
-type(namtype),intent(inout) :: nam !< Namelist variables
+type(namtype),intent(inout) :: nam !< Namelist
 
 ! Local variables
 integer :: iv,its,il,idir
@@ -537,6 +539,15 @@ if (nam%check_hdiag) then
    if (.not.nam%new_hdiag) call msgerror('new_hdiag required for check_hdiag')
    if (.not.nam%new_param) call msgerror('new_param required for check_hdiag')
    if (.not.nam%lsqrt) call msgerror('lsqrt required for check_hdiag')
+end if
+if (nam%new_lct) then
+   if (nam%new_hdiag.or.nam%new_param.or.nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi.or. &
+ & nam%check_sqrt.or.nam%check_dirac.or.nam%check_perf.or.nam%check_hdiag) call msgerror('new_lct should be executed alone')
+   if (.not.nam%local_diag) then
+      call msgwarning('new_lct requires local_diag, resetting local_diag to .true.')
+      nam%local_diag = .true.
+   end if
+   if (nam%displ_diag) call msgerror('new_lct requires displ_diag deactivated')
 end if
 
 ! Check model_param
@@ -573,7 +584,7 @@ if (nam%new_hdiag) then
    if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
    if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call msgerror('ens1_nsub should be a divider of ens1_ne')
    if (nam%ens1_ne/nam%ens1_nsub<=3) call msgerror('ens1_ne/ens1_nsub should be larger than 3')
-   
+
    ! Check ens2_param
    select case (trim(nam%method))
    case ('hyb-rnd','dual-ens')
@@ -582,7 +593,7 @@ if (nam%new_hdiag) then
       if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call msgerror('ens2_nsub should be a divider of ens2_ne')
       if (nam%ens2_ne/nam%ens2_nsub<=3) call msgerror('ens2_ne/ens2_nsub should be larger than 3')
    end select
-   
+
    ! Check sampling_param
    if (nam%sam_write.and.nam%sam_read) call msgerror('sam_write and sam_read are both true')
    if (nam%nc1<=0) call msgerror('nc1 should be positive')
@@ -590,7 +601,7 @@ if (nam%new_hdiag) then
    if (nam%nrep<0) call msgerror('nrep should be non-negative')
    if (nam%nc<=0) call msgerror('nc should be positive')
    if (nam%dc<0.0) call msgerror('dc should be positive')
-   
+
    ! Check diag_param
    if (nam%ne<=3) call msgerror('ne should be larger than 3')
    if (nam%local_diag.or.nam%displ_diag) then
@@ -602,7 +613,7 @@ if (nam%new_hdiag) then
       if (nam%displ_rhflt<0.0) call msgerror('displ_rhflt should be non-negative')
       if (nam%displ_tol<0.0) call msgerror('displ_tol should be non-negative')
    end if
-   
+
    ! Check fit_param
    select case (trim(nam%fit_type))
    case ('none','fast','nelder_mead','compass_search','praxis')
@@ -610,7 +621,10 @@ if (nam%new_hdiag) then
       call msgerror('wrong fit_type')
    end select
    if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
-   
+   if (nam%new_lct) then
+      if (nam%lct_nl0<0) call msgerror ('lct_nl0 should be non-negative')
+   end if
+
    ! Check output_param
    if (nam%local_diag) then
       if (nam%nldwh<0) call msgerror('nldwh should be non-negative')
@@ -677,285 +691,108 @@ subroutine namncwrite(nam,ncid)
 implicit none
 
 ! Passed variable
-type(namtype),intent(in) :: nam !< Namelist variables
+type(namtype),intent(in) :: nam !< Namelist
 integer,intent(in) :: ncid !< NetCDF file id
 
 ! general_param
-call namncwrite_param(ncid,'datadir',trim(nam%datadir))
-call namncwrite_param(ncid,'prefix',trim(nam%prefix))
-call namncwrite_param(ncid,'model',trim(nam%model))
-call namncwrite_param(ncid,'colorlog',nam%colorlog)
-call namncwrite_param(ncid,'sam_default_seed',nam%sam_default_seed)
+call put_att(ncid,'datadir',trim(nam%datadir))
+call put_att(ncid,'prefix',trim(nam%prefix))
+call put_att(ncid,'model',trim(nam%model))
+call put_att(ncid,'colorlog',nam%colorlog)
+call put_att(ncid,'sam_default_seed',nam%sam_default_seed)
 
 ! driver_param
-call namncwrite_param(ncid,'method',trim(nam%method))
-call namncwrite_param(ncid,'strategy',trim(nam%strategy))
-call namncwrite_param(ncid,'check_hdiag',nam%check_hdiag)
-call namncwrite_param(ncid,'new_param',nam%new_param)
-call namncwrite_param(ncid,'new_mpi',nam%new_mpi)
-call namncwrite_param(ncid,'check_adjoints',nam%check_adjoints)
-call namncwrite_param(ncid,'check_pos_def',nam%check_pos_def)
-call namncwrite_param(ncid,'check_mpi',nam%check_mpi)
-call namncwrite_param(ncid,'check_sqrt',nam%check_sqrt)
-call namncwrite_param(ncid,'check_dirac',nam%check_dirac)
-call namncwrite_param(ncid,'check_perf',nam%check_perf)
-call namncwrite_param(ncid,'check_hdiag',nam%check_hdiag)
+call put_att(ncid,'method',trim(nam%method))
+call put_att(ncid,'strategy',trim(nam%strategy))
+call put_att(ncid,'new_hdiag',nam%new_hdiag)
+call put_att(ncid,'new_param',nam%new_param)
+call put_att(ncid,'new_mpi',nam%new_mpi)
+call put_att(ncid,'check_adjoints',nam%check_adjoints)
+call put_att(ncid,'check_pos_def',nam%check_pos_def)
+call put_att(ncid,'check_mpi',nam%check_mpi)
+call put_att(ncid,'check_sqrt',nam%check_sqrt)
+call put_att(ncid,'check_dirac',nam%check_dirac)
+call put_att(ncid,'check_perf',nam%check_perf)
+call put_att(ncid,'check_hdiag',nam%check_hdiag)
+call put_att(ncid,'new_lct',nam%new_lct)
 
 ! model_param
-call namncwrite_param(ncid,'nl',nam%nl)
-call namncwrite_param(ncid,'levs',nam%nl,nam%levs(1:nam%nl))
-call namncwrite_param(ncid,'logpres',nam%logpres)
-call namncwrite_param(ncid,'nv',nam%nv)
-call namncwrite_param(ncid,'varname',nam%nv,nam%varname(1:nam%nv))
-call namncwrite_param(ncid,'addvar2d',nam%nv,nam%addvar2d(1:nam%nv))
-call namncwrite_param(ncid,'nts',nam%nts)
-call namncwrite_param(ncid,'timeslot',nam%nts,nam%timeslot(1:nam%nts))
+call put_att(ncid,'nl',nam%nl)
+call put_att(ncid,'levs',nam%nl,nam%levs(1:nam%nl))
+call put_att(ncid,'logpres',nam%logpres)
+call put_att(ncid,'nv',nam%nv)
+call put_att(ncid,'varname',nam%nv,nam%varname(1:nam%nv))
+call put_att(ncid,'addvar2d',nam%nv,nam%addvar2d(1:nam%nv))
+call put_att(ncid,'nts',nam%nts)
+call put_att(ncid,'timeslot',nam%nts,nam%timeslot(1:nam%nts))
 
 ! ens1_param
-call namncwrite_param(ncid,'ens1_ne',nam%ens1_ne)
-call namncwrite_param(ncid,'ens1_ne_offset',nam%ens1_ne_offset)
-call namncwrite_param(ncid,'ens1_nsub',nam%ens1_nsub)
+call put_att(ncid,'ens1_ne',nam%ens1_ne)
+call put_att(ncid,'ens1_ne_offset',nam%ens1_ne_offset)
+call put_att(ncid,'ens1_nsub',nam%ens1_nsub)
 
 ! ens2_param
-call namncwrite_param(ncid,'ens2_ne',nam%ens2_ne)
-call namncwrite_param(ncid,'ens2_ne_offset',nam%ens2_ne_offset)
-call namncwrite_param(ncid,'ens2_nsub',nam%ens2_nsub)
+call put_att(ncid,'ens2_ne',nam%ens2_ne)
+call put_att(ncid,'ens2_ne_offset',nam%ens2_ne_offset)
+call put_att(ncid,'ens2_nsub',nam%ens2_nsub)
 
 ! sampling_param
-call namncwrite_param(ncid,'sam_write',nam%sam_write)
-call namncwrite_param(ncid,'sam_read',nam%sam_read)
-call namncwrite_param(ncid,'mask_type',nam%mask_type)
-call namncwrite_param(ncid,'mask_th',nam%mask_th)
-call namncwrite_param(ncid,'mask_check',nam%mask_check)
-call namncwrite_param(ncid,'nc1',nam%nc1)
-call namncwrite_param(ncid,'ntry',nam%ntry)
-call namncwrite_param(ncid,'nrep',nam%nrep)
-call namncwrite_param(ncid,'nc',nam%nc)
-call namncwrite_param(ncid,'dc',nam%dc)
+call put_att(ncid,'sam_write',nam%sam_write)
+call put_att(ncid,'sam_read',nam%sam_read)
+call put_att(ncid,'mask_type',nam%mask_type)
+call put_att(ncid,'mask_th',nam%mask_th)
+call put_att(ncid,'mask_check',nam%mask_check)
+call put_att(ncid,'nc1',nam%nc1)
+call put_att(ncid,'ntry',nam%ntry)
+call put_att(ncid,'nrep',nam%nrep)
+call put_att(ncid,'nc',nam%nc)
+call put_att(ncid,'dc',nam%dc)
 
 ! diag_param
-call namncwrite_param(ncid,'ne',nam%ne)
-call namncwrite_param(ncid,'gau_approx',nam%gau_approx)
-call namncwrite_param(ncid,'full_var',nam%full_var)
-call namncwrite_param(ncid,'local_diag',nam%local_diag)
-call namncwrite_param(ncid,'local_rad',nam%local_rad)
-call namncwrite_param(ncid,'displ_diag',nam%displ_diag)
-call namncwrite_param(ncid,'displ_rad',nam%displ_rad)
-call namncwrite_param(ncid,'displ_niter',nam%displ_niter)
-call namncwrite_param(ncid,'displ_rhflt',nam%displ_rhflt)
-call namncwrite_param(ncid,'displ_tol',nam%displ_tol)
+call put_att(ncid,'ne',nam%ne)
+call put_att(ncid,'gau_approx',nam%gau_approx)
+call put_att(ncid,'full_var',nam%full_var)
+call put_att(ncid,'local_diag',nam%local_diag)
+call put_att(ncid,'local_rad',nam%local_rad)
+call put_att(ncid,'displ_diag',nam%displ_diag)
+call put_att(ncid,'displ_rad',nam%displ_rad)
+call put_att(ncid,'displ_niter',nam%displ_niter)
+call put_att(ncid,'displ_rhflt',nam%displ_rhflt)
+call put_att(ncid,'displ_tol',nam%displ_tol)
 
 ! fit_param
-call namncwrite_param(ncid,'fit_type',nam%fit_type)
-call namncwrite_param(ncid,'fit_wgt',nam%fit_wgt)
-call namncwrite_param(ncid,'lhomh',nam%lhomh)
-call namncwrite_param(ncid,'lhomv',nam%lhomv)
-call namncwrite_param(ncid,'rvflt',nam%rvflt)
+call put_att(ncid,'fit_type',nam%fit_type)
+call put_att(ncid,'fit_wgt',nam%fit_wgt)
+call put_att(ncid,'lhomh',nam%lhomh)
+call put_att(ncid,'lhomv',nam%lhomv)
+call put_att(ncid,'rvflt',nam%rvflt)
+call put_att(ncid,'lct_nl0',nam%lct_nl0)
+call put_att(ncid,'lct_diag',nam%lct_diag)
 
 ! output_param
-call namncwrite_param(ncid,'nldwh',nam%nldwh)
-call namncwrite_param(ncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
-call namncwrite_param(ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
-call namncwrite_param(ncid,'nldwv',nam%nldwv)
-call namncwrite_param(ncid,'lon_ldwv',nam%nldwv,nam%lon_ldwv(1:nam%nldwv))
-call namncwrite_param(ncid,'lat_ldwv',nam%nldwv,nam%lat_ldwv(1:nam%nldwv))
-call namncwrite_param(ncid,'flt_type',nam%flt_type)
-call namncwrite_param(ncid,'diag_rhflt',nam%diag_rhflt)
+call put_att(ncid,'nldwh',nam%nldwh)
+call put_att(ncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
+call put_att(ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
+call put_att(ncid,'nldwv',nam%nldwv)
+call put_att(ncid,'lon_ldwv',nam%nldwv,nam%lon_ldwv(1:nam%nldwv))
+call put_att(ncid,'lat_ldwv',nam%nldwv,nam%lat_ldwv(1:nam%nldwv))
+call put_att(ncid,'flt_type',nam%flt_type)
+call put_att(ncid,'diag_rhflt',nam%diag_rhflt)
 
 ! nicas_param
-call namncwrite_param(ncid,'lsqrt',nam%lsqrt)
-call namncwrite_param(ncid,'rh',nam%nl,nam%rh(1:nam%nl))
-call namncwrite_param(ncid,'rv',nam%nl,nam%rv(1:nam%nl))
-call namncwrite_param(ncid,'resol',nam%resol)
-call namncwrite_param(ncid,'network',nam%network)
-call namncwrite_param(ncid,'mpicom',nam%mpicom)
-call namncwrite_param(ncid,'ndir',nam%ndir)
-call namncwrite_param(ncid,'londir',nam%ndir,nam%londir(1:nam%ndir))
-call namncwrite_param(ncid,'latdir',nam%ndir,nam%latdir(1:nam%ndir))
-call namncwrite_param(ncid,'levdir',nam%ndir,nam%levdir(1:nam%ndir))
-call namncwrite_param(ncid,'ivdir',nam%ndir,nam%ivdir(1:nam%ndir))
-call namncwrite_param(ncid,'itsdir',nam%ndir,nam%itsdir(1:nam%ndir))
+call put_att(ncid,'lsqrt',nam%lsqrt)
+call put_att(ncid,'rh',nam%nl,nam%rh(1:nam%nl))
+call put_att(ncid,'rv',nam%nl,nam%rv(1:nam%nl))
+call put_att(ncid,'resol',nam%resol)
+call put_att(ncid,'network',nam%network)
+call put_att(ncid,'mpicom',nam%mpicom)
+call put_att(ncid,'ndir',nam%ndir)
+call put_att(ncid,'londir',nam%ndir,nam%londir(1:nam%ndir))
+call put_att(ncid,'latdir',nam%ndir,nam%latdir(1:nam%ndir))
+call put_att(ncid,'levdir',nam%ndir,nam%levdir(1:nam%ndir))
+call put_att(ncid,'ivdir',nam%ndir,nam%ivdir(1:nam%ndir))
+call put_att(ncid,'itsdir',nam%ndir,nam%itsdir(1:nam%ndir))
 
 end subroutine namncwrite
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_integer
-!> Purpose: write namelist integer as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_integer(ncid,varname,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-integer,intent(in) :: var              !< Integer
-
-! Local variables
-character(len=1024) :: subr='namncwrite_integer'
-
-! Write integer
-call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),var))
-
-end subroutine namncwrite_integer
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_integer_array
-!> Purpose: write namelist integer array as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_integer_array(ncid,varname,n,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-integer,intent(in) :: n                !< Integer array size
-integer,intent(in) :: var(n)           !< Integer array
-
-! Local variables
-integer :: i
-character(len=1024) :: str,fullstr
-character(len=1024) :: subr='namncwrite_integer_array'
-
-! Write integer array as a string
-if (n>0) then
-   write(fullstr,'(i3.3)') var(1)
-   do i=2,n
-      write(str,'(i3.3)') var(i)
-      fullstr = trim(fullstr)//':'//trim(str)
-   end do
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(fullstr)))
-end if
-
-end subroutine namncwrite_integer_array
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_real
-!> Purpose: write namelist real as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_real(ncid,varname,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-real(kind_real),intent(in) :: var      !< Real
-
-! Local variables
-character(len=1024) :: subr='namncwrite_real'
-
-! Write real
-call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),var))
-
-end subroutine namncwrite_real
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_real_array
-!> Purpose: write namelist real array as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_real_array(ncid,varname,n,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-integer,intent(in) :: n                !< Real array size
-real(kind_real),intent(in) :: var(n)   !< Real array
-
-! Local variables
-integer :: i
-character(len=1024) :: str,fullstr
-character(len=1024) :: subr='namncwrite_real_array'
-
-! Write real array as a string
-if (n>0) then
-   write(fullstr,'(e10.3)') var(1)
-   do i=2,n
-      write(str,'(e10.3)') var(i)
-      fullstr = trim(fullstr)//':'//trim(str)
-   end do
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(fullstr)))
-end if
-
-end subroutine namncwrite_real_array
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_logical
-!> Purpose: write namelist logical as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_logical(ncid,varname,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-logical,intent(in) :: var              !< Logical
-
-! Local variables
-character(len=1024) :: subr='namncwrite_logical'
-
-! Write logical as a string
-if (var) then
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),'.true.'))
-else
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),'.false.'))
-end if
-
-end subroutine namncwrite_logical
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_string
-!> Purpose: write namelist string as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_string(ncid,varname,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-character(len=*),intent(in) :: var     !< String
-
-! Local variables
-character(len=1024) :: subr='namncwrite_string'
-
-! Write string
-call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(var)))
-
-end subroutine namncwrite_string
-
-!----------------------------------------------------------------------
-! Subroutine: namncwrite_string_array
-!> Purpose: write namelist string array as NetCDF attribute
-!----------------------------------------------------------------------
-subroutine namncwrite_string_array(ncid,varname,n,var)
-
-implicit none
-
-! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-character(len=*),intent(in) :: varname !< Variable name
-integer,intent(in) :: n                !< String array size
-character(len=*),intent(in) :: var(n)  !< String array
-
-! Local variables
-integer :: i
-character(len=1024) :: fullstr
-character(len=1024) :: subr='namncwrite_string_array'
-
-! Write string array
-if (n>0) then
-   fullstr = trim(var(1))
-   do i=2,n
-      fullstr = trim(fullstr)//':'//trim(var(i))
-   end do
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,trim(varname),trim(fullstr)))
-end if
-
-end subroutine namncwrite_string_array
 
 end module type_nam

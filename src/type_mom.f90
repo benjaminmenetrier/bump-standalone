@@ -4,9 +4,9 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module type_mom
 
@@ -17,18 +17,18 @@ implicit none
 
 ! Moments derived type
 type momtype
-   integer :: ne                                 !< Ensemble size
-   integer :: nsub                               !< Number of sub-ensembles
-   real(kind_real),allocatable :: m1_1(:,:,:,:,:)            !< Mean
-   real(kind_real),allocatable :: m2_1(:,:,:,:,:)          !< Variance
-   real(kind_real),allocatable :: m1_2(:,:,:,:,:)              !< Mean
-   real(kind_real),allocatable :: m2_2(:,:,:,:,:)          !< Variance
-   real(kind_real),allocatable :: m11(:,:,:,:,:)            !< Covariance
-   real(kind_real),allocatable :: m12(:,:,:,:,:)            !< Third-order centered moment
-   real(kind_real),allocatable :: m21(:,:,:,:,:)            !< Third-order centered moment
-   real(kind_real),allocatable :: m22(:,:,:,:,:)            !< Fourth-order centered moment
-   real(kind_real),allocatable :: m1full(:,:,:)            !< Full variance
-   real(kind_real),allocatable :: m2full(:,:,:)            !< Full variance
+   integer :: ne                                  !< Ensemble size
+   integer :: nsub                                !< Number of sub-ensembles
+   real(kind_real),allocatable :: m1_1(:,:,:,:,:) !< Mean
+   real(kind_real),allocatable :: m2_1(:,:,:,:,:) !< Variance
+   real(kind_real),allocatable :: m1_2(:,:,:,:,:) !< Mean
+   real(kind_real),allocatable :: m2_2(:,:,:,:,:) !< Variance
+   real(kind_real),allocatable :: m11(:,:,:,:,:)  !< Covariance
+   real(kind_real),allocatable :: m12(:,:,:,:,:)  !< Third-order centered moment
+   real(kind_real),allocatable :: m21(:,:,:,:,:)  !< Third-order centered moment
+   real(kind_real),allocatable :: m22(:,:,:,:,:)  !< Fourth-order centered moment
+   real(kind_real),allocatable :: m1full(:,:,:)   !< Full mean
+   real(kind_real),allocatable :: m2full(:,:,:)   !< Full variance
 end type momtype
 
 private
@@ -46,8 +46,8 @@ subroutine mom_dealloc(hdata,mom)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-type(momtype),intent(inout) :: mom !< Moments
+type(hdatatype),intent(in) :: hdata !< HDIAG data
+type(momtype),intent(inout) :: mom  !< Moments
 
 ! Associate
 associate(nam=>hdata%nam)

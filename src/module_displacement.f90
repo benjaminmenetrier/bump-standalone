@@ -4,15 +4,14 @@
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
-!> Licensing: this code is distributed under the CeCILL-B license
+!> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2015 UCAR, CERFACS and METEO-FRANCE
+!> Copyright © 2017 METEO-FRANCE
 !----------------------------------------------------------------------
 module module_displacement
 
 use model_interface, only: model_read
 use module_diag_tools, only: diag_filter
-use module_sampling, only: compute_sampling_ps
 use omp_lib
 use tools_const, only: req,reqkm,rad2deg,deg2rad,lonmod,sphere_dist,reduce_arc,vector_product
 use tools_display, only: msgerror,prog_init,prog_print
@@ -46,9 +45,9 @@ subroutine compute_displacement(hdata,displ,ens1)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< Sampling data
-type(displtype),intent(inout) :: displ !< Displacement data
-real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne)
+type(hdatatype),intent(in) :: hdata                                                                                      !< HDIAG data
+type(displtype),intent(inout) :: displ                                                                                   !< Displacement data
+real(kind_real),intent(in),optional :: ens1(hdata%geom%nc0a,hdata%geom%nl0,hdata%nam%nv,hdata%nam%nts,hdata%nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: ne,ne_offset,nsub,ic0,ic1,ic2,jc0,il0,isub,jsub,its,iv,ie,iter
@@ -151,7 +150,7 @@ do isub=1,nsub
             do il0=1,geom%nl0
                do ic2=1,hdata%nc2
                   if (hdata%ic1il0_log(hdata%ic2_to_ic1(ic2),il0)) then
-                     !$omp parallel do private(ic1,ic0,jc0)
+                     !$omp parallel do schedule(static) private(ic1,ic0,jc0)
                      do ic1=1,nam%nc1
                         if (hdata%displ_mask(ic1,ic2,min(il0,geom%nl0i))) then
                            ! Indices
@@ -173,15 +172,15 @@ do isub=1,nsub
             fld_2 = fld_2 - m1_2(:,:,:,iv,its,isub)
 
             ! Update high-order moments
-            if (ie>1) then     
+            if (ie>1) then
                ! Covariance
                m11(:,:,:,iv,its,isub) = m11(:,:,:,iv,its,isub)+fac6*fld_1*fld_2
-      
+
                ! Variances
                m2_1(:,:,:,iv,its,isub) = m2_1(:,:,:,iv,its,isub)+fac6*fld_1**2
                m2_2(:,:,:,iv,its,isub) = m2_2(:,:,:,iv,its,isub)+fac6*fld_2**2
             end if
-      
+
             ! Update means
             m1_1(:,:,:,iv,its,isub) = m1_1(:,:,:,iv,its,isub)+fac4*fld_1
             m1_2(:,:,:,iv,its,isub) = m1_2(:,:,:,iv,its,isub)+fac4*fld_2
@@ -206,14 +205,14 @@ write(mpl%unit,'(a7,a)') '','Find correlation maximum propagation'
 do its=2,nam%nts
    do il0=1,geom%nl0
       write(mpl%unit,'(a10,a,i2,a,i3)') '','Timeslot ',its,' - level ',nam%levs(il0)
-      !$omp parallel do private(ic2,cor,cor_avg,order,ic1,iv,m11_avg,m2m2_avg)
+      !$omp parallel do schedule(static) private(ic2,cor,cor_avg,order,ic1,iv,m11_avg,m2m2_avg)
       do ic2=1,hdata%nc2
          if (hdata%ic1il0_log(hdata%ic2_to_ic1(ic2),il0)) then
             ! Allocation
             allocate(cor(nam%nv))
             allocate(cor_avg(nam%nc1))
             allocate(order(nam%nc1))
-  
+
             do ic1=1,nam%nc1
                if (hdata%displ_mask(ic1,ic2,min(il0,geom%nl0i))) then
                   ! Compute correlation for each variable
@@ -325,7 +324,7 @@ do its=2,nam%nts
             call check_mesh(hdata%nc2,lon_nc2,lat_nc2,hdata%nt,hdata%ltri,valid)
             displ%valid(iter,il0,its) = sum(valid,mask=hdata%ic1il0_log(hdata%ic2_to_ic1,il0)) &
                                       & /count(hdata%ic1il0_log(hdata%ic2_to_ic1,il0))
-  
+
             ! Compute distances
             do ic2=1,hdata%nc2
                if (hdata%ic1il0_log(hdata%ic2_to_ic1(ic2),il0)) call sphere_dist(lon(ic2,il0),lat(ic2,il0), &
@@ -391,7 +390,7 @@ do its=2,nam%nts
    end do
 end do
 
-! Compute dummy sampling interpolation
+! Compute dummy sampling interpolation (timeslot 1)
 do il0=1,geom%nl0
    ! Initialize interpolation
    displ%d(il0,1)%prefix = 'd'

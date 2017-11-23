@@ -21,13 +21,13 @@ implicit none
 real(kind_real),parameter :: pi=acos(-1.0)    !< Pi
 real(kind_real),parameter :: deg2rad=pi/180.0 !< Degree to radian
 real(kind_real),parameter :: rad2deg=180.0/pi !< Radian to degree
-real(kind_real),parameter :: req=6.371e6      !< Earth radius (m)
-real(kind_real),parameter :: reqkm=6.371e3    !< Earth radius (km)
+real(kind_real),parameter :: req=6371229.0    !< Earth radius (m)
+real(kind_real),parameter :: reqkm=6371.229   !< Earth radius (km)
 real(kind_real),parameter :: ps=101325.0      !< Reference surface pressure
 
 ! Internal parameters
-real(kind_real),parameter :: qtrim = 0.05 !< Fraction for which upper and lower quantiles are removed in trimmed averages
-integer,parameter :: ntrim = 1            !< Minimum number of remaining points for the trimmed average
+real(kind_real),parameter :: qtrim = 0.05     !< Fraction for which upper and lower quantiles are removed in trimmed averages
+integer,parameter :: ntrim = 1                !< Minimum number of remaining points for the trimmed average
 
 private
 public :: pi,deg2rad,rad2deg,req,reqkm,ps
@@ -75,7 +75,7 @@ real(kind_real),intent(out) :: dist !< Great-circle distance
 if (isnotmsr(lon_i).and.isnotmsr(lat_i).and.isnotmsr(lon_f).and.isnotmsr(lat_f)) then
    ! Great-circle distance using Vincenty formula on the unit sphere
     dist = atan2(sqrt((cos(lat_f)*sin(lon_f-lon_i))**2 &
-         & +(cos(lat_i)*sin(lat_f)-sin(lat_i)*cos(lat_f)*cos(lon_f-lon_i))**2), & 
+         & +(cos(lat_i)*sin(lat_f)-sin(lat_i)*cos(lat_f)*cos(lon_f-lon_i))**2), &
          & sin(lat_i)*sin(lat_f)+cos(lat_i)*cos(lat_f)*cos(lon_f-lon_i))
 else
    call msr(dist)
@@ -181,7 +181,7 @@ end subroutine vector_triple_product
 function gc99(distnorm)
 
 ! Passed variables
-real(kind_real),intent(in) :: distnorm
+real(kind_real),intent(in) :: distnorm !< Normalized distance
 
 ! Returned variable
 real(kind_real) :: gc99
@@ -220,7 +220,7 @@ function median(n,list)
 implicit none
 
 ! Passed variables
-integer,intent(in) :: n    !< Size of the list
+integer,intent(in) :: n               !< Size of the list
 real(kind_real),intent(in) :: list(n) !< List
 
 ! Returned variable
@@ -300,10 +300,10 @@ subroutine add(value,cumul,num,wgt)
 implicit none
 
 ! Passed variables
-real(kind_real),intent(in) :: value
-real(kind_real),intent(inout) :: cumul
-real(kind_real),intent(inout) :: num
-real(kind_real),intent(in),optional :: wgt
+real(kind_real),intent(in) :: value        !< Value to add
+real(kind_real),intent(inout) :: cumul     !< Cumul
+real(kind_real),intent(inout) :: num       !< Number of values
+real(kind_real),intent(in),optional :: wgt !< Weight
 
 ! Local variables
 real(kind_real) :: lwgt
@@ -324,19 +324,19 @@ end subroutine add
 ! Subroutine: divide
 !> Purpose: check if missing and divide
 !----------------------------------------------------------------------
-subroutine divide(cumul,num)
+subroutine divide(value,num)
 
 implicit none
 
 ! Passed variables
-real(kind_real),intent(inout) :: cumul
-real(kind_real),intent(in) :: num
+real(kind_real),intent(inout) :: value !< Value to divide
+real(kind_real),intent(in) :: num      !< Divider
 
 ! Divide cumul by num
-if (num>0.0) then
-   cumul = cumul/num
+if (abs(num)>0.0) then
+   value = value/num
 else
-   call msr(cumul)
+   call msr(value)
 end if
 
 end subroutine divide
