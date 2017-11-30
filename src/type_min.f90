@@ -41,6 +41,8 @@ type mintype
    real(kind_real),allocatable :: disth(:)    !< Horizontal distance
 
    ! Specific data (LCT)
+   integer :: nscales                         !< Number of LCT scales
+   integer :: ncomp                           !< Number of LCT components
    real(kind_real),allocatable :: dx(:,:)     !< Zonal separation
    real(kind_real),allocatable :: dy(:,:)     !< Meridian separation
    real(kind_real),allocatable :: dz(:)       !< Vertical separation

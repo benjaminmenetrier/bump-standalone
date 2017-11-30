@@ -102,6 +102,7 @@ if (nam%new_lct) then
             end do
          end do
          bpar%icmax(ib) = nam%nc
+         bpar%icmax(ib) = nam%nc
          bpar%diag_block(ib) = .true.
          bpar%avg_block(ib) = .false.
          bpar%nicas_block(ib) = .false.

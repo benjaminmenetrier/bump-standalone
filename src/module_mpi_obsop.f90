@@ -209,7 +209,7 @@ if (mpl%main) then
 
       ! Define halo origin
       do ic0b=1,nc0b
-         ic0 = ic0b_to_ic0_copy(ic0)
+         ic0 = ic0b_to_ic0_copy(ic0b)
          ic0a = geom%ic0_to_ic0a(ic0)
          comobs(iproc)%iext_to_iproc(ic0b) = geom%ic0_to_iproc(ic0)
          comobs(iproc)%iext_to_ired(ic0b) = ic0a

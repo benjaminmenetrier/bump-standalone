@@ -53,7 +53,8 @@ and:
 
    export HDIAG_NICAS_COMPILER=GNU
    export HDIAG_NICAS_BUILD=DEBUG
-   export HDIAG_NICAS_NETCDF=$NETCDF
+   export HDIAG_NICAS_NETCDF_INCLUDE=$NETCDF/include
+   export HDIAG_NICAS_NETCDF_LIBPATH=$NETCDF/lib
 
 8) Compile with:
 

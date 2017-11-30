@@ -284,10 +284,10 @@ if (com%nexcl>0) then
    deallocate(vec)
    allocate(vec(com%next))
 
-   ! Copy zone A into zone B
+   ! Copy interior
    vec(com%ired_to_iext) = vec_tmp
 
-   ! Copy halo into zone B
+   ! Copy halo
    vec(com%halo) = rbuf
 end if
 
@@ -306,6 +306,7 @@ type(comtype),intent(in) :: com                     !< Communication data
 real(kind_real),allocatable,intent(inout) :: vec(:) !< Subgrid field
 
 ! Local variables
+integer :: iexcl
 real(kind_real) :: sbuf(com%nhalo),rbuf(com%nexcl),vec_tmp(com%next)
 
 ! Check input vector size
@@ -325,11 +326,13 @@ if (com%nhalo>0) then
    deallocate(vec)
    allocate(vec(com%nred))
 
-   ! Copy zone B into zone A
+   ! Copy interior
    vec = vec_tmp(com%ired_to_iext)
 
-   ! Copy halo into zone B
-   vec(com%excl) = vec(com%excl)+rbuf
+   ! Copy halo 
+   do iexcl=1,com%nexcl
+      vec(com%excl(iexcl)) = vec(com%excl(iexcl))+rbuf(iexcl)
+   end do
 end if
 
 end subroutine com_red

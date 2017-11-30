@@ -20,6 +20,7 @@ check_dirac = .false.,
 check_perf = .false.,
 check_hdiag = .false.,
 new_lct = .false.,
+new_obsop = .false.,
 /
 
 &model_param
@@ -79,6 +80,7 @@ lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
 lct_diag = .false.,
+lct_nscales = 0,
 /
 
 &output_param

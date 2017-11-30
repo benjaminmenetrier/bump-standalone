@@ -82,7 +82,7 @@ end if
 ! Open listing files
 write(myprocchar,'(i4.4)') mpl%myproc-1
 if ((mpl%main.and..not.colorlog).or..not.mpl%main) &
- & open(unit=mpl%unit,file='nicas.out.'//myprocchar,action='write',status='replace')
+ & open(unit=mpl%unit,file='hdiag_nicas.out.'//myprocchar,action='write',status='replace')
 
 end subroutine listing_setup
 

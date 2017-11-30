@@ -227,15 +227,17 @@ end subroutine test_nicas_pos_def
 ! Subroutine: test_nicas_mpi
 !> Purpose: test global/local equivalence
 !----------------------------------------------------------------------
-subroutine test_nicas_mpi(ndata,ndataloc)
+subroutine test_nicas_mpi(ndata,ndataloc,blockname)
 
 implicit none
 
 ! Passed variables
 type(ndatatype),intent(in) :: ndata       !< NICAS data
 type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
+character(len=*),intent(in) :: blockname  !< Block name
 
 ! Local variables
+real(kind_real) :: var,varloc,diff
 real(kind_real),allocatable :: fld(:,:),fldloc(:,:)
 
 ! Associate
@@ -272,10 +274,19 @@ end if
 ! Local to global
 call fld_com_lg(geom,fldloc)
 
-! Print difference
-if (mpl%main) write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','RMSE for single-proc and multi-procs executions: ', &
- & sqrt(sum(fld**2)/float(geom%nc0*geom%nl0)),' / ',sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0)), &
- & ' / ',sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
+if (mpl%main) then
+   ! Print difference
+   var = sqrt(sum(fld**2)/float(geom%nc0*geom%nl0))
+   varloc = sqrt(sum(fldloc**2)/float(geom%nc0*geom%nl0))
+   diff = sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
+   write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Single-proc and multi-procs executions: ',var,' / ',varloc,' / ',diff
+
+   ! Write fields
+   if (diff>1.0e-12*sqrt(var*varloc)) then
+      call model_write(nam,geom,trim(nam%prefix)//'_error-mpi.nc',trim(blockname)//'_fld',fld)
+      call model_write(nam,geom,trim(nam%prefix)//'_error-mpi.nc',trim(blockname)//'_fldloc',fldloc)
+   end if
+end if
 
 ! End associate
 end associate

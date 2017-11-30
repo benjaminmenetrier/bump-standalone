@@ -28,8 +28,10 @@ type odatatype
    ! Geometry
    type(geomtype),pointer :: geom           !< Geometry
 
-   ! Number of observations
-   integer :: nobs
+   ! Observations
+   integer :: nobs                          !< Number of observations
+   real(kind_real),allocatable :: lonobs(:) !< Observations longitudes
+   real(kind_real),allocatable :: latobs(:) !< Observations latitudes
 
    ! Interpolation data
    type(linoptype) :: interp                !< Interpolation data

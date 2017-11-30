@@ -31,7 +31,7 @@ integer,parameter :: ntrim = 1                !< Minimum number of remaining poi
 
 private
 public :: pi,deg2rad,rad2deg,req,reqkm,ps
-public :: lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median,taverage,add,divide
+public :: lonmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,gc99,median,taverage,add,divide,fac
 
 contains
 
@@ -74,9 +74,9 @@ real(kind_real),intent(out) :: dist !< Great-circle distance
 ! Check that there is no missing value
 if (isnotmsr(lon_i).and.isnotmsr(lat_i).and.isnotmsr(lon_f).and.isnotmsr(lat_f)) then
    ! Great-circle distance using Vincenty formula on the unit sphere
-    dist = atan2(sqrt((cos(lat_f)*sin(lon_f-lon_i))**2 &
-         & +(cos(lat_i)*sin(lat_f)-sin(lat_i)*cos(lat_f)*cos(lon_f-lon_i))**2), &
-         & sin(lat_i)*sin(lat_f)+cos(lat_i)*cos(lat_f)*cos(lon_f-lon_i))
+   dist = atan2(sqrt((cos(lat_f)*sin(lon_f-lon_i))**2 &
+        & +(cos(lat_i)*sin(lat_f)-sin(lat_i)*cos(lat_f)*cos(lon_f-lon_i))**2), &
+        & sin(lat_i)*sin(lat_f)+cos(lat_i)*cos(lat_f)*cos(lon_f-lon_i))
 else
    call msr(dist)
 end if
@@ -340,5 +340,31 @@ else
 end if
 
 end subroutine divide
+
+!----------------------------------------------------------------------
+! Function: fac
+!> Purpose: factorial
+!----------------------------------------------------------------------
+function fac(n)
+
+implicit none
+
+! Result
+integer :: fac
+
+! Passed variables
+integer,intent(in) :: n
+
+! Local variables
+integer :: j
+
+if (n<0) call msgerror('factorial requires a non-negative argument')
+
+fac = 1
+do j=2,n
+   fac = fac*j
+end do
+
+end function fac
 
 end module tools_const
