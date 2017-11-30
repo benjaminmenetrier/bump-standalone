@@ -98,13 +98,12 @@ logical,intent(in) :: mask_dst(n_dst)        !< Destination mask
 type(linoptype),intent(inout) :: interp      !< Interpolation data
 
 ! Local variables
-integer :: i,i_dst,inn(1),n_s,offset,progint,i_s
+integer :: i,i_dst,inn(1),n_s,offset,progint
 integer :: ib(3)
 integer :: iproc,i_dst_s(mpl%nproc),i_dst_e(mpl%nproc),n_dst_loc(mpl%nproc),i_dst_loc,n_sg(mpl%nproc)
 integer,allocatable :: row(:),col(:)
 real(kind_real) :: dist(1),p(3),b(3)
 real(kind_real),allocatable :: S(:)
-logical :: test_src(n_src)
 logical,allocatable :: done(:)
 
 ! MPI splitting
@@ -231,13 +230,6 @@ mpl%tag = mpl%tag+3
 call mpl_bcast(interp%row,mpl%ioproc)
 call mpl_bcast(interp%col,mpl%ioproc)
 call mpl_bcast(interp%S,mpl%ioproc)
-
-! Test interpolation
-test_src = mask_src
-do i_s=1,interp%n_s
-   test_src(interp%col(i_s)) = .false.
-end do
-if (any(test_src)) call msgerror('error with the grid interpolation src')
 
 end subroutine compute_interp_bilin_from_mesh_ctree
 

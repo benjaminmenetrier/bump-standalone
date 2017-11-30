@@ -20,6 +20,7 @@ check_dirac = .false.,
 check_perf = .false.,
 check_hdiag = .false.,
 new_lct = .true.,
+new_obsop = .false.,
 /
 
 &model_param
@@ -54,16 +55,16 @@ mask_check = .true.,
 nc1 = 1000,
 ntry = 3,
 nrep = 2,
-nc = 150,
+nc = 300,
 dc = 75.0e3,
-nl0r = 7,
+nl0r = 1,
 /
 
 &diag_param
 ne = 19,
 gau_approx = .false.,
 full_var = .false.,
-local_diag = .false.,
+local_diag = .true.,
 local_rad = 0.0e3,
 displ_diag = .false.,
 displ_rad = 0.0e3,
@@ -78,7 +79,8 @@ fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
-lct_diag = .true.,
+lct_diag = .false.,
+lct_nscales = 2,
 /
 
 &output_param

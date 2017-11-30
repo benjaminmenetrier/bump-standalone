@@ -26,6 +26,8 @@ use type_randgen, only: initialize_sampling
 
 implicit none
 
+integer,parameter :: nc1max = 15000
+
 private
 public :: compute_parameters
 
@@ -74,9 +76,10 @@ else
    ndata%nc1 = ndata%geom%nc0
 end if
 write(mpl%unit,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: ',ndata%nc1
-if (ndata%nc1>geom%nc0/2) then
-   call msgwarning('required nc1 larger than nc0/2, resetting to nc0/2')
-   ndata%nc1 = geom%nc0/2
+if (ndata%nc1>nc1max) then
+   call msgwarning('required nc1 larger than nc1max, resetting to nc1max')
+   ndata%nc1 = nc1max
+   write(mpl%unit,'(a10,a,f5.2)') '','Effective resolution: ',sqrt(float(ndata%nc1)*sqrt(3.0)*rh0minavg**2/(2.0*maxval(geom%area)))
 end if
 mask_ind_col = 0
 do ic0=1,geom%nc0

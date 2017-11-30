@@ -509,6 +509,7 @@ type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,ic1,ic0,jc0,ibnd,ic
+integer :: nn(hdata%nam%nc)
 real(kind_real) :: dum(hdata%nam%nc)
 real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
 
@@ -523,7 +524,8 @@ do il0=1,geom%nl0
       if (isnotmsi(hdata%ic1_to_ic0(ic1))) then
          ! Find neighbors
          call find_nearest_neighbors(geom%ctree(min(il0,geom%nl0i)),dble(geom%lon(hdata%ic1_to_ic0(ic1))), &
-       & dble(geom%lat(hdata%ic1_to_ic0(ic1))),nam%nc,hdata%ic1icil0_to_ic0(ic1,:,il0),dum)
+       & dble(geom%lat(hdata%ic1_to_ic0(ic1))),nam%nc,nn,dum)
+         hdata%ic1icil0_to_ic0(ic1,:,il0) = nn
          hdata%ic1icil0_log(ic1,:,il0) = .true.
 
          if (nam%mask_check) then

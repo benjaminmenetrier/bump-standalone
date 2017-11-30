@@ -16,9 +16,8 @@ use tools_kinds, only: kind_real
 use type_ctree, only: ctreetype,create_ctree
 use type_linop, only: linop_reorder
 use type_mesh, only: create_mesh
-use type_mpl, only: mpl,mpl_bcast
+use type_mpl, only: mpl
 use type_odata, only: odatatype
-use type_randgen, only: rand_real
 
 implicit none
 
@@ -39,26 +38,16 @@ implicit none
 type(odatatype),intent(inout) :: odata !< Observation operator data
 
 ! Local variables
-real(kind_real),allocatable :: lonobs(:),latobs(:)
 logical,allocatable :: mask_ctree(:),maskobs(:)
 type(ctreetype) :: ctree
 
 ! Associate
 associate(geom=>odata%geom)
 
-! Define number of observations
-odata%nobs = int(1.0e-2*float(geom%nc0))
-
 ! Allocation
-allocate(lonobs(odata%nobs))
-allocate(latobs(odata%nobs))
 allocate(maskobs(odata%nobs))
 
 ! Generate random observation network
-if (mpl%main) call rand_real(-180.0_kind_real,180.0_kind_real,lonobs)
-if (mpl%main) call rand_real(-90.0_kind_real,90.0_kind_real,latobs)
-call mpl_bcast(lonobs,mpl%ioproc)
-call mpl_bcast(latobs,mpl%ioproc)
 maskobs = .true.
 
 ! Create mesh
@@ -67,20 +56,16 @@ call create_mesh(geom%nc0,geom%lon,geom%lat,.false.,geom%mesh)
 ! Compute cover tree
 allocate(mask_ctree(geom%mesh%nnr))
 mask_ctree = .true.
-ctree = create_ctree(geom%mesh%nnr,dble(geom%lon(geom%mesh%order)), &
- & dble(geom%lat(geom%mesh%order)),mask_ctree)
+ctree = create_ctree(geom%mesh%nnr,dble(geom%lon(geom%mesh%order)),dble(geom%lat(geom%mesh%order)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Compute interpolation
 odata%interp%prefix = 'o'
 write(mpl%unit,'(a7,a)') '','Single level:'
-call compute_interp_bilin(geom%mesh,ctree,geom%nc0,any(geom%mask,dim=2),odata%nobs,lonobs,latobs,maskobs,odata%interp)
+call compute_interp_bilin(geom%mesh,ctree,geom%nc0,any(geom%mask,dim=2),odata%nobs,odata%lonobs,odata%latobs,maskobs,odata%interp)
 
 ! Reorder interpolation
 call linop_reorder(odata%interp)
-
-! Print results
-write(mpl%unit,'(a7,a,i8)') '','Number of observations: ',odata%nobs
 
 ! End associate
 end associate

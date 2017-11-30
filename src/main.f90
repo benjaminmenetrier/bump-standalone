@@ -13,6 +13,7 @@ program main
 use driver_hdiag, only: run_hdiag
 use driver_lct, only: run_lct
 use driver_nicas, only: run_nicas
+use driver_obsgen, only: run_obsgen
 use driver_obsop, only: run_obsop
 use driver_test, only: run_test
 use model_interface, only: model_coord
@@ -23,7 +24,7 @@ use type_geom, only: geomtype,compute_grid_mesh
 use type_mpl, only: mpl,mpl_start,mpl_end
 use type_nam, only: namtype,namread,namcheck
 use type_ndata, only: ndataloctype
-use type_odata, only: odataloctype
+use type_odata, only: odatatype,odataloctype
 use type_randgen, only: create_randgen
 use type_timer, only: timertype,timer_start,timer_display
 
@@ -35,6 +36,7 @@ type(namtype),target :: nam
 type(bpartype) :: bpar
 type(bdatatype),allocatable :: bdata(:)
 type(ndataloctype),allocatable :: ndataloc(:)
+type(odatatype) :: odata
 type(odataloctype) :: odataloc
 type(timertype) :: timer
 
@@ -161,7 +163,8 @@ call run_lct(nam,geom,bpar)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
-call run_obsop(nam,geom,odataloc)
+call run_obsgen(nam,geom,odata)
+call run_obsop(nam,geom,odata,odataloc)
 
 !----------------------------------------------------------------------
 ! Execution stats

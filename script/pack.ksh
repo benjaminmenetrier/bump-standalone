@@ -50,6 +50,7 @@ cp -fr src/* pack/src
 # Copy test
 mkdir pack/test
 cp -f test/grid.nc pack/test
+cp -f test/ens1_00_*.nc pack/test
 cp -f test/links.ksh pack/test
 cp -f test/truth_bdata_common.nc pack/test
 cp -f test/truth_diag.nc pack/test

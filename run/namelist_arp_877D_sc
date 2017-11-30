@@ -1,5 +1,5 @@
 &general_param
-datadir = ".",
+datadir = "../data/arp/877D",
 prefix = "arp_877D",
 model = "arp",
 colorlog = .true.,
@@ -9,21 +9,22 @@ sam_default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-new_hdiag = .true.,
-new_param = .true.,
+new_hdiag = .false.,
+new_param = .false.,
 new_mpi = .true.,
-check_adjoints = .false.,
+check_adjoints = .true.,
 check_pos_def = .false.,
-check_mpi = .false.,
+check_mpi = .true.,
 check_sqrt = .false.,
-check_dirac = .false.,
+check_dirac = .true.,
 check_perf = .false.,
 check_hdiag = .false.,
 new_lct = .false.,
+new_obsop = .false.,
 /
 
 &model_param
-nl = 4,
+nl = 21,
 levs = 30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,
 logpres = .true.,
 nv = 1,
@@ -34,7 +35,7 @@ timeslot = 0,6,
 /
 
 &ens1_param
-ens1_ne = 50,
+ens1_ne = 10,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
@@ -56,7 +57,7 @@ ntry = 3,
 nrep = 2,
 nc = 20,
 dc = 100.0e3,
-nl0r = 7,
+nl0r = 3,
 /
 
 &diag_param
@@ -79,12 +80,13 @@ lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
 lct_diag = .false.,
+lct_nscales = 0,
 /
 
 &output_param
 nldwh = 0,
-il_ldwh = 1,2,3,4,5,6,7,8,9,10,
-ic_ldwh = 1,1,1,1,1,1,1,1,1,1,
+il_ldwh = 0,
+ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
@@ -93,17 +95,16 @@ diag_rhflt = 1000.0e3,
 /
 
 &nicas_param
-lsqrt = .true.,
+lsqrt = .false.,
 rh = 0.0,
 rv = 0.0,
-resol = 8.0,
+resol = 6.0,
 network = .false.,
 mpicom = 2,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
-levdir = 40,40,40,40,40,40,40,40,40,40,40,40,
+levdir = 30,30,30,30,30,30,30,30,30,30,30,30,
 ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
-

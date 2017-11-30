@@ -135,14 +135,14 @@ logical :: same_mask
 call define_mask(nam,geom)
 
 ! Create mesh
-if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.(nam%new_param.and.(nam%mask_check.or.nam%network))) &
- & call create_mesh(geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
+if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.((nam%new_param.or.nam%new_lct) &
+ & .and.(nam%mask_check.or.nam%network))) call create_mesh(geom%nc0,geom%lon,geom%lat,.true.,geom%mesh)
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call compute_area(geom)
 
 ! Compute mask boundaries
-if (nam%new_param.and.nam%mask_check) call compute_mask_boundaries(geom)
+if ((nam%new_param.or.nam%new_lct).and.nam%mask_check) call compute_mask_boundaries(geom)
 
 ! Find grid neighbors
 if (nam%new_param.and.nam%network.and..not.allocated(geom%net_nnb)) call find_grid_neighbors(geom)

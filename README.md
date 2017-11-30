@@ -11,5 +11,6 @@ A theoretical documentation is available:
  - about covariance filtering at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/covariance_filtering.pdf
  - about the NICAS method at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/nicas.pdf
  - about multivariate localization at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/multivariate_localization.pdf
+ - about diffusion and the Matern function at: http://github.com/benjaminmenetrier/hdiag_nicas/raw/master/doc/diffusion_matern_function.pdf
 
 The code can be browsed easily browsed via the Doxygen documentation: http://benjaminmenetrier.free.fr/hdiag_nicas/index.html

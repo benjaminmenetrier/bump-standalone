@@ -172,7 +172,7 @@ do ib=1,bpar%nb+1
          ! Test NICAS single/multi-procs equivalence
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
-         call test_nicas_mpi(ndata,ndataloc(ib))
+         call test_nicas_mpi(ndata,ndataloc(ib),bpar%blockname(ib))
          call flush(mpl%unit)
       end if
 

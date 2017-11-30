@@ -52,6 +52,7 @@ type namtype
    logical :: check_perf                            !< Test NICAS performance
    logical :: check_hdiag                           !< Test hdiag consistency
    logical :: new_lct                               !< Compute new LCT
+   logical :: new_obsop                             !< Compute observation operator
 
    ! model_param
    integer :: nl                                    !< Number of levels
@@ -105,6 +106,7 @@ type namtype
    logical :: lhomv                                 !< Vertically homogenous vertical support radius
    real(kind_real) ::  rvflt                        !< Vertical smoother support radius
    logical :: lct_diag                              !< Diagnostic of diagonal LCT components only
+   integer :: lct_nscales                           !< Number of LCT scales
 
    ! output_param
    integer :: nldwh                                 !< Number of local diagnostics fields to write (for local_diag = .true.)
@@ -153,11 +155,11 @@ integer :: iv
 
 ! Namelist variables
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
-integer :: nc1,ntry,nrep,nc,nl0r,ne,displ_niter,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
+integer :: nc1,ntry,nrep,nc,nl0r,ne,displ_niter,lct_nscales,nldwh,il_ldwh(nlmax*ncmax),ic_ldwh(nlmax*ncmax),nldwv
 integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax)
 logical :: colorlog,sam_default_seed
 logical :: new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac,check_perf,check_hdiag,new_lct
-logical :: logpres,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag,displ_diag
+logical :: new_obsop,logpres,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag,displ_diag
 logical :: fit_wgt,lhomh,lhomv,lct_diag,lsqrt,network
 real(kind_real) :: mask_th,dc,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt
 real(kind_real) :: rh(nlmax),rv(nlmax),resol,londir(ndirmax),latdir(ndirmax)
@@ -167,13 +169,13 @@ character(len=1024),dimension(nvmax) :: varname,addvar2d
 ! Namelist blocks
 namelist/general_param/datadir,prefix,model,colorlog,sam_default_seed
 namelist/driver_param/method,strategy,new_hdiag,new_param,new_mpi,check_adjoints,check_pos_def,check_sqrt,check_mpi,check_dirac, &
-                    & check_perf,check_hdiag,new_lct
+                    & check_perf,check_hdiag,new_lct,new_obsop
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc,dc,nl0r
 namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
-namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_diag
+namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_diag,lct_nscales
 namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt
 namelist/nicas_param/lsqrt,rh,rv,resol,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
 
@@ -200,6 +202,7 @@ check_dirac = .false.
 check_perf = .false.
 check_hdiag = .false.
 new_lct = .false.
+new_obsop = .false.
 
 ! model_param default
 call msi(nl)
@@ -254,6 +257,7 @@ lhomh = .false.
 lhomv = .false.
 call msr(rvflt)
 lct_diag = .false.
+call msi(lct_nscales)
 
 ! output_param default
 call msi(nldwh)
@@ -305,6 +309,7 @@ if (mpl%main) then
    nam%check_perf = check_perf
    nam%check_hdiag = check_hdiag
    nam%new_lct = new_lct
+   nam%new_obsop = new_obsop
 
    ! model_param
    read(*,nml=model_param)
@@ -364,6 +369,7 @@ if (mpl%main) then
    nam%lhomv = lhomv
    nam%rvflt = rvflt
    nam%lct_diag = lct_diag
+   nam%lct_nscales = lct_nscales
 
    ! output_param
    read(*,nml=output_param)
@@ -415,6 +421,7 @@ call mpl_bcast(nam%check_dirac,mpl%ioproc)
 call mpl_bcast(nam%check_perf,mpl%ioproc)
 call mpl_bcast(nam%check_hdiag,mpl%ioproc)
 call mpl_bcast(nam%new_lct,mpl%ioproc)
+call mpl_bcast(nam%new_obsop,mpl%ioproc)
 
 ! model_param
 call mpl_bcast(nam%nl,mpl%ioproc)
@@ -468,6 +475,7 @@ call mpl_bcast(nam%lhomh,mpl%ioproc)
 call mpl_bcast(nam%lhomv,mpl%ioproc)
 call mpl_bcast(nam%rvflt,mpl%ioproc)
 call mpl_bcast(nam%lct_diag,mpl%ioproc)
+call mpl_bcast(nam%lct_nscales,mpl%ioproc)
 
 ! output_param
 call mpl_bcast(nam%nldwh,mpl%ioproc)
@@ -577,7 +585,7 @@ do iv=1,nam%nv
    if (trim(nam%addvar2d(iv))/='') nam%levs(nam%nl+1) = maxval(nam%levs(1:nam%nl))+1
 end do
 
-if (nam%new_hdiag) then
+if (nam%new_hdiag.or.nam%new_lct) then
    ! Check ens1_param
    if (nam%ens1_ne_offset<0) call msgerror('ens1_ne_offset should be non-negative')
    if (nam%ens1_nsub<1) call msgerror('ens1_nsub should be positive')
@@ -626,7 +634,11 @@ if (nam%new_hdiag) then
    case default
       call msgerror('wrong fit_type')
    end select
+   if (nam%new_lct.and.((trim(nam%fit_type)=='none').or.(trim(nam%fit_type)=='fast'))) call msgerror('wrong fit_type for LCT')
    if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
+   if (nam%new_lct) then
+      if (nam%lct_nscales<0) call msgerror('lct_nscales should be non-negative')
+   end if
 
    ! Check output_param
    if (nam%local_diag) then
@@ -771,6 +783,7 @@ call put_att(ncid,'lhomh',nam%lhomh)
 call put_att(ncid,'lhomv',nam%lhomv)
 call put_att(ncid,'rvflt',nam%rvflt)
 call put_att(ncid,'lct_diag',nam%lct_diag)
+call put_att(ncid,'lct_nscales',nam%lct_nscales)
 
 ! output_param
 call put_att(ncid,'nldwh',nam%nldwh)
