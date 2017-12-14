@@ -54,7 +54,7 @@ call apply_obsop_ad(odata,yobs_save,fld)
 ! Compute adjoint test
 sum1 = sum(fld*fld_save)
 sum2 = sum(yobs*yobs_save)
-write(mpl%unit,'(a7,a,e14.8,a,e14.8,a,e14.8)') '','Observation operator adjoint test: ', &
+write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Observation operator adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 end subroutine test_adjoint_obsop
@@ -104,7 +104,7 @@ call apply_obsop(odataloc,fldloc,yobsloc)
 call yobs_com_lg(odata,yobsloc)
 
 ! Print difference
-if (mpl%main) write(mpl%unit,'(a7,a,e14.8)') '','RMSE between single-proc and multi-procs executions, direct:  ', &
+if (mpl%main) write(mpl%unit,'(a7,a,e15.8)') '','RMSE between single-proc and multi-procs executions, direct:  ', &
  & sqrt(sum((yobs-yobsloc)**2)/float(odata%nobs*geom%nl0))
 
 ! End associate
@@ -157,7 +157,7 @@ call apply_obsop_ad(odataloc,yobsloc,fldloc)
 call fld_com_lg(geom,fldloc)
 
 ! Print difference
-if (mpl%main) write(mpl%unit,'(a7,a,e14.8)') '','RMSE between single-proc and multi-procs executions, adjoint: ', &
+if (mpl%main) write(mpl%unit,'(a7,a,e15.8)') '','RMSE between single-proc and multi-procs executions, adjoint: ', &
  & sqrt(sum((fld-fldloc)**2)/float(geom%nc0*geom%nl0))
 
 ! End associate

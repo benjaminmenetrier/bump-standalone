@@ -81,7 +81,7 @@ if (nam%new_obsop) then
 
    ! Test precision
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test observation operator precision'   
+   write(mpl%unit,'(a)') '--- Test observation operator precision'
    call test_obsop(odata,odataloc)
    call flush(mpl%unit)
 end if

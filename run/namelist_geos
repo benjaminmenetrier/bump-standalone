@@ -3,7 +3,8 @@ datadir = "../data/geos",
 prefix = "geos",
 model = "geos",
 colorlog = .true.,
-sam_default_seed = .true.,
+default_seed = .true.,
+load_ensemble = .false.,
 /
 
 &driver_param
@@ -32,6 +33,7 @@ varname = "U","V","T","QV",
 addvar2d = "","",
 nts = 1,
 timeslot = 1,
+transform = .false.,
 /
 
 &ens1_param
@@ -79,8 +81,8 @@ fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
-lct_diag = .false.,
 lct_nscales = 0,
+lct_diag = .false.,
 /
 
 &output_param

@@ -4,7 +4,7 @@
 src=${HOME}/codes/hdiag_nicas/src
 
 # OOPS directory for HDIAG_NICAS
-dst=${HOME}/codes/OOPS/oops/src/oops/generic/hdiag_nicas
+dst=${HOME}/codes/jedi/code/jedi-bundle/oops/src/oops/generic/hdiag_nicas
 #dst=${HOME}/pack/envar-dev/src/local/oops/src/oops/generic/hdiag_nicas
 
 # Sync

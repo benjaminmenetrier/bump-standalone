@@ -111,7 +111,7 @@ EOFNAM
 
    # Print results
    value=$(<${output_file}.out)
-   echo "$value" 
+   echo "$value"
 done
 
 # Clean

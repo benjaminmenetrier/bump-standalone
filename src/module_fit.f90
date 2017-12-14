@@ -21,12 +21,13 @@ use type_curve, only: curvetype,curve_pack,curve_unpack
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
 use type_min, only: mintype
-use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast
+use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast,mpl_split
 use type_nam, only: namtype
 
 implicit none
 
 integer,parameter :: nsc = 50 !< Scaling optimization parameter
+logical :: prt = .false.      !< Print fit optimization results
 
 interface compute_fit
   module procedure compute_fit
@@ -114,9 +115,11 @@ do isc=1,nsc
       alpha_opt = alpha
    end if
 end do
-curve%fit_rh = alpha_opt*curve%fit_rh
-curve%fit_rv = alpha_opt*curve%fit_rv
-write(mpl%unit,'(a7,a,f6.1,a)') '','Scaling optimization, cost function decrease:',abs(mse_opt-mse)/mse*100.0,'%'
+do jl0=1,geom%nl0
+   if (isnotmsr(curve%fit_rh(jl0))) curve%fit_rh(jl0) = alpha_opt*curve%fit_rh(jl0)
+   if (isnotmsr(curve%fit_rv(jl0))) curve%fit_rv(jl0) = alpha_opt*curve%fit_rv(jl0)
+end do
+if (prt) write(mpl%unit,'(a7,a,f6.1,a)') '','Scaling optimization, cost function decrease:',abs(mse_opt-mse)/mse*100.0,'%'
 
 select case (trim(nam%fit_type))
 case ('nelder_mead','compass_search','praxis')
@@ -160,8 +163,8 @@ case ('nelder_mead','compass_search','praxis')
       offset = offset+geom%nl0
    end if
    mindata%norm = mindata%guess
-   mindata%binf = 0.75*mindata%guess
-   mindata%bsup = 1.25*mindata%guess
+   mindata%binf = 0.5*mindata%guess
+   mindata%bsup = 1.5*mindata%guess
    mindata%obs = pack(curve%raw,mask=.true.)
    mindata%fit_type = nam%fit_type
    mindata%nc = nam%nc
@@ -174,7 +177,7 @@ case ('nelder_mead','compass_search','praxis')
    mindata%distvr = distvr
 
    ! Compute fit
-   call minim(mindata,func,.true.)
+   call minim(mindata,func,prt)
 
    ! Copy parameters
    offset = 0
@@ -182,14 +185,18 @@ case ('nelder_mead','compass_search','praxis')
       curve%fit_rh = mindata%x(offset+1)
       offset = offset+1
    else
-      curve%fit_rh = mindata%x(offset+1:offset+geom%nl0)
+      do jl0=1,geom%nl0
+         if (isnotmsr(curve%fit_rh(jl0))) curve%fit_rh(jl0) = mindata%x(offset+jl0)
+      end do
       offset = offset+geom%nl0
    end if
    if (nam%lhomv) then
       curve%fit_rv = mindata%x(offset+1)
       offset = offset+1
    else
-      curve%fit_rv = mindata%x(offset+1:offset+geom%nl0)
+      do jl0=1,geom%nl0
+         if (isnotmsr(curve%fit_rv(jl0))) curve%fit_rv(jl0) = mindata%x(offset+jl0)
+      end do
       offset = offset+geom%nl0
    end if
 
@@ -229,11 +236,7 @@ real(kind_real),allocatable :: rbuf(:),sbuf(:)
 logical,allocatable :: done(:)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   ic2_s(iproc) = (iproc-1)*(hdata%nc2/mpl%nproc+1)+1
-   ic2_e(iproc) = min(iproc*(hdata%nc2/mpl%nproc+1),hdata%nc2)
-   nc2_loc(iproc) = ic2_e(iproc)-ic2_s(iproc)+1
-end do
+call mpl_split(hdata%nc2,ic2_s,ic2_e,nc2_loc)
 
 ! Allocation
 npack = curve(1)%npack

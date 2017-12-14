@@ -3,7 +3,8 @@ datadir = "../data/nemo",
 prefix = "nemo",
 model = "nemo",
 colorlog = .true.,
-sam_default_seed = .true.,
+default_seed = .true.,
+load_ensemble = .true.,
 /
 
 &driver_param
@@ -24,14 +25,15 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 1,
-levs = 1,
+nl = 15,
+levs = 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
 logpres = .false.,
 nv = 1,
 varname = "tn",
 addvar2d = "",
 nts = 1,
 timeslot = 1,
+transform = .false.,
 /
 
 &ens1_param
@@ -57,7 +59,7 @@ ntry = 3,
 nrep = 2,
 nc = 300,
 dc = 75.0e3,
-nl0r = 1,
+nl0r = 7,
 /
 
 &diag_param
@@ -79,8 +81,8 @@ fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
-lct_diag = .false.,
 lct_nscales = 2,
+lct_diag = .false.,.true.,
 /
 
 &output_param

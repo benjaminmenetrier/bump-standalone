@@ -127,166 +127,203 @@ do isub=1,nsub
       fac6 = float(ie-1)/float(ie)
 
       if (present(ens1)) then
-         ! Copy and broadcast field
+         ! Copy field
          if (allocated(fld)) deallocate(fld)
          allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
          fld = ens1(:,:,:,:,ie+(isub-1)*nsub)
          call fld_com_lg(nam,geom,fld)
-         if (.not.mpl%main) allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
-         call mpl_bcast(fld,mpl%ioproc)
       else
          ! Load field
-         if (allocated(fld)) deallocate(fld)
-         allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
-         if (nsub==1) then
-            jsub = 0
-         else
-            jsub = isub
+         if (mpl%main) then
+            if (allocated(fld)) deallocate(fld)
+            allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
+            if (nsub==1) then
+               jsub = 0
+            else
+               jsub = isub
+            end if
+            call model_read(nam,geom,filename,ie,jsub,fld)
          end if
-         call model_read(nam,geom,filename,ie,jsub,fld)
       end if
 
-      do ib=1,bpar%nb
-         if (bpar%diag_block(ib)) then
-            ! Allocation
-            allocate(fld_1(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
-            allocate(fld_2(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
-
-            ! Initialization
-            iv = bpar%ib_to_iv(ib)
-            jv = bpar%ib_to_jv(ib)
-            its = bpar%ib_to_its(ib)
-            jts = bpar%ib_to_jts(ib)
-
-            ! Copy valid field points
-            call msr(fld_1)
-            call msr(fld_2)
-            if ((iv==jv).and.(its==jts)) then
-               ! Copy all separations points
-               !$omp parallel do schedule(static) private(jl0,il0r,il0,ic,ic1,ic0,jc0)
-               do jl0=1,geom%nl0
-                  do il0r=1,bpar%nl0(ib)
-                     il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
-                     do ic=1,bpar%icmax(ib)
-                        do ic1=1,nam%nc1
-                           if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
-                              ! Indices
-                              ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
-                              jc0 = hdata%ic1_to_ic0(ic1)
-
-                              ! Copy points
-                              fld_1(ic1,ic,il0r,jl0) = fld(jc0,jl0,jv,jts)
-                              fld_2(ic1,ic,il0r,jl0) = fld(ic0,il0,iv,its)
-                           end if
-                        end do
+      if (mpl%main) then
+         do ib=1,bpar%nb
+            if (nam%transform.and.bpar%auto_block(ib)) then
+               ! Apply transform
+               do its=1,nam%nts
+                  do iv=1,nam%nv
+                     do ic0=1,geom%nc0
+                        fld(ic0,:,iv,its) = matmul(mom(ib)%transinv,fld(ic0,:,iv,its))
                      end do
                   end do
                end do
-               !$omp end parallel do
-            else
-               if (nam%displ_diag) then
-                  ! Interpolate zero separation points
-                  do jl0=1,geom%nl0
-                     call apply_linop(displ%d(jl0,jts),fld(:,jl0,jv,jts),fld_1(:,1,1,jl0))
-                     call apply_linop(displ%d(jl0,its),fld(:,jl0,iv,its),fld_2(:,1,1,jl0))
-                  end do
-               else
-                  ! Copy zero separation points
-                  !$omp parallel do schedule(static) private(jl0,ic1,jc0)
-                  do jl0=1,geom%nl0
-                     do ic1=1,nam%nc1
-                        if (hdata%ic1il0_log(ic1,jl0)) then
-                           ! Indices
-                           jc0 = hdata%ic1_to_ic0(ic1)
+            end if
+         end do
 
-                           ! Copy points
-                           fld_1(ic1,1,1,jl0) = fld(jc0,jl0,jv,jts)
-                           fld_2(ic1,1,1,jl0) = fld(jc0,jl0,iv,its)
-                        end if
+         do ib=1,bpar%nb
+            if (bpar%diag_block(ib)) then
+               ! Allocation
+               allocate(fld_1(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+               allocate(fld_2(nam%nc1,bpar%icmax(ib),bpar%nl0(ib),geom%nl0))
+
+               ! Initialization
+               iv = bpar%ib_to_iv(ib)
+               jv = bpar%ib_to_jv(ib)
+               its = bpar%ib_to_its(ib)
+               jts = bpar%ib_to_jts(ib)
+
+               ! Copy valid field points
+               call msr(fld_1)
+               call msr(fld_2)
+               if (bpar%auto_block(ib)) then
+                  ! Copy all separations points
+                  !$omp parallel do schedule(static) private(jl0,il0r,il0,ic,ic1,ic0,jc0)
+                  do jl0=1,geom%nl0
+                     do il0r=1,bpar%nl0(ib)
+                        il0 = bpar%il0rjl0ib_to_il0(il0r,jl0,ib)
+                        do ic=1,bpar%icmax(ib)
+                           do ic1=1,nam%nc1
+                              if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
+                                 ! Indices
+                                 ic0 = hdata%ic1icil0_to_ic0(ic1,ic,il0)
+                                 jc0 = hdata%ic1_to_ic0(ic1)
+
+                                 ! Copy points
+                                 fld_1(ic1,ic,il0r,jl0) = fld(jc0,jl0,jv,jts)
+                                 fld_2(ic1,ic,il0r,jl0) = fld(ic0,il0,iv,its)
+                              end if
+                           end do
+                        end do
                      end do
                   end do
                   !$omp end parallel do
+               else
+                  if (nam%displ_diag) then
+                     ! Interpolate zero separation points
+                     do jl0=1,geom%nl0
+                        call apply_linop(displ%d(jl0,jts),fld(:,jl0,jv,jts),fld_1(:,1,1,jl0))
+                        call apply_linop(displ%d(jl0,its),fld(:,jl0,iv,its),fld_2(:,1,1,jl0))
+                     end do
+                  else
+                     ! Copy zero separation points
+                     !$omp parallel do schedule(static) private(jl0,ic1,jc0)
+                     do jl0=1,geom%nl0
+                        do ic1=1,nam%nc1
+                           if (hdata%ic1il0_log(ic1,jl0)) then
+                              ! Indices
+                              jc0 = hdata%ic1_to_ic0(ic1)
+
+                              ! Copy points
+                              fld_1(ic1,1,1,jl0) = fld(jc0,jl0,jv,jts)
+                              fld_2(ic1,1,1,jl0) = fld(jc0,jl0,iv,its)
+                           end if
+                        end do
+                     end do
+                     !$omp end parallel do
+                  end if
                end if
-            end if
 
-            !$omp parallel do schedule(static) private(jl0)
-            do jl0=1,geom%nl0
-               ! Remove means
-               fld_1(:,:,:,jl0) = fld_1(:,:,:,jl0) - mom(ib)%m1_1(:,:,:,jl0,isub)
-               fld_2(:,:,:,jl0) = fld_2(:,:,:,jl0) - mom(ib)%m1_2(:,:,:,jl0,isub)
+               !$omp parallel do schedule(static) private(jl0)
+               do jl0=1,geom%nl0
+                  ! Remove means
+                  fld_1(:,:,:,jl0) = fld_1(:,:,:,jl0) - mom(ib)%m1_1(:,:,:,jl0,isub)
+                  fld_2(:,:,:,jl0) = fld_2(:,:,:,jl0) - mom(ib)%m1_2(:,:,:,jl0,isub)
 
-               ! Update high-order moments
-               if (ie>1) then
-                  if (.not.nam%gau_approx) then
-                       ! Fourth-order moment
-                        mom(ib)%m22(:,:,:,jl0,isub) = mom(ib)%m22(:,:,:,jl0,isub) &
-                                                  & -fac1*(mom(ib)%m12(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
-                                                  & +mom(ib)%m21(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
-                                                  & +fac2*(4.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0) &
-                                                  & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)**2 &
-                                                  & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)**2) &
-                                                  & +fac3*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)**2
+                  ! Update high-order moments
+                  if (ie>1) then
+                     if (.not.nam%gau_approx) then
+                          ! Fourth-order moment
+                           mom(ib)%m22(:,:,:,jl0,isub) = mom(ib)%m22(:,:,:,jl0,isub) &
+                                                     & -fac1*(mom(ib)%m12(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
+                                                     & +mom(ib)%m21(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
+                                                     & +fac2*(4.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0) &
+                                                     & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)**2 &
+                                                     & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)**2) &
+                                                     & +fac3*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)**2
 
-                        ! Third-order moments
-                        mom(ib)%m12(:,:,:,jl0,isub) = mom(ib)%m12(:,:,:,jl0,isub) &
-                                                  & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_2(:,:,:,jl0) &
-                                                  & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)) &
-                                                  & +fac5*fld_2(:,:,:,jl0)**2*fld_1(:,:,:,jl0)
+                           ! Third-order moments
+                           mom(ib)%m12(:,:,:,jl0,isub) = mom(ib)%m12(:,:,:,jl0,isub) &
+                                                     & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_2(:,:,:,jl0) &
+                                                     & +mom(ib)%m2_2(:,:,:,jl0,isub)*fld_1(:,:,:,jl0)) &
+                                                     & +fac5*fld_2(:,:,:,jl0)**2*fld_1(:,:,:,jl0)
 
-                        mom(ib)%m21(:,:,:,jl0,isub) = mom(ib)%m21(:,:,:,jl0,isub) &
-                                                  & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
-                                                  & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
-                                                  & +fac5*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)
+                           mom(ib)%m21(:,:,:,jl0,isub) = mom(ib)%m21(:,:,:,jl0,isub) &
+                                                     & -fac4*(2.0*mom(ib)%m11(:,:,:,jl0,isub)*fld_1(:,:,:,jl0) &
+                                                     & +mom(ib)%m2_1(:,:,:,jl0,isub)*fld_2(:,:,:,jl0)) &
+                                                     & +fac5*fld_1(:,:,:,jl0)**2*fld_2(:,:,:,jl0)
+                     end if
+
+                     ! Covariance
+                     mom(ib)%m11(:,:,:,jl0,isub) = mom(ib)%m11(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0)
+
+                     ! Variances
+                     mom(ib)%m2_1(:,:,:,jl0,isub) = mom(ib)%m2_1(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)**2
+                     mom(ib)%m2_2(:,:,:,jl0,isub) = mom(ib)%m2_2(:,:,:,jl0,isub)+fac6*fld_2(:,:,:,jl0)**2
+
+                     ! Full variance
+                     if (nam%full_var) mom(ib)%m2full(:,jl0,isub) = mom(ib)%m2full(:,jl0,isub) &
+                                                                & +fac6*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))**2
                   end if
 
-                  ! Covariance
-                  mom(ib)%m11(:,:,:,jl0,isub) = mom(ib)%m11(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)*fld_2(:,:,:,jl0)
+                  ! Update means
+                  mom(ib)%m1_1(:,:,:,jl0,isub) = mom(ib)%m1_1(:,:,:,jl0,isub)+fac4*fld_1(:,:,:,jl0)
+                  mom(ib)%m1_2(:,:,:,jl0,isub) = mom(ib)%m1_2(:,:,:,jl0,isub)+fac4*fld_2(:,:,:,jl0)
 
-                  ! Variances
-                  mom(ib)%m2_1(:,:,:,jl0,isub) = mom(ib)%m2_1(:,:,:,jl0,isub)+fac6*fld_1(:,:,:,jl0)**2
-                  mom(ib)%m2_2(:,:,:,jl0,isub) = mom(ib)%m2_2(:,:,:,jl0,isub)+fac6*fld_2(:,:,:,jl0)**2
+                  ! Full mean
+                  if (nam%full_var) mom(ib)%m1full(:,jl0,isub) = mom(ib)%m1full(:,jl0,isub) &
+                                                               & +fac4*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))
+               end do
+               !$omp end parallel do
 
-                  ! Full variance
-                  if (nam%full_var) mom(ib)%m2full(:,jl0,isub) = mom(ib)%m2full(:,jl0,isub) &
-                                                             & +fac6*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))**2
-               end if
-
-               ! Update means
-               mom(ib)%m1_1(:,:,:,jl0,isub) = mom(ib)%m1_1(:,:,:,jl0,isub)+fac4*fld_1(:,:,:,jl0)
-               mom(ib)%m1_2(:,:,:,jl0,isub) = mom(ib)%m1_2(:,:,:,jl0,isub)+fac4*fld_2(:,:,:,jl0)
-
-               ! Full mean
-               if (nam%full_var) mom(ib)%m1full(:,jl0,isub) = mom(ib)%m1full(:,jl0,isub) &
-                                                            & +fac4*(fld(:,jl0,jv,jts)-mom(ib)%m1full(:,jl0,isub))
-            end do
-            !$omp end parallel do
-
-            ! Release memory
-            deallocate(fld_1)
-            deallocate(fld_2)
-         end if
-      end do
+               ! Release memory
+               deallocate(fld_1)
+               deallocate(fld_2)
+            end if
+         end do
+      end if
    end do
    write(mpl%unit,'(a)') ''
 
-   do ib=1,bpar%nb
-      if (bpar%diag_block(ib)) then
-         !$omp parallel do schedule(static) private(jl0)
-         do jl0=1,geom%nl0
-            ! Normalize
-            mom(ib)%m2_1(:,:,:,jl0,isub) = mom(ib)%m2_1(:,:,:,jl0,isub)/float(ne/nsub-1)
-            mom(ib)%m2_2(:,:,:,jl0,isub) = mom(ib)%m2_2(:,:,:,jl0,isub)/float(ne/nsub-1)
-            mom(ib)%m11(:,:,:,jl0,isub) = mom(ib)%m11(:,:,:,jl0,isub)/float(ne/nsub-1)
-            if (.not.nam%gau_approx) then
-               mom(ib)%m12(:,:,:,jl0,isub) = mom(ib)%m12(:,:,:,jl0,isub)/float(ne/nsub)
-               mom(ib)%m21(:,:,:,jl0,isub) = mom(ib)%m21(:,:,:,jl0,isub)/float(ne/nsub)
-               mom(ib)%m22(:,:,:,jl0,isub) = mom(ib)%m22(:,:,:,jl0,isub)/float(ne/nsub)
-            end if
-            if (nam%full_var) mom(ib)%m2full(:,jl0,isub) = mom(ib)%m2full(:,jl0,isub)/float(ne/nsub-1)
-        end do
-        !$omp end parallel do
+   ! Normalize statistics
+   if (mpl%main) then
+      do ib=1,bpar%nb
+         if (bpar%diag_block(ib)) then
+            !$omp parallel do schedule(static) private(jl0)
+            do jl0=1,geom%nl0
+               mom(ib)%m2_1(:,:,:,jl0,isub) = mom(ib)%m2_1(:,:,:,jl0,isub)/float(ne/nsub-1)
+               mom(ib)%m2_2(:,:,:,jl0,isub) = mom(ib)%m2_2(:,:,:,jl0,isub)/float(ne/nsub-1)
+               mom(ib)%m11(:,:,:,jl0,isub) = mom(ib)%m11(:,:,:,jl0,isub)/float(ne/nsub-1)
+               if (.not.nam%gau_approx) then
+                  mom(ib)%m12(:,:,:,jl0,isub) = mom(ib)%m12(:,:,:,jl0,isub)/float(ne/nsub)
+                  mom(ib)%m21(:,:,:,jl0,isub) = mom(ib)%m21(:,:,:,jl0,isub)/float(ne/nsub)
+                  mom(ib)%m22(:,:,:,jl0,isub) = mom(ib)%m22(:,:,:,jl0,isub)/float(ne/nsub)
+               end if
+               if (nam%full_var) mom(ib)%m2full(:,jl0,isub) = mom(ib)%m2full(:,jl0,isub)/float(ne/nsub-1)
+            end do
+            !$omp end parallel do
+         end if
+      end do
+   end if
+end do
+
+! Broadcast results
+do ib=1,bpar%nb
+   if (bpar%diag_block(ib)) then
+      call mpl_bcast(mom(ib)%m1_1,mpl%ioproc)
+      call mpl_bcast(mom(ib)%m2_1,mpl%ioproc)
+      call mpl_bcast(mom(ib)%m1_2,mpl%ioproc)
+      call mpl_bcast(mom(ib)%m2_2,mpl%ioproc)
+      call mpl_bcast(mom(ib)%m11,mpl%ioproc)
+      if (.not.nam%gau_approx) then
+         call mpl_bcast(mom(ib)%m12,mpl%ioproc)
+         call mpl_bcast(mom(ib)%m21,mpl%ioproc)
+         call mpl_bcast(mom(ib)%m22,mpl%ioproc)
       end if
-   end do
+      if (nam%full_var) then
+         call mpl_bcast(mom(ib)%m1full,mpl%ioproc)
+         call mpl_bcast(mom(ib)%m2full,mpl%ioproc)
+      end if
+   end if
 end do
 
 ! End associate

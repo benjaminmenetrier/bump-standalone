@@ -19,6 +19,7 @@ use module_hybridization, only: compute_hybridization
 use module_localization, only: compute_localization
 use module_moments, only: compute_moments
 use module_sampling, only: setup_sampling
+use module_transform, only: compute_transform
 use netcdf
 use tools_const, only: reqkm
 use tools_display, only: vunitchar,prog_init,prog_print,msgerror,msgwarning,aqua,aqua,peach,peach,purple,purple,black
@@ -55,7 +56,7 @@ implicit none
 type(namtype),target,intent(inout) :: nam                                                  !< Namelist
 type(geomtype),target,intent(in) :: geom                                                   !< Geometry
 type(bpartype),target,intent(in) :: bpar                                                   !< Block parameters
-type(bdatatype),allocatable,intent(inout) :: bdata(:)                                      !< B data
+type(bdatatype),allocatable,intent(out) :: bdata(:)                                        !< B data
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
@@ -80,7 +81,7 @@ do ib=1,bpar%nb+1
       bdata(ib)%nam => nam
       bdata(ib)%geom => geom
       bdata(ib)%cname = 'bdata_'//trim(bpar%blockname(ib))
-      call bdata_alloc(bdata(ib))
+      call bdata_alloc(bdata(ib),bpar%auto_block(ib))
    end if
 end do
 
@@ -126,6 +127,42 @@ if (nam%new_hdiag) then
       call compute_moments(hdata,'ens2',displ,mom_2)
    end if
 
+   if (nam%transform) then
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Compute transform'
+
+      do ib=1,bpar%nb
+         if (bpar%auto_block(ib)) then
+            ! Compute global statistics
+            call compute_avg(hdata,ib,mom_1(ib),avg_1(ib))
+
+            ! Compute transform
+            allocate(mom_1(ib)%trans(geom%nl0,geom%nl0))
+            allocate(mom_1(ib)%transinv(geom%nl0,geom%nl0))
+            call compute_transform(hdata,ib,avg_1(ib),mom_1(ib)%trans,mom_1(ib)%transinv)
+         end if
+      end do
+
+      ! Deallocation
+      do ib=1,bpar%nb
+         if (bpar%auto_block(ib)) then
+            call mom_dealloc(hdata,mom_1(ib))
+            call avg_dealloc(hdata,avg_1(ib))
+         end if
+      end do
+
+      ! Compute transformed sample moments
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Compute transformed sample moments'
+
+      write(mpl%unit,'(a7,a)') '','Ensemble 1:'
+      if (present(ens1)) then
+         call compute_moments(hdata,'ens1',displ,mom_1,ens1)
+      else
+         call compute_moments(hdata,'ens1',displ,mom_1)
+      end if
+   end if
+
    ! Compute statistics
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute statistics'
@@ -159,9 +196,9 @@ if (nam%new_hdiag) then
 
          ! Print results
          do jl0=1,geom%nl0
-            write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-             & 'raw cov. / cor. (1): ',trim(peach),avg_1(ib)%m11(1,bpar%il0rz(jl0,ib),jl0),trim(black),' / ', &
-             & trim(peach),avg_1(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
+            if (isnotmsr(avg_1(ib)%cor(1,bpar%il0rz(jl0,ib),jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '', &
+          & 'Level: ',nam%levs(jl0),' ~> ','raw cov. / cor. (1): ',trim(peach),avg_1(ib)%m11(1,bpar%il0rz(jl0,ib),jl0), &
+          & trim(black),' / ',trim(peach),avg_1(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
          end do
 
          if (trim(nam%method)=='hyb-avg') then
@@ -188,9 +225,9 @@ if (nam%new_hdiag) then
          select case (trim(nam%method))
          case ('hyb-avg','hyb-rnd','dual-ens')
             do jl0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-                & 'raw cov. / cor. (2): ',trim(peach),avg_2(ib)%m11(1,bpar%il0rz(jl0,ib),jl0),trim(black),' / ', &
-                & trim(peach),avg_2(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
+               if (isnotmsr(avg_2(ib)%cor(1,bpar%il0rz(jl0,ib),jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,e9.2,a,a,a,f8.2,a)') '', &
+             & 'Level: ',nam%levs(jl0),' ~> ','raw cov. / cor. (2): ',trim(peach),avg_2(ib)%m11(1,bpar%il0rz(jl0,ib),jl0), &
+             & trim(black),' / ',trim(peach),avg_2(ib)%cor(1,bpar%il0rz(jl0,ib),jl0),trim(black)
             end do
          end select
       end if
@@ -267,9 +304,9 @@ if (nam%new_hdiag) then
 
             ! Print results
              do jl0=1,geom%nl0
-                write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
-              & ' ~> cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / ' &
-              & //trim(aqua),cor_1(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                if (isnotmsr(cor_1(ib)%fit_rh(jl0))) write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
+              & ' ~> cor. support radii: '//trim(aqua),cor_1(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua), &
+              & cor_1(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
              end do
          end if
       end do
@@ -290,9 +327,9 @@ if (nam%new_hdiag) then
 
                ! Print results
                do jl0=1,geom%nl0
-                   write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
-                 & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / ' &
-                 & //trim(aqua),cor_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                   if (isnotmsr(cor_2(ib)%fit_rh(jl0))) write(mpl%unit,'(a10,a,i3,a,f8.2,a,f8.2,a)') '','Level: ',nam%levs(jl0), &
+                 & ' ~> cor. support radii: '//trim(aqua),cor_2(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua), &
+                 & cor_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
                 end do
             end if
          end do
@@ -332,11 +369,12 @@ if (nam%new_hdiag) then
 
             ! Print results
             do jl0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_1(ib)%raw_coef_ens(jl0),trim(black)
+               if (isnotmsr(loc_1(ib)%raw_coef_ens(jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+             & nam%levs(jl0),' ~> ','diagonal value: ',trim(peach),loc_1(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_1(ib)%fit_rh(jl0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_1(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                  if (isnotmsr(loc_1(ib)%fit_rh(jl0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ', &
+                & trim(aqua),loc_1(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua),loc_1(ib)%fit_rv(jl0), &
+                & trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if
@@ -362,11 +400,12 @@ if (nam%new_hdiag) then
 
             ! Print results
             do jl0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
+               if (isnotmsr(loc_2(ib)%raw_coef_ens(jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+             & nam%levs(jl0),' ~> ','diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                  if (isnotmsr(loc_2(ib)%fit_rh(jl0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ', &
+                & trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0), &
+                & trim(black)//' '//trim(vunitchar)
                end if
             end do
             write(mpl%unit,'(a10,a,f8.2,a)') '','Raw static coeff.: ',trim(purple),loc_2(ib)%raw_coef_sta,trim(black)
@@ -390,11 +429,12 @@ if (nam%new_hdiag) then
 
             ! Print results
             do jl0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-             & 'diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
+               if (isnotmsr(loc_2(ib)%raw_coef_ens(jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+             & nam%levs(jl0),' ~> ','diagonal value: ',trim(peach),loc_2(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ',trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                  if (isnotmsr(loc_2(ib)%fit_rh(jl0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii: ', &
+                & trim(aqua),loc_2(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0), &
+                & trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if
@@ -416,14 +456,17 @@ if (nam%new_hdiag) then
 
             ! Print results
             do jl0=1,geom%nl0
-               write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ',nam%levs(jl0),' ~> ', &
-             & 'diagonal value (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(jl0),trim(black)
-               write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ',trim(peach),loc_4(ib)%raw_coef_ens(jl0),trim(black)
+               if (isnotmsr(loc_1(ib)%raw_coef_ens(jl0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+             & nam%levs(jl0),' ~> ','diagonal value (HR): ',trim(peach),loc_3(ib)%raw_coef_ens(jl0),trim(black)
+               if (isnotmsr(loc_1(ib)%raw_coef_ens(jl0))) write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ', &
+             & trim(peach),loc_4(ib)%raw_coef_ens(jl0),trim(black)
                if (bpar%fit_block(ib)) then
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ',trim(aqua),loc_3(ib)%fit_rh(jl0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
-                  write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ',trim(aqua),loc_4(ib)%fit_rh(jl0)*reqkm, &
-                & trim(black)//' km  / '//trim(aqua),loc_2(ib)%fit_rv(jl0),trim(black)//' '//trim(vunitchar)
+                  if (isnotmsr(loc_3(ib)%fit_rh(jl0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ', &
+                & trim(aqua),loc_3(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua),loc_4(ib)%fit_rv(jl0), &
+                & trim(black)//' '//trim(vunitchar)
+                  if (isnotmsr(loc_4(ib)%fit_rh(jl0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ', &
+                & trim(aqua),loc_4(ib)%fit_rh(jl0)*reqkm,trim(black)//' km  / '//trim(aqua),loc_4(ib)%fit_rv(jl0), &
+                & trim(black)//' '//trim(vunitchar)
                end if
             end do
          end if
@@ -438,7 +481,7 @@ if (nam%new_hdiag) then
       select case (trim(nam%method))
       case ('cor')
          do ib=1,bpar%nb+1
-            if (bpar%diag_block(ib)) then
+            if (bpar%B_block(ib)) then
                if (nam%local_diag) then
                   call diag_to_bdata(hdata,ib,cor_1_nc2(:,ib),bdata(ib))
                else
@@ -448,7 +491,7 @@ if (nam%new_hdiag) then
          end do
       case ('loc')
          do ib=1,bpar%nb+1
-            if (bpar%diag_block(ib)) then
+            if (bpar%B_block(ib)) then
                if (nam%local_diag) then
                   call diag_to_bdata(hdata,ib,loc_1_nc2(:,ib),bdata(ib))
                else
@@ -460,13 +503,21 @@ if (nam%new_hdiag) then
          call msgerror('bdata not implemented yet for this method')
       end select
 
+      ! Copy transforms
+      do ib=1,bpar%nb
+         if (nam%transform.and.bpar%auto_block(ib)) then
+            bdata(ib)%trans = mom_1(ib)%trans
+            bdata(ib)%transinv = mom_1(ib)%transinv
+         end if
+      end do
+
       if (mpl%main) then
          ! Write B data
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
          write(mpl%unit,'(a,i5,a)') '--- Write B data'
 
          do ib=1,bpar%nb+1
-            if (bpar%diag_block(ib)) call bdata_write(bdata(ib))
+            if (bpar%B_block(ib)) call bdata_write(bdata(ib),bpar%auto_block(ib),bpar%nicas_block(ib))
          end do
       end if
    end if
@@ -536,7 +587,7 @@ elseif (nam%new_param) then
    write(mpl%unit,'(a,i5,a)') '--- Read B data'
 
    do ib=1,bpar%nb+1
-      if (bpar%diag_block(ib)) call bdata_read(bdata(ib))
+      if (bpar%B_block(ib)) call bdata_read(bdata(ib),bpar%auto_block(ib),bpar%nicas_block(ib))
    end do
 end if
 

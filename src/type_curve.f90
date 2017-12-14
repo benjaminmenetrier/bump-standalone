@@ -11,7 +11,7 @@
 module type_curve
 
 use model_interface, only: model_write
-use module_diag_tools, only: diag_write,diag_filter,diag_interpolation
+use module_diag_tools, only: diag_write,diag_interpolation
 use netcdf
 use tools_display, only: vunitchar,msgerror
 use tools_jacobi_eigenvalue, only: jacobi_eigenvalue
@@ -72,6 +72,7 @@ allocate(curve%raw_coef_ens(geom%nl0))
 curve%npack = nam%nc*geom%nl0*bpar%nl0(ib)+2*geom%nl0
 call msr(curve%raw)
 call msr(curve%raw_coef_ens)
+call msr(curve%raw_coef_sta)
 
 if (trim(nam%fit_type)/='none') then
    ! Allocation
@@ -417,22 +418,12 @@ do ib=1,bpar%nb+1
       end do
       call diag_interpolation(hdata,fld_nc2,fld)
       call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh',fld)
-      if (trim(nam%flt_type)/='none') then
-         call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-         call diag_interpolation(hdata,fld_nc2,fld)
-         call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh_flt',fld)
-      end if
       call msr(fld_nc2)
       do ic2=1,hdata%nc2
          fld_nc2(ic2,:) = curve_nc2(ic2,ib)%fit_rv
       end do
       call diag_interpolation(hdata,fld_nc2,fld)
       call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv',fld)
-      if (trim(nam%flt_type)/='none') then
-         call diag_filter(hdata,nam%flt_type,nam%diag_rhflt,fld_nc2)
-         call diag_interpolation(hdata,fld_nc2,fld)
-         call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv_flt',fld)
-      end if
    end if
 end do
 

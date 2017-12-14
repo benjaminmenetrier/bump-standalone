@@ -166,7 +166,7 @@ end if
 write(mpl%unit,'(a7,a,i3)') '','Number of independent levels: ',geom%nl0i
 
 ! Create cover tree
-if ((nam%new_hdiag.and.nam%displ_diag).or.nam%check_dirac.or.(nam%new_lct)) then
+if (nam%new_hdiag.or.nam%check_dirac.or.nam%new_lct) then
    allocate(geom%ctree(geom%nl0i))
    do il0i=1,geom%nl0i
       geom%ctree(il0i) = create_ctree(geom%nc0,geom%lon,geom%lat,geom%mask(:,il0i))
