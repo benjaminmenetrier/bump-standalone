@@ -195,9 +195,9 @@ type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,il0i,ic1,ic,ic2
-integer :: nl0_1_test,nl0_2_test,nc_test,nc1_test,nc2_test
-integer :: info,ncid,nl0_1_id,nl0_2_id,nc_id,nc1_id,nc2_id
-integer :: ic1_to_ic0_id,ic1il0_log_id,ic1icil0_to_ic0_id,ic1icil0_log_id,swgt_id
+integer :: nl0_test,nl0r_test,nc_test,nc1_test,nc2_test
+integer :: info,ncid,nl0_id,nc_id,nc1_id,nc2_id
+integer :: ic1_to_ic0_id,ic1il0_log_id,ic1icil0_to_ic0_id,ic1icil0_log_id
 integer :: ic2_to_ic1_id,ic2_to_ic0_id,local_mask_id,displ_mask_id,nn_nc2_index_id,nn_nc2_dist_id
 integer :: ic1il0_logint(hdata%nam%nc1,hdata%geom%nl0),ic1icil0_logint(hdata%nam%nc1,hdata%nam%nc,hdata%geom%nl0)
 integer,allocatable :: local_maskint(:,:),displ_maskint(:,:)
@@ -220,10 +220,9 @@ if (info/=nf90_noerr) then
 end if
 
 ! Check dimensions
-call ncerr(subr,nf90_inq_dimid(ncid,'nl0_1',nl0_1_id))
-call ncerr(subr,nf90_inquire_dimension(ncid,nl0_1_id,len=nl0_1_test))
-call ncerr(subr,nf90_inq_dimid(ncid,'nl0_2',nl0_2_id))
-call ncerr(subr,nf90_inquire_dimension(ncid,nl0_2_id,len=nl0_2_test))
+call ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
+call ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
+call ncerr(subr,nf90_get_att(ncid,nf90_global,'nl0r',nl0r_test))
 call ncerr(subr,nf90_inq_dimid(ncid,'nc',nc_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nc_id,len=nc_test))
 call ncerr(subr,nf90_inq_dimid(ncid,'nc1',nc1_id))
@@ -238,7 +237,7 @@ if (nam%local_diag.or.nam%displ_diag) then
       hdata_read = 2
    end if
 end if
-if ((geom%nl0/=nl0_1_test).or.(geom%nl0/=nl0_2_test).or.(nam%nc/=nc_test).or.(nam%nc1/=nc1_test)) then
+if ((geom%nl0/=nl0_test).or.(nam%nl0r/=nl0r_test).or.(nam%nc/=nc_test).or.(nam%nc1/=nc1_test)) then
    call msgwarning('wrong dimension when reading sampling, recomputing sampling')
    nam%sam_write = .true.
    call ncerr(subr,nf90_close(ncid))
@@ -260,7 +259,6 @@ call ncerr(subr,nf90_inq_varid(ncid,'ic1_to_ic0',ic1_to_ic0_id))
 call ncerr(subr,nf90_inq_varid(ncid,'ic1il0_log',ic1il0_log_id))
 call ncerr(subr,nf90_inq_varid(ncid,'ic1icil0_to_ic0',ic1icil0_to_ic0_id))
 call ncerr(subr,nf90_inq_varid(ncid,'ic1icil0_log',ic1icil0_log_id))
-call ncerr(subr,nf90_inq_varid(ncid,'swgt',swgt_id))
 if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
    call ncerr(subr,nf90_inq_varid(ncid,'ic2_to_ic1',ic2_to_ic1_id))
    call ncerr(subr,nf90_inq_varid(ncid,'ic2_to_ic0',ic2_to_ic0_id))
@@ -291,7 +289,6 @@ do il0=1,geom%nl0
       end do
    end do
 end do
-call ncerr(subr,nf90_get_var(ncid,swgt_id,hdata%swgt))
 if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
    call ncerr(subr,nf90_get_var(ncid,ic2_to_ic1_id,hdata%ic2_to_ic1))
    call ncerr(subr,nf90_get_var(ncid,ic2_to_ic0_id,hdata%ic2_to_ic0))
@@ -377,8 +374,8 @@ type(hdatatype),intent(in) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,il0i,ic1,ic,ic2
-integer :: ncid,nl0_1_id,nl0_2_id,nc1_id,nc2_1_id,nc2_2_id,nc_id
-integer :: lat_id,lon_id,smax_id,ic1_to_ic0_id,ic1il0_log_id,ic1icil0_to_ic0_id,ic1icil0_log_id,swgt_id
+integer :: ncid,nl0_id,nc1_id,nc2_1_id,nc2_2_id,nc_id
+integer :: lat_id,lon_id,smax_id,ic1_to_ic0_id,ic1il0_log_id,ic1icil0_to_ic0_id,ic1icil0_log_id
 integer :: ic2_to_ic1_id,ic2_to_ic0_id,local_mask_id,displ_mask_id,nn_nc2_index_id,nn_nc2_dist_id
 integer :: ic1il0_logint(hdata%nam%nc1,hdata%geom%nl0),ic1icil0_logint(hdata%nam%nc1,hdata%nam%nc,hdata%geom%nl0)
 integer,allocatable :: local_maskint(:,:),displ_maskint(:,:)
@@ -397,29 +394,27 @@ write(mpl%unit,'(a7,a)') '','Write sampling'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc',or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nl0_1',geom%nl0,nl0_1_id))
-call ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
+call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
+call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0r',nam%nl0r))
 call ncerr(subr,nf90_def_dim(ncid,'nc',nam%nc,nc_id))
 call ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
 if (nam%local_diag.or.nam%displ_diag) call ncerr(subr,nf90_def_dim(ncid,'nc2_1',hdata%nc2,nc2_1_id))
 
 ! Define arrays
-call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc1_id,nc_id,nl0_1_id/),lat_id))
+call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc1_id,nc_id,nl0_id/),lat_id))
 call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
-call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc1_id,nc_id,nl0_1_id/),lon_id))
+call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc1_id,nc_id,nl0_id/),lon_id))
 call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
-call ncerr(subr,nf90_def_var(ncid,'smax',ncfloat,(/nc_id,nl0_1_id/),smax_id))
+call ncerr(subr,nf90_def_var(ncid,'smax',ncfloat,(/nc_id,nl0_id/),smax_id))
 call ncerr(subr,nf90_put_att(ncid,smax_id,'_FillValue',msvalr))
 call ncerr(subr,nf90_def_var(ncid,'ic1_to_ic0',nf90_int,(/nc1_id/),ic1_to_ic0_id))
 call ncerr(subr,nf90_put_att(ncid,ic1_to_ic0_id,'_FillValue',msvali))
-call ncerr(subr,nf90_def_var(ncid,'ic1il0_log',nf90_int,(/nc1_id,nl0_1_id/),ic1il0_log_id))
+call ncerr(subr,nf90_def_var(ncid,'ic1il0_log',nf90_int,(/nc1_id,nl0_id/),ic1il0_log_id))
 call ncerr(subr,nf90_put_att(ncid,ic1il0_log_id,'_FillValue',msvali))
-call ncerr(subr,nf90_def_var(ncid,'ic1icil0_to_ic0',nf90_int,(/nc1_id,nc_id,nl0_1_id/),ic1icil0_to_ic0_id))
+call ncerr(subr,nf90_def_var(ncid,'ic1icil0_to_ic0',nf90_int,(/nc1_id,nc_id,nl0_id/),ic1icil0_to_ic0_id))
 call ncerr(subr,nf90_put_att(ncid,ic1icil0_to_ic0_id,'_FillValue',msvali))
-call ncerr(subr,nf90_def_var(ncid,'ic1icil0_log',nf90_int,(/nc1_id,nc_id,nl0_1_id/),ic1icil0_log_id))
+call ncerr(subr,nf90_def_var(ncid,'ic1icil0_log',nf90_int,(/nc1_id,nc_id,nl0_id/),ic1icil0_log_id))
 call ncerr(subr,nf90_put_att(ncid,ic1icil0_log_id,'_FillValue',msvali))
-call ncerr(subr,nf90_def_var(ncid,'swgt',ncfloat,(/nc1_id,nc_id,nl0_1_id,nl0_2_id/),swgt_id))
-call ncerr(subr,nf90_put_att(ncid,swgt_id,'_FillValue',msvalr))
 if (nam%local_diag.or.nam%displ_diag) then
    call ncerr(subr,nf90_def_var(ncid,'ic2_to_ic1',nf90_int,(/nc2_1_id/),ic2_to_ic1_id))
    call ncerr(subr,nf90_put_att(ncid,ic2_to_ic1_id,'_FillValue',msvali))
@@ -470,7 +465,6 @@ do il0=1,geom%nl0
    end do
 end do
 call ncerr(subr,nf90_put_var(ncid,ic1icil0_log_id,ic1icil0_logint))
-call ncerr(subr,nf90_put_var(ncid,swgt_id,hdata%swgt))
 if (nam%local_diag.or.nam%displ_diag) then
    call ncerr(subr,nf90_put_var(ncid,ic2_to_ic1_id,hdata%ic2_to_ic1))
    call ncerr(subr,nf90_put_var(ncid,ic2_to_ic0_id,hdata%ic2_to_ic0))

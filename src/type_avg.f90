@@ -151,13 +151,17 @@ subroutine avg_copy(hdata,ib,avg_in,avg_out)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata  !< HDIAG data
-integer,intent(in) :: ib             !< Block index
-type(avgtype),intent(in) :: avg_in   !< Averaged statistics, input
-type(avgtype),intent(out) :: avg_out !< Averaged statistics, output
+type(hdatatype),intent(in) :: hdata    !< HDIAG data
+integer,intent(in) :: ib               !< Block index
+type(avgtype),intent(in) :: avg_in     !< Averaged statistics, input
+type(avgtype),intent(inout) :: avg_out !< Averaged statistics, output
 
 ! Associate
 associate(nam=>hdata%nam)
+
+! Initialization
+avg_out%ne = avg_in%ne
+avg_out%nsub = avg_in%nsub
 
 ! Allocation
 call avg_alloc(hdata,ib,avg_out)

@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: module_apply_localization.f90
-!> Purpose: apply 4D localization
+!> Purpose: apply localization
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -46,9 +46,9 @@ type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1)                    !< NICAS
 real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
 
 ! Local variable
-integer :: ib,its,iv,jv,i,nullty,info
+integer :: ib,its,iv,jv
 real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:)
-real(kind_real),allocatable :: wgt(:,:),wgt_diag(:),a(:),u(:)
+real(kind_real),allocatable :: wgt(:,:),wgt_diag(:)
 
 select case (nam%strategy)
 case ('common')
@@ -109,19 +109,17 @@ case ('specific_univariate')
       fld(:,:,:,its) = fld_4d
    end do
 case ('specific_multivariate')
-   call msgerror('not implemented yet in apply_localization')
+   call msgerror('specific multivariate strategy should not be called from apply_localization')
 case ('common_weighted')
    ! Allocation
    allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
    allocate(fld_4d_tmp(geom%nc0a,geom%nl0,nam%nv))
    allocate(wgt(nam%nv,nam%nv))
    allocate(wgt_diag(nam%nv))
-   allocate(a(nam%nv*(nam%nv+1)/2))
-   allocate(u(nam%nv*(nam%nv+1)/2))
 
    ! Copy weights
    do ib=1,bpar%nb
-      if (bpar%diag_block(ib)) then
+      if (bpar%B_block(ib)) then
          ! Variable indices
          iv = bpar%ib_to_iv(ib)
          jv = bpar%ib_to_jv(ib)
@@ -141,31 +139,11 @@ case ('common_weighted')
       end do
    end do
 
-   ! Cholesky decomposition
-   i = 0
-   do iv=1,nam%nv
-      do jv=1,iv
-         i = i+1
-         a(i) = wgt(iv,jv)
-      end do
-   end do
-   call cholesky(a,nam%nv,(nam%nv*(nam%nv+1))/2,u,nullty,info)
-   if (info==2) call msgerror('weights are not positive definite in apply_localization')
-
    ! Sum product over timeslots
    fld_4d = 0.0
    do its=1,nam%nts
       fld_4d = fld_4d+fld(:,:,:,its)
    end do
-
-   ! Apply weights
-   fld_4d_tmp = 0.0
-   do iv=1,nam%nv
-      do jv=1,nam%nv
-         fld_4d_tmp(:,:,iv) = fld_4d_tmp(:,:,iv)+wgt(iv,jv)*fld_4d(:,:,jv)
-      end do
-   end do
-   fld_4d = fld_4d_tmp
 
    do iv=1,nam%nv
       ! Apply common ensemble coefficient square-root
@@ -178,9 +156,17 @@ case ('common_weighted')
       fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(bpar%nb+1)%coef_ens)
    end do
 
+   ! Apply weights
+   fld_4d_tmp = 0.0
+   do iv=1,nam%nv
+      do jv=1,nam%nv
+         fld_4d_tmp(:,:,iv) = fld_4d_tmp(:,:,iv)+wgt(iv,jv)*fld_4d(:,:,jv)
+      end do
+   end do
+
    ! Build final vector
    do its=1,nam%nts
-      fld(:,:,:,its) = fld_4d
+      fld(:,:,:,its) = fld_4d_tmp
    end do
 end select
 
@@ -203,8 +189,9 @@ type(cvtype),intent(in) :: cv(bpar%nb+1)                              !< Control
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, local
 
 ! Local variable
-integer :: ib,its,iv
-real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:)
+integer :: ib,its,iv,jv,i,nullty,info
+real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:)
+real(kind_real),allocatable :: wgt(:,:),wgt_diag(:),a(:),u(:)
 
 select case (nam%strategy)
 case ('common')
@@ -245,9 +232,101 @@ case ('specific_univariate')
       fld(:,:,:,its) = fld_4d
    end do
 case ('specific_multivariate')
-   call msgerror('not implemented yet in apply_localization')
+   ! Allocation
+   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
+
+   do ib=1,bpar%nb
+      if (bpar%nicas_block(ib)) then
+         ! Variable index
+         iv = bpar%ib_to_iv(ib)
+
+         ! Apply specific localization (same for all timeslots)
+         call apply_nicas_sqrt(nam,geom,ndataloc(ib),cv(bpar%nb+1)%alpha,fld_4d(:,:,iv))
+
+         ! Apply common ensemble coefficient square-root
+         fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(ib)%coef_ens)
+      end if
+   end do
+
+   ! Build final vector
+   do its=1,nam%nts
+      fld(:,:,:,its) = fld_4d
+   end do
 case ('common_weighted')
-   call msgerror('not implemented yet in apply_localization')
+   ! Allocation
+   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
+   allocate(fld_4d_tmp(geom%nc0a,geom%nl0,nam%nv))
+   allocate(wgt(nam%nv,nam%nv))
+   allocate(wgt_diag(nam%nv))
+   allocate(a((nam%nv*(nam%nv+1))/2))
+   allocate(u((nam%nv*(nam%nv+1))/2))
+
+   ! Copy weights
+   do ib=1,bpar%nb
+      if (bpar%B_block(ib)) then
+         ! Variable indices
+         iv = bpar%ib_to_iv(ib)
+         jv = bpar%ib_to_jv(ib)
+         if (isnotmsr(ndataloc(ib)%wgt)) then
+            wgt(iv,jv) = ndataloc(ib)%wgt
+         else
+            wgt(iv,jv) = 0.0
+         end if
+         if (iv==jv) wgt_diag(iv) = wgt(iv,iv)
+      end if
+   end do
+
+   ! Normalize weights
+   do iv=1,nam%nv
+      do jv=1,nam%nv
+         wgt(iv,jv) = wgt(iv,jv)/sqrt(wgt_diag(iv)*wgt_diag(jv))
+      end do
+   end do
+
+   ! Cholesky decomposition
+   i = 0
+   do iv=1,nam%nv
+      do jv=1,iv
+         i = i+1
+         a(i) = wgt(iv,jv)
+      end do
+   end do
+   call cholesky(a,nam%nv,(nam%nv*(nam%nv+1))/2,u,nullty,info)
+   if (info==2) call msgerror('weights are not positive definite in apply_localization')
+   i = 0
+   wgt = 0.0
+   do iv=1,nam%nv
+      do jv=1,iv
+         i = i+1
+         wgt(iv,jv) = u(i)
+      end do
+   end do
+
+   do ib=1,bpar%nb
+      if (bpar%cv_block(ib)) then
+         ! Variable index
+         iv = bpar%ib_to_iv(ib)
+
+         ! Apply specific localization (same for all timeslots)
+         call apply_nicas_sqrt(nam,geom,ndataloc(bpar%nb+1),cv(ib)%alpha,fld_4d(:,:,iv))
+
+         ! Apply common ensemble coefficient square-root
+         fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(bpar%nb+1)%coef_ens)
+      end if
+   end do
+
+   ! Apply weights
+   fld_4d_tmp = 0.0
+   do iv=1,nam%nv
+      do jv=1,iv
+         fld_4d_tmp(:,:,iv) = fld_4d_tmp(:,:,iv)+wgt(iv,jv)*fld_4d(:,:,jv)
+      end do
+   end do
+
+   ! Build final vector
+   do its=1,nam%nts
+      fld(:,:,:,its) = fld_4d_tmp
+   end do
 end select
 
 end subroutine apply_localization_sqrt
@@ -269,8 +348,10 @@ real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field, l
 type(cvtype),intent(out) :: cv(bpar%nb+1)                            !< Control variable
 
 ! Local variable
-integer :: ib,its,iv
-real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:)
+integer :: ib,its,iv,jv,i,nullty,info
+real(kind_real),allocatable :: fld_3d(:,:),fld_4d(:,:,:),fld_4d_tmp(:,:,:)
+real(kind_real),allocatable :: wgt(:,:),wgt_diag(:),a(:),u(:)
+type(cvtype) :: cv_tmp(bpar%nb+1)
 
 ! Allocation
 call cv_alloc(bpar,ndataloc,cv)
@@ -316,9 +397,110 @@ case ('specific_univariate')
       end if
    end do
 case ('specific_multivariate')
-   call msgerror('not implemented yet in apply_localization')
+   ! Allocation
+   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
+   call cv_alloc(bpar,ndataloc,cv_tmp)
+
+   ! Initialization
+   cv(bpar%nb+1)%alpha = 0.0
+
+   ! Sum product over timeslots
+   fld_4d = 0.0
+   do its=1,nam%nts
+      fld_4d = fld_4d+fld(:,:,:,its)
+   end do
+
+   do ib=1,bpar%nb
+      if (bpar%nicas_block(ib)) then
+         ! Variable index
+         iv = bpar%ib_to_iv(ib)
+
+         ! Apply common ensemble coefficient square-root
+         fld_4d(:,:,iv) = fld_4d(:,:,iv)*sqrt(ndataloc(ib)%coef_ens)
+
+         ! Apply specific localization (same for all timeslots)
+         call apply_nicas_sqrt_ad(nam,geom,ndataloc(ib),fld_4d(:,:,iv),cv_tmp(bpar%nb+1)%alpha)
+
+         ! Sum control variable
+         cv(bpar%nb+1)%alpha = cv(bpar%nb+1)%alpha+cv_tmp(bpar%nb+1)%alpha
+      end if
+   end do
 case ('common_weighted')
-   call msgerror('not implemented yet in apply_localization')
+   ! Allocation
+   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
+   allocate(fld_4d_tmp(geom%nc0a,geom%nl0,nam%nv))
+   allocate(wgt(nam%nv,nam%nv))
+   allocate(wgt_diag(nam%nv))
+   allocate(a((nam%nv*(nam%nv+1))/2))
+   allocate(u((nam%nv*(nam%nv+1))/2))
+
+   ! Copy weights
+   do ib=1,bpar%nb
+      if (bpar%B_block(ib)) then
+         ! Variable indices
+         iv = bpar%ib_to_iv(ib)
+         jv = bpar%ib_to_jv(ib)
+         if (isnotmsr(ndataloc(ib)%wgt)) then
+            wgt(iv,jv) = ndataloc(ib)%wgt
+         else
+            wgt(iv,jv) = 0.0
+         end if
+         if (iv==jv) wgt_diag(iv) = wgt(iv,iv)
+      end if
+   end do
+
+   ! Normalize weights
+   do iv=1,nam%nv
+      do jv=1,nam%nv
+         wgt(iv,jv) = wgt(iv,jv)/sqrt(wgt_diag(iv)*wgt_diag(jv))
+      end do
+   end do
+
+   ! Cholesky decomposition
+   i = 0
+   do iv=1,nam%nv
+      do jv=1,iv
+         i = i+1
+         a(i) = wgt(iv,jv)
+      end do
+   end do
+   call cholesky(a,nam%nv,(nam%nv*(nam%nv+1))/2,u,nullty,info)
+   if (info==2) call msgerror('weights are not positive definite in apply_localization')
+   i = 0
+   wgt = 0.0
+   do jv=1,nam%nv
+      do iv=1,jv
+         i = i+1
+         wgt(iv,jv) = u(i)
+      end do
+   end do
+
+   ! Sum product over timeslots
+   fld_4d = 0.0
+   do its=1,nam%nts
+      fld_4d = fld_4d+fld(:,:,:,its)
+   end do
+
+   ! Apply weights
+   fld_4d_tmp = 0.0
+   do iv=1,nam%nv
+      do jv=iv,nam%nv
+         fld_4d_tmp(:,:,iv) = fld_4d_tmp(:,:,iv)+wgt(iv,jv)*fld_4d(:,:,jv)
+      end do
+   end do
+
+   do ib=1,bpar%nb
+      if (bpar%cv_block(ib)) then
+         ! Variable index
+         iv = bpar%ib_to_iv(ib)
+
+         ! Apply common ensemble coefficient square-root
+         fld_4d_tmp(:,:,iv) = fld_4d_tmp(:,:,iv)*sqrt(ndataloc(bpar%nb+1)%coef_ens)
+
+         ! Apply specific localization (same for all timeslots)
+         call apply_nicas_sqrt_ad(nam,geom,ndataloc(bpar%nb+1),fld_4d_tmp(:,:,iv),cv(ib)%alpha)
+      end if
+   end do
 end select
 
 end subroutine apply_localization_sqrt_ad

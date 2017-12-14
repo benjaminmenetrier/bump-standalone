@@ -16,8 +16,9 @@ use driver_nicas, only: run_nicas
 use driver_obsgen, only: run_obsgen
 use driver_obsop, only: run_obsop
 use driver_test, only: run_test
-use model_interface, only: model_coord
+use model_interface, only: model_coord,load_ensemble
 use tools_display, only: listing_setup,msgerror
+use tools_kinds,only: kind_real
 use type_bdata, only: bdatatype
 use type_bpar, only: bpartype,bpar_alloc
 use type_geom, only: geomtype,compute_grid_mesh
@@ -31,6 +32,7 @@ use type_timer, only: timertype,timer_start,timer_display
 implicit none
 
 ! Local variables
+real(kind_real),allocatable :: ens1(:,:,:,:,:)
 type(geomtype),target :: geom
 type(namtype),target :: nam
 type(bpartype) :: bpar
@@ -121,13 +123,28 @@ write(mpl%unit,'(a)') '--- Compute grid mesh'
 call compute_grid_mesh(nam,geom)
 
 !----------------------------------------------------------------------
+! Load ensemble
+!----------------------------------------------------------------------
+
+if (nam%load_ensemble) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Load ensemble'
+
+   call load_ensemble(nam,geom,ens1)
+end if
+
+!----------------------------------------------------------------------
 ! Call hybrid_diag driver
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call hybrid_diag driver'
 
-call run_hdiag(nam,geom,bpar,bdata)
+if (nam%load_ensemble) then
+   call run_hdiag(nam,geom,bpar,bdata,ens1)
+else
+   call run_hdiag(nam,geom,bpar,bdata)
+end if
 
 !----------------------------------------------------------------------
 ! Call NICAS driver
@@ -145,7 +162,11 @@ call run_nicas(nam,geom,bpar,bdata,ndataloc)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call run_test driver'
 
-call run_test(nam,geom,bpar,bdata,ndataloc)
+if (nam%load_ensemble) then
+   call run_test(nam,geom,bpar,bdata,ndataloc,ens1)
+else
+   call run_test(nam,geom,bpar,bdata,ndataloc)
+end if
 
 !----------------------------------------------------------------------
 ! Call LCT driver
@@ -154,7 +175,11 @@ call run_test(nam,geom,bpar,bdata,ndataloc)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call LCT driver'
 
-call run_lct(nam,geom,bpar)
+if (nam%load_ensemble) then
+   call run_lct(nam,geom,bpar,ens1)
+else
+   call run_lct(nam,geom,bpar)
+end if
 
 !----------------------------------------------------------------------
 ! Call observation operator driver

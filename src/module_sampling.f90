@@ -20,7 +20,7 @@ use tools_stripack, only: trans,trmesh,trlist,bnodes,scoord
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_hdata, only: hdatatype,hdata_alloc,hdata_read,hdata_write
 use type_linop, only: linop_alloc
-use type_mpl, only: mpl,mpl_bcast
+use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_bcast,mpl_split
 use type_randgen, only: rand_integer,initialize_sampling
 implicit none
 
@@ -43,7 +43,7 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: info,il0,ic0,ic1,ic2,ildw,ic,i_s,il0i,jc1
+integer :: info,il0,ic0,jl0,ic1,ic2,ildw,ic,i_s,il0i,jc1
 integer :: mask_ind(hdata%nam%nc1)
 integer,allocatable :: vbot(:),vtop(:),nn_nc1_index(:)
 real(kind_real) :: rh0(hdata%geom%nc0,hdata%geom%nl0),dum(1)
@@ -90,9 +90,30 @@ if (info==1) then
    end if
 end if
 
+! Define sampling weights
+write(mpl%unit,'(a7,a)') '','Define sampling weights'
+do jl0=1,geom%nl0
+   do il0=1,geom%nl0
+      do ic=1,nam%nc
+         do ic1=1,nam%nc1
+            ! Absolute weight of each couple
+            if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
+               hdata%swgt(ic1,ic,il0,jl0) = 1.0
+            else
+               hdata%swgt(ic1,ic,il0,jl0) = 0.0
+             end if
+         end do
+
+         ! Relative weight
+         if (sum(hdata%swgt(:,ic,il0,jl0))>0) hdata%swgt(:,ic,il0,jl0) = hdata%swgt(:,ic,il0,jl0)/sum(hdata%swgt(:,ic,il0,jl0))
+      end do
+   end do
+end do
+
 if (nam%local_diag.or.nam%displ_diag) then
    if ((info==1).or.(info==2)) then
       ! Define subsampling
+      write(mpl%unit,'(a7,a)') '','Define subsampling'
       mask_ind = 1
       rh0 = 1.0
       call initialize_sampling(nam%nc1,dble(geom%lon(hdata%ic1_to_ic0)),dble(geom%lat(hdata%ic1_to_ic0)),mask_ind, &
@@ -102,6 +123,8 @@ if (nam%local_diag.or.nam%displ_diag) then
 
    if ((info==1).or.(info==2).or.(info==3).or.(info==4)) then
       if (trim(nam%flt_type)/='none') then
+         ! Create cover trees
+         write(mpl%unit,'(a7,a)') '','Create cover trees'
          do il0=1,geom%nl0
             if ((il0==1).or.(geom%nl0i>1)) then
                write(mpl%unit,'(a10,a,i3)') '','Level ',nam%levs(il0)
@@ -299,7 +322,7 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: il0,jl0,irmaxloc,progint,ic,ic1,ir,ipt,jpt,i,nvc0,ic0,ivc0,icinf,icsup,ictest,ibnd
+integer :: il0,irmaxloc,progint,ic,ic1,ir,ipt,jpt,i,nvc0,ic0,ivc0,icinf,icsup,ictest,ibnd
 integer,allocatable :: vipt(:)
 real(kind_real) :: d
 real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
@@ -318,7 +341,7 @@ if (nam%nc>1) then
          hdata%ic1icil0_to_ic0(:,:,il0) = hdata%ic1icil0_to_ic0(:,:,1)
       else
          ! New sampling
-         write(mpl%unit,'(a10,a,i2,a,i3,a)',advance='no') '','Level ',nam%levs(il0),' ~> new sampling:'
+         write(mpl%unit,'(a10,a,i3,a,i3,a)',advance='no') '','Level ',nam%levs(il0),' ~> new sampling:'
 
          ! Initialize
          do ic=1,nam%nc
@@ -471,26 +494,6 @@ elseif (nam%nc==1) then
    end do
 end if
 
-! Define sampling weights
-write(mpl%unit,'(a7,a)') '','Define sampling weights'
-do jl0=1,geom%nl0
-   do il0=1,geom%nl0
-      do ic=1,nam%nc
-         do ic1=1,nam%nc1
-            ! Absolute weight of each couple
-            if (hdata%ic1il0_log(ic1,jl0).and.hdata%ic1icil0_log(ic1,ic,il0)) then
-               hdata%swgt(ic1,ic,il0,jl0) = 1.0
-            else
-               hdata%swgt(ic1,ic,il0,jl0) = 0.0
-             end if
-         end do
-
-         ! Relative weight
-         if (sum(hdata%swgt(:,ic,il0,jl0))>0) hdata%swgt(:,ic,il0,jl0) = hdata%swgt(:,ic,il0,jl0)/sum(hdata%swgt(:,ic,il0,jl0))
-      end do
-   end do
-end do
-
 ! End associate
 end associate
 
@@ -508,18 +511,37 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: il0,ic1,ic0,jc0,ibnd,ic
+integer :: il0,ic1,ic0,jc0,ibnd,ic,progint
 integer :: nn(hdata%nam%nc)
+integer :: iproc,ic1_s(mpl%nproc),ic1_e(mpl%nproc),nc1_loc(mpl%nproc),ic1_loc
+integer,allocatable :: bufsi(:),bufri(:)
 real(kind_real) :: dum(hdata%nam%nc)
 real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
+logical,allocatable :: bufsl(:),bufrl(:),done(:)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 write(mpl%unit,'(a7,a)') '','Compute LCT sampling'
 
+! MPI splitting
+call mpl_split(nam%nc1,ic1_s,ic1_e,nc1_loc)
+
+! Allocation
+allocate(bufri(nc1_loc(iproc)*nam%nc))
+allocate(bufrl(nc1_loc(iproc)*nam%nc))
+allocate(bufsi(nc1_loc(iproc)*nam%nc))
+allocate(bufsl(nc1_loc(iproc)*nam%nc))
+allocate(done(nc1_loc(mpl%myproc)))
+
 do il0=1,geom%nl0
-   do ic1=1,nam%nc1
+   write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Level ',nam%levs(il0),': '
+   call prog_init(progint,done)
+
+   do ic1_loc=1,nc1_loc(mpl%myproc)
+      ! MPI offset
+      ic1 = ic1_s(mpl%myproc)+ic1_loc-1
+
       ! Check location validity
       if (isnotmsi(hdata%ic1_to_ic0(ic1))) then
          ! Find neighbors
@@ -587,8 +609,51 @@ do il0=1,geom%nl0
             !$omp end parallel do
          end if
       end if
+
+      ! Print progression
+      done(ic1_loc) = .true.
+      call prog_print(progint,done)
+   end do
+   write(mpl%unit,'(a)') '100%'
+
+   ! Communication
+   if (mpl%main) then
+      do iproc=1,mpl%nproc
+         if (iproc/=mpl%ioproc) then
+            ! Receive data on ioproc
+            call mpl_recv(nc1_loc(iproc)*nam%nc,bufri,iproc,mpl%tag)
+            call mpl_recv(nc1_loc(iproc)*nam%nc,bufrl,iproc,mpl%tag+1)
+         end if
+      end do
+   else
+      ! Prepare buffers
+      do ic=1,nam%nc
+         bufsi((ic-1)*nc1_loc(iproc)+1:ic*nc1_loc(iproc)) = hdata%ic1icil0_to_ic0(:,ic,il0)
+         bufsl((ic-1)*nc1_loc(iproc)+1:ic*nc1_loc(iproc)) = hdata%ic1icil0_log(:,ic,il0)
+      end do
+
+      ! Send data to ioproc
+      call mpl_send(nc1_loc(mpl%myproc)*nam%nc,bufsi,mpl%ioproc,mpl%tag)
+      call mpl_send(nc1_loc(mpl%myproc)*nam%nc,bufsl,mpl%ioproc,mpl%tag+1)
+   end if
+   mpl%tag = mpl%tag+2
+
+   ! Broadcast data
+   call mpl_bcast(bufri,mpl%ioproc)
+   call mpl_bcast(bufrl,mpl%ioproc)
+
+   ! Format data
+   do ic=1,nam%nc
+      hdata%ic1icil0_to_ic0(:,ic,il0) = bufri((ic-1)*nc1_loc(iproc)+1:ic*nc1_loc(iproc))
+      hdata%ic1icil0_log(:,ic,il0) = bufrl((ic-1)*nc1_loc(iproc)+1:ic*nc1_loc(iproc))
    end do
 end do
+
+! Release memory
+deallocate(bufsi)
+deallocate(bufsl)
+deallocate(bufri)
+deallocate(bufrl)
 
 ! End associate
 end associate

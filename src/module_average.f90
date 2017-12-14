@@ -18,7 +18,7 @@ use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
 use tools_qsort, only: qsort
 use type_avg, only: avgtype,avg_alloc,avg_copy,avg_pack,avg_unpack
 use type_mom, only: momtype
-use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast
+use type_mpl, only: mpl,mpl_recv,mpl_send,mpl_bcast,mpl_split
 use type_hdata, only: hdatatype
 implicit none
 
@@ -200,11 +200,7 @@ do ic2=1,hdata%nc2
 end do
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   ic2_s(iproc) = (iproc-1)*(hdata%nc2/mpl%nproc+1)+1
-   ic2_e(iproc) = min(iproc*(hdata%nc2/mpl%nproc+1),hdata%nc2)
-   nc2_loc(iproc) = ic2_e(iproc)-ic2_s(iproc)+1
-end do
+call mpl_split(hdata%nc2,ic2_s,ic2_e,nc2_loc)
 
 ! Loop over points
 do ic2_loc=1,nc2_loc(mpl%myproc)
@@ -625,8 +621,8 @@ type(avgtype) :: avg_tmp(hdata%bpar%nb+1,hdata%nc2)
 
 ! Transpose array
 do ic2=1,hdata%nc2
-   do ib=1,hdata%bpar%nb+1
-      call avg_copy(hdata,ib,avg(ic2,ib),avg_tmp(ib,ic2))
+   do ib=1,hdata%bpar%nb
+      if (hdata%bpar%diag_block(ib)) call avg_copy(hdata,ib,avg(ic2,ib),avg_tmp(ib,ic2))
    end do
 end do
 
@@ -636,6 +632,11 @@ do ic2=1,hdata%nc2
    call compute_bwavg(hdata,avg_tmp(:,ic2))
 end do
 !$omp end parallel do
+
+! Transpose array
+do ic2=1,hdata%nc2
+   call avg_copy(hdata,ib,avg_tmp(hdata%bpar%nb+1,ic2),avg(ic2,hdata%bpar%nb+1))
+end do
 
 end subroutine compute_bwavg_local
 

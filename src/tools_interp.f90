@@ -20,7 +20,7 @@ use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
 use type_mesh, only: meshtype,create_mesh,mesh_dealloc
-use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
+use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send,mpl_split
 
 implicit none
 
@@ -107,11 +107,7 @@ real(kind_real),allocatable :: S(:)
 logical,allocatable :: done(:)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   i_dst_s(iproc) = (iproc-1)*(n_dst/mpl%nproc+1)+1
-   i_dst_e(iproc) = min(iproc*(n_dst/mpl%nproc+1),n_dst)
-   n_dst_loc(iproc) = i_dst_e(iproc)-i_dst_s(iproc)+1
-end do
+call mpl_split(n_dst,i_dst_s,i_dst_e,n_dst_loc)
 
 ! Allocation
 allocate(row(3*n_dst_loc(mpl%myproc)))
@@ -413,11 +409,7 @@ real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
 logical,allocatable :: done(:)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   i_s_s(iproc) = (iproc-1)*(interp%n_s/mpl%nproc+1)+1
-   i_s_e(iproc) = min(iproc*(interp%n_s/mpl%nproc+1),interp%n_s)
-   n_s_loc(iproc) = i_s_e(iproc)-i_s_s(iproc)+1
-end do
+call mpl_split(interp%n_s,i_s_s,i_s_e,n_s_loc)
 
 ! Allocation
 allocate(done(n_s_loc(mpl%myproc)))

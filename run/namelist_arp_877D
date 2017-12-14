@@ -3,35 +3,37 @@ datadir = "../data/arp/877D",
 prefix = "arp_877D",
 model = "arp",
 colorlog = .true.,
-sam_default_seed = .true.,
+default_seed = .false.,
+load_ensemble = .false.,
 /
 
 &driver_param
 method = "loc",
 strategy = "common",
-new_hdiag = .false.,
-new_param = .false.,
-new_mpi = .false.,
+new_hdiag = .true.,
+new_param = .true.,
+new_mpi = .true.,
 check_adjoints = .false.,
 check_pos_def = .false.,
-check_mpi = .false.,
+check_mpi = .true.,
 check_sqrt = .false.,
 check_dirac = .false.,
 check_perf = .false.,
 check_hdiag = .false.,
 new_lct = .false.,
-new_obsop = .true.,
+new_obsop = .false.,
 /
 
 &model_param
-nl = 9,
-levs = 30,31,32,33,34,35,36,37,38,39,
+nl = 2,
+levs = 104,105,
 logpres = .true.,
 nv = 2,
 varname = "TEMPERATURE","HUMI.SPECIFI",
-addvar2d = "","",
+addvar2d = "SURFPRESSION","",
 nts = 1,
 timeslot = 0,6,
+transform = .false.,
 /
 
 &ens1_param
@@ -57,14 +59,14 @@ ntry = 3,
 nrep = 2,
 nc = 20,
 dc = 100.0e3,
-nl0r = 7,
+nl0r = 3,
 /
 
 &diag_param
 ne = 50,
 gau_approx = .false.,
 full_var = .false.,
-local_diag = .false.,
+local_diag = .true.,
 local_rad = 1000.0e3,
 displ_diag = .false.,
 displ_rad = 1000.0e3,
@@ -74,13 +76,13 @@ displ_tol = 0.01,
 /
 
 &fit_param
-fit_type = "praxis",
+fit_type = "nelder_mead",
 fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
-lct_diag = .false.,
 lct_nscales = 0,
+lct_diag = .false.,
 /
 
 &output_param
@@ -91,11 +93,11 @@ nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
 flt_type = "average",
-diag_rhflt = 500.0e3,
+diag_rhflt = 3000.0e3,
 /
 
 &nicas_param
-lsqrt = .false.,
+lsqrt = .true.,
 rh = 0.0,
 rv = 0.0,
 resol = 4.0,

@@ -329,7 +329,7 @@ if (com%nhalo>0) then
    ! Copy interior
    vec = vec_tmp(com%ired_to_iext)
 
-   ! Copy halo 
+   ! Copy halo
    do iexcl=1,com%nexcl
       vec(com%excl(iexcl)) = vec(com%excl(iexcl))+rbuf(iexcl)
    end do

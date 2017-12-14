@@ -17,7 +17,7 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
-use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
+use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send,mpl_split
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 use type_randgen, only: initialize_sampling
@@ -48,7 +48,7 @@ real(kind_real),intent(in) :: rv0(ndata%geom%nc0,ndata%geom%nl0) !< Scaled verti
 
 ! Local variables
 integer :: n_s_max,progint,ithread,is,ic1,il1,ic0,il0,np,np_new,ip,jc0,jl0,kc0,kl0,jp,i,js
-integer :: iproc,is_s(mpl%nproc),is_e(mpl%nproc),ns_loc(mpl%nproc),is_loc
+integer :: is_s(mpl%nproc),is_e(mpl%nproc),ns_loc(mpl%nproc),is_loc
 integer :: c_n_s(mpl%nthread)
 integer,allocatable :: plist(:,:),plist_new(:,:)
 real(kind_real) :: rh0sq,rv0sq,distnorm,disttest,S_test
@@ -61,11 +61,7 @@ type(linoptype) :: c(mpl%nthread)
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   is_s(iproc) = (iproc-1)*(ndata%ns/mpl%nproc+1)+1
-   is_e(iproc) = min(iproc*(ndata%ns/mpl%nproc+1),ndata%ns)
-   ns_loc(iproc) = is_e(iproc)-is_s(iproc)+1
-end do
+call mpl_split(ndata%ns,is_s,is_e,ns_loc)
 
 ! Allocation
 n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))
@@ -270,11 +266,7 @@ ms = 10*min(floor(pi*nam%resol**2*(1.0-cos(minval(rhs)))/(sqrt(3.0)*minval(rhs)*
 ms = min(ms,ndata%nc1)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   ic1_s(iproc) = (iproc-1)*(ndata%nc1/mpl%nproc+1)+1
-   ic1_e(iproc) = min(iproc*(ndata%nc1/mpl%nproc+1),ndata%nc1)
-   nc1_loc(iproc) = ic1_e(iproc)-ic1_s(iproc)+1
-end do
+call mpl_split(ndata%nc1,ic1_s,ic1_e,nc1_loc)
 
 ! Allocation
 allocate(nn_index(ms,ndata%nc1))
@@ -339,11 +331,7 @@ call mpl_bcast(nn_index,mpl%ioproc)
 call mpl_bcast(nn_dist,mpl%ioproc)
 
 ! MPI splitting
-do iproc=1,mpl%nproc
-   is_s(iproc) = (iproc-1)*(ndata%ns/mpl%nproc+1)+1
-   is_e(iproc) = min(iproc*(ndata%ns/mpl%nproc+1),ndata%ns)
-   ns_loc(iproc) = is_e(iproc)-is_s(iproc)+1
-end do
+call mpl_split(ndata%ns,is_s,is_e,ns_loc)
 
 ! Allocation
 n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))

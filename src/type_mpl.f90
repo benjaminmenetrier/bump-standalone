@@ -40,6 +40,7 @@ interface mpl_bcast
   module procedure mpl_bcast_real_array_2d
   module procedure mpl_bcast_real_array_3d
   module procedure mpl_bcast_real_array_4d
+  module procedure mpl_bcast_real_array_5d
   module procedure mpl_bcast_logical
   module procedure mpl_bcast_logical_array_1d
   module procedure mpl_bcast_logical_array_2d
@@ -71,7 +72,7 @@ end interface
 
 private
 public :: mpl
-public :: mpl_start,mpl_end,mpl_abort,mpl_barrier,mpl_bcast,mpl_recv,mpl_send,mpl_alltoallv,mpl_allreduce_sum
+public :: mpl_start,mpl_end,mpl_abort,mpl_barrier,mpl_bcast,mpl_recv,mpl_send,mpl_alltoallv,mpl_allreduce_sum,mpl_split
 
 contains
 
@@ -425,6 +426,32 @@ call mpl_check(info)
 call mpl_barrier
 
 end subroutine mpl_bcast_real_array_4d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_bcast_real_array_5d
+!> Purpose: broadcast 5d real array
+!----------------------------------------------------------------------
+subroutine mpl_bcast_real_array_5d(var,root)
+
+implicit none
+
+! Passed variables
+real(kind_real),dimension(:,:,:,:,:),intent(in) :: var !< Real array, 5d
+integer,intent(in) :: root                             !< Root task
+
+! Local variable
+integer :: info
+
+! Broadcast
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+
+! Check
+call mpl_check(info)
+
+! Wait
+call mpl_barrier
+
+end subroutine mpl_bcast_real_array_5d
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_bcast_logical
@@ -811,5 +838,39 @@ var_out = rbuf(1)
 call mpl_check(info)
 
 end subroutine mpl_allreduce_sum_real
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_split
+!> Purpose: split array over different MPI tasks
+!----------------------------------------------------------------------
+subroutine mpl_split(n,i_s,i_e,n_loc)
+
+implicit none
+
+! Passed variables
+integer,intent(in) :: n                 !< Total array size
+integer,intent(out) :: i_s(mpl%nproc)   !< Index start
+integer,intent(out) :: i_e(mpl%nproc)   !< Index end
+integer,intent(out) :: n_loc(mpl%nproc) !< Local array size
+
+! Local variable
+integer :: iproc,nres,delta
+
+! MPI splitting
+nres = n
+do iproc=1,mpl%nproc
+   if (iproc==1) then
+      i_s(iproc) = 1
+   else
+      i_s(iproc) = i_e(iproc-1)+1
+   end if
+   delta = n/mpl%nproc
+   if (nres>(mpl%nproc-iproc+1)*delta) delta = delta+1
+   i_e(iproc) = i_s(iproc)+delta-1
+   n_loc(iproc) = delta
+   nres = nres-delta
+end do
+
+end subroutine mpl_split
 
 end module type_mpl
