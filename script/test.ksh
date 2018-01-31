@@ -5,24 +5,28 @@
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2017 METEO-FRANCE
 #----------------------------------------------------------------------
-# Output files
-output_files="
-bdata_common
+# NetCDF files
+nc_files='
+sampling
+sampling_001
 diag
-ndata_common
-ndataloc_2_0001-0001_common
-sampling"
+bdata_common
+local_diag_cor
+local_diag_loc
+ndata_1_0001-0001_common_summary
+ndata_2_0001-0001_common
+dirac'
 
 # Clean
-for output_file in ${output_files} ; do
-   rm -f ../test/test_${output_file}.nc
+for file in ${nc_files} ; do
+   rm -f ../test/test_${file}.nc
 done
 
 # Execute
 export OMP_NUM_THREADS=1
 cd ../run
 ./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log  2>&1
-if [[ -e "../test/test_ndataloc_2_0001-0001_common.nc" ]] ; then
+if [[ -e "../test/test_dirac.nc" ]] ; then
    echo -e "\033[32mExecution successful\033[m"
 else
    echo -e "\033[31mExecution failed\033[m"
@@ -31,7 +35,7 @@ fi
 
 # Get the differences
 cd ../test
-for output_file in ${output_files} ; do
+for file in ${nc_files} ; do
    # NCL script
 cat<<EOFNAM >script.ncl
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
@@ -40,15 +44,15 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 begin
 
 ; Load files
-data_truth = addfile("truth_${output_file}.nc","r")
-data_test = addfile("test_${output_file}.nc","r")
+data_truth = addfile("truth_${file}.nc","r")
+data_test = addfile("test_${file}.nc","r")
 
 ; Find variables
 vars = getfilevarnames(data_truth)
 nvars = dimsizes(vars)
 
 ; Print file name
-write_table("${output_file}.out","w",[/(/"\033[1mFile: ${output_file}\033[m"/)/],"%s")
+write_table("${file}.out","w",[/(/"\033[1mFile: ${file}\033[m"/)/],"%s")
 
 do ivar=0,nvars-1
    ; Read data
@@ -82,17 +86,17 @@ do ivar=0,nvars-1
 
    ; Print message
    if (truth_test) then
-      write_table("${output_file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)\033[m"/)/],"%40s%s")
+      write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)\033[m"/)/],"%40s%s")
    end if
    if (test_truth) then
-      write_table("${output_file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)\033[m"/)/],"%40s%s")
+      write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)\033[m"/)/],"%40s%s")
    end if
    if (.not.(truth_test.or.test_truth)) then
       dist = dist*100.0
       if (dist.gt.0.01) then
-         write_table("${output_file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": " + sprintf("%5.2f",dist) + "%\033[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": " + sprintf("%5.2f",dist) + "%\033[m"/)/],"%40s%s")
       else
-         write_table("${output_file}.out","a",[/(/"   \033[32m" + vars(ivar)/),(/": " + sprintf("%5.2f",dist) + "%\033[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   \033[32m" + vars(ivar)/),(/": " + sprintf("%5.2f",dist) + "%\033[m"/)/],"%40s%s")
       end if
    end if
 
@@ -110,7 +114,7 @@ EOFNAM
    rm -f script.ncl
 
    # Print results
-   value=$(<${output_file}.out)
+   value=$(<${file}.out)
    echo "$value"
 done
 

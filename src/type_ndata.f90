@@ -16,6 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncerr,ncfloat
+use type_bpar, only: bpartype
 use type_com, only: comtype,com_dealloc,com_read,com_write
 use type_geom, only: geomtype
 use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_read,linop_write
@@ -27,90 +28,100 @@ implicit none
 ! Sampling data derived type
 type ndatatype
    ! Block name
-   character(len=1024) :: cname                !< Block name
+   character(len=1024) :: cname                 !< Block name
 
    ! Namelist
-   type(namtype),pointer :: nam                !< Namelist
+   type(namtype),pointer :: nam                 !< Namelist
 
    ! Geometry
-   type(geomtype),pointer :: geom              !< Geometry
+   type(geomtype),pointer :: geom               !< Geometry
 
    ! Specific geometry
-   integer :: nc1                              !< Number of points in subset Sc1
-   integer,allocatable :: vbot(:)              !< Bottom level in grid Gh
-   integer,allocatable :: vtop(:)              !< Top level in grid Gh
-   integer :: nl1                              !< Number of levels in subset Sl1
-   integer,allocatable :: nc2(:)               !< Number of points in subset Sc2
-   integer :: ns                               !< Number of subgrid nodes
+   integer :: nc1                               !< Number of points in subset Sc1
+   integer,allocatable :: vbot(:)               !< Bottom level in grid Gh
+   integer,allocatable :: vtop(:)               !< Top level in grid Gh
+   integer,allocatable :: nc2(:)                !< Number of points in subset Sc2
+   integer :: ns                                !< Number of subgrid nodes
 
-   ! Linear operators
-   type(linoptype) :: c                        !< Convolution
-   type(linoptype),allocatable :: h(:)         !< Horizontal interpolation
-   type(linoptype) :: v                        !< Vertical interpolation
-   type(linoptype),allocatable :: s(:)         !< Subsample interpolation
-
-   ! Normalization
-   real(kind_real),allocatable :: norm(:,:)    !< Normalization factor
-   real(kind_real),allocatable :: norm_sqrt(:) !< Internal normalization factor for the square-root formulation
-
-   ! Localization weights
-   real(kind_real),allocatable :: coef_ens(:,:) !< Ensemble coefficient square-root
-   real(kind_real) :: wgt                       !< Main weight
+   ! Full interpolations
+   type(linoptype),allocatable :: hfull(:)      !< Horizontal interpolation
+   type(linoptype),allocatable :: sfull(:)      !< Subsample interpolation
 
    ! Other data
 
+   ! Level selection
+   logical,allocatable :: llev(:)               !< Level selection
+
    ! Parameters/normalization conversion
-   integer,allocatable :: is_to_ic1(:)          !< Subgrid to subset Sc1
-   integer,allocatable :: is_to_il1(:)          !< Subgrid to subset Sl1
-   integer,allocatable :: is_to_ic2(:)          !< Subgrid to subset sc2
-   integer,allocatable :: ic1_to_ic0(:)         !< Subset Sc1 to subset Sc0
-   integer,allocatable :: il1_to_il0(:)         !< Subset Sl1 to subset Sl0
-   integer,allocatable :: ic2il1_to_ic0(:,:)    !< Grid Gs to subset Sc0
-   integer,allocatable :: ic0_to_ic1(:)         !< Subset Sc0 to subset Sc1
-   integer,allocatable :: il0_to_il1(:)         !< Subset Sl0 to subset Sl1
-   integer,allocatable :: ic0il0_to_is(:,:)     !< Grid Gf to subgrid
-   integer,allocatable :: ic2il1_to_is(:,:)     !< Grid Gs to subgrid
-   integer,allocatable :: ic2il1_to_ic1(:,:)    !< Grid Gs to subset Sc1
-   integer,allocatable :: ic1il1_to_is(:,:)     !< Grid Gv to subgrid
+   integer,allocatable :: s_to_c1(:)            !< Subgrid to subset Sc1
+   integer,allocatable :: s_to_l1(:)            !< Subgrid to subset Sl1
+   integer,allocatable :: c1_to_c0(:)           !< Subset Sc1 to subset Sc0
+   integer,allocatable :: l1_to_l0(:)           !< Subset Sl1 to subset Sl0
+   integer,allocatable :: c0_to_c1(:)           !< Subset Sc0 to subset Sc1
+   integer,allocatable :: l0_to_l1(:)           !< Subset Sl0 to subset Sl1
+   logical,allocatable :: c2mask(:,:)           !< Mask from G1 to subgrid
+   integer,allocatable :: c1l1_to_s(:,:)        !< Grid Gv to subgrid
 
-   ! Illustration
-   integer,allocatable :: halo(:)               !< Halo points for illustration
-end type ndatatype
+   ! MPI distribution
+   integer :: nc1a                              !< Number of points in subset Sc1 on halo A
+   logical,allocatable :: lcheck_c1a(:)         !< Detection of halo A on subset Sc1
+   logical,allocatable :: lcheck_c1b(:)         !< Detection of halo B on subset Sc1
+   logical,allocatable :: lcheck_sa(:)          !< Detection of halo A on subgrid
+   logical,allocatable :: lcheck_sb(:)          !< Detection of halo B on subgrid
+   logical,allocatable :: lcheck_sc(:)          !< Detection of halo C on subgrid
+   logical,allocatable :: lcheck_sc_nor(:)      !< Detection of halo A on subgrid
+   logical,allocatable :: lcheck_h(:,:)         !< Detection of horizontal interpolation coefficients
+   logical,allocatable :: lcheck_s(:,:)         !< Detection of subsampling interpolation coefficients
+   integer,allocatable :: c1a_to_c1(:)          !< Subset Sc1, halo A to global
+   integer,allocatable :: c1_to_c1a(:)          !< Subset Sc1, global to halo A
+   integer,allocatable :: c1b_to_c1(:)          !< Subset Sc1, halo B to global
+   integer,allocatable :: c1_to_c1b(:)          !< Subset Sc1, global to halo B
+   integer,allocatable :: c1bl1_to_sb(:,:)      !< Halo B, subset Sc1 to subgrid
+   integer,allocatable :: interph_lg(:,:)       !< Local to global for horizontal interpolation
+   integer,allocatable :: interps_lg(:,:)       !< Local to global for subsampling interpolation
+   integer,allocatable :: sa_to_sb(:)           !< Subgrid, halo A to halo B
+   integer,allocatable :: sc_to_sb(:)           !< Subgrid, halo C to halo B
+   integer,allocatable :: sa_to_s(:)            !< Subgrid, halo A to global
+   integer,allocatable :: s_to_sa(:)            !< Subgrid, global to halo A
+   integer,allocatable :: sb_to_s(:)            !< Subgrid, halo B to global
+   integer,allocatable :: s_to_sb(:)            !< Subgrid, global to halo B
+   integer,allocatable :: sc_to_s(:)            !< Subgrid, halo C to global
+   integer,allocatable :: s_to_sc(:)            !< Subgrid, global to halo C
 
-! Local sampling data derived type
-type ndataloctype
-   ! Block name
-   character(len=1024) :: cname                 !< Block name
+   ! Extended data for normalization computation
+   integer :: nsc_nor                           !< Number of subgrid nodes on halo C (extended for normalization)
+   integer,allocatable :: sc_nor_to_s(:)        !< Subgrid, halo C to global (extended for normalization)
+   integer,allocatable :: s_to_sc_nor(:)        !< Subgrid, global to halo C (extended for normalization)
+   integer,allocatable :: sb_to_sc_nor(:)       !< Subgrid, halo B to halo C (extended for normalization)
+   type(linoptype) :: c_nor                     !< Convolution (extended for normalization)
+
+   ! Required data to apply a localization
 
    ! Number of points
    integer :: nc1b                              !< Number of points in subset Sc1 on halo B
    integer :: nl1                               !< Number of levels in subset Sl1
-   integer :: nl0i                              !< Number of independent levels
-   integer,allocatable :: vbot(:)               !< Bottom level
-   integer,allocatable :: vtop(:)               !< Bottom level
-   integer,allocatable :: nc2b(:)               !< Number of points in subset Sc2 on halo B
    integer :: nsa                               !< Number of subgrid nodes on halo A
    integer :: nsb                               !< Number of subgrid nodes on halo B
    integer :: nsc                               !< Number of subgrid nodes on halo C
+   integer :: nc0d                              !< Number of points in subset Sc1 on halo D
 
    ! Inter-halo conversions
-   integer,allocatable :: isa_to_isb(:)         !< Subgrid, halo A to halo B
-   integer,allocatable :: isa_to_isc(:)         !< Subgrid, halo A to halo C
-   integer,allocatable :: isb_to_isc(:)         !< Subgrid, halo B to halo B
+   integer,allocatable :: sa_to_sc(:)           !< Subgrid, halo A to halo C
+   integer,allocatable :: sb_to_sc(:)           !< Subgrid, halo B to halo C
 
    ! Linear operators
    type(linoptype) :: c                         !< Convolution
    type(linoptype),allocatable :: h(:)          !< Horizontal interpolation
    type(linoptype) :: v                         !< Vertical interpolation
    type(linoptype),allocatable :: s(:)          !< Subsample interpolation
+   type(linoptype),allocatable :: d(:,:)        !< Displacement
 
    ! Copy conversions
-   integer,allocatable :: isb_to_ic2b(:)        !< Subgrid to subset Sc2 on halo B
-   integer,allocatable :: isb_to_il1(:)         !< Subgrid to subset Sl1 on halo B
+   integer,allocatable :: sb_to_c1b(:)          !< Subgrid to subset Sc1 on halo B
+   integer,allocatable :: sb_to_l1(:)           !< Subgrid to subset Sl1 on halo B
 
    ! Normalization
    real(kind_real),allocatable :: norm(:,:)     !< Normalization factor
-   real(kind_real),allocatable :: norm_sqrt(:)  !< Internal normalization factor for the square-root formulation
 
    ! Localization weights
    real(kind_real),allocatable :: coef_ens(:,:) !< Ensemble coefficient square-root
@@ -119,69 +130,122 @@ type ndataloctype
    ! Communications
    type(comtype) :: AB                          !< Communication between halos A and B
    type(comtype) :: AC                          !< Communication between halos A and C
+   type(comtype) :: AD                          !< Communication between halos A and D
+   integer :: mpicom                            !< Number of communication steps
 
    ! Transforms
    real(kind_real),allocatable :: trans(:,:)    !< Direct transform
    real(kind_real),allocatable :: transinv(:,:) !< Inverse transform
-end type ndataloctype
+end type ndatatype
 
 private
-public :: ndatatype,ndataloctype
-public :: ndata_dealloc,ndata_read,ndataloc_read, &
- & ndata_write,ndataloc_write,ndata_write_mpi_summary
+public :: ndatatype
+public :: ndata_dealloc,ndata_read,ndata_write,ndata_write_mpi_summary
 
 contains
 
 !----------------------------------------------------------------------
 ! Subroutine: ndata_dealloc
-!> Purpose: deallocate ndata object
+!> Purpose: ndata object deallocation
 !----------------------------------------------------------------------
-subroutine ndata_dealloc(ndata,nicas_block)
+subroutine ndata_dealloc(ndata)
 
 implicit none
 
 ! Passed variables
 type(ndatatype),intent(inout) :: ndata !< NICAS data
-logical,intent(in) :: nicas_block      !< NICAS block key
 
 ! Local variables
-integer :: il0i,il1
+integer :: il0,il1,its
 
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Release memory
-deallocate(ndata%coef_ens)
-if (nicas_block) then
-   deallocate(ndata%vbot)
-   deallocate(ndata%vtop)
-   deallocate(ndata%nc2)
-   call linop_dealloc(ndata%c)
-   do il0i=1,geom%nl0i
-      call linop_dealloc(ndata%h(il0i))
+if (allocated(ndata%vbot)) deallocate(ndata%vbot)
+if (allocated(ndata%vtop)) deallocate(ndata%vtop)
+if (allocated(ndata%nc2)) deallocate(ndata%nc2)
+if (allocated(ndata%hfull)) then
+   do il0=1,geom%nl0
+      call linop_dealloc(ndata%hfull(il0))
+   end do
+   deallocate(ndata%hfull)
+end if
+if (allocated(ndata%sfull)) then
+   do il1=1,ndata%nl1
+      call linop_dealloc(ndata%sfull(il1))
+   end do
+   deallocate(ndata%sfull)
+end if
+if (allocated(ndata%llev)) deallocate(ndata%llev)
+if (allocated(ndata%s_to_c1)) deallocate(ndata%s_to_c1)
+if (allocated(ndata%s_to_l1)) deallocate(ndata%s_to_l1)
+if (allocated(ndata%c1_to_c0)) deallocate(ndata%c1_to_c0)
+if (allocated(ndata%l1_to_l0)) deallocate(ndata%l1_to_l0)
+if (allocated(ndata%c0_to_c1)) deallocate(ndata%c0_to_c1)
+if (allocated(ndata%l0_to_l1)) deallocate(ndata%l0_to_l1)
+if (allocated(ndata%c2mask)) deallocate(ndata%c2mask)
+if (allocated(ndata%c1l1_to_s)) deallocate(ndata%c1l1_to_s)
+if (allocated(ndata%lcheck_c1a)) deallocate(ndata%lcheck_c1a)
+if (allocated(ndata%lcheck_c1b)) deallocate(ndata%lcheck_c1b)
+if (allocated(ndata%lcheck_sa)) deallocate(ndata%lcheck_sa)
+if (allocated(ndata%lcheck_sb)) deallocate(ndata%lcheck_sb)
+if (allocated(ndata%lcheck_sc)) deallocate(ndata%lcheck_sc)
+if (allocated(ndata%lcheck_sc_nor)) deallocate(ndata%lcheck_sc_nor)
+if (allocated(ndata%lcheck_h)) deallocate(ndata%lcheck_h)
+if (allocated(ndata%lcheck_s)) deallocate(ndata%lcheck_s)
+if (allocated(ndata%c1a_to_c1)) deallocate(ndata%c1a_to_c1)
+if (allocated(ndata%c1_to_c1a)) deallocate(ndata%c1_to_c1a)
+if (allocated(ndata%c1b_to_c1)) deallocate(ndata%c1b_to_c1)
+if (allocated(ndata%c1_to_c1b)) deallocate(ndata%c1_to_c1b)
+if (allocated(ndata%c1bl1_to_sb)) deallocate(ndata%c1bl1_to_sb)
+if (allocated(ndata%interph_lg)) deallocate(ndata%interph_lg)
+if (allocated(ndata%interps_lg)) deallocate(ndata%interps_lg)
+if (allocated(ndata%sa_to_sb)) deallocate(ndata%sa_to_sb)
+if (allocated(ndata%sc_to_sb)) deallocate(ndata%sc_to_sb)
+if (allocated(ndata%sa_to_s)) deallocate(ndata%sa_to_s)
+if (allocated(ndata%s_to_sa)) deallocate(ndata%s_to_sa)
+if (allocated(ndata%sb_to_s)) deallocate(ndata%sb_to_s)
+if (allocated(ndata%s_to_sb)) deallocate(ndata%s_to_sb)
+if (allocated(ndata%sc_to_s)) deallocate(ndata%sc_to_s)
+if (allocated(ndata%s_to_sc)) deallocate(ndata%s_to_sc)
+if (allocated(ndata%sc_nor_to_s)) deallocate(ndata%sc_nor_to_s)
+if (allocated(ndata%s_to_sc_nor)) deallocate(ndata%s_to_sc_nor)
+if (allocated(ndata%sb_to_sc_nor)) deallocate(ndata%sb_to_sc_nor)
+call linop_dealloc(ndata%c_nor)
+if (allocated(ndata%sa_to_sc)) deallocate(ndata%sa_to_sc)
+if (allocated(ndata%sb_to_sc)) deallocate(ndata%sb_to_sc)
+call linop_dealloc(ndata%c)
+if (allocated(ndata%h)) then
+   do il0=1,geom%nl0
+      call linop_dealloc(ndata%h(il0))
    end do
    deallocate(ndata%h)
-   call linop_dealloc(ndata%v)
+end if
+call linop_dealloc(ndata%v)
+if (allocated(ndata%s)) then
    do il1=1,ndata%nl1
       call linop_dealloc(ndata%s(il1))
    end do
    deallocate(ndata%s)
-   deallocate(ndata%norm)
-   if (nam%lsqrt) deallocate(ndata%norm_sqrt)
-   deallocate(ndata%is_to_ic1)
-   deallocate(ndata%is_to_il1)
-   deallocate(ndata%is_to_ic2)
-   deallocate(ndata%ic1_to_ic0)
-   deallocate(ndata%il1_to_il0)
-   deallocate(ndata%ic2il1_to_ic0)
-   deallocate(ndata%ic0_to_ic1)
-   deallocate(ndata%il0_to_il1)
-   deallocate(ndata%ic0il0_to_is)
-   deallocate(ndata%ic2il1_to_is)
-   deallocate(ndata%ic2il1_to_ic1)
-   deallocate(ndata%ic1il1_to_is)
-   if (allocated(ndata%halo)) deallocate(ndata%halo)
 end if
+if (allocated(ndata%d)) then
+   do its=2,nam%nts
+      do il0=1,geom%nl0
+        call linop_dealloc(ndata%d(il0,its))
+      end do
+   end do
+   deallocate(ndata%d)
+end if
+if (allocated(ndata%sb_to_c1b)) deallocate(ndata%sb_to_c1b)
+if (allocated(ndata%sb_to_l1)) deallocate(ndata%sb_to_l1)
+if (allocated(ndata%norm)) deallocate(ndata%norm)
+if (allocated(ndata%coef_ens)) deallocate(ndata%coef_ens)
+if (allocated(ndata%trans)) deallocate(ndata%trans)
+call com_dealloc(ndata%AB)
+call com_dealloc(ndata%AC)
+if (allocated(ndata%transinv)) deallocate(ndata%transinv)
+if (allocated(ndata%sb_to_c1b)) deallocate(ndata%sb_to_c1b)
 
 ! End associate
 end associate
@@ -192,516 +256,318 @@ end subroutine ndata_dealloc
 ! Subroutine: ndata_read
 !> Purpose: read ndata object
 !----------------------------------------------------------------------
-subroutine ndata_read(ndata,nicas_block)
+subroutine ndata_read(nam,geom,bpar,ndata)
 
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< NICAS data
-logical,intent(in) :: nicas_block      !< NICAS block key
+type(namtype),intent(in) :: nam                   !< Namelist
+type(geomtype),intent(in) :: geom                 !< Geometry
+type(bpartype),intent(in) :: bpar                 !< Block parameters
+type(ndatatype),intent(inout) :: ndata(bpar%nb+1) !< NICAS data
 
 ! Local variables
-integer :: ncid
-integer :: nc1_id,nl1_id,ns_id
-integer :: vbot_id,vtop_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
-integer :: ic2il1_to_is_id,ic1_to_ic0_id,il1_to_il0_id,ic0_to_ic1_id,il0_to_il1_id,ic2il1_to_ic1_id
-integer :: ic1il1_to_is_id,norm_id,norm_sqrt_id,coef_ens_id
+integer :: ib,info,nl0_1_test,nc0a_test,nl0_2_test
+integer :: ncid,nl0_1_id,nc0a_id,nc1b_id,nl1_id,nsa_id,nsb_id,nc0d_id,nl0_2_id
+integer :: sb_to_c1b_id,sb_to_l1_id
+integer :: sa_to_sc_id,sb_to_sc_id
+integer :: norm_id,coef_ens_id,trans_id,transinv_id
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndata_read'
 
-! Associate
-associate(nam=>ndata%nam,geom=>ndata%geom)
+do ib=1,bpar%nb+1
+   if (bpar%B_block(ib)) then
+      ! Open file and get dimensions
+      filename = trim(nam%prefix)//'_'//trim(ndata(ib)%cname)//'.nc'
+      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
-! Open file
-filename = trim(nam%prefix)//'_'//trim(ndata%cname)//'.nc'
-call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+      ! Get dimensions
+      call ncerr(subr,nf90_inq_dimid(ncid,'nl0_1',nl0_1_id))
+      call ncerr(subr,nf90_inquire_dimension(ncid,nl0_1_id,len=nl0_1_test))
+      if (nl0_1_test/=geom%nl0) call msgerror('wrong dimension when reading ndata')
+      if (bpar%nicas_block(ib)) then
+         call ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
+         call ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=nc0a_test))
+         if (nc0a_test/=geom%nc0a) call msgerror('wrong dimension when reading ndata')
+         info = nf90_inq_dimid(ncid,'nc1b',nc1b_id)
+         if (info==nf90_noerr) then
+            call ncerr(subr,nf90_inquire_dimension(ncid,nc1b_id,len=ndata(ib)%nc1b))
+         else
+            ndata(ib)%nc1b = 0
+         end if
+         call ncerr(subr,nf90_inq_dimid(ncid,'nl1',nl1_id))
+         call ncerr(subr,nf90_inquire_dimension(ncid,nl1_id,len=ndata(ib)%nl1))
+         info = nf90_inq_dimid(ncid,'nsa',nsa_id)
+         if (info==nf90_noerr) then
+            call ncerr(subr,nf90_inquire_dimension(ncid,nsa_id,len=ndata(ib)%nsa))
+         else
+            ndata(ib)%nsa = 0
+         end if
+         info = nf90_inq_dimid(ncid,'nsb',nsb_id)
+         if (info==nf90_noerr) then
+            call ncerr(subr,nf90_inquire_dimension(ncid,nsb_id,len=ndata(ib)%nsb))
+         else
+            ndata(ib)%nsb = 0
+         end if
+         call ncerr(subr,nf90_get_att(ncid,nf90_global,'nsc',ndata(ib)%nsc))
+         call ncerr(subr,nf90_get_att(ncid,nf90_global,'mpicom',ndata(ib)%mpicom))
+      end if
+      if ((ib==bpar%nb+1).and.nam%displ_diag) then
+         call ncerr(subr,nf90_inq_dimid(ncid,'nc0d',nc0d_id))
+         call ncerr(subr,nf90_inquire_dimension(ncid,nc0d_id,len=ndata(ib)%nc0d))
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         call ncerr(subr,nf90_inq_dimid(ncid,'nl0_2',nl0_2_id))
+         call ncerr(subr,nf90_inquire_dimension(ncid,nl0_2_id,len=nl0_2_test))
+         if (nl0_2_test/=geom%nl0) call msgerror('wrong dimension when reading ndata')
+      end if
 
-! Read main weight
-call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',ndata%wgt))
+      ! Allocation
+      if (bpar%nicas_block(ib)) then
+         if (ndata(ib)%nsb>0) allocate(ndata(ib)%sb_to_c1b(ndata(ib)%nsb))
+         if (ndata(ib)%nsb>0) allocate(ndata(ib)%sb_to_l1(ndata(ib)%nsb))
+         if (ndata(ib)%nsa>0) allocate(ndata(ib)%sa_to_sc(ndata(ib)%nsa))
+         if (ndata(ib)%nsb>0) allocate(ndata(ib)%sb_to_sc(ndata(ib)%nsb))
+         allocate(ndata(ib)%norm(geom%nc0a,geom%nl0))
+         allocate(ndata(ib)%coef_ens(geom%nc0a,geom%nl0))
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         allocate(ndata(ib)%trans(geom%nc0,geom%nl0))
+         allocate(ndata(ib)%transinv(geom%nc0,geom%nl0))
+      end if
 
-if (nicas_block) then
-   ! Get dimensions
-   call ncerr(subr,nf90_inq_dimid(ncid,'nc1',nc1_id))
-   call ncerr(subr,nf90_inquire_dimension(ncid,nc1_id,len=ndata%nc1))
-   call ncerr(subr,nf90_inq_dimid(ncid,'nl1',nl1_id))
-   call ncerr(subr,nf90_inquire_dimension(ncid,nl1_id,len=ndata%nl1))
-   call ncerr(subr,nf90_inq_dimid(ncid,'ns',ns_id))
-   call ncerr(subr,nf90_inquire_dimension(ncid,ns_id,len=ndata%ns))
+      ! Get variable id
+      if (bpar%nicas_block(ib)) then
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'sb_to_c1b',sb_to_c1b_id))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'sb_to_l1',sb_to_l1_id))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_inq_varid(ncid,'sa_to_sc',sa_to_sc_id))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'sb_to_sc',sb_to_sc_id))
+         call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
+         call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         call ncerr(subr,nf90_inq_varid(ncid,'trans',trans_id))
+         call ncerr(subr,nf90_inq_varid(ncid,'transinv',transinv_id))
+      end if
 
-   ! Allocation
-   allocate(ndata%vbot(ndata%nc1))
-   allocate(ndata%vtop(ndata%nc1))
-   allocate(ndata%nc2(ndata%nl1))
-   allocate(ndata%is_to_ic1(ndata%ns))
-   allocate(ndata%is_to_il1(ndata%ns))
-   allocate(ndata%is_to_ic2(ndata%ns))
-   allocate(ndata%ic0il0_to_is(geom%nc0,geom%nl0))
-   allocate(ndata%ic2il1_to_ic0(ndata%nc1,ndata%nl1))
-   allocate(ndata%ic2il1_to_is(ndata%nc1,ndata%nl1))
-   allocate(ndata%ic1_to_ic0(ndata%nc1))
-   allocate(ndata%il1_to_il0(ndata%nl1))
-   allocate(ndata%ic0_to_ic1(geom%nc0))
-   allocate(ndata%il0_to_il1(geom%nl0))
-   allocate(ndata%ic2il1_to_ic1(ndata%nc1,ndata%nl1))
-   allocate(ndata%ic1il1_to_is(ndata%nc1,ndata%nl1))
-   allocate(ndata%norm(geom%nc0,geom%nl0))
-   if (nam%lsqrt) allocate(ndata%norm_sqrt(ndata%ns))
-   allocate(ndata%coef_ens(geom%nc0,geom%nl0))
+      ! Read data
+      if (bpar%nicas_block(ib)) then
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_get_var(ncid,sb_to_c1b_id,ndata(ib)%sb_to_c1b))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_get_var(ncid,sb_to_l1_id,ndata(ib)%sb_to_l1))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_get_var(ncid,sa_to_sc_id,ndata(ib)%sa_to_sc))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_get_var(ncid,sb_to_sc_id,ndata(ib)%sb_to_sc))
+         call ncerr(subr,nf90_get_var(ncid,norm_id,ndata(ib)%norm))
+         call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndata(ib)%coef_ens))
+         call com_read(ncid,'AB',ndata(ib)%AB)
+         call com_read(ncid,'AC',ndata(ib)%AC)
+         call linop_read(ncid,'c',ndata(ib)%c)
+         call linop_read(ncid,'h',ndata(ib)%h)
+         call linop_read(ncid,'v',ndata(ib)%v)
+         call linop_read(ncid,'s',ndata(ib)%s)
+      end if
+      if ((ib==bpar%nb+1).and.nam%displ_diag) then
+         call com_read(ncid,'AD',ndata(ib)%AD)
+         call linop_read(ncid,'d',ndata(ib)%d)
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         call ncerr(subr,nf90_get_var(ncid,trans_id,ndata(ib)%trans))
+         call ncerr(subr,nf90_get_var(ncid,transinv_id,ndata(ib)%transinv))
+      end if
 
-   ! Read data
-   call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'nc2',nc2_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'is_to_ic1',is_to_ic1_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'is_to_il1',is_to_il1_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'is_to_ic2',is_to_ic2_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic0il0_to_is',ic0il0_to_is_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic2il1_to_ic0',ic2il1_to_ic0_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic2il1_to_is',ic2il1_to_is_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic1_to_ic0',ic1_to_ic0_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'il1_to_il0',il1_to_il0_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic0_to_ic1',ic0_to_ic1_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'il0_to_il1',il0_to_il1_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic2il1_to_ic1',ic2il1_to_ic1_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'ic1il1_to_is',ic1il1_to_is_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
-   if (nam%lsqrt) call ncerr(subr,nf90_inq_varid(ncid,'norm_sqrt',norm_sqrt_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
+      ! Read main weight
+      call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',ndata(ib)%wgt))
 
-   call ncerr(subr,nf90_get_var(ncid,vbot_id,ndata%vbot))
-   call ncerr(subr,nf90_get_var(ncid,vtop_id,ndata%vtop))
-   call ncerr(subr,nf90_get_var(ncid,nc2_id,ndata%nc2))
-   call ncerr(subr,nf90_get_var(ncid,is_to_ic1_id,ndata%is_to_ic1))
-   call ncerr(subr,nf90_get_var(ncid,is_to_il1_id,ndata%is_to_il1))
-   call ncerr(subr,nf90_get_var(ncid,is_to_ic2_id,ndata%is_to_ic2))
-   call ncerr(subr,nf90_get_var(ncid,ic0il0_to_is_id,ndata%ic0il0_to_is))
-   call ncerr(subr,nf90_get_var(ncid,ic2il1_to_ic0_id,ndata%ic2il1_to_ic0))
-   call ncerr(subr,nf90_get_var(ncid,ic2il1_to_is_id,ndata%ic2il1_to_is))
-   call ncerr(subr,nf90_get_var(ncid,ic1_to_ic0_id,ndata%ic1_to_ic0))
-   call ncerr(subr,nf90_get_var(ncid,il1_to_il0_id,ndata%il1_to_il0))
-   call ncerr(subr,nf90_get_var(ncid,ic0_to_ic1_id,ndata%ic0_to_ic1))
-   call ncerr(subr,nf90_get_var(ncid,il0_to_il1_id,ndata%il0_to_il1))
-   call ncerr(subr,nf90_get_var(ncid,ic2il1_to_ic1_id,ndata%ic2il1_to_ic1))
-   call ncerr(subr,nf90_get_var(ncid,ic1il1_to_is_id,ndata%ic1il1_to_is))
-   call ncerr(subr,nf90_get_var(ncid,norm_id,ndata%norm))
-   if (nam%lsqrt) call ncerr(subr,nf90_get_var(ncid,norm_sqrt_id,ndata%norm_sqrt))
-   call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndata%coef_ens))
-
-   ! Read linear operators
-   call linop_read(ncid,'c',ndata%c)
-   call linop_read(ncid,'h',ndata%h)
-   call linop_read(ncid,'v',ndata%v)
-   call linop_read(ncid,'s',ndata%s)
-end if
-
-! Close file
-call ncerr(subr,nf90_close(ncid))
-
-! End associate
-end associate
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
+   end if
+end do
 
 end subroutine ndata_read
-
-!----------------------------------------------------------------------
-! Subroutine: ndataloc_read
-!> Purpose: read ndataloc object
-!----------------------------------------------------------------------
-subroutine ndataloc_read(nam,geom,ndataloc,nicas_block,auto_block)
-
-implicit none
-
-! Passed variables
-type(namtype),target,intent(in) :: nam       !< Namelist
-type(geomtype),target,intent(inout) :: geom  !< Geometry
-type(ndataloctype),intent(inout) :: ndataloc !< NICAS data, local
-logical,intent(in) :: nicas_block            !< NICAS block key
-logical,intent(in) :: auto_block             !< Autocovariance block key
-
-! Local variables
-integer :: ncid,info
-integer :: nc0a_id,nc1b_id,nl1_id,nsa_id,nsb_id
-integer :: vbot_id,vtop_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
-integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
-integer :: norm_id,norm_sqrt_id,coef_ens_id,trans_id,transinv_id
-character(len=1024) :: filename
-character(len=1024) :: subr = 'ndataloc_read'
-
-! Open file and get dimensions
-filename = trim(nam%prefix)//'_'//trim(ndataloc%cname)//'.nc'
-call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
-
-! Read main weight
-call ncerr(subr,nf90_get_att(ncid,nf90_global,'wgt',ndataloc%wgt))
-
-if (nicas_block) then
-   ! Get dimensions
-   call ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
-   call ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=geom%nc0a))
-   info = nf90_inq_dimid(ncid,'nc1b',nc1b_id)
-   if (info==nf90_noerr) then
-      call ncerr(subr,nf90_inquire_dimension(ncid,nc1b_id,len=ndataloc%nc1b))
-   else
-      ndataloc%nc1b = 0
-   end if
-   call ncerr(subr,nf90_inq_dimid(ncid,'nl1',nl1_id))
-   call ncerr(subr,nf90_inquire_dimension(ncid,nl1_id,len=ndataloc%nl1))
-   info = nf90_inq_dimid(ncid,'nsa',nsa_id)
-   if (info==nf90_noerr) then
-      call ncerr(subr,nf90_inquire_dimension(ncid,nsa_id,len=ndataloc%nsa))
-   else
-      ndataloc%nsa = 0
-   end if
-   info = nf90_inq_dimid(ncid,'nsb',nsb_id)
-   if (info==nf90_noerr) then
-      call ncerr(subr,nf90_inquire_dimension(ncid,nsb_id,len=ndataloc%nsb))
-   else
-      ndataloc%nsb = 0
-   end if
-   call ncerr(subr,nf90_get_att(ncid,nf90_global,'nsc',ndataloc%nsc))
-
-   ! Allocation
-   if (ndataloc%nc1b>0) allocate(ndataloc%vbot(ndataloc%nc1b))
-   if (ndataloc%nc1b>0) allocate(ndataloc%vtop(ndataloc%nc1b))
-   allocate(ndataloc%nc2b(ndataloc%nl1))
-   if (ndataloc%nsb>0) allocate(ndataloc%isb_to_ic2b(ndataloc%nsb))
-   if (ndataloc%nsb>0) allocate(ndataloc%isb_to_il1(ndataloc%nsb))
-   if (ndataloc%nsa>0) allocate(ndataloc%isa_to_isb(ndataloc%nsa))
-   if (ndataloc%nsa>0) allocate(ndataloc%isa_to_isc(ndataloc%nsa))
-   if (ndataloc%nsb>0) allocate(ndataloc%isb_to_isc(ndataloc%nsb))
-   allocate(ndataloc%norm(geom%nc0a,geom%nl0))
-   if (nam%lsqrt) allocate(ndataloc%norm_sqrt(ndataloc%nsb))
-   allocate(ndataloc%coef_ens(geom%nc0a,geom%nl0))
-
-   ! Get variable id
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vbot',vbot_id))
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_inq_varid(ncid,'vtop',vtop_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'nc2b',nc2b_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_ic2b',isb_to_ic2b_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_il1',isb_to_il1_id))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_inq_varid(ncid,'isa_to_isb',isa_to_isb_id))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_inq_varid(ncid,'isa_to_isc',isa_to_isc_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_inq_varid(ncid,'isb_to_isc',isb_to_isc_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
-   if (nam%lsqrt) call ncerr(subr,nf90_inq_varid(ncid,'norm_sqrt',norm_sqrt_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'coef_ens',coef_ens_id))
-
-   ! Read data
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vbot_id,ndataloc%vbot))
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_get_var(ncid,vtop_id,ndataloc%vtop))
-   call ncerr(subr,nf90_get_var(ncid,nc2b_id,ndataloc%nc2b))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_ic2b_id,ndataloc%isb_to_ic2b))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_il1_id,ndataloc%isb_to_il1))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_get_var(ncid,isa_to_isb_id,ndataloc%isa_to_isb))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_get_var(ncid,isa_to_isc_id,ndataloc%isa_to_isc))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_get_var(ncid,isb_to_isc_id,ndataloc%isb_to_isc))
-   call ncerr(subr,nf90_get_var(ncid,norm_id,ndataloc%norm))
-   if (nam%lsqrt) call ncerr(subr,nf90_get_var(ncid,norm_sqrt_id,ndataloc%norm_sqrt))
-   call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndataloc%coef_ens))
-
-   ! Read communications
-   call com_read(mpl%nproc,ncid,'AB',ndataloc%AB)
-   call com_read(mpl%nproc,ncid,'AC',ndataloc%AC)
-
-   ! Read linear operators
-   call linop_read(ncid,'c',ndataloc%c)
-   call linop_read(ncid,'h',ndataloc%h)
-   call linop_read(ncid,'v',ndataloc%v)
-   call linop_read(ncid,'s',ndataloc%s)
-end if
-
-if (nam%transform.and.auto_block) then
-   ! Allocation
-   allocate(ndataloc%trans(geom%nc0,geom%nl0))
-   allocate(ndataloc%transinv(geom%nc0,geom%nl0))
-
-   ! Get variable id
-   call ncerr(subr,nf90_inq_varid(ncid,'trans',trans_id))
-   call ncerr(subr,nf90_inq_varid(ncid,'transinv',transinv_id))
-
-   ! Read data
-   call ncerr(subr,nf90_get_var(ncid,trans_id,ndataloc%trans))
-   call ncerr(subr,nf90_get_var(ncid,transinv_id,ndataloc%transinv))
-end if
-
-! Close file
-call ncerr(subr,nf90_close(ncid))
-
-end subroutine ndataloc_read
 
 !----------------------------------------------------------------------
 ! Subroutine: ndata_write
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write(ndata,nicas_block)
+subroutine ndata_write(nam,geom,bpar,ndata)
 
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< NICAS data
-logical,intent(in) :: nicas_block      !< NICAS block key
+type(namtype),intent(in) :: nam                !< Namelist
+type(geomtype),intent(in) :: geom              !< Geometry
+type(bpartype),intent(in) :: bpar              !< Block parameters
+type(ndatatype),intent(in) :: ndata(bpar%nb+1) !< NICAS data
 
 ! Local variables
-integer :: ncid
-integer :: nc0_id,nc1_id,nl0_id,nl1_id,ns_id
-integer :: vbot_id,vtop_id,nc2_id,is_to_ic1_id,is_to_il1_id,is_to_ic2_id,ic0il0_to_is_id,ic2il1_to_ic0_id
-integer :: ic2il1_to_is_id,ic1_to_ic0_id,il1_to_il0_id,ic0_to_ic1_id,il0_to_il1_id,ic2il1_to_ic1_id
-integer :: ic1il1_to_is_id,norm_id,norm_sqrt_id,coef_ens_id
+integer :: ib
+integer :: ncid,nl0_1_id,nc0a_id,nc1b_id,nl1_id,nsa_id,nsb_id,nc0d_id,nl0_2_id
+integer :: sb_to_c1b_id,sb_to_l1_id
+integer :: sa_to_sc_id,sb_to_sc_id
+integer :: norm_id,coef_ens_id,trans_id,transinv_id
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndata_write'
 
-! Associate
-associate(nam=>ndata%nam,geom=>ndata%geom)
+do ib=1,bpar%nb+1
+   if (bpar%B_block(ib)) then
+      ! Create file
+      filename = trim(nam%prefix)//'_'//trim(ndata(ib)%cname)//'.nc'
+      call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
+      ! Write namelist parameters
+      call namncwrite(nam,ncid)
 
-! Create file
-filename = trim(nam%prefix)//'_'//trim(ndata%cname)//'.nc'
-call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
+      ! Define dimensions
+      call ncerr(subr,nf90_def_dim(ncid,'nl0_1',geom%nl0,nl0_1_id))
+      if (bpar%nicas_block(ib)) then
+         call ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
+         call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
+         if (ndata(ib)%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndata(ib)%nc1b,nc1b_id))
+         call ncerr(subr,nf90_def_dim(ncid,'nl1',ndata(ib)%nl1,nl1_id))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_def_dim(ncid,'nsa',ndata(ib)%nsa,nsa_id))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_def_dim(ncid,'nsb',ndata(ib)%nsb,nsb_id))
+         call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndata(ib)%nsc))
+         call ncerr(subr,nf90_put_att(ncid,nf90_global,'mpicom',ndata(ib)%mpicom))
+      end if
+      if ((ib==bpar%nb+1).and.nam%displ_diag) call ncerr(subr,nf90_def_dim(ncid,'nc0d',ndata(ib)%nc0d,nc0d_id))
+      if (nam%transform.and.bpar%auto_block(ib)) call ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
 
-! Write namelist parameters
-call namncwrite(nam,ncid)
+      ! Write main weight
+      call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',ndata(ib)%wgt))
 
-! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
-call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
-if (nicas_block) then
-   call ncerr(subr,nf90_def_dim(ncid,'nc1',ndata%nc1,nc1_id))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
-   call ncerr(subr,nf90_def_dim(ncid,'nl1',ndata%nl1,nl1_id))
-   call ncerr(subr,nf90_def_dim(ncid,'ns',ndata%ns,ns_id))
-end if
+      ! Define variables
+      if (bpar%nicas_block(ib)) then
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'sb_to_c1b',nf90_int,(/nsb_id/),sb_to_c1b_id))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'sb_to_l1',nf90_int,(/nsb_id/),sb_to_l1_id))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_def_var(ncid,'sa_to_sc',nf90_int,(/nsa_id/),sa_to_sc_id))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_def_var(ncid,'sb_to_sc',nf90_int,(/nsb_id/),sb_to_sc_id))
+         call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0a_id,nl0_1_id/),norm_id))
+         call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0a_id,nl0_1_id/),coef_ens_id))
 
-! Write main weight
-call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',ndata%wgt))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_put_att(ncid,sa_to_sc_id,'_FillValue',msvali))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_put_att(ncid,sb_to_sc_id,'_FillValue',msvali))
+         call ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',msvalr))
+         call ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',msvalr))
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         call ncerr(subr,nf90_def_var(ncid,'trans',ncfloat,(/nl0_1_id,nl0_2_id/),trans_id))
+         call ncerr(subr,nf90_put_att(ncid,trans_id,'_FillValue',msvalr))
+         call ncerr(subr,nf90_def_var(ncid,'transinv',ncfloat,(/nl0_1_id,nl0_2_id/),transinv_id))
+         call ncerr(subr,nf90_put_att(ncid,transinv_id,'_FillValue',msvalr))
+      end if
 
-! Define variables
-if (nicas_block) then
-   call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1_id/),vbot_id))
-   call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1_id/),vtop_id))
-   call ncerr(subr,nf90_def_var(ncid,'nc2',nf90_int,(/nl1_id/),nc2_id))
-   call ncerr(subr,nf90_def_var(ncid,'is_to_ic1',nf90_int,(/ns_id/),is_to_ic1_id))
-   call ncerr(subr,nf90_def_var(ncid,'is_to_il1',nf90_int,(/ns_id/),is_to_il1_id))
-   call ncerr(subr,nf90_def_var(ncid,'is_to_ic2',nf90_int,(/ns_id/),is_to_ic2_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic0il0_to_is',nf90_int,(/nc0_id,nl0_id/),ic0il0_to_is_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic2il1_to_ic0',nf90_int,(/nc1_id,nl1_id/),ic2il1_to_ic0_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic2il1_to_is',nf90_int,(/nc1_id,nl1_id/),ic2il1_to_is_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic1_to_ic0',nf90_int,(/nc1_id/),ic1_to_ic0_id))
-   call ncerr(subr,nf90_def_var(ncid,'il1_to_il0',nf90_int,(/nl1_id/),il1_to_il0_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic0_to_ic1',nf90_int,(/nc0_id/),ic0_to_ic1_id))
-   call ncerr(subr,nf90_def_var(ncid,'il0_to_il1',nf90_int,(/nl0_id/),il0_to_il1_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic2il1_to_ic1',nf90_int,(/nc1_id,nl1_id/),ic2il1_to_ic1_id))
-   call ncerr(subr,nf90_def_var(ncid,'ic1il1_to_is',nf90_int,(/nc1_id,nl1_id/),ic1il1_to_is_id))
-   call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0_id,nl0_id/),norm_id))
-   if (nam%lsqrt) call ncerr(subr,nf90_def_var(ncid,'norm_sqrt',ncfloat,(/ns_id/),norm_sqrt_id))
-   call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0_id,nl0_id/),coef_ens_id))
-end if
+      ! End definition mode
+      call ncerr(subr,nf90_enddef(ncid))
 
-! End definition mode
-call ncerr(subr,nf90_enddef(ncid))
+      ! Write variables
+      if (bpar%nicas_block(ib)) then
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_put_var(ncid,sb_to_c1b_id,ndata(ib)%sb_to_c1b))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_put_var(ncid,sb_to_l1_id,ndata(ib)%sb_to_l1))
+         if (ndata(ib)%nsa>0) call ncerr(subr,nf90_put_var(ncid,sa_to_sc_id,ndata(ib)%sa_to_sc))
+         if (ndata(ib)%nsb>0) call ncerr(subr,nf90_put_var(ncid,sb_to_sc_id,ndata(ib)%sb_to_sc))
+         call ncerr(subr,nf90_put_var(ncid,norm_id,ndata(ib)%norm))
+         call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndata(ib)%coef_ens))
+         call com_write(ncid,ndata(ib)%AB)
+         call com_write(ncid,ndata(ib)%AC)
+         call linop_write(ncid,ndata(ib)%c)
+         call linop_write(ncid,ndata(ib)%h)
+         call linop_write(ncid,ndata(ib)%v)
+         call linop_write(ncid,ndata(ib)%s)
+      end if
+      if ((ib==bpar%nb+1).and.nam%displ_diag) then
+         call com_write(ncid,ndata(ib)%AD)
+         call linop_write(ncid,ndata(ib)%d)
+      end if
+      if (nam%transform.and.bpar%auto_block(ib)) then
+         call ncerr(subr,nf90_put_var(ncid,trans_id,ndata(ib)%trans))
+         call ncerr(subr,nf90_put_var(ncid,transinv_id,ndata(ib)%transinv))
+      end if
 
-! Write variables
-if (nicas_block) then
-   call ncerr(subr,nf90_put_var(ncid,vbot_id,ndata%vbot))
-   call ncerr(subr,nf90_put_var(ncid,vtop_id,ndata%vtop))
-   call ncerr(subr,nf90_put_var(ncid,nc2_id,ndata%nc2))
-   call ncerr(subr,nf90_put_var(ncid,is_to_ic1_id,ndata%is_to_ic1))
-   call ncerr(subr,nf90_put_var(ncid,is_to_il1_id,ndata%is_to_il1))
-   call ncerr(subr,nf90_put_var(ncid,is_to_ic2_id,ndata%is_to_ic2))
-   call ncerr(subr,nf90_put_var(ncid,ic0il0_to_is_id,ndata%ic0il0_to_is))
-   call ncerr(subr,nf90_put_var(ncid,ic2il1_to_ic0_id,ndata%ic2il1_to_ic0))
-   call ncerr(subr,nf90_put_var(ncid,ic2il1_to_is_id,ndata%ic2il1_to_is))
-   call ncerr(subr,nf90_put_var(ncid,ic1_to_ic0_id,ndata%ic1_to_ic0))
-   call ncerr(subr,nf90_put_var(ncid,il1_to_il0_id,ndata%il1_to_il0))
-   call ncerr(subr,nf90_put_var(ncid,ic0_to_ic1_id,ndata%ic0_to_ic1))
-   call ncerr(subr,nf90_put_var(ncid,il0_to_il1_id,ndata%il0_to_il1))
-   call ncerr(subr,nf90_put_var(ncid,ic2il1_to_ic1_id,ndata%ic2il1_to_ic1))
-   call ncerr(subr,nf90_put_var(ncid,ic1il1_to_is_id,ndata%ic1il1_to_is))
-   call ncerr(subr,nf90_put_var(ncid,norm_id,ndata%norm))
-   if (nam%lsqrt) call ncerr(subr,nf90_put_var(ncid,norm_sqrt_id,ndata%norm_sqrt))
-   call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndata%coef_ens))
-
-   ! Write linear operators
-   call linop_write(ncid,ndata%c)
-   call linop_write(ncid,ndata%h)
-   call linop_write(ncid,ndata%v)
-   call linop_write(ncid,ndata%s)
-end if
-
-! Close file
-call ncerr(subr,nf90_close(ncid))
-
-! End associate
-end associate
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
+   end if
+end do
 
 end subroutine ndata_write
-
-!----------------------------------------------------------------------
-! Subroutine: ndataloc_write
-!> Purpose: write ndataloc object
-!----------------------------------------------------------------------
-subroutine ndataloc_write(nam,geom,ndataloc,nicas_block,auto_block)
-
-implicit none
-
-! Passed variables
-type(namtype),target,intent(in) :: nam    !< Namelist
-type(geomtype),target,intent(in) :: geom  !< Geometry
-type(ndataloctype),intent(in) :: ndataloc !< NICAS data, local
-logical,intent(in) :: nicas_block         !< NICAS block key
-logical,intent(in) :: auto_block          !< Autocovariance block key
-
-! Local variables
-integer :: ncid
-integer :: nc0a_id,nl0_id,nc1b_id,nl1_id,nsa_id,nsb_id,nl0_2_id
-integer :: vbot_id,vtop_id,nc2b_id,isb_to_ic2b_id,isb_to_il1_id
-integer :: isa_to_isb_id,isa_to_isc_id,isb_to_isc_id
-integer :: norm_id,norm_sqrt_id,coef_ens_id,trans_id,transinv_id
-character(len=1024) :: filename
-character(len=1024) :: subr = 'ndataloc_write'
-
-! Create file
-filename = trim(nam%prefix)//'_'//trim(ndataloc%cname)//'.nc'
-call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
-
-! Write namelist parameters
-call namncwrite(nam,ncid)
-
-! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
-if (nicas_block) then
-   call ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_dim(ncid,'nc1b',ndataloc%nc1b,nc1b_id))
-   call ncerr(subr,nf90_def_dim(ncid,'nl1',ndataloc%nl1,nl1_id))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_def_dim(ncid,'nsa',ndataloc%nsa,nsa_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_def_dim(ncid,'nsb',ndataloc%nsb,nsb_id))
-   call ncerr(subr,nf90_put_att(ncid,nf90_global,'nsc',ndataloc%nsc))
-end if
-if (nam%transform.and.auto_block) call ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
-
-! Write main weight
-call ncerr(subr,nf90_put_att(ncid,nf90_global,'wgt',ndataloc%wgt))
-
-! Define variables
-if (nicas_block) then
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vbot',nf90_int,(/nc1b_id/),vbot_id))
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_def_var(ncid,'vtop',nf90_int,(/nc1b_id/),vtop_id))
-   call ncerr(subr,nf90_def_var(ncid,'nc2b',nf90_int,(/nl1_id/),nc2b_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_ic2b',nf90_int,(/nsb_id/),isb_to_ic2b_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_il1',nf90_int,(/nsb_id/),isb_to_il1_id))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isb',nf90_int,(/nsa_id/),isa_to_isb_id))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_def_var(ncid,'isa_to_isc',nf90_int,(/nsa_id/),isa_to_isc_id))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_def_var(ncid,'isb_to_isc',nf90_int,(/nsb_id/),isb_to_isc_id))
-   call ncerr(subr,nf90_def_var(ncid,'norm',ncfloat,(/nc0a_id,nl0_id/),norm_id))
-   if (nam%lsqrt) call ncerr(subr,nf90_def_var(ncid,'norm_sqrt',ncfloat,(/nsb_id/),norm_sqrt_id))
-   call ncerr(subr,nf90_def_var(ncid,'coef_ens',ncfloat,(/nc0a_id,nl0_id/),coef_ens_id))
-
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isb_id,'_FillValue',msvali))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_put_att(ncid,isa_to_isc_id,'_FillValue',msvali))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_put_att(ncid,isb_to_isc_id,'_FillValue',msvali))
-   call ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',msvalr))
-   if (nam%lsqrt) call ncerr(subr,nf90_put_att(ncid,norm_sqrt_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',msvalr))
-end if
-if (nam%transform.and.auto_block) then
-   call ncerr(subr,nf90_def_var(ncid,'trans',ncfloat,(/nl0_id,nl0_2_id/),trans_id))
-   call ncerr(subr,nf90_put_att(ncid,trans_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_def_var(ncid,'transinv',ncfloat,(/nl0_id,nl0_2_id/),transinv_id))
-   call ncerr(subr,nf90_put_att(ncid,transinv_id,'_FillValue',msvalr))
-end if
-
-! End definition mode
-call ncerr(subr,nf90_enddef(ncid))
-
-! Write variables
-if (nicas_block) then
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vbot_id,ndataloc%vbot))
-   if (ndataloc%nc1b>0) call ncerr(subr,nf90_put_var(ncid,vtop_id,ndataloc%vtop))
-   call ncerr(subr,nf90_put_var(ncid,nc2b_id,ndataloc%nc2b))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_ic2b_id,ndataloc%isb_to_ic2b))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_il1_id,ndataloc%isb_to_il1))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isb_id,ndataloc%isa_to_isb))
-   if (ndataloc%nsa>0) call ncerr(subr,nf90_put_var(ncid,isa_to_isc_id,ndataloc%isa_to_isc))
-   if (ndataloc%nsb>0) call ncerr(subr,nf90_put_var(ncid,isb_to_isc_id,ndataloc%isb_to_isc))
-   call ncerr(subr,nf90_put_var(ncid,norm_id,ndataloc%norm))
-   if (nam%lsqrt) call ncerr(subr,nf90_put_var(ncid,norm_sqrt_id,ndataloc%norm_sqrt))
-   call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndataloc%coef_ens))
-
-   ! Write communications
-   call com_write(mpl%nproc,ncid,ndataloc%AB)
-   call com_write(mpl%nproc,ncid,ndataloc%AC)
-
-   ! Write linear operators
-   call linop_write(ncid,ndataloc%c)
-   call linop_write(ncid,ndataloc%h)
-   call linop_write(ncid,ndataloc%v)
-   call linop_write(ncid,ndataloc%s)
-end if
-if (nam%transform.and.auto_block) then
-   call ncerr(subr,nf90_put_var(ncid,trans_id,ndataloc%trans))
-   call ncerr(subr,nf90_put_var(ncid,transinv_id,ndataloc%transinv))
-end if
-
-! Close file
-call ncerr(subr,nf90_close(ncid))
-
-end subroutine ndataloc_write
 
 !----------------------------------------------------------------------
 ! Subroutine: ndata_write_mpi_summary
 !> Purpose: write ndata object
 !----------------------------------------------------------------------
-subroutine ndata_write_mpi_summary(ndata)
+subroutine ndata_write_mpi_summary(nam,geom,bpar,ndata)
 
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(in) :: ndata !< NICAS data
+type(namtype),intent(in) :: nam                !< Namelist
+type(geomtype),intent(in) :: geom              !< Geometry
+type(bpartype),intent(in) :: bpar              !< Block parameters
+type(ndatatype),intent(in) :: ndata(bpar%nb+1) !< NICAS data
 
 ! Local variables
-integer :: ncid
-integer :: nc0_id
-integer :: lon_id,lat_id,ic0_to_iproc_id,halo_id
+integer :: ib,is,ic1,il1
+integer :: ncid,nc0_id,nc1_id,nl1_id
+integer :: lon_id,lat_id,c0_to_proc_id,c1_to_c0_id,l1_to_l0_id,lcheck_id
+real(kind_real),allocatable :: lcheck(:,:)
 character(len=1024) :: filename
 character(len=1024) :: subr = 'ndata_write_mpi_summary'
 
-! Associate
-associate(nam=>ndata%nam,geom=>ndata%geom)
+do ib=1,bpar%nb+1
+   if (bpar%B_block(ib)) then
+      ! Allocation
+      allocate(lcheck(ndata(ib)%nc1,ndata(ib)%nl1))
 
-! Processor verification
-if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
+      ! Create summary file
+      filename = trim(nam%prefix)//'_'//trim(ndata(ib)%cname)//'_summary.nc'
+      call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
-! Create summary file
-filename = trim(nam%prefix)//'_'//trim(ndata%cname)//'_summary.nc'
-call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
+      ! Write namelist parameters
+      call namncwrite(nam,ncid)
 
-! Write namelist parameters
-call namncwrite(nam,ncid)
+      ! Define dimensions
+      call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
+      call ncerr(subr,nf90_def_dim(ncid,'nc1',ndata(ib)%nc1,nc1_id))
+      call ncerr(subr,nf90_def_dim(ncid,'nl1',ndata(ib)%nl1,nl1_id))
 
-! Define dimensions
-call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
+      ! Define variables
+      call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
+      call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
+      call ncerr(subr,nf90_def_var(ncid,'c0_to_proc',nf90_int,(/nc0_id/),c0_to_proc_id))
+      call ncerr(subr,nf90_def_var(ncid,'c1_to_c0',nf90_int,(/nc1_id/),c1_to_c0_id))
+      call ncerr(subr,nf90_def_var(ncid,'l1_to_l0',nf90_int,(/nl1_id/),l1_to_l0_id))
+      call ncerr(subr,nf90_def_var(ncid,'lcheck',ncfloat,(/nc1_id,nl1_id/),lcheck_id))
 
-! Define variables
-call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
-call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
-call ncerr(subr,nf90_def_var(ncid,'ic0_to_iproc',nf90_int,(/nc0_id/),ic0_to_iproc_id))
-call ncerr(subr,nf90_def_var(ncid,'halo',nf90_int,(/nc0_id/),halo_id))
+      ! End definition mode
+      call ncerr(subr,nf90_enddef(ncid))
 
-! End definition mode
-call ncerr(subr,nf90_enddef(ncid))
+      ! Write variables
+      call ncerr(subr,nf90_put_var(ncid,lon_id,ndata(ib)%geom%lon*rad2deg))
+      call ncerr(subr,nf90_put_var(ncid,lat_id,ndata(ib)%geom%lat*rad2deg))
+      call ncerr(subr,nf90_put_var(ncid,c0_to_proc_id,ndata(ib)%geom%c0_to_proc))
+      call ncerr(subr,nf90_put_var(ncid,c1_to_c0_id,ndata(ib)%c1_to_c0))
+      call ncerr(subr,nf90_put_var(ncid,l1_to_l0_id,ndata(ib)%l1_to_l0))
+      call msr(lcheck)
+      do is=1,ndata(ib)%ns
+         ic1 = ndata(ib)%s_to_c1(is)
+         il1 = ndata(ib)%s_to_l1(is)
+         if (ndata(ib)%lcheck_sa(is)) then
+            lcheck(ic1,il1) = 1.0
+         elseif (ndata(ib)%lcheck_sb(is)) then
+            lcheck(ic1,il1) = 2.0
+         elseif (ndata(ib)%lcheck_sc(is)) then
+            lcheck(ic1,il1) = 3.0
+         else
+            lcheck(ic1,il1) = 4.0
+         end if
+      end do
+      call ncerr(subr,nf90_put_var(ncid,lcheck_id,lcheck))
 
-! Write variables
-call ncerr(subr,nf90_put_var(ncid,lon_id,ndata%geom%lon*rad2deg))
-call ncerr(subr,nf90_put_var(ncid,lat_id,ndata%geom%lat*rad2deg))
-call ncerr(subr,nf90_put_var(ncid,ic0_to_iproc_id,ndata%geom%ic0_to_iproc))
-call ncerr(subr,nf90_put_var(ncid,halo_id,ndata%halo))
+      ! Close summary file
+      call ncerr(subr,nf90_close(ncid))
 
-! Close summary file
-call ncerr(subr,nf90_close(ncid))
-
-! End associate
-end associate
+      ! Release memory
+      deallocate(lcheck)
+   end if
+end do
 
 end subroutine ndata_write_mpi_summary
 

@@ -15,7 +15,6 @@ use driver_lct, only: run_lct
 use driver_nicas, only: run_nicas
 use driver_obsgen, only: run_obsgen
 use driver_obsop, only: run_obsop
-use driver_test, only: run_test
 use model_interface, only: model_coord,load_ensemble
 use tools_display, only: listing_setup,msgerror
 use tools_kinds,only: kind_real
@@ -24,8 +23,8 @@ use type_bpar, only: bpartype,bpar_alloc
 use type_geom, only: geomtype,compute_grid_mesh
 use type_mpl, only: mpl,mpl_start,mpl_end
 use type_nam, only: namtype,namread,namcheck
-use type_ndata, only: ndataloctype
-use type_odata, only: odatatype,odataloctype
+use type_ndata, only: ndatatype
+use type_odata, only: odatatype
 use type_randgen, only: create_randgen
 use type_timer, only: timertype,timer_start,timer_display
 
@@ -37,9 +36,8 @@ type(geomtype),target :: geom
 type(namtype),target :: nam
 type(bpartype) :: bpar
 type(bdatatype),allocatable :: bdata(:)
-type(ndataloctype),allocatable :: ndataloc(:)
+type(ndatatype),allocatable :: ndata(:)
 type(odatatype) :: odata
-type(odataloctype) :: odataloc
 type(timertype) :: timer
 
 !----------------------------------------------------------------------
@@ -52,7 +50,7 @@ call mpl_start
 ! Initialize timer
 !----------------------------------------------------------------------
 
-call timer_start(timer)
+if (mpl%main) call timer_start(timer)
 
 !----------------------------------------------------------------------
 ! Read namelist
@@ -153,19 +151,10 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call NICAS driver'
 
-call run_nicas(nam,geom,bpar,bdata,ndataloc)
-
-!----------------------------------------------------------------------
-! Call test driver
-!----------------------------------------------------------------------
-
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Call run_test driver'
-
 if (nam%load_ensemble) then
-   call run_test(nam,geom,bpar,bdata,ndataloc,ens1)
+   call run_nicas(nam,geom,bpar,bdata,ndata,ens1)
 else
-   call run_test(nam,geom,bpar,bdata,ndataloc)
+   call run_nicas(nam,geom,bpar,bdata,ndata)
 end if
 
 !----------------------------------------------------------------------
@@ -189,18 +178,24 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
 call run_obsgen(nam,geom,odata)
-call run_obsop(nam,geom,odata,odataloc)
+call run_obsop(nam,geom,odata)
 
 !----------------------------------------------------------------------
 ! Execution stats
 !----------------------------------------------------------------------
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Execution stats'
+if (mpl%main) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Execution stats'
 
-call timer_display(timer)
+   call timer_display(timer)
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+else
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Done ----------------------------------------------------------'
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+end if
 
 !----------------------------------------------------------------------
 ! Close listing files

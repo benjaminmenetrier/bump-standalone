@@ -10,13 +10,18 @@
 using namespace std;
 
 // Constructor
-RANDGEN* create_randgen(int default_seed){
+RANDGEN* create_randgen(unsigned long int default_seed){
     return new randGen(default_seed);
 }
 
 // Destructor
 void delete_randgen(RANDGEN* randgen){
     delete randgen;
+}
+
+// Reseed generator
+void reseed_randgen(RANDGEN* randgen, unsigned long int seed) {
+    randgen->reseed_randgen(seed);
 }
 
 // Get version
