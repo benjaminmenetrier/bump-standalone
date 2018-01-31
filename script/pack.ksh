@@ -52,11 +52,7 @@ mkdir pack/test
 cp -f test/grid.nc pack/test
 cp -f test/ens1_00_*.nc pack/test
 cp -f test/links.ksh pack/test
-cp -f test/truth_bdata_common.nc pack/test
-cp -f test/truth_diag.nc pack/test
-cp -f test/truth_ndata_common.nc pack/test
-cp -f test/truth_ndataloc_2_0001-0001_common.nc pack/test
-cp -f test/truth_sampling.nc pack/test
+cp -f test/truth_*.nc pack/test
 
 # Rename and pack everything
 find pack -type f -name '*~' -delete

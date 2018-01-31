@@ -10,20 +10,19 @@
 !----------------------------------------------------------------------
 module driver_nicas
 
-use module_mpi, only: compute_mpi
-use module_normalization, only: compute_normalization
-use module_parameters, only: compute_parameters
-use module_test, only: test_nicas_adjoints,test_nicas_pos_def,test_nicas_mpi,test_nicas_sqrt
+use nicas_parameters, only: compute_parameters
+use nicas_parameters_adv, only: compute_adv
+use nicas_test, only: test_nicas_adjoint,test_nicas_pos_def,test_nicas_sqrt,test_loc_adjoint, &
+ & test_loc_sqrt,test_nicas_dirac,test_loc_dirac,test_randomization,test_consistency,test_optimality
 use tools_const, only: pi
 use tools_display, only: msgerror
+use tools_kinds, only: kind_real
 use type_bdata, only: bdatatype
 use type_bpar, only: bpartype
-use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
 use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_nam, only: namtype
-use type_ndata, only: ndatatype,ndataloctype,ndata_dealloc,ndata_read,ndataloc_read, &
-  & ndata_write,ndataloc_write,ndata_write_mpi_summary
+use type_ndata, only: ndatatype,ndata_read,ndata_write,ndata_write_mpi_summary
 
 implicit none
 
@@ -36,169 +35,220 @@ contains
 ! Subroutine: run_nicas
 !> Purpose: NICAS
 !----------------------------------------------------------------------
-subroutine run_nicas(nam,geom,bpar,bdata,ndataloc)
+subroutine run_nicas(nam,geom,bpar,bdata,ndata,ens1)
 
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(inout) :: nam                   !< Namelist
-type(geomtype),target,intent(inout) :: geom                 !< Geometry
-type(bpartype),target,intent(in) :: bpar                    !< Block parameters
-type(bdatatype),intent(in) :: bdata(bpar%nb+1)              !< B data
-type(ndataloctype),allocatable,intent(inout) :: ndataloc(:) !< NICAS data,local
+type(namtype),target,intent(inout) :: nam             !< Namelist
+type(geomtype),target,intent(inout) :: geom           !< Geometry
+type(bpartype),target,intent(in) :: bpar              !< Block parameters
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)        !< B data
+type(ndatatype),allocatable,intent(inout) :: ndata(:) !< NICAS data
+real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: ib,ic0,ic0a
-type(ndatatype) :: ndata
 
-! Allocate ndataloc
-allocate(ndataloc(bpar%nb+1))
+! Allocation
+allocate(ndata(bpar%nb+1))
+
+! Set name, namelist and geometry
 do ib=1,bpar%nb+1
-   if (bpar%B_block(ib)) then
-      ! Set name
-      write(ndataloc(ib)%cname,'(a,i1,a,i4.4,a,i4.4,a,a)') 'ndataloc_',nam%mpicom,'_',mpl%nproc,'-',mpl%myproc, &
-    & '_',trim(bpar%blockname(ib))
-   end if
+   write(ndata(ib)%cname,'(a,i1,a,i4.4,a,i4.4,a,a)') 'ndata_',nam%mpicom,'_',mpl%nproc,'-',mpl%myproc, &
+ & '_',trim(bpar%blockname(ib))
+   ndata(ib)%nam => nam
+   ndata(ib)%geom => geom
 end do
 
-do ib=1,bpar%nb+1
+if (nam%new_param) then
+   ! Compute NICAS parameters
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+   write(mpl%unit,'(a)') '--- Compute NICAS parameters'
 
-   ! Set namelist and geometry
-   ndata%nam => nam
-   ndata%geom => geom
-   ndata%cname = 'ndata_'//trim(bpar%blockname(ib))
-
-   if (nam%new_param) then
-      if (bpar%nicas_block(ib)) then
-         ! Compute NICAS parameters
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib).or.((ib==bpar%nb+1).and.nam%displ_diag)) then
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Compute NICAS parameters'
-         call compute_parameters(bdata(ib),ndata)
-
-         ! Compute NICAS normalization
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Compute NICAS normalization'
-         call compute_normalization(ndata)
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
       end if
+
+      ! NICAS parameters
+      if (bpar%nicas_block(ib)) call compute_parameters(bdata(ib),ndata(ib))
+
+      ! Advection
+      if ((ib==bpar%nb+1).and.nam%displ_diag) call compute_adv(bdata(ib),ndata(ib))
 
       if (bpar%B_block(ib)) then
          ! Copy weights
-         ndata%wgt = bdata(ib)%wgt
+         ndata(ib)%wgt = bdata(ib)%wgt
          if (bpar%nicas_block(ib)) then
-            allocate(ndata%coef_ens(geom%nc0,geom%nl0))
-            ndata%coef_ens = bdata(ib)%coef_ens
-         end if
-
-         if (mpl%main) then
-            ! Write NICAS parameters
-            write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-            write(mpl%unit,'(a)') '--- Write NICAS parameters'
-            call ndata_write(ndata,bpar%nicas_block(ib))
-         end if
-      end if
-   elseif (nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi) then
-      if (bpar%B_block(ib)) then
-         ! Read NICAS parameters
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Read NICAS parameters'
-         call ndata_read(ndata,bpar%nicas_block(ib))
-      end if
-      call flush(mpl%unit)
-   end if
-
-   if (nam%new_mpi) then
-      if (bpar%nicas_block(ib)) then
-         ! Compute NICAS MPI distribution
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Compute NICAS MPI distribution'
-         call compute_mpi(ndata,ndataloc(ib))
-
-         if (mpl%main.and.(mpl%nproc>1)) then
-            ! Write NICAS MPI summary
-            write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-            write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
-            call ndata_write_mpi_summary(ndata)
-         end if
-      end if
-
-      if (bpar%B_block(ib)) then
-         ! Copy weights
-         ndataloc(ib)%wgt = ndata%wgt
-         if (bpar%nicas_block(ib)) then
-            allocate(ndataloc(ib)%coef_ens(geom%nc0a,geom%nl0))
+            allocate(ndata(ib)%coef_ens(geom%nc0a,geom%nl0))
             do ic0=1,geom%nc0
-               if (geom%ic0_to_iproc(ic0)==mpl%myproc) then
-                  ic0a = geom%ic0_to_ic0a(ic0)
-                  ndataloc(ib)%coef_ens(ic0a,:) = ndata%coef_ens(ic0,:)
+               if (geom%c0_to_proc(ic0)==mpl%myproc) then
+                  ic0a = geom%c0_to_c0a(ic0)
+                  ndata(ib)%coef_ens(ic0a,:) = bdata(ib)%coef_ens(ic0,:)
                end if
             end do
          end if
+      end if
+   end do
 
-         ! Write NICAS MPI distribution
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Write NICAS MPI distribution'
-         call ndataloc_write(nam,geom,ndataloc(ib),bpar%nicas_block(ib),bpar%auto_block(ib))
+   ! Write NICAS parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Write NICAS parameters'
+   call ndata_write(nam,geom,bpar,ndata)
+
+   ! Write NICAS MPI summary
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
+   call ndata_write_mpi_summary(nam,geom,bpar,ndata)
+elseif (nam%new_param.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_sqrt.or.nam%check_dirac.or. &
+ & nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality) then
+   ! Read NICAS parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Read NICAS parameters'
+   call ndata_read(nam,geom,bpar,ndata)
+   call flush(mpl%unit)
+end if
+
+if (nam%transform) then
+   ! Copy transforms
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Copy transforms'
+
+   do ib=1,bpar%nb+1
+      if (bpar%auto_block(ib)) then
+         ! Allocation
+         allocate(ndata(ib)%trans(geom%nl0,geom%nl0))
+         allocate(ndata(ib)%transinv(geom%nl0,geom%nl0))
+
+         ! Copy
+         ndata(ib)%trans = bdata(ib)%trans
+         ndata(ib)%transinv = bdata(ib)%transinv
       end if
-   elseif (nam%check_adjoints.or.nam%check_mpi.or.nam%check_dirac.or.nam%check_perf.or.nam%check_hdiag) then
-      if (bpar%B_block(ib)) then
-         ! Read NICAS MPI distribution
+   end do
+end if
+
+if (nam%check_adjoints) then
+   ! Test adjoint
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS adjoint'
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Read NICAS MPI distribution'
-         call ndataloc_read(nam,geom,ndataloc(ib),bpar%nicas_block(ib),bpar%auto_block(ib))
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+
+         call test_nicas_adjoint(ndata(ib))
+         call flush(mpl%unit)
       end if
-      call flush(mpl%unit)
+   end do
+
+   ! Test localization adjoint
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test localization adjoint'
+   if (present(ens1)) then
+      call test_loc_adjoint(nam,geom,bpar,ndata,ens1)
+   else
+      call test_loc_adjoint(nam,geom,bpar,ndata)
    end if
+   call flush(mpl%unit)
+end if
 
-   if (bpar%B_block(ib).and.nam%transform.and.bpar%auto_block(ib)) then
-      ! Allocation
-      allocate(ndataloc(ib)%trans(geom%nl0,geom%nl0))
-      allocate(ndataloc(ib)%transinv(geom%nl0,geom%nl0))
+if (nam%check_pos_def) then
+   ! Test NICAS positive definiteness
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
 
-      ! Copy
-      ndataloc(ib)%trans = bdata(ib)%trans
-      ndataloc(ib)%transinv = bdata(ib)%transinv
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+
+         call test_nicas_pos_def(ndata(ib))
+         call flush(mpl%unit)
+      end if
+   end do
+end if
+
+if (nam%check_sqrt) then
+   ! Test NICAS full/square-root equivalence
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+
+         call test_nicas_sqrt(trim(bpar%blockname(ib)),bdata(ib),ndata(ib))
+         call flush(mpl%unit)
+      end if
+   end do
+
+   ! Test localization full/square-root equivalence
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test localization full/square-root equivalence'
+   if (present(ens1)) then
+      call test_loc_sqrt(nam,geom,bpar,bdata,ndata,ens1)
+   else
+      call test_loc_sqrt(nam,geom,bpar,bdata,ndata)
    end if
+   call flush(mpl%unit)
+end if
 
-   if (bpar%nicas_block(ib)) then
-      if (nam%check_adjoints) then
-         ! Test adjoints
+if (nam%check_dirac) then
+   ! Apply NICAS to diracs
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
          write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Test NICAS adjoints'
-         if (mpl%main) call test_nicas_adjoints(ndata)
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+
+         call test_nicas_dirac(trim(bpar%blockname(ib)),ndata(ib))
          call flush(mpl%unit)
       end if
+   end do
 
-      if (nam%check_pos_def) then
-         ! Test NICAS positive definiteness
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
-         if (mpl%main) call test_nicas_pos_def(ndata)
-         call flush(mpl%unit)
-      end if
-
-      if (nam%check_mpi) then
-         ! Test NICAS single/multi-procs equivalence
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Test NICAS single/multi-procs equivalence'
-         call test_nicas_mpi(ndata,ndataloc(ib),bpar%blockname(ib))
-         call flush(mpl%unit)
-      end if
-
-      if (nam%new_param.and.nam%check_sqrt) then
-         ! Test NICAS full/square-root equivalence
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
-         call test_nicas_sqrt(bdata(ib),ndata)
-         call flush(mpl%unit)
-      end if
+   ! Apply localization to diracs
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Apply localization to diracs'
+   if (present(ens1)) then
+      call test_loc_dirac(nam,geom,bpar,ndata,ens1)
+   else
+      call test_loc_dirac(nam,geom,bpar,ndata)
    end if
+   call flush(mpl%unit)
+end if
 
-   ! Release memory
-   if ((nam%new_param.or.nam%new_mpi.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_mpi).and.bpar%nicas_block(ib)) &
- & call ndata_dealloc(ndata,bpar%nicas_block(ib))
-end do
+if (nam%check_randomization) then
+   ! Test NICAS randomization
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS randomization'
+
+   call test_randomization(nam,geom,bpar,ndata)
+   call flush(mpl%unit)
+end if
+
+if (nam%check_consistency) then
+   ! Test HDIAG_NICAS consistency
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test HDIAG_NICAS consistency'
+
+   call test_consistency(nam,geom,bpar,bdata,ndata)
+   call flush(mpl%unit)
+end if
+
+if (nam%check_optimality) then
+   ! Test HDIAG optimality
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test HDIAG optimality'
+
+   call test_optimality(nam,geom,bpar,ndata)
+   call flush(mpl%unit)
+end if
 
 end subroutine run_nicas
 

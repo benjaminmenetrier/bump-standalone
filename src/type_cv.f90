@@ -14,7 +14,7 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_bpar, only: bpartype
-use type_ndata, only: ndataloctype
+use type_ndata, only: ndatatype
 use type_randgen, only: rand_gau
 
 implicit none
@@ -34,14 +34,14 @@ contains
 ! Subroutine: cv_alloc
 !> Purpose: control vector object allocation
 !----------------------------------------------------------------------
-subroutine cv_alloc(bpar,ndataloc,cv)
+subroutine cv_alloc(bpar,ndata,cv)
 
 implicit none
 
 ! Passed variables
-type(bpartype),intent(in) :: bpar                    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
-type(cvtype),intent(inout) :: cv(bpar%nb+1)          !< Control vector
+type(bpartype),intent(in) :: bpar              !< Block parameters
+type(ndatatype),intent(in) :: ndata(bpar%nb+1) !< NICAS data
+type(cvtype),intent(inout) :: cv(bpar%nb+1)    !< Control vector
 
 ! Local variables
 integer :: ib
@@ -50,9 +50,9 @@ do ib=1,bpar%nb+1
    if (bpar%cv_block(ib)) then
       ! Allocation
       if (bpar%nicas_block(ib)) then
-         allocate(cv(ib)%alpha(ndataloc(ib)%nsa))
+         allocate(cv(ib)%alpha(ndata(ib)%nsa))
       else
-         allocate(cv(ib)%alpha(ndataloc(bpar%nb+1)%nsa))
+         allocate(cv(ib)%alpha(ndata(1)%nsa))
       end if
 
       ! Initialization
@@ -66,15 +66,15 @@ end subroutine cv_alloc
 ! Subroutine: cv_random
 !> Purpose: generate a random control vector
 !----------------------------------------------------------------------
-subroutine cv_random(bpar,ndataloc,ne,cv)
+subroutine cv_random(bpar,ndata,ne,cv)
 
 implicit none
 
 ! Passed variables
-type(bpartype),intent(in) :: bpar                    !< Block parameters
-type(ndataloctype),intent(in) :: ndataloc(bpar%nb+1) !< NICAS data, local
-integer,intent(in) :: ne                             !< Ensemble size
-type(cvtype),intent(out) :: cv(bpar%nb+1,ne)         !< Control vector
+type(bpartype),intent(in) :: bpar              !< Block parameters
+type(ndatatype),intent(in) :: ndata(bpar%nb+1) !< NICAS data
+integer,intent(in) :: ne                       !< Ensemble size
+type(cvtype),intent(out) :: cv(bpar%nb+1,ne)   !< Control vector
 
 ! Local variables
 integer :: ib,ie
@@ -82,9 +82,9 @@ type(cvtype) :: mean(bpar%nb+1)
 
 ! Allocation
 do ie=1,ne
-   call cv_alloc(bpar,ndataloc,cv(:,ie))
+   call cv_alloc(bpar,ndata,cv(:,ie))
 end do
-call cv_alloc(bpar,ndataloc,mean)
+call cv_alloc(bpar,ndata,mean)
 
 ! Random initialization
 do ib=1,bpar%nb+1

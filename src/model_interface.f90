@@ -27,7 +27,7 @@ use tools_missing, only: msvalr,msr,isnotmsi
 use tools_nc, only: ncfloat,ncerr
 use type_geom, only: geomtype,fld_com_gl
 use type_mpl, only: mpl
-use type_nam, only: namtype
+use type_nam, only: namtype,namncwrite
 
 implicit none
 
@@ -159,7 +159,15 @@ ietot = 0
 call msr(ens1)
 
 do isub=1,nam%ens1_nsub
+   if (nam%ens1_nsub==1) then
+      write(mpl%unit,'(a7,a)',advance='no') '','Full ensemble, member:'
+   else
+      write(mpl%unit,'(a7,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+   end if
+
    do ie=1,nam%ens1_ne/nam%ens1_nsub
+      write(mpl%unit,'(i4)',advance='no') nam%ens1_ne_offset+ie
+
       ! Read member
       if (mpl%main) then
          allocate(fld(geom%nc0,geom%nl0,nam%nv,nam%nts))
@@ -168,7 +176,7 @@ do isub=1,nam%ens1_nsub
          else
             jsub = isub
          end if
-         call model_read(nam,geom,'ens1',ie,jsub,fld)
+         call model_read(nam,geom,'ens1',nam%ens1_ne_offset+ie,jsub,fld)
       end if
 
       ! Split over processors
@@ -181,6 +189,7 @@ do isub=1,nam%ens1_nsub
       ! Release memory
       deallocate(fld)
    end do
+   write(mpl%unit,'(a)') ''
 end do
 
 end subroutine load_ensemble
@@ -194,10 +203,10 @@ subroutine model_write(nam,geom,filename,varname,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam                                      !< Namelist
-type(geomtype),intent(in) :: geom                     !< Sampling data
-character(len=*),intent(in) :: filename                 !< File name
-character(len=*),intent(in) :: varname                  !< Variable name
+type(namtype),intent(in) :: nam                      !< Namelist
+type(geomtype),intent(in) :: geom                    !< Sampling data
+character(len=*),intent(in) :: filename              !< File name
+character(len=*),intent(in) :: varname               !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
 
 ! Local variables
@@ -233,6 +242,7 @@ if (ierr/=nf90_noerr) then
    call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_write,ncid))
    call ncerr(subr,nf90_redef(ncid))
    call ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',msvalr))
+   call namncwrite(nam,ncid)
 end if
 call ncerr(subr,nf90_enddef(ncid))
 
