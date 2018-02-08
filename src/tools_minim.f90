@@ -37,14 +37,14 @@ contains
 ! subroutine: minim
 !> Purpose: minimize ensuring bounds constraints
 !----------------------------------------------------------------------
-subroutine minim(mdata,func,lprt)
+subroutine minim(mdata,cost,lprt)
 
 implicit none
 
 ! Passed variables
 type(mdatatype),intent(inout) :: mdata       !< Minimization data
 interface
-   subroutine func(mdata,x,f)                !< Cost function
+   subroutine cost(mdata,x,f)                !< Cost function
    use tools_kinds, only: kind_real
    use type_mdata, only: mdatatype
    type(mdatatype),intent(in) :: mdata       !< Minimization data
@@ -70,7 +70,7 @@ end do
 
 ! Initial cost
 mdata%f_guess = 0.0
-call func(mdata,guess,y)
+call cost(mdata,guess,y)
 mdata%f_guess = y
 
 select case (trim(mdata%fit_type))
@@ -79,20 +79,20 @@ case ('nelder_mead')
    step = 0.1
 
    ! Nelder-Mead algorithm
-   call nelmin(mdata,func,mdata%nx,guess,xmin,ynewlo,reqmin,step,konvge,kcount,icount,numres,info)
+   call nelmin(mdata,cost,mdata%nx,guess,xmin,ynewlo,reqmin,step,konvge,kcount,icount,numres,info)
 case ('compass_search')
    ! Initialization
    delta_init = 0.1
 
    ! Compass search
-   call compass_search(mdata,func,mdata%nx,guess,delta_tol,delta_init,k_max,xmin,ynewlo,icount)
+   call compass_search(mdata,cost,mdata%nx,guess,delta_tol,delta_init,k_max,xmin,ynewlo,icount)
 case ('praxis')
    ! Initialization
    h0 = 0.1
    xmin = guess
 
    ! Praxis
-   ynewlo = praxis(mdata,func,t0,h0,mdata%nx,0,xmin)
+   ynewlo = praxis(mdata,cost,t0,h0,mdata%nx,0,xmin)
 end select
 
 ! Test

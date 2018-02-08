@@ -253,6 +253,7 @@ call msi(nl0r)
 ! diag_param default
 call msi(ne)
 gau_approx = .false.
+full_var = .false.
 local_diag = .false.
 call msr(local_rad)
 displ_diag = .false.

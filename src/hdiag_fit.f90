@@ -177,7 +177,7 @@ case ('nelder_mead','compass_search','praxis')
    mdata%distvr = distvr
 
    ! Compute fit
-   call minim(mdata,func,prt)
+   call minim(mdata,cost_fit,prt)
 
    ! Apply bounds
    mdata%x = max(mdata%binf,min(mdata%x,mdata%bsup))
@@ -382,10 +382,10 @@ end do
 end subroutine define_fit
 
 !----------------------------------------------------------------------
-! Function: func
+! Function: cost_fit
 !> Purpose: fit function cost
 !----------------------------------------------------------------------
-subroutine func(mdata,x,f)
+subroutine cost_fit(mdata,x,f)
 
 implicit none
 
@@ -441,7 +441,7 @@ do ix=1,mdata%nx
    end if
 end do
 
-end subroutine func
+end subroutine cost_fit
 
 !----------------------------------------------------------------------
 ! Subroutine: dummy
@@ -458,7 +458,7 @@ type(mdatatype),intent(in) :: mdata !< Minimization data
 real(kind_real) :: x(mdata%nx)
 real(kind_real) :: f
 
-if (.false.) call func(mdata,x,f)
+if (.false.) call cost_fit(mdata,x,f)
 
 end subroutine
 

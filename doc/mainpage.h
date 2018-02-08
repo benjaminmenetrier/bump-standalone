@@ -22,11 +22,10 @@ Already available input models are: <a target="_blank" href="http://www.cnrm-gam
 Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/CLOC_REPORT.html">CLOC report</a>.
 
 \section license License
-The code is distributed under the CeCILL-B license (in English: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENSE.html">LICENSE</a> or in French: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENCE.html">LICENCE</a>).
+The code is distributed under the CeCILL-C license (in English: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENSE.html">LICENSE</a> or in French: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENCE.html">LICENCE</a>).
 
 \section Folders Folders organization
-The main directory $MAINDIR contains six folders:
-  - build: cmake-generated files
+The main directory $MAINDIR contains the CMakeLists.txt file and several folders:
   - data: data (only links script in the archive)
   - doc: documentation and support
   - ncl: <a target="_blank" href="http://ncl.ucar.edu">NCL</a> scripts to plot curves
@@ -37,18 +36,20 @@ The main directory $MAINDIR contains six folders:
 
 \section Compilation Compilation and dependencies
 The compilation of sources uses cmake (<a target="_blank" href="https://cmake.org">https://cmake.org</a>). Compilation options (compiler, build type, NetCDF inclue and library paths) have to be specified in four environment variables:
- - <b>HDIAG_NICAS_COMPILER</b>: GNU or Intel
+ - <b>HDIAG_NICAS_COMPILER</b>: GNU, Intel or Cray
  - <b>HDIAG_NICAS_BUILD</b>: DEBUG or RELEASE
- - <b>HDIAG_NICAS_NETCDF_INCLUDE</b>: NetCDF include path
- - <b>HDIAG_NICAS_NETCDF_LIBPATH</b>: NetCDF library path
+ - <b>HDIAG_NICAS_NETCDF_INCLUDE</b>: C NetCDF include path
+ - <b>HDIAG_NICAS_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
+ - <b>HDIAG_NICAS_NETCDF_LIBPATH</b>: C NetCDF library path
+ - <b>HDIAG_NICAS_NETCDFF_LIBPATH</b>: Fotran NetCDF library path
 
-Then, to compile:
+Then, to compile in a directory $BUILDDIR, with $N processors (if available):
  
-    cd build
-    cmake CMakeLists.txt
-    make
+    cd $BUILDDIR
+    cmake $MAINDIR/CMakeLists.txt
+    make -j$N
 
-An executable file run/hdiag_nicas should be created if compilation is successful.
+An executable file $MAINDIR/run/hdiag_nicas should be created if compilation is successful.
 
 Input and output files use the NetCDF format. The NetCDF library can be downloaded at: <a target="_blank" href="http://www.unidata.ucar.edu/software/netcdf">http://www.unidata.ucar.edu/software/netcdf</a>
 

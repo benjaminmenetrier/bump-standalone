@@ -159,6 +159,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 !  (I1) and leftmost (I2) visible boundary nodes as viewed
 !  from node K.
 !
+
   call trfind ( ist, p, km1, x, y, z, list, lptr, lend, b1, b2, b3, &
     i1, i2, i3 )
 !
@@ -923,10 +924,18 @@ subroutine det ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
   real ( kind_real ) x0
   real ( kind_real ) y0
   real ( kind_real ) z0
+  real ( kind_real ) t1
+  real ( kind_real ) t2
+  real ( kind_real ) t3
   real ( kind_real ) output
 
-  output = x0*(y1*z2-y2*z1) - y0*(x1*z2-x2*z1) + z0*(x1*y2-x2*y1)
+  t1 = x0*(y1*z2-y2*z1)
+  t2 = y0*(x1*z2-x2*z1)
+  t3 = z0*(x1*y2-x2*y1)
+  output = t1 - t2 + t3
 
+  ! Indistinguishability threshold for cross-plateform reproducibility
+  if ((abs(output)<1.0e-12*abs(t1)).or.(abs(output)<1.0e-12*abs(t2)).or.(abs(output)<1.0e-12*abs(t3))) output = 0.0
 end
 subroutine crlist ( n, ncol, x, y, z, list, lend, lptr, lnew, &
   ltri, listc, nb, xc, yc, zc, rc, ier )
@@ -1805,6 +1814,10 @@ function inside ( p, lv, xv, yv, zv, nv, listv, ier )
   real ( kind_real ) yv(lv)
   real ( kind_real ) zv(lv)
 !
+!  Default value
+!
+  inside = .false.
+!
 !  Store local parameters.
 !
   imx = lv
@@ -2312,9 +2325,9 @@ subroutine left ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
 !
 !  LEFT = TRUE iff <N0,N1 X N2> = det(N0,N1,N2) >= 0.
 !
-  output = x0 * ( y1 * z2 - y2 * z1 ) &
+  output = .not.(x0 * ( y1 * z2 - y2 * z1 ) &
        - y0 * ( x1 * z2 - x2 * z1 ) &
-       + z0 * ( x1 * y2 - x2 * y1 ) >= 0.0_kind_real
+       + z0 * ( x1 * y2 - x2 * y1 ) < 0.0_kind_real)
 
   return
 end
@@ -3331,7 +3344,6 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
       end if
       go to 3
     end if
-
   else
 !
 !  N0 is a boundary node.  Test for P exterior.
@@ -3484,7 +3496,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
 !  P is in (N1,N2,N3) unless N0, N1, N2, and P are collinear
 !  or P is close to -N0.
 !
-  if ( b3 >= eps ) then
+  if ( .not.(b3 < eps) ) then
 !
 !  B3 /= 0.
 !
@@ -3547,7 +3559,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
   next = list(lp)
 
   call det(x(n2),y(n2),z(n2),x(next),y(next),z(next),xp,yp,zp,output)
-  if ( output >= 0.0_kind_real ) then
+  if ( .not.(output < 0.0_kind_real) ) then
 !
 !  N2 is the rightmost visible node if P Forward N2->N1
 !  or NEXT Forward N2->N1.  Set Q to (N2 X N1) X N2.
@@ -3558,11 +3570,11 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
     q(2) = y(n1) - s12 * y(n2)
     q(3) = z(n1) - s12 * z(n2)
 
-    if ( xp * q(1) + yp * q(2) + zp * q(3) >= 0.0_kind_real ) then
+    if ( .not.(xp * q(1) + yp * q(2) + zp * q(3) < 0.0_kind_real) ) then
       go to 11
     end if
 
-    if ( x(next) * q(1) + y(next) * q(2) + z(next) * q(3) >= 0.0_kind_real ) then
+    if ( .not.(x(next) * q(1) + y(next) * q(2) + z(next) * q(3) < 0.0_kind_real) ) then
       go to 11
     end if
 !
@@ -3610,7 +3622,7 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
     next = -list(lp)
 
     call det ( x(next), y(next), z(next), x(n1), y(n1), z(n1), xp, yp, zp, output )
-    if ( 0.0_kind_real <= output  ) then
+    if ( .not.(output < 0.0_kind_real)  ) then
 !
 !  N1 is the leftmost visible node if P or NEXT is
 !  forward of N1->N2.  Compute Q = N1 X (N2 X N1).
@@ -3620,11 +3632,11 @@ subroutine trfind ( nst, p, n, x, y, z, list, lptr, lend, b1, b2, b3, i1, &
       q(2) = y(n2) - s12 * y(n1)
       q(3) = z(n2) - s12 * z(n1)
 
-      if ( xp * q(1) + yp * q(2) + zp * q(3) >= 0.0_kind_real ) then
+      if ( .not.(xp * q(1) + yp * q(2) + zp * q(3) < 0.0_kind_real) ) then
         go to 13
       end if
 
-      if ( x(next) * q(1) + y(next) * q(2) + z(next) * q(3) >= 0.0_kind_real ) then
+      if ( .not.(x(next) * q(1) + y(next) * q(2) + z(next) * q(3) < 0.0_kind_real) ) then
         go to 13
       end if
 !
@@ -4291,12 +4303,12 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
     d2 = -( x(k) * x(2) + y(k) * y(2) + z(k) * z(2) )
     d3 = -( x(k) * x(3) + y(k) * y(3) + z(k) * z(3) )
 
-    if ( d1 <= d2 .and. d1 <= d3 ) then
+    if ( .not.(d1 > d2) .and. .not.(d1 > d3) ) then
       near(k) = 1
       dist(k) = d1
       next(k) = near(1)
       near(1) = k
-    else if ( d2 <= d1 .and. d2 <= d3 ) then
+    else if ( .not.(d2 > d1) .and. .not.(d2 > d3) ) then
       near(k) = 2
       dist(k) = d2
       next(k) = near(2)
@@ -4307,7 +4319,6 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
       next(k) = near(3)
       near(3) = k
     end if
-
   end do
 !
 !  Add the remaining nodes.
@@ -4315,7 +4326,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
   do k = 4, nn
 
     call addnod ( near(k), k, x, y, z, list, lptr, lend, lnew, ier )
-
+   
     if ( ier /= 0 ) then
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'TRMESH - Fatal error!'
