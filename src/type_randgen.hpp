@@ -39,7 +39,10 @@ class randGen {
         std::mt19937 *gen_;
 #endif
 
-        // xorshift32 generator
+        // Linear congruential generator
+        unsigned long int a_=1103515245;
+        unsigned long int c_=12345;
+        unsigned long int m_=2147483648;
         unsigned long int seed_;
-        double xorshift32();
+        double lcg();
 };

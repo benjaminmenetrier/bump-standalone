@@ -2,7 +2,7 @@
 /*! \page MF_LICENSE MF_LICENSE
 Copyright © 2017 METEO-FRANCE.
 
-e-mail: benjamin.menetrier@meteo.fr
+e-mail: <a target="_blank" href="mailto:benjamin.menetrier@meteo.fr">benjamin.menetrier@meteo.fr</a>
 
 The HDIAG_NICAS software is a computer program whose purpose is to 
 estimate localization functions and hybridization coefficients for 
@@ -14,7 +14,7 @@ This software is governed by the CeCILL-C license under French law and
 abiding by the rules of distribution of free software.  You can  use, 
 modify and/ or redistribute the software under the terms of the CeCILL-C
 license as circulated by CEA, CNRS and INRIA at the following URL
-"http://www.cecill.info". 
+<a target="_blank" href="http://www.cecill.info">http://www.cecill.info</a>. 
 
 As a counterpart to the access to the source code and  rights to copy,
 modify and redistribute granted by the license, users are provided only

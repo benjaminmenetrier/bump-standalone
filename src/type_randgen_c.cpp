@@ -64,7 +64,7 @@ void randGen::rand_integer(int binf, int bsup, int *ir) {
         // Generate random integer
         int range=bsup-binf+1;
         double r;
-        r = xorshift32();
+        r = lcg();
         r *= range;
         *ir=binf+(int)r;
     }
@@ -84,7 +84,7 @@ void randGen::rand_real(double binf, double bsup, double *rr) {
     }
     else {
        // Generate random real
-       *rr=binf+xorshift32()*(bsup-binf);
+       *rr=binf+lcg()*(bsup-binf);
     }
     return;
 }
@@ -218,10 +218,8 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
     return;
 }
 
-double randGen::xorshift32() {
-    seed_ ^= seed_ << 13;
-    seed_ ^= seed_ >> 17;
-    seed_ ^= seed_ << 5;
-    double x=abs((double)seed_/(double)ULONG_MAX);
+double randGen::lcg() {
+    seed_ = (a_*seed_+c_)%m_;
+    double x=(double)seed_/(double)(m_-1);
     return x;
 }

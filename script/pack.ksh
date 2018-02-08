@@ -13,9 +13,8 @@ mkdir pack
 # Copy LICENCE.dox, LICENSE.dox, README.dox, CHANGE_LOG.dox and .gitignore
 cp -f *.dox .gitignore pack
 
-# Copy build
-mkdir pack/build
-cp -f build/CMakeLists.txt pack/build
+# Copy CMakeLists.txt
+cp -f CMakeLists.txt pack
 
 # Copy data
 mkdir pack/data

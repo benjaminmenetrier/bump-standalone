@@ -163,7 +163,7 @@ mdata%nscales = lct%nscales
 mdata%ncomp = lct%ncomp
 
 ! Compute fit
-call minim(mdata,func,.false.)
+call minim(mdata,cost_fit_lct,.false.)
 
 ! Copy parameters
 lct%H = mdata%x(1:sum(lct%ncomp))
@@ -202,7 +202,7 @@ else
 end if
 if (spd) then
    ! Rebuild fit
-   call define_fit(nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct%nscales,lct%ncomp,lct%H,lct%coef,lct%fit)
+   call define_fit_lct(nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct%nscales,lct%ncomp,lct%H,lct%coef,lct%fit)
 else
    ! Set as missing
    call msr(lct%H)
@@ -333,10 +333,10 @@ end associate
 end subroutine compute_fit_lct_multi
 
 !----------------------------------------------------------------------
-! Subroutine: define_fit
-!> Purpose: define the fit
+! Subroutine: define_fit_lct
+!> Purpose: define the LCT fit
 !----------------------------------------------------------------------
-subroutine define_fit(nc,nl0,dx,dy,dz,dmask,nscales,ncomp,H,coef,fit)
+subroutine define_fit_lct(nc,nl0,dx,dy,dz,dmask,nscales,ncomp,H,coef,fit)
 
 implicit none
 
@@ -393,13 +393,13 @@ do iscales=1,nscales
    offset = offset+ncomp(iscales)
 end do
 
-end subroutine define_fit
+end subroutine define_fit_lct
 
 !----------------------------------------------------------------------
-! Function: func
-!> Purpose: fit function cost
+! Function: cost_fit_lct
+!> Purpose: LCT fit function cost
 !----------------------------------------------------------------------
-subroutine func(mdata,x,f)
+subroutine cost_fit_lct(mdata,x,f)
 
 implicit none
 
@@ -409,7 +409,7 @@ real(kind_real),intent(in) :: x(mdata%nx) !< Control vector
 real(kind_real),intent(out) :: f          !< Cost function value
 
 ! Local variables
-integer :: ix
+integer :: ix,ncomptot
 real(kind_real) :: fit(mdata%nc3,mdata%nl0)
 real(kind_real) :: xtmp(mdata%nx),fit_pack(mdata%ny),xx
 
@@ -417,8 +417,9 @@ real(kind_real) :: xtmp(mdata%nx),fit_pack(mdata%ny),xx
 xtmp = x*mdata%norm
 
 ! Compute function
-call define_fit(mdata%nc3,mdata%nl0,mdata%dx,mdata%dy,mdata%dz,mdata%dmask,mdata%nscales,mdata%ncomp, &
- & xtmp(1:sum(mdata%ncomp)),xtmp(sum(mdata%ncomp)+1:sum(mdata%ncomp)+mdata%nscales),fit)
+ncomptot = sum(mdata%ncomp)
+call define_fit_lct(mdata%nc3,mdata%nl0,mdata%dx,mdata%dy,mdata%dz,mdata%dmask,mdata%nscales,mdata%ncomp, &
+ & xtmp(1:ncomptot),xtmp(ncomptot+1:ncomptot+mdata%nscales),fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)
@@ -436,7 +437,7 @@ do ix=1,mdata%nx
    end if
 end do
 
-end subroutine func
+end subroutine cost_fit_lct
 
 !----------------------------------------------------------------------
 ! Subroutine: dummy
@@ -453,7 +454,7 @@ type(mdatatype),intent(in) :: mdata !< Minimization data
 real(kind_real) :: x(mdata%nx)
 real(kind_real) :: f
 
-if (.false.) call func(mdata,x,f)
+if (.false.) call cost_fit_lct(mdata,x,f)
 
 end subroutine
 
