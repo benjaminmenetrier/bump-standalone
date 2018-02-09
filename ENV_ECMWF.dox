@@ -3,7 +3,7 @@
 Cray compiler on cca/ccb:
 
     module unload cmake
-    module load cmake/3.10.2 cray-netcdf
+    module load cmake/3.10.2 cray-netcdf ncl
     export HDIAG_NICAS_COMPILER=GNU
     export HDIAG_NICAS_BUILD=RELEASE
     export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF_DIR}/include

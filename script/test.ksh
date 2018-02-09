@@ -7,26 +7,27 @@
 #----------------------------------------------------------------------
 # NetCDF files
 nc_files='
-sampling
-sampling_001
-diag
 bdata_common
+diag
+dirac_gridded
+dirac
 local_diag_cor
 local_diag_loc
-ndata_1_0001-0001_common_summary
 ndata_2_0001-0001_common
-dirac'
+ndata_2_0001-0001_common_summary
+sampling_001
+sampling'
 
 # Clean
 rm -f ../test/test_*.nc
 
 # Execute
 cd ../run
-export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log  2>&1
+export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log 2>&1
 if [[ -e "../test/test_dirac.nc" ]] ; then
-   echo -e "\033[32mExecution successful\033[m"
+   echo -e "[32mExecution successful[m"
 else
-   echo -e "\033[31mExecution failed\033[m"
+   echo -e "[31mExecution failed[m"
    exit
 fi
 
@@ -49,7 +50,7 @@ vars = getfilevarnames(data_truth)
 nvars = dimsizes(vars)
 
 ; Print file name
-write_table("${file}.out","w",[/(/"\033[1mFile: ${file}\033[m"/)/],"%s")
+write_table("${file}.out","w",[/(/"[1mFile: ${file}[m"/)/],"%s")
 
 do ivar=0,nvars-1
    ; Read data
@@ -80,9 +81,6 @@ do ivar=0,nvars-1
                      dist = 100.0
                   end if
                end if
-               if (dist.gt.0.01) then
-                  print("var " + vars(ivar) + ", index " + i + ": " + fld_test(i) + " vs. " + fld_truth(i))
-               end if
                if (dist.gt.distmax) then
                   distmax = dist
                end if
@@ -92,20 +90,20 @@ do ivar=0,nvars-1
 
       ; Print message
       if (truth_test) then
-         write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)\033[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)[m"/)/],"%40s%s")
       end if
       if (test_truth) then
-         write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)\033[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)[m"/)/],"%40s%s")
       end if
       if (.not.(truth_test.or.test_truth)) then
          if (distmax.gt.0.01) then
-            write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%\033[m"/)/],"%40s%s")
+            write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%40s%s")
          else
-            write_table("${file}.out","a",[/(/"   \033[32m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%\033[m"/)/],"%40s%s")
+            write_table("${file}.out","a",[/(/"   [32m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%40s%s")
          end if
       end if
    else
-      write_table("${file}.out","a",[/(/"   \033[31m" + vars(ivar)/),(/": Inconsistent sizes\033[m"/)/],"%40s%s")
+      write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent sizes[m"/)/],"%40s%s")
    end if
 
    ; Delete
@@ -117,12 +115,18 @@ end
 EOFNAM
 
    # Execute NCL script
-   ncl script.ncl > ncl_${file}.out
+   ncl script.ncl > ncl_${file}.out 2>&1
    rm -f script.ncl
 
+   # Check NCL execution
+   nl=`wc -l ncl_${file}.out | gawk '{print $1}'`
+   if [[ $nl -ne 5 ]]; then
+      echo "[1mFile: ${file}[m" > ${file}.out
+      echo "   [31mError with the NCL execution[m" >> ${file}.out
+   fi
+
    # Print results
-   value=$(<${file}.out)
-   echo "$value"
+   cat ${file}.out
 done
 
 # Clean
