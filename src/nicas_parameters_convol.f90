@@ -158,8 +158,8 @@ write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
 call prog_init(progint,done)
 c_n_s = 0
 c_nor_n_s = 0
-!$omp parallel do schedule(static) private(isb,is,ithread,ic1,il1,ic0,il0,plist,plist_new,dist,valid,np,np_new,ip,jc0,jl0), &
-!$omp&                             private(k,kc0,kl0,disttest,add_to_front,jp,js,jc1,jl1,distnorm,S_test)
+!$omp parallel do schedule(static) private(isb,is,ithread,ic1,il1,ic0,il0,np,np_new,ip,jc0,jl0,k,kc0,kl0,disttest,add_to_front), &
+!$omp&                             private(jp,js,jc1,jl1,distnorm,S_test) firstprivate(plist,plist_new,dist,valid)
 do isb=1,ndata%nsb
    ! Indices
    is = ndata%sb_to_s(isb)

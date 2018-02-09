@@ -60,7 +60,7 @@ associate(nam=>hdata%nam,geom=>hdata%geom)
 ! Copy diagnostics
 diag_tmp = diag
 
-!$omp parallel do schedule(static) private(ic2,diag_eff,diag_eff_dist,nc2eff,jc2,distnorm,norm,order,wgt)
+!$omp parallel do schedule(static) private(ic2,nc2eff,jc2,distnorm,norm,wgt) firstprivate(diag_eff,diag_eff_dist,order)
 do ic2=1,hdata%nc2
    if (hdata%c1l0_log(hdata%c2_to_c1(ic2),il0)) then
       ! Allocation

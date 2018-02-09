@@ -66,8 +66,8 @@ else
 end if
 
 ! Average
-!$omp parallel do schedule(static) private(il0,jl0r,jl0,nc1amax,list_m11,list_m11m11,list_m2m2,list_m22,list_cor,jc3), &
-!$omp&                             private(nc1a,ic1a,ic1,valid,m2m2,isub,jsub)
+!$omp parallel do schedule(static) private(il0,jl0r,jl0,nc1amax,jc3,nc1a,ic1a,ic1,valid,m2m2,isub,jsub), &
+!$omp&                             firstprivate(list_m11,list_m11m11,list_m2m2,list_m22,list_cor)
 do il0=1,geom%nl0
    do jl0r=1,bpar%nl0r(ib)
       jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
@@ -368,7 +368,7 @@ P15 = float((n-1)**2)/float(n*(n-3))
 P17 = float((n-1)**2)/float((n-2)*(n+1))
 
 ! Asymptotic statistics
-!$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub,m11asysq,m2m2asy,m22asy)
+!$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub) firstprivate(m11asysq,m2m2asy,m22asy)
 do il0=1,geom%nl0
    do jl0r=1,bpar%nl0r(ib)
       do jc3=1,bpar%nc3(ib)
@@ -443,7 +443,7 @@ do il0=1,geom%nl0
       end do
    end do
 end do
-!$omp end parallel do
+!!$omp end parallel do
 
 ! End associate
 end associate

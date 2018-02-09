@@ -783,10 +783,13 @@ WARN_LOGFILE           =
 INPUT                  = mainpage.h \
                          ../src \
                          ../CLOC_REPORT.dox \
-                         ../MF_LICENCE.dox \
-                         ../MF_LICENSE.dox \
-                         ../README.dox \
-                         ../README_NCAR.dox
+                         ../ENV_ECMWF.dox \
+                         ../ENV_MF.dox \
+                         ../ENV_NCAR.dox \
+                         ../LICENCE_MF.dox \
+                         ../LICENSE_MF.dox \
+                         ../README.dox
+
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses

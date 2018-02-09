@@ -24,8 +24,8 @@ use type_mpl, only: mpl,mpl_bcast,mpl_allgather,mpl_split,mpl_send,mpl_recv
 
 implicit none
 
-integer,parameter :: nnatmax = 40           !< Maximum number of natural neighbors
-real(kind_real),parameter :: S_inf = 1.0e-3 !< Minimum value for the interpolation coefficients
+integer,parameter :: nnatmax = 40 !< Maximum number of natural neighbors
+real,parameter :: S_inf = 1.0e-2  !< Minimum interpolation coefficient
 
 interface compute_interp
   module procedure compute_interp_from_lat_lon
@@ -180,26 +180,21 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
       if (abs(nn_dist(1))>0.0) then
          ! Compute barycentric coordinates
          call barycentric(lon_dst(i_dst),lat_dst(i_dst),mesh,nn_index(1),b,ib)
+         if (sum(b)>0.0) b = b/sum(b)
 
-         if (all(ib>0)) then
+         if (all(ib>0).and.all(b>0.0)) then
             if (all(mask_src(mesh%order(ib)))) then
                ! Valid interpolation
                if (trim(interp_type)=='bilin') then
                   ! Bilinear interpolation
-                  if (sum(b)>0.0) then
-                     ! Normalize barycentric coordinates
-                     b = b/sum(b)
-
-                     ! Add interpolation elements
-                     do i=1,3
-                        if (b(i)>S_inf) then
-                           n_s = n_s+1
-                           row(n_s) = i_dst
-                           col(n_s) = mesh%order(ib(i))
-                           S(n_s) = b(i)
-                        end if
-                     end do
-                  end if
+                  do i=1,3
+                     if (b(i)>S_inf) then
+                        n_s = n_s+1
+                        row(n_s) = i_dst
+                        col(n_s) = mesh%order(ib(i))
+                        S(n_s) = b(i)
+                     end if
+                  end do
                elseif (trim(interp_type)=='natural') then
                   ! Natural neighbors interpolation
 
@@ -225,14 +220,18 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                      call polygon(meshnew,nnat,natis(1:nnat),area_polygon_new(1:nnat))
 
                      ! Compute weight
+                     natwgt = 0.0
                      natwgt(1:nnat) = area_polygon(natis(1:nnat))-area_polygon_new(1:nnat)
+                     if (sum(natwgt(1:nnat))>0.0) natwgt(1:nnat) = natwgt(1:nnat)/sum(natwgt(1:nnat))
 
-                     ! Add interpolation elements
+                     ! Add interpolation element
                      do inat=1,nnat
-                        n_s = n_s+1
-                        row(n_s) = i_dst
-                        col(n_s) = mesh%order(natis(inat))
-                        S(n_s) = natwgt(inat)/sum(natwgt(1:nnat))
+                        if (natwgt(inat)>S_inf) then
+                           n_s = n_s+1
+                           row(n_s) = i_dst
+                           col(n_s) = mesh%order(natis(inat))
+                           S(n_s) = natwgt(inat)
+                        end if
                      end do
                   end if
                end if
@@ -591,6 +590,8 @@ if (count(missing)>0) then
       interp_tmp%n_s = interp%n_s+3*count(missing)
    elseif (trim(interp_type)=='natural') then
       interp_tmp%n_s = interp%n_s+40*count(missing)
+   else
+      call msgerror('wrong interpolation')
    end if
    call linop_alloc(interp_tmp)
 
@@ -631,6 +632,7 @@ if (count(missing)>0) then
    ! Reallocate interpolation
    call linop_dealloc(interp)
    interp%n_s = interp_tmp%n_s
+   call linop_alloc(interp)
 
    ! Fill arrays
    interp%row = interp_tmp%row(1:interp%n_s)

@@ -22,7 +22,7 @@ Already available input models are: <a target="_blank" href="http://www.cnrm-gam
 Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/CLOC_REPORT.html">CLOC report</a>.
 
 \section license License
-The code is distributed under the CeCILL-C license (in English: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENSE.html">LICENSE</a> or in French: <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/MF_LICENCE.html">LICENCE</a>).
+The code is distributed under the CeCILL-C license (in English: <a target="_blank" href="LICENSE_MF.html">LICENSE</a> or in French: <a target="_blank" href="LICENCE_MF.html">LICENCE</a>).
 
 \section Folders Folders organization
 The main directory $MAINDIR contains the CMakeLists.txt file and several folders:
@@ -42,6 +42,11 @@ The compilation of sources uses cmake (<a target="_blank" href="https://cmake.or
  - <b>HDIAG_NICAS_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
  - <b>HDIAG_NICAS_NETCDF_LIBPATH</b>: C NetCDF library path
  - <b>HDIAG_NICAS_NETCDFF_LIBPATH</b>: Fotran NetCDF library path
+
+Some examples are given for several supercomputer:
+ - at <a target="_blank" href="ENV_ECMWF.html">ECMWF (Cray compiler)</a>
+ - at <a target="_blank" href="ENV_MF.html">Météo-France (GNU and Intel compiler)</a>
+ - at <a target="_blank" href="ENV_NCAR.html">NCAR (GNU compiler)</a>
 
 Then, to compile in a directory $BUILDDIR, with $N processors (if available):
  

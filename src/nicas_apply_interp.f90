@@ -120,7 +120,7 @@ integer :: ic1b
 real(kind_real),allocatable :: gamma_tmp(:),delta_tmp(:)
 
 ! Vertical interpolation
-!$omp parallel do schedule(static) private(ic1b,gamma_tmp,delta_tmp)
+!$omp parallel do schedule(static) private(ic1b) firstprivate(gamma_tmp,delta_tmp)
 do ic1b=1,ndata%nc1b
    ! Allocation
    allocate(gamma_tmp(ndata%nl1))
@@ -250,7 +250,7 @@ integer :: ic1b
 real(kind_real),allocatable :: gamma_tmp(:),delta_tmp(:)
 
 ! Vertical interpolation
-!$omp parallel do schedule(static) private(ic1b,gamma_tmp,delta_tmp)
+!$omp parallel do schedule(static) private(ic1b) firstprivate(gamma_tmp,delta_tmp)
 do ic1b=1,ndata%nc1b
    ! Allocation
    allocate(gamma_tmp(ndata%nl1))
