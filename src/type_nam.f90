@@ -680,7 +680,9 @@ if (nam%new_hdiag.or.nam%new_lct) then
 
    ! Check fit_param
    select case (trim(nam%fit_type))
-   case ('none','fast','nelder_mead','compass_search','praxis')
+   case ('none','fast')
+   case ('nelder_mead','compass_search','praxis')
+      call msgwarning('this minimizer leads to portability differences between compilers')
    case default
       call msgerror('wrong fit_type')
    end select

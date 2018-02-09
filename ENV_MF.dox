@@ -1,0 +1,24 @@
+// This is the ENV_MF file, which can be viewed by browsing the doxygen-generated documentation.
+/*! \page ENV_MF ENV_MF
+GNU compiler on beaufix/prolix:
+
+    module purge
+    module load cmake/2.8.11.2 gcc/5.3.0 openmpi/1.10.2 netcdf/4.4.0 
+    export HDIAG_NICAS_COMPILER=GNU
+    export HDIAG_NICAS_BUILD=RELEASE
+    export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF_INC_DIR}
+    export HDIAG_NICAS_NETCDF_LIBPATH=${NETCDF_LIB_DIR}
+    export HDIAG_NICAS_NETCDFF_INCLUDE=${NETCDF_INC_DIR}
+    export HDIAG_NICAS_NETCDFF_LIBPATH=${NETCDF_LIB_DIR}
+
+Intel compiler on beaufix/prolix:
+
+    module purge
+    module load cmake/2.8.11.2 intel/16.1.150 intelmpi/5.1.2.150 netcdf/4.4.0
+    export HDIAG_NICAS_COMPILER=Intel
+    export HDIAG_NICAS_BUILD=RELEASE
+    export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF_INC_DIR}
+    export HDIAG_NICAS_NETCDF_LIBPATH=${NETCDF_LIB_DIR}
+    export HDIAG_NICAS_NETCDFF_INCLUDE=${NETCDF_INC_DIR}
+    export HDIAG_NICAS_NETCDFF_LIBPATH=${NETCDF_LIB_DIR}
+*/

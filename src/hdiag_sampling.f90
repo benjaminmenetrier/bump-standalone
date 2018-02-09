@@ -388,7 +388,7 @@ if (nam%nc3>1) then
       ir = ir+1
       jc0 = vic0(i)
 
-      !!$omp parallel do schedule(static) private(ic1,ic0,d,icinf,icsup,found,ictest,jc3)
+      !$omp parallel do schedule(static) private(ic1,ic0,d,jc3,icinf,icsup,found,ictest) firstprivate(x,y,z,v1,v2,va,vp,t)
       do ic1=1,nam%nc1
          ! Allocation
          allocate(x(2))
@@ -446,7 +446,7 @@ if (nam%nc3>1) then
          deallocate(vp)
          deallocate(t)
       end do
-      !!$omp end parallel do
+      !$omp end parallel do
 
       ! Update valid nodes vector
       vic0(i) = vic0(nvc0)

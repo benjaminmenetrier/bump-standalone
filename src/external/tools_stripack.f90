@@ -4195,6 +4195,12 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
     stop
   end if
 !
+!  Initialize
+!
+  list = 0
+  lptr = 0
+  lend = 0
+!
 !  Store the first triangle in the linked list.
 !
   call left (x(1),y(1),z(1),x(2),y(2),z(2),x(3),y(3),z(3),output_1)
@@ -4326,7 +4332,7 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
   do k = 4, nn
 
     call addnod ( near(k), k, x, y, z, list, lptr, lend, lnew, ier )
-   
+
     if ( ier /= 0 ) then
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'TRMESH - Fatal error!'

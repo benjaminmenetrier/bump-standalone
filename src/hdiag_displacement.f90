@@ -227,7 +227,7 @@ do its=2,nam%nts
       allocate(dlat_c2(hdata%nc2a))
       allocate(dist_c2(hdata%nc2a))
 
-      !$omp parallel do schedule(static) private(ic2a,ic2,ic1,cor,cor_avg,order,jc1,jc0,iv,m11_avg,m2m2_avg)
+      !$omp parallel do schedule(static) private(ic2a,ic2,ic1,jc1,jc0,iv,m11_avg,m2m2_avg) firstprivate(cor,cor_avg,order)
       do ic2a=1,hdata%nc2a
          ic2 = hdata%c2a_to_c2(ic2a)
          ic1 = hdata%c2_to_c1(ic2)

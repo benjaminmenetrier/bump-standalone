@@ -75,7 +75,7 @@ displ_tol = 0.01,
 /
 
 &fit_param
-fit_type = "praxis",
+fit_type = "fast",
 fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,

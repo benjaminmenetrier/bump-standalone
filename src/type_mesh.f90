@@ -279,7 +279,7 @@ logical :: validt(nt)
 ! Transform to cartesian coordinates
 call trans(n,lat,lon,x,y,z)
 
-!$omp parallel do schedule(static) private(it,a,b,c,cd,v1,v2,cp)
+!$omp parallel do schedule(static) private(it) firstprivate(a,b,c,cd,v1,v2,cp)
 do it=1,nt
    ! Check vertices status
    if (isallnotmsr(x(ltri(:,it))).and.isallnotmsr(y(ltri(:,it))).and.isallnotmsr(z(ltri(:,it)))) then

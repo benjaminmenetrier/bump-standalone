@@ -39,11 +39,11 @@ type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: il0i,i_s,ic1,ic1b,jc1b,is,js,isc,jsb,jsc,ic0,ic0a,il0,il1,ih,jv,nlr,ilr,jlr,ic,isc_add,progint
-integer,allocatable :: ineh(:,:),inev(:),ines(:,:),inec(:),order(:),isc_list(:)
+integer,allocatable :: ineh(:,:),inev(:),ines(:,:),inec(:),order(:),isc_list(:),order2(:)
 integer,allocatable :: h_col(:,:,:),v_col(:,:),s_col(:,:,:),c_ind(:,:)
 real(kind_real) :: S_add
 real(kind_real),allocatable :: h_S(:,:,:),v_S(:,:),s_S(:,:,:),c_S(:,:)
-real(kind_real),allocatable :: S_list(:),S_list_tmp(:)
+real(kind_real),allocatable :: list(:),S_list(:),S_list_tmp(:)
 logical :: conv
 logical,allocatable :: done(:)
 
@@ -143,10 +143,23 @@ end do
 
 ! Re-order indices
 do isc=1,ndata%nsc_nor
+   ! Allocation
    allocate(order(inec(isc)))
-   call qsort(inec(isc),c_ind(1:inec(isc),isc),order)
+   allocate(list(inec(isc)))
+
+   ! Copy
+   list = c_ind(1:inec(isc),isc)
+
+   ! Order
+   call qsort(inec(isc),list,order)
+
+   ! Re-order
+   c_ind(1:inec(isc),isc) = c_ind(order(1:inec(isc)),isc)
    c_S(1:inec(isc),isc) = c_S(order(1:inec(isc)),isc)
+
+   ! Release memory
    deallocate(order)
+   deallocate(list)
 end do
 
 ! Allocation
@@ -160,8 +173,8 @@ do il0=1,geom%nl0
    write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Level ',nam%levs(il0),': '
    call prog_init(progint,done)
 
-   !$omp parallel do schedule(static) private(ic0a,ic0,isc_list,order,S_list,S_list_tmp,nlr) &
-   !$omp&                             private(isc_add,S_add,ih,ic1b,ic1,jv,il1,is,ilr,conv,ic,jlr,isc,jsc)
+   !$omp parallel do schedule(static) private(ic0a,ic0,nlr,isc_add,S_add,ih,ic1b,ic1,jv,il1,is,ilr,conv,ic,jlr,isc,jsc), &
+   !$omp&                             firstprivate(isc_list,order2,S_list,S_list_tmp)
    do ic0a=1,geom%nc0a
       ! Index
       ic0 = geom%c0a_to_c0(ic0a)
@@ -169,11 +182,11 @@ do il0=1,geom%nl0
       if (geom%mask(ic0,il0)) then
          ! Allocation
          allocate(isc_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
-         allocate(order(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
          allocate(S_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
          if (nam%lsqrt) then
             allocate(S_list_tmp(ndata%nsc_nor))
          else
+            allocate(order2(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
             allocate(S_list_tmp(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
          end if
 
@@ -232,8 +245,8 @@ do il0=1,geom%nl0
             ndata%norm(ic0a,il0) = 1.0/sqrt(ndata%norm(ic0a,il0))
          else
             ! Sort arrays
-            call qsort(nlr,isc_list(1:nlr),order(1:nlr))
-            S_list(1:nlr) = S_list(order(1:nlr))
+            call qsort(nlr,isc_list(1:nlr),order2(1:nlr))
+            S_list(1:nlr) = S_list(order2(1:nlr))
 
             ! Convolution
             S_list_tmp(1:nlr) = S_list(1:nlr)
@@ -269,9 +282,9 @@ do il0=1,geom%nl0
          done(ic0a) = .true.
          call prog_print(progint,done)
 
-         ! Release memory
+          ! Release memory
          deallocate(isc_list)
-         deallocate(order)
+         if (.not.nam%lsqrt) deallocate(order2)
          deallocate(S_list)
          deallocate(S_list_tmp)
       end if

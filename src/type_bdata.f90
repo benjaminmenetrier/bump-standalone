@@ -347,7 +347,7 @@ do ib=1,bpar%nb+1
                   end select
                elseif (i==3) then
                   fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rh
-               elseif (i==2) then
+               elseif (i==4) then
                   fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rv
                end if
             end do

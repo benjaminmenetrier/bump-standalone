@@ -31,11 +31,13 @@ done
 
 # Compile in DEBUG mode
 echo '--- Compile in DEBUG mode'
-cd ../../build
+cd ../..
+mkdir -p build
+cd build
 rm -fr CMakeCache.txt CMakeFiles cmake_install.cmake Makefile *.mod
 export HDIAG_NICAS_BUILD=DEBUG
-cmake CMakeLists.txt
-make
+cmake ..
+make -j4
 
 # Save all namelists
 echo '--- Save all namelists'
