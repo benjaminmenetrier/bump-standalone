@@ -222,11 +222,15 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                      ! Compute weight
                      natwgt = 0.0
                      natwgt(1:nnat) = area_polygon(natis(1:nnat))-area_polygon_new(1:nnat)
+
+                     do inat=1,nnat
+                        if (natwgt(inat)<S_inf) natwgt(inat) = 0.0
+                     end do
                      if (sum(natwgt(1:nnat))>0.0) natwgt(1:nnat) = natwgt(1:nnat)/sum(natwgt(1:nnat))
 
                      ! Add interpolation element
                      do inat=1,nnat
-                        if (natwgt(inat)>S_inf) then
+                        if (natwgt(inat)>0.0) then
                            n_s = n_s+1
                            row(n_s) = i_dst
                            col(n_s) = mesh%order(natis(inat))
