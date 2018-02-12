@@ -575,11 +575,11 @@ if (nam%new_hdiag) then
    if (nam%local_diag) then
       ! Fit support radii maps
       if (any(bpar%fit_block)) then
-         call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_cor.nc',cor_1_c2a)
+         call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_cor_gridded.nc',cor_1_c2a)
 
          select case (trim(nam%method))
          case ('loc','hyb-avg','hyb-rnd','dual-ens')
-            call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_loc.nc',loc_1_c2a)
+            call curve_write_local(hdata,trim(nam%prefix)//'_local_diag_loc_gridded.nc',loc_1_c2a)
          end select
       end if
 

@@ -10,8 +10,8 @@ load_ensemble = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-new_hdiag = .true.,
-new_param = .true.,
+new_hdiag = .false.,
+new_param = .false.,
 check_adjoints = .true.,
 check_pos_def = .false.,
 check_sqrt = .false.,
@@ -24,7 +24,7 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 1,
+nl = 3,
 levs = 35,36,37,50,55,
 logpres = .true.,
 nv = 1,
@@ -65,7 +65,7 @@ nl0r = 3,
 ne = 50,
 gau_approx = .false.,
 full_var = .false.,
-local_diag = .false.,
+local_diag = .true.,
 local_rad = 500.0e3,
 displ_diag = .true.,
 displ_rad = 3000.0e3,
@@ -75,7 +75,7 @@ displ_tol = 0.0,
 /
 
 &fit_param
-fit_type = "nelder_mead",
+fit_type = "fast",
 fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
