@@ -100,6 +100,7 @@ allocate(ndata%c1_to_c0(ndata%nc1))
 if (mpl%main) call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0min,nam%ntry,nam%nrep, &
  & ndata%nc1,ndata%c1_to_c0)
 call mpl_bcast(ndata%c1_to_c0,mpl%ioproc)
+write(mpl%unit,*) 'TEST',ndata%c1_to_c0
 
 ! Inverse conversion
 allocate(ndata%c0_to_c1(geom%nc0))

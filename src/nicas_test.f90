@@ -556,7 +556,7 @@ else
    call apply_localization(nam,geom,bpar,ndata,fld1_loc)
    call apply_localization(nam,geom,bpar,ndata,fld2_loc)
 end if
-if (nam%local_diag) then
+if (nam%displ_diag) then
    fld1_adv = fld1_save
    fld2_adv = fld2_save
    call apply_adv(nam,geom,ndata(bpar%nb+1),fld1_adv)
@@ -574,7 +574,7 @@ call mpl_dot_prod(fld1_loc,fld2_save,sum1)
 call mpl_dot_prod(fld2_loc,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-if (nam%local_diag) then
+if (nam%displ_diag) then
    call mpl_dot_prod(fld1_adv,fld2_save,sum1)
    call mpl_dot_prod(fld2_adv,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
