@@ -768,7 +768,7 @@ if (nam%new_obsop) then
 end if
 
 ! Clean files
-if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac.nc')
+if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac*.nc')
 
 end subroutine namcheck
 

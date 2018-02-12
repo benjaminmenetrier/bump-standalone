@@ -12,8 +12,8 @@ module type_curve
 
 use model_interface, only: model_write
 use netcdf
-use hdiag_tools, only: diag_com_lg
-use tools_const, only: rad2deg
+use hdiag_tools, only: diag_interpolation,diag_com_lg
+use tools_const, only: reqkm
 use tools_display, only: vunitchar,msgerror
 use tools_jacobi_eigenvalue, only: jacobi_eigenvalue
 use tools_kinds, only: kind_real
@@ -396,8 +396,9 @@ character(len=*),intent(in) :: filename                            !< File name
 type(curvetype),intent(in) :: curve_c2(hdata%nc2a,hdata%bpar%nb+1) !< Curves array
 
 ! Local variables
-integer :: ncid,nc2_id,nl0_id,lon_id,lat_id,fit_rh_id,fit_rv_id
+integer :: ncid
 integer :: ic2a,ib,i
+real(kind_real) :: fld(hdata%geom%nc0,hdata%geom%nl0)
 real(kind_real),allocatable :: fld_c2(:,:)
 character(len=1024) :: subr = 'curve_write_all'
 
@@ -411,20 +412,8 @@ if (mpl%main) then
    ! Add namelist
    call namncwrite(nam,ncid)
 
-   ! Define dimensions
-   call ncerr(subr,nf90_def_dim(ncid,'nc2',hdata%nc2,nc2_id))
-   call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
-
-   ! Define variables
-   call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc2_id/),lon_id))
-   call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc2_id/),lat_id))
-
    ! End definition
    call ncerr(subr,nf90_enddef(ncid))
-
-   ! Write variables
-   call ncerr(subr,nf90_put_var(ncid,lon_id,geom%lon(hdata%c2_to_c0)*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lat_id,geom%lat(hdata%c2_to_c0)*rad2deg))
 end if
 
 do ib=1,bpar%nb+1
@@ -436,7 +425,7 @@ do ib=1,bpar%nb+1
          ! Copy data
          do ic2a=1,hdata%nc2a
             if (i==1) then
-               fld_c2(ic2a,:) = curve_c2(ic2a,ib)%fit_rh
+               fld_c2(ic2a,:) = curve_c2(ic2a,ib)%fit_rh*reqkm
             elseif (i==2) then
                fld_c2(ic2a,:) = curve_c2(ic2a,ib)%fit_rv
             end if
@@ -446,32 +435,19 @@ do ib=1,bpar%nb+1
          call diag_com_lg(hdata,fld_c2)
 
          if (mpl%main) then
-            ! Definition mode
-            call ncerr(subr,nf90_redef(ncid))
+            ! Interpolate
+            call diag_interpolation(hdata,fld_c2,fld)
 
+            ! Write fields
             if (i==1) then
-               ! Define variables
-               call ncerr(subr,nf90_def_var(ncid,trim(bpar%blockname(ib))//'_fit_rh',ncfloat,(/nc2_id,nl0_id/),fit_rh_id))
-
-               ! End definition
-               call ncerr(subr,nf90_enddef(ncid))
-
-               ! Write variables
-               call ncerr(subr,nf90_put_var(ncid,fit_rh_id,fld_c2))
+               call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh',fld)
             elseif (i==2) then
-               ! Define variables
-               call ncerr(subr,nf90_def_var(ncid,trim(bpar%blockname(ib))//'_fit_rv',ncfloat,(/nc2_id,nl0_id/),fit_rv_id))
-
-               ! End definition
-               call ncerr(subr,nf90_enddef(ncid))
-
-               ! Write variables
-               call ncerr(subr,nf90_put_var(ncid,fit_rv_id,fld_c2))
+               call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv',fld)
             end if
 
-             ! Release memory
-             deallocate(fld_c2)
-          end if
+            ! Release memory
+            deallocate(fld_c2)
+         end if
       end do
    end if
 end do

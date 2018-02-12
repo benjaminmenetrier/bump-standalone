@@ -62,7 +62,7 @@ do its=2,nam%nts
       ! Interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call apply_linop(ndata%d(il0,its-1),fld_tmp,fld(:,:,iv,its))
+         call apply_linop(ndata%d(il0,its-1),fld_tmp(:,il0),fld(:,il0,iv,its))
       end do
       !$omp end parallel do
 
@@ -104,7 +104,7 @@ do its=2,nam%nts
       ! Adjoint interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call apply_linop_ad(ndata%d(il0,its-1),fld(:,:,iv,its),fld_tmp)
+         call apply_linop_ad(ndata%d(il0,its-1),fld(:,il0,iv,its),fld_tmp(:,il0))
       end do
       !$omp end parallel do
 

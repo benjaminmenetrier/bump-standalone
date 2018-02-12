@@ -11,8 +11,8 @@ bdata_common
 diag
 dirac_gridded
 dirac
-local_diag_cor
-local_diag_loc
+local_diag_cor_gridded
+local_diag_loc_gridded
 ndata_2_0001-0001_common
 ndata_2_0001-0001_common_summary
 sampling_001

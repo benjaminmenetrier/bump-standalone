@@ -116,14 +116,13 @@ end subroutine apply_bens
 ! Subroutine: apply_bens_noloc
 !> Purpose: apply ensemble covariance, without localization
 !----------------------------------------------------------------------
-subroutine apply_bens_noloc(nam,geom,bpar,ens1,fld)
+subroutine apply_bens_noloc(nam,geom,ens1,fld)
 
 implicit none
 
 ! Passed variables
 type(namtype),target,intent(in) :: nam                                            !< Namelist
 type(geomtype),target,intent(in) :: geom                                          !< Geometry
-type(bpartype),target,intent(in) :: bpar                                          !< Blocal parameters
 real(kind_real),intent(in) :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)           !< Field
 

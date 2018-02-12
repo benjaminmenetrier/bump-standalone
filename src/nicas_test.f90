@@ -12,6 +12,7 @@ module nicas_test
 
 use driver_hdiag, only: run_hdiag
 use model_interface, only: model_write
+use nicas_apply_adv, only: apply_adv,apply_adv_ad
 use nicas_apply_bens, only: apply_bens,apply_bens_noloc
 use nicas_apply_convol, only: apply_convol
 use nicas_apply_interp, only: apply_interp,apply_interp_s,apply_interp_v,apply_interp_h, &
@@ -528,8 +529,8 @@ real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,na
 
 ! Local variables
 real(kind_real) :: sum1,sum2
-real(kind_real),allocatable :: fld1_loc(:,:,:,:),fld1_bens(:,:,:,:),fld1_save(:,:,:,:)
-real(kind_real),allocatable :: fld2_loc(:,:,:,:),fld2_bens(:,:,:,:),fld2_save(:,:,:,:)
+real(kind_real),allocatable :: fld1_loc(:,:,:,:),fld1_adv(:,:,:,:),fld1_bens(:,:,:,:),fld1_save(:,:,:,:)
+real(kind_real),allocatable :: fld2_loc(:,:,:,:),fld2_adv(:,:,:,:),fld2_bens(:,:,:,:),fld2_save(:,:,:,:)
 
 ! Allocation
 allocate(fld1_save(geom%nc0a,geom%nl0,nam%nv,nam%nts))
@@ -555,6 +556,12 @@ else
    call apply_localization(nam,geom,bpar,ndata,fld1_loc)
    call apply_localization(nam,geom,bpar,ndata,fld2_loc)
 end if
+if (nam%local_diag) then
+   fld1_adv = fld1_save
+   fld2_adv = fld2_save
+   call apply_adv(nam,geom,ndata(bpar%nb+1),fld1_adv)
+   call apply_adv_ad(nam,geom,ndata(bpar%nb+1),fld2_adv)
+end if
 if (present(ens1)) then
    fld1_bens = fld1_save
    fld2_bens = fld2_save
@@ -567,11 +574,17 @@ call mpl_dot_prod(fld1_loc,fld2_save,sum1)
 call mpl_dot_prod(fld2_loc,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+if (nam%local_diag) then
+   call mpl_dot_prod(fld1_adv,fld2_save,sum1)
+   call mpl_dot_prod(fld2_adv,fld1_save,sum2)
+   write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
+ & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+end if
 if (present(ens1)) then
    call mpl_dot_prod(fld1_bens,fld2_save,sum1)
    call mpl_dot_prod(fld2_bens,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Ensemble B adjoint test:   ', &
-    & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+ & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 end if
 
 end subroutine test_loc_adjoint
@@ -852,7 +865,7 @@ do ifac=1,nfac
    do itest=1,ntest
       ! Test localization
       fld = fld_save(:,:,:,:,itest)
-      call apply_bens_noloc(nam,geom,bpar,ens1,fld)
+      call apply_bens_noloc(nam,geom,ens1,fld)
 
       ! RMSE
       mse(itest,ifac) = sum((fld-fld_ref(:,:,:,:,itest))**2)
