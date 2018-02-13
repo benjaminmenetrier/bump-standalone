@@ -21,6 +21,8 @@ type ctreetype
     type(c_ptr) :: ptr !< Pointer to the C++ class
 end type ctreetype
 
+real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
+
 ! C++ interface
 interface
    function create_ctree_c(n,lon,lat,mask) bind(C,name="create_ctree")
@@ -138,7 +140,7 @@ do while (i<nn)
    ! Count indistinguishable neighbors
    nid = 1
    do j=i+1,nn
-      if (abs(nn_dist(i)-nn_dist(j))<1.0e-12*nn_dist(i)) nid = nid+1
+      if (abs(nn_dist(i)-nn_dist(j))<rth*nn_dist(i)) nid = nid+1
    end do
 
    ! Reorder

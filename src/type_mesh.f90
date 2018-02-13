@@ -12,7 +12,7 @@ module type_mesh
 
 use omp_lib
 use tools_const, only: vector_product
-use tools_display, only: msgerror,prog_init,prog_print
+use tools_display, only: msgerror,msgwarning,prog_init,prog_print
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr
 use tools_stripack, only: addnod,areas,crlist,trans,trfind,trmesh
@@ -26,8 +26,6 @@ type meshtype
    integer :: n                        !< Number of points
    integer,allocatable :: redundant(:) !< Redundant points
    integer :: nnr                      !< Number of non-redundant points
-   integer,allocatable :: order(:)     !< Order of shuffled points
-   integer,allocatable :: order_inv(:) !< Inverse order of shuffled points
    real(kind_real),allocatable :: x(:) !< x-coordinate
    real(kind_real),allocatable :: y(:) !< y-coordinate
    real(kind_real),allocatable :: z(:) !< z-coordinate
@@ -59,9 +57,9 @@ logical,intent(in) :: lred            !< Redundant points check
 type(meshtype),intent(inout) :: mesh  !< Mesh
 
 ! Local variables
-integer :: i,j,k,info,iproc
+integer :: i,j,info,iproc
 integer :: i_s(mpl%nproc),i_e(mpl%nproc),n_loc(mpl%nproc),i_loc,progint
-integer,allocatable :: jtab(:),near(:),next(:),sbuf(:)
+integer,allocatable :: near(:),next(:),sbuf(:)
 real(kind_real),allocatable :: dist(:)
 logical,allocatable :: done(:)
 
@@ -134,8 +132,6 @@ end if
 mesh%nnr = count(.not.isnotmsi(mesh%redundant))
 
 ! Allocation
-allocate(mesh%order(mesh%nnr))
-allocate(mesh%order_inv(mesh%n))
 allocate(mesh%list(6*(mesh%nnr-2)))
 allocate(mesh%lptr(6*(mesh%nnr-2)))
 allocate(mesh%lend(mesh%nnr))
@@ -144,33 +140,10 @@ allocate(mesh%y(mesh%nnr))
 allocate(mesh%z(mesh%nnr))
 allocate(near(mesh%nnr))
 allocate(next(mesh%nnr))
-allocate(jtab(mesh%nnr))
 allocate(dist(mesh%nnr))
 
-! Shuffle arrays (more efficient to compute the Delaunay triangulation)
-i = 0
-do j=1,mesh%n
-   if (.not.isnotmsi(mesh%redundant(j))) then
-      i = i+1
-      mesh%order(i) = j
-   end if
-end do
-if (mpl%main) call rand_integer(1,mesh%nnr,jtab)
-call mpl_bcast(jtab,mpl%ioproc)
-do i=mesh%nnr,2,-1
-   k = mesh%order(jtab(i))
-   mesh%order(jtab(i)) = mesh%order(i)
-   mesh%order(i) = k
-end do
-
-! Inverse order
-call msi(mesh%order_inv)
-do i=1,mesh%nnr
-   mesh%order_inv(mesh%order(i)) = i
-end do
-
 ! Transform to cartesian coordinates
-call trans(mesh%nnr,lat(mesh%order),lon(mesh%order),mesh%x,mesh%y,mesh%z)
+call trans(mesh%nnr,lat,lon,mesh%x,mesh%y,mesh%z)
 
 ! Create mesh
 mesh%list = 0
@@ -197,8 +170,6 @@ if (allocated(mesh%z)) deallocate(mesh%z)
 if (allocated(mesh%list)) deallocate(mesh%list)
 if (allocated(mesh%lptr)) deallocate(mesh%lptr)
 if (allocated(mesh%lend)) deallocate(mesh%lend)
-if (allocated(mesh%order)) deallocate(mesh%order)
-if (allocated(mesh%order_inv)) deallocate(mesh%order_inv)
 
 end subroutine mesh_dealloc
 
@@ -220,8 +191,6 @@ mesh_out%nnr = mesh_in%nnr
 
 ! Release memory
 if (allocated(mesh_out%redundant)) deallocate(mesh_out%redundant)
-if (allocated(mesh_out%order)) deallocate(mesh_out%order)
-if (allocated(mesh_out%order_inv)) deallocate(mesh_out%order_inv)
 if (allocated(mesh_out%x)) deallocate(mesh_out%x)
 if (allocated(mesh_out%y)) deallocate(mesh_out%y)
 if (allocated(mesh_out%z)) deallocate(mesh_out%z)
@@ -231,8 +200,6 @@ if (allocated(mesh_out%lend)) deallocate(mesh_out%lend)
 
 ! Allocation
 allocate(mesh_out%redundant(mesh_out%n))
-allocate(mesh_out%order(mesh_out%nnr))
-allocate(mesh_out%order_inv(mesh_out%n))
 allocate(mesh_out%x(mesh_out%nnr))
 allocate(mesh_out%y(mesh_out%nnr))
 allocate(mesh_out%z(mesh_out%nnr))
@@ -242,8 +209,6 @@ allocate(mesh_out%lend(mesh_out%nnr))
 
 ! Copy data
 mesh_out%redundant = mesh_in%redundant
-mesh_out%order = mesh_in%order
-mesh_out%order_inv = mesh_in%order_inv
 mesh_out%x = mesh_in%x
 mesh_out%y = mesh_in%y
 mesh_out%z = mesh_in%z
@@ -352,6 +317,8 @@ real(kind_real) :: p(3)
 call trans(1,lat,lon,p(1),p(2),p(3))
 
 ! Compute barycentric coordinates
+b = 0.0
+ib = 0
 call trfind(istart,dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
 end subroutine barycentric
@@ -371,12 +338,10 @@ type(meshtype),intent(inout) :: mesh !< Mesh
 
 ! Local variables
 integer :: info
-integer,allocatable :: order(:),order_inv(:),list(:),lptr(:),lend(:)
+integer,allocatable :: list(:),lptr(:),lend(:)
 real(kind_real),allocatable :: x(:),y(:),z(:)
 
 ! Allocation
-allocate(order(mesh%nnr))
-allocate(order_inv(mesh%n))
 allocate(x(mesh%nnr))
 allocate(y(mesh%nnr))
 allocate(z(mesh%nnr))
@@ -385,8 +350,6 @@ allocate(lptr(6*(mesh%nnr-2)))
 allocate(lend(mesh%nnr))
 
 ! Copy
-order = mesh%order
-order_inv = mesh%order_inv
 x = mesh%x
 y = mesh%y
 z = mesh%z
@@ -395,8 +358,6 @@ lptr = mesh%lptr
 lend = mesh%lend
 
 ! Reallocation
-deallocate(mesh%order)
-deallocate(mesh%order_inv)
 deallocate(mesh%x)
 deallocate(mesh%y)
 deallocate(mesh%z)
@@ -405,8 +366,6 @@ deallocate(mesh%lptr)
 deallocate(mesh%lend)
 mesh%n = mesh%n+1
 mesh%nnr = mesh%nnr+1
-allocate(mesh%order(mesh%nnr))
-allocate(mesh%order_inv(mesh%n))
 allocate(mesh%x(mesh%nnr))
 allocate(mesh%y(mesh%nnr))
 allocate(mesh%z(mesh%nnr))
@@ -415,8 +374,6 @@ allocate(mesh%lptr(6*(mesh%nnr-2)))
 allocate(mesh%lend(mesh%nnr))
 
 ! Copy
-mesh%order(1:mesh%nnr-1) = order
-mesh%order_inv(1:mesh%n-1) = order_inv
 mesh%x(1:mesh%nnr-1) = x
 mesh%y(1:mesh%nnr-1) = y
 mesh%z(1:mesh%nnr-1) = z
@@ -429,10 +386,6 @@ call trans(1,lat,lon,mesh%x(mesh%nnr:mesh%nnr),mesh%y(mesh%nnr:mesh%nnr),mesh%z(
 
 ! Update mesh
 call addnod(1,mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,mesh%lnew,info)
-
-! Update order
-mesh%order(mesh%nnr) = mesh%n
-mesh%order_inv(mesh%n) = mesh%nnr
 
 end subroutine addnode
 

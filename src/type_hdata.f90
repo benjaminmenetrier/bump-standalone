@@ -26,7 +26,7 @@ use type_nam, only: namtype
 
 implicit none
 
-! Sampling data derived type
+! HDIAG data derived type
 type hdatatype
    ! Namelist
    type(namtype),pointer :: nam                     !< Namelist
@@ -235,7 +235,7 @@ hdata_read = 0
 ! Open file
 info = nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc',nf90_nowrite,ncid)
 if (info/=nf90_noerr) then
-   call msgwarning('cannot find sampling data to read, recomputing sampling')
+   call msgwarning('cannot find HDIAG data to read, recomputing HDIAG sampling')
    nam%sam_write = .true.
    hdata_read = 1
    return
@@ -254,13 +254,13 @@ if (nam%local_diag.or.nam%displ_diag) then
    if (info==nf90_noerr) then
       call ncerr(subr,nf90_inquire_dimension(ncid,nc2_id,len=nc2_test))
    else
-      call msgwarning('cannot find nc2 when reading sampling, recomputing sampling')
+      call msgwarning('cannot find nc2 when reading HDIAG sampling, recomputing HDIAG sampling')
       nam%sam_write = .true.
       hdata_read = 2
    end if
 end if
 if ((geom%nl0/=nl0_test).or.(nam%nl0r/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%nc1/=nc1_test)) then
-   call msgwarning('wrong dimension when reading sampling, recomputing sampling')
+   call msgwarning('wrong dimension when reading HDIAG sampling, recomputing HDIAG sampling')
    nam%sam_write = .true.
    call ncerr(subr,nf90_close(ncid))
    hdata_read = 1
@@ -268,13 +268,13 @@ if ((geom%nl0/=nl0_test).or.(nam%nl0r/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%
 end if
 if (nam%local_diag.or.nam%displ_diag) then
    if (hdata%nc2/=nc2_test) then
-      call msgwarning('wrong dimension when reading sampling, recomputing sampling')
+      call msgwarning('wrong dimension when reading HDIAG sampling, recomputing HDIAG sampling')
       nam%sam_write = .true.
       hdata_read = 2
    end if
 end if
 
-write(mpl%unit,'(a7,a)') '','Read sampling'
+write(mpl%unit,'(a7,a)') '','Read HDIAG sampling'
 
 ! Get arrays ID
 call ncerr(subr,nf90_inq_varid(ncid,'c1_to_c0',c1_to_c0_id))
@@ -329,7 +329,7 @@ if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
       write(il0ichar,'(i3.3)') il0i
       info = nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling_'//il0ichar//'.nc',nf90_nowrite,ncid)
       if (info/=nf90_noerr) then
-         call msgwarning('cannot find nearest neighbors and interpolation data to read, recomputing sampling')
+         call msgwarning('cannot find nearest neighbors and interpolation data to read, recomputing HDIAG sampling')
          nam%sam_write = .true.
          hdata_read = 3
          return
@@ -363,7 +363,7 @@ if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
             call ncerr(subr,nf90_get_var(ncid,nn_c2_index_id,hdata%nn_c2_index(:,:,il0i)))
             call ncerr(subr,nf90_get_var(ncid,nn_c2_dist_id,hdata%nn_c2_dist(:,:,il0i)))
          else
-            call msgwarning('cannot find nc2 nearest neighbors data to read, recomputing sampling')
+            call msgwarning('cannot find nc2 nearest neighbors data to read, recomputing HDIAG sampling')
             nam%sam_write = .true.
             hdata_read = 4
          end if
@@ -412,7 +412,7 @@ associate(nam=>hdata%nam,geom=>hdata%geom)
 if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Create file
-write(mpl%unit,'(a7,a)') '','Write sampling'
+write(mpl%unit,'(a7,a)') '','Write HDIAG sampling'
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc',or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Define dimensions

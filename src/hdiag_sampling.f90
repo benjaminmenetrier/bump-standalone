@@ -623,12 +623,13 @@ end do
 
 ! Find boundary nodes
 allocate(hdata%bdist(hdata%nc2))
+call msi(nodes)
 call bnodes(hdata%nc2,list,lptr,lend,nodes,nb,natmp,nttmp)
 if (nb>0) then
    ! Find boundary arcs
    nab = 0
    do ia=1,na
-      if (any(nodes==hdata%larc(1,ia)).and.any(nodes==hdata%larc(2,ia))) then
+      if (any(nodes(1:nb)==hdata%larc(1,ia)).and.any(nodes(1:nb)==hdata%larc(2,ia))) then
          nab = nab+1
          larcb(:,nab) = hdata%larc(:,ia)
       end if

@@ -14,6 +14,8 @@ use tools_kinds, only: kind_real
 
 implicit none
 
+real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
+
 private
 public :: addnod,areas,bnodes,crlist,scoord,trans,trfind,trlist,trmesh
 
@@ -177,7 +179,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 
     l = i1
 
-    if ( .not.(abs(p(1)-x(l))>0.0) .and. .not.(abs(p(2)-y(l))>0.0)  .and. .not.(abs(p(3)-z(l))>0.0) ) then
+    if ( (abs(p(1)-x(l))<rth) .and. (abs(p(2)-y(l))<rth)  .and. (abs(p(3)-z(l))<rth) ) then
       ier = l
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'ADDNOD - Fatal error!'
@@ -187,7 +189,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
 
     l = i2
 
-    if ( .not.(abs(p(1)-x(l))>0.0) .and. .not.(abs(p(2)-y(l))>0.0)  .and. .not.(abs(p(3)-z(l))>0.0) ) then
+    if ( (abs(p(1)-x(l))<rth) .and. (abs(p(2)-y(l))<rth)  .and. (abs(p(3)-z(l))<rth) ) then
       ier = l
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'ADDNOD - Fatal error!'
@@ -196,7 +198,7 @@ subroutine addnod ( nst, k, x, y, z, list, lptr, lend, lnew, ier )
     end if
 
     l = i3
-    if ( .not.(abs(p(1)-x(l))>0.0) .and. .not.(abs(p(2)-y(l))>0.0)  .and. .not.(abs(p(3)-z(l))>0.0) ) then
+    if ( (abs(p(1)-x(l))<rth) .and. (abs(p(2)-y(l))<rth)  .and. (abs(p(3)-z(l))<rth) ) then
       ier = l
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'ADDNOD - Fatal error!'
@@ -935,7 +937,7 @@ subroutine det ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
   output = t1 - t2 + t3
 
   ! Indistinguishability threshold for cross-plateform reproducibility
-  if ((abs(output)<1.0e-12*abs(t1)).or.(abs(output)<1.0e-12*abs(t2)).or.(abs(output)<1.0e-12*abs(t3))) output = 0.0
+  if ((abs(output)<rth*abs(t1)).or.(abs(output)<rth*abs(t2)).or.(abs(output)<rth*abs(t3))) output = 0.0
 end
 subroutine crlist ( n, ncol, x, y, z, list, lend, lptr, lnew, &
   ltri, listc, nb, xc, yc, zc, rc, ier )
@@ -2322,12 +2324,13 @@ subroutine left ( x1, y1, z1, x2, y2, z2, x0, y0, z0, output )
   real ( kind_real ) z0
   real ( kind_real ) z1
   real ( kind_real ) z2
+  real ( kind_real ) zz
 !
 !  LEFT = TRUE iff <N0,N1 X N2> = det(N0,N1,N2) >= 0.
 !
-  output = .not.(x0 * ( y1 * z2 - y2 * z1 ) &
-       - y0 * ( x1 * z2 - x2 * z1 ) &
-       + z0 * ( x1 * y2 - x2 * y1 ) < 0.0_kind_real)
+
+  call det ( x1, y1, z1, x2, y2, z2, x0, y0, z0, zz )
+  output = zz > 0.0_kind_real
 
   return
 end
@@ -3063,6 +3066,7 @@ subroutine swptst ( n1, n2, n3, n4, x, y, z, output )
   real ( kind_real ) y4
   real ( kind_real ) z(*)
   real ( kind_real ) z4
+  real ( kind_real ) zz
 
   x4 = x(n4)
   y4 = y(n4)
@@ -3081,9 +3085,9 @@ subroutine swptst ( n1, n2, n3, n4, x, y, z, output )
 !  the plane of (N2,N1,N4) iff Det(N3-N4,N2-N4,N1-N4) =
 !  (N3-N4,N2-N4 X N1-N4) > 0.
 !
-  output =  dx3 * ( dy2 * dz1 - dy1 * dz2 ) &
-          - dy3 * ( dx2 * dz1 - dx1 * dz2 ) &
-          + dz3 * ( dx2 * dy1 - dx1 * dy2 ) > 0.0_kind_real
+
+  call det ( dx2, dy2, dz2, dx1, dy1, dz1, dx3, dy3, dz3, zz )
+  output = zz > 0.0_kind_real
 
   return
 end
@@ -4309,12 +4313,12 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
     d2 = -( x(k) * x(2) + y(k) * y(2) + z(k) * z(2) )
     d3 = -( x(k) * x(3) + y(k) * y(3) + z(k) * z(3) )
 
-    if ( .not.(d1 > d2) .and. .not.(d1 > d3) ) then
+    if ( (abs(d1-d2)>rth*abs(d1+d2).and.(d1 < d2)) .and. (abs(d1-d3)>rth*abs(d1+d3).and.(d1 < d3)) ) then
       near(k) = 1
       dist(k) = d1
       next(k) = near(1)
       near(1) = k
-    else if ( .not.(d2 > d1) .and. .not.(d2 > d3) ) then
+    else if ( (abs(d2-d1)>rth*abs(d2+d1).and.(d2 < d1)) .and. (abs(d2-d3)>rth*abs(d2+d3).and.(d2 < d3)) ) then
       near(k) = 2
       dist(k) = d2
       next(k) = near(2)
@@ -4397,10 +4401,10 @@ subroutine trmesh ( n, x, y, z, list, lptr, lend, lnew, near, next, dist, ier )
       nexti = next(i)
 !
 !  Test for the distance from I to K less than the distance
-!  from I to J.
+!  from I to J. Indistinguishability threshold for cross-plateform reproducibility
 !
       d = - ( x(i) * x(k) + y(i) * y(k) + z(i) * z(k) )
-      if ( d < dist(i) ) then
+      if ( abs(d-dist(i))>rth*abs(d+dist(i)) .and. d < dist(i)) then
 !
 !  Replace J by K as the nearest triangulation node to I:
 !  update NEAR(I) and DIST(I), and remove I from J's set

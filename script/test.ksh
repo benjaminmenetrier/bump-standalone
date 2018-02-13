@@ -18,17 +18,22 @@ ndata_2_0001-0001_common_summary
 sampling_001
 sampling'
 
-# Clean
-rm -f ../test/test_*.nc
-
-# Execute
-cd ../run
-export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log 2>&1
-if [[ -e "../test/test_dirac.nc" ]] ; then
-   echo -e "[32mExecution successful[m"
-else
-   echo -e "[31mExecution failed[m"
+# Check in DEBUG mode
+if [[ $HDIAG_NICAS_BUILD != "DEBUG" ]] ; then
+   echo -e "[31mHDIAG_NICAS_BUILD should be set to DEBUG for reproducibility tests[m"
    exit
+fi
+
+if [[ ! -e "../test/test_dirac.nc" ]] ; then
+   # Execute
+   cd ../run
+   export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log 2>&1
+   if [[ -e "../test/test_dirac.nc" ]] ; then
+      echo -e "[32mExecution successful[m"
+   else
+     echo -e "[31mExecution failed[m"
+      exit
+   fi
 fi
 
 # Get the differences
@@ -80,6 +85,9 @@ do ivar=0,nvars-1
                   if (abs(fld_test(i)-fld_truth(i)).gt.0.0) then
                      dist = 100.0
                   end if
+               end if
+               if (dist.gt.0.01) then
+                  write_table("${file}.err","a",[/(/"Variable " + vars(ivar) + ", index " + i + ": " + fld_test(i) + " / " + fld_truth(i)/)/],"%s")
                end if
                if (dist.gt.distmax) then
                   distmax = dist

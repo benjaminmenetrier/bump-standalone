@@ -40,18 +40,15 @@ subroutine run_nicas(nam,geom,bpar,bdata,ndata,ens1)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(inout) :: nam             !< Namelist
-type(geomtype),target,intent(inout) :: geom           !< Geometry
-type(bpartype),target,intent(in) :: bpar              !< Block parameters
-type(bdatatype),intent(in) :: bdata(bpar%nb+1)        !< B data
-type(ndatatype),allocatable,intent(inout) :: ndata(:) !< NICAS data
+type(namtype),target,intent(inout) :: nam                                                  !< Namelist
+type(geomtype),target,intent(inout) :: geom                                                !< Geometry
+type(bpartype),target,intent(in) :: bpar                                                   !< Block parameters
+type(bdatatype),intent(in) :: bdata(bpar%nb+1)                                             !< B data
+type(ndatatype),intent(out) :: ndata(bpar%nb+1)                                            !< NICAS data
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: ib,ic0,ic0a
-
-! Allocation
-allocate(ndata(bpar%nb+1))
 
 ! Set name, namelist and geometry
 do ib=1,bpar%nb+1

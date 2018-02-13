@@ -369,17 +369,18 @@ end subroutine linop_read_0d
 ! Subroutine: linop_read_1d
 !> Purpose: read array of linear operators from a NetCDF file, 1D
 !----------------------------------------------------------------------
-subroutine linop_read_1d(ncid,prefix,linop)
+subroutine linop_read_1d(ncid,prefix,n1,linop)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                            !< NetCDF file id
-character(len=*),intent(in) :: prefix                 !< Linear operator prefix
-type(linoptype),allocatable,intent(inout) :: linop(:) !< Linear operators
+integer,intent(in) :: ncid                 !< NetCDF file id
+character(len=*),intent(in) :: prefix      !< Linear operator prefix
+integer,intent(in) :: n1                   !< First dimension size
+type(linoptype),intent(inout) :: linop(n1) !< Linear operators
 
 ! Local variables
-integer :: info,n1,n_s_max,i1
+integer :: info,n1_test,n_s_max,i1
 integer :: n_s_max_id,n1_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_read_1d'
 
@@ -391,17 +392,11 @@ else
    n_s_max = 0
 end if
 
-! Get array size
-info = nf90_inq_dimid(ncid,trim(prefix)//'_n1',n1_id)
-if (info==nf90_noerr) then
-   call ncerr(subr,nf90_inquire_dimension(ncid,n1_id,len=n1))
-else
-   n1 = 0
-end if
-
-if ((n1>0).and.(n_s_max>0)) then
-   ! Allocation
-   allocate(linop(n1))
+if (n_s_max>0) then
+   ! Check array size
+   call ncerr(subr,nf90_inq_dimid(ncid,trim(prefix)//'_n1',n1_id))
+   call ncerr(subr,nf90_inquire_dimension(ncid,n1_id,len=n1_test))
+   if (n1_test/=n1) call msgerror('wrong dimension in linop_read_1d')
 
    ! Get variables id
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_n_s',n_s_id))
@@ -438,45 +433,37 @@ end subroutine linop_read_1d
 ! Subroutine: linop_read_2d
 !> Purpose: read array of linear operators from a NetCDF file, 2D
 !----------------------------------------------------------------------
-subroutine linop_read_2d(ncid,prefix,linop)
+subroutine linop_read_2d(ncid,prefix,n1,n2,linop)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid                              !< NetCDF file id
-character(len=*),intent(in) :: prefix                   !< Linear operator prefix
-type(linoptype),allocatable,intent(inout) :: linop(:,:) !< Linear operators
+integer,intent(in) :: ncid                    !< NetCDF file id
+character(len=*),intent(in) :: prefix         !< Linear operator prefix
+integer,intent(in) :: n1                      !< First dimension size
+integer,intent(in) :: n2                      !< Second dimension size
+type(linoptype),intent(inout) :: linop(n1,n2) !< Linear operators
 
 ! Local variables
-integer :: info,n1,n2,n_s_max,i1,i2
+integer :: info,n1_test,n2_test,n_s_max,i1,i2
 integer :: n_s_max_id,n1_id,n2_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_read_2d'
 
 ! Get maximum operator size
 info = nf90_inq_dimid(ncid,trim(prefix)//'_n_s_max',n_s_max_id)
 if (info==nf90_noerr) then
-   call ncerr(subr,nf90_inquire_dimension(ncid,n_s_max_id,len=n_s_max))
+   call ncerr(subr,nf90_inquire_dimension(ncid,n_s_id,len=n_s_max))
 else
    n_s_max = 0
 end if
 
-! Get array size
-info = nf90_inq_dimid(ncid,trim(prefix)//'_n1',n1_id)
-if (info==nf90_noerr) then
-   call ncerr(subr,nf90_inquire_dimension(ncid,n1_id,len=n1))
-else
-   n1 = 0
-end if
-info = nf90_inq_dimid(ncid,trim(prefix)//'_n2',n2_id)
-if (info==nf90_noerr) then
-   call ncerr(subr,nf90_inquire_dimension(ncid,n2_id,len=n2))
-else
-   n2 = 0
-end if
-
-if ((n1>0).and.(n2>0).and.(n_s_max>0)) then
-   ! Allocation
-   allocate(linop(n1,n2))
+if (n_s_max>0) then
+   ! Check array size
+   call ncerr(subr,nf90_inq_dimid(ncid,trim(prefix)//'_n1',n1_id))
+   call ncerr(subr,nf90_inquire_dimension(ncid,n1_id,len=n1_test))
+   call ncerr(subr,nf90_inq_dimid(ncid,trim(prefix)//'_n2',n2_id))
+   call ncerr(subr,nf90_inquire_dimension(ncid,n2_id,len=n2_test))
+   if ((n1_test/=n1).or.(n2_test/=n2)) call msgerror('wrong dimension in linop_read_2d')
 
    ! Get variables id
    call ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_n_s',n_s_id))
@@ -558,21 +545,19 @@ end subroutine linop_write_0d
 ! Subroutine: linop_write_1d
 !> Purpose: write array of linear operators to a NetCDF file, 1D
 !----------------------------------------------------------------------
-subroutine linop_write_1d(ncid,linop)
+subroutine linop_write_1d(ncid,n1,linop)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid             !< NetCDF file id
-type(linoptype),intent(in) :: linop(:) !< Linear operator
+integer,intent(in) :: ncid              !< NetCDF file id
+integer,intent(in) :: n1                !< First dimension size
+type(linoptype),intent(in) :: linop(n1) !< Linear operator
 
 ! Local variables
-integer :: n1,i1,n_s_max
+integer :: i1,n_s_max
 integer :: n_s_max_id,n1_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_write_1d'
-
-! Array size
-n1 = size(linop)
 
 ! Maximum operator size
 n_s_max = 0
@@ -580,7 +565,7 @@ do i1=1,n1
    n_s_max = max(n_s_max,linop(i1)%n_s)
 end do
 
-if ((n1>0).and.(n_s_max>0)) then
+if (n_s_max>0) then
    ! Start definition mode
    call ncerr(subr,nf90_redef(ncid))
 
@@ -616,22 +601,20 @@ end subroutine linop_write_1d
 ! Subroutine: linop_write_2d
 !> Purpose: write array of linear operators to a NetCDF file, 2D
 !----------------------------------------------------------------------
-subroutine linop_write_2d(ncid,linop)
+subroutine linop_write_2d(ncid,n1,n2,linop)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid               !< NetCDF file id
-type(linoptype),intent(in) :: linop(:,:) !< Linear operator
+integer,intent(in) :: ncid                 !< NetCDF file id
+integer,intent(in) :: n1                   !< First dimension size
+integer,intent(in) :: n2                   !< Second dimension size
+type(linoptype),intent(in) :: linop(n1,n2) !< Linear operator
 
 ! Local variables
-integer :: n1,n2,i1,i2,n_s_max
+integer :: i1,i2,n_s_max
 integer :: n_s_max_id,n1_id,n2_id,n_s_id,n_src_id,n_dst_id,row_id,col_id,S_id
 character(len=1024) :: subr = 'linop_write_2d'
-
-! Array size
-n1 = size(linop,1)
-n2 = size(linop,2)
 
 ! Maximum operator size
 n_s_max = 0
@@ -641,7 +624,7 @@ do i2=1,n2
    end do
 end do
 
-if ((n1>0).and.(n2>0).and.(n_s_max>0)) then
+if (n_s_max>0) then
    ! Start definition mode
    call ncerr(subr,nf90_redef(ncid))
 

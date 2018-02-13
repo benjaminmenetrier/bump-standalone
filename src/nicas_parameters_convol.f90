@@ -69,8 +69,7 @@ do ic0=1,geom%nc0
    i = geom%mesh%lend(ic0)
    init = .true.
    do while ((i/=geom%mesh%lend(ic0)).or.init)
-      jc0 = geom%mesh%order(ic0)
-      net_nnb(jc0) = net_nnb(jc0)+1
+      net_nnb(ic0) = net_nnb(ic0)+1
       i = geom%mesh%lptr(i)
       init = .false.
    end do
@@ -86,9 +85,8 @@ do ic0=1,geom%nc0
    i = geom%mesh%lend(ic0)
    init = .true.
    do while ((i/=geom%mesh%lend(ic0)).or.init)
-      jc0 = geom%mesh%order(ic0)
-      net_nnb(jc0) = net_nnb(jc0)+1
-      net_inb(net_nnb(jc0),jc0) = geom%mesh%order(abs(geom%mesh%list(i)))
+      net_nnb(ic0) = net_nnb(ic0)+1
+      net_inb(net_nnb(ic0),ic0) = abs(geom%mesh%list(i))
       i = geom%mesh%lptr(i)
       init = .false.
    end do

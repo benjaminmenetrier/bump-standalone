@@ -49,14 +49,6 @@ interface
    end subroutine reseed_randgen_c
 end interface
 interface
-   subroutine get_version_c(randgen,version) bind(C,name="get_version")
-   use iso_c_binding
-   implicit none
-   type(c_ptr),value :: randgen
-   integer(c_int) :: version
-   end subroutine get_version_c
-end interface
-interface
    subroutine rand_integer_c(randgen,binf,bsup,ir) bind(C,name="rand_integer")
    use iso_c_binding
    implicit none
@@ -133,7 +125,6 @@ type(namtype),intent(in) :: nam !< Namelist variables
 
 ! Local variable
 integer(kind=8) :: default_seed
-integer :: version
 
 ! Set default seed key to integer
 if (nam%default_seed) then
@@ -149,14 +140,7 @@ rng%ptr = create_randgen_c(default_seed)
 if (nam%default_seed) then
    write(mpl%unit,'(a7,a)') '','Linear congruential generator initialized with a default seed'
 else
-   ! Get version
-   call get_version_c(rng%ptr,version)
-
-   if (version==1) then
-      write(mpl%unit,'(a7,a)') '','Mersenne Twister 19937 generator initialized'
-   else
-      write(mpl%unit,'(a7,a)') '','Linear congruential generator initialized'
-   end if
+   write(mpl%unit,'(a7,a)') '','Linear congruential generator initialized'
 end if
 
 end subroutine create_randgen

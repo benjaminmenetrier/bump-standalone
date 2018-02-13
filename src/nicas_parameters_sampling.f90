@@ -40,45 +40,45 @@ subroutine compute_sampling(bdata,ndata)
 implicit none
 
 ! Passed variables
-type(bdatatype),intent(in) :: bdata    !< B data
+type(bdatatype),intent(in) :: bdata !< B data
 type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: il0,il0_prev,il1,ic0,ic1,ic2,is
-integer :: mask_c0(ndata%geom%nc0)
-integer,allocatable :: mask_c1(:),c2_to_c1(:)
-real(kind_real) :: rh0s(ndata%geom%nc0,ndata%geom%nl0),rv0s(ndata%geom%nc0,ndata%geom%nl0)
-real(kind_real) :: rh0minavg,rv1min,distnorm
-real(kind_real) :: rh0min(ndata%geom%nc0)
+integer,allocatable :: mask_c0(:),mask_c1(:),c2_to_c1(:)
+real(kind_real) :: rh0sminavg,rv1min,rh0savg,distnorm
+real(kind_real),allocatable :: rh0smin(:),rh0s_c1(:)
 logical :: inside
 
 ! Associate
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
-! Copy
-if (allocated(bdata%rh0s).and.allocated(bdata%rv0s)) then
-   ! Specific support radii for sampling
-   rh0s = bdata%rh0s
-   rv0s = bdata%rv0s
-else
-   ! Same support radii for sampling and convolution
-   rh0s = bdata%rh0
-   rv0s = bdata%rv0
-end if
+! Allocation
+allocate(rh0smin(geom%nc0))
+allocate(mask_c0(geom%nc0))
 
 ! Reset random numbers seed
 if (trim(nam%strategy)=='specific_multivariate') call reseed_randgen()
 
 ! Compute support radii
 write(mpl%unit,'(a10,a,a,f8.2,a,f8.2,a)') '','Average support radii (H/V): ', &
- & trim(aqua),sum(rh0s)/float(geom%nc0*geom%nl0)*reqkm,trim(black)//' km  / ' &
- & //trim(aqua),sum(rv0s)/float(geom%nc0*geom%nl0),trim(black)//' '//trim(vunitchar)
+ & trim(aqua),sum(bdata%rh0s)/float(geom%nc0*geom%nl0)*reqkm,trim(black)//' km  / ' &
+ & //trim(aqua),sum(bdata%rv0s)/float(geom%nc0*geom%nl0),trim(black)//' '//trim(vunitchar)
 
 ! Basic horizontal mesh defined with the minimum support radius
-rh0min = minval(rh0s,dim=2)
-rh0minavg = sum(rh0min,mask=isnotmsr(rh0min))/float(count(isnotmsr(rh0min)))
-if (rh0minavg>0.0) then
-   ndata%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rh0minavg**2))
+rh0smin = huge(1.0)
+mask_c0 = 0
+do ic0=1,geom%nc0
+   do il0=1,geom%nl0
+      if (geom%mask(ic0,il0)) then
+         rh0smin(ic0) = min(bdata%rh0s(ic0,il0),rh0smin(ic0))
+         mask_c0(ic0) = 1
+      end if
+   end do
+end do
+rh0sminavg = sum(rh0smin,mask=(mask_c0==1))/float(sum(mask_c0))
+if (rh0sminavg>0.0) then
+   ndata%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rh0sminavg**2))
 else
    ndata%nc1 = geom%nc0
 end if
@@ -87,7 +87,7 @@ write(mpl%unit,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: '
 if (ndata%nc1>nc1max) then
    call msgwarning('required nc1 larger than nc1max, resetting to nc1max')
    ndata%nc1 = nc1max
-   write(mpl%unit,'(a10,a,f5.2)') '','Effective resolution: ',sqrt(float(ndata%nc1)*sqrt(3.0)*rh0minavg**2/(2.0*maxval(geom%area)))
+   write(mpl%unit,'(a10,a,f5.2)') '','Effective resolution: ',sqrt(float(ndata%nc1)*sqrt(3.0)*rh0sminavg**2/(2.0*maxval(geom%area)))
 end if
 mask_c0 = 0
 do ic0=1,geom%nc0
@@ -97,10 +97,9 @@ end do
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
 allocate(ndata%c1_to_c0(ndata%nc1))
-if (mpl%main) call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0min,nam%ntry,nam%nrep, &
+if (mpl%main) call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0smin,nam%ntry,nam%nrep, &
  & ndata%nc1,ndata%c1_to_c0)
 call mpl_bcast(ndata%c1_to_c0,mpl%ioproc)
-write(mpl%unit,*) 'TEST',ndata%c1_to_c0
 
 ! Inverse conversion
 allocate(ndata%c0_to_c1(geom%nc0))
@@ -121,7 +120,7 @@ do il0=1,geom%nl0
       ndata%llev(il0) = .true.
    else
       ! Compute normalized distance with level il0_prev
-      rv1min = sqrt(0.5*(minval(rv0s(ndata%c1_to_c0,il0))**2+minval(rv0s(ndata%c1_to_c0,il0_prev))**2))
+      rv1min = sqrt(0.5*(minval(bdata%rv0s(ndata%c1_to_c0,il0))**2+minval(bdata%rv0s(ndata%c1_to_c0,il0_prev))**2))
       if (rv1min>0.0) then
          distnorm = abs(geom%vunit(il0)-geom%vunit(il0_prev))/rv1min
          ndata%llev(il0) = distnorm>1.0/nam%resol
@@ -178,18 +177,28 @@ do il1=1,ndata%nl1
    ndata%l0_to_l1(il0) = il1
 end do
 
-! Horizontal subsampling
+! Allocation
 allocate(ndata%nc2(ndata%nl1))
 allocate(ndata%c2mask(ndata%nc1,ndata%nl1))
+allocate(rh0s_c1(ndata%nc1))
 allocate(mask_c1(ndata%nc1))
+
+! Horizontal subsampling
 do il1=1,ndata%nl1
    write(mpl%unit,'(a7,a,i3,a)') '','Compute horizontal subset C2 (level ',il1,')'
 
    ! Compute nc2
    il0 = ndata%l1_to_l0(il1)
-   ndata%nc2(il1) = floor(2.0*geom%area(il0)*nam%resol**2/(sqrt(3.0)*(sum(rh0s(ndata%c1_to_c0,ndata%l1_to_l0(il1)), &
-                  & mask=isnotmsr(rh0s(ndata%c1_to_c0,ndata%l1_to_l0(il1)))) &
-                  & /float(count(isnotmsr(rh0s(ndata%c1_to_c0,ndata%l1_to_l0(il1))))))**2))
+   mask_c1 = 0
+   do ic1=1,ndata%nc1
+      ic0 = ndata%c1_to_c0(ic1)
+      if (geom%mask(ic0,il0)) then
+         rh0s_c1(ic1) = bdata%rh0s(ic0,il0)
+         mask_c1(ic1) = 1
+      end if
+   end do
+   rh0savg = sum(rh0s_c1,mask=(mask_c1==1))/float(sum(mask_c1))
+   ndata%nc2(il1) = floor(2.0*geom%area(il0)*nam%resol**2/(sqrt(3.0)*rh0savg**2))
    ndata%nc2(il1) = max(ndata%nc1/4,min(ndata%nc2(il1),ndata%nc1))
 
    if (ndata%nc2(il1)<ndata%nc1) then
@@ -205,8 +214,7 @@ do il1=1,ndata%nl1
 
       ! Compute subset
       if (mpl%main) call initialize_sampling(ndata%nc1,dble(geom%lon(ndata%c1_to_c0)), &
-    & dble(geom%lat(ndata%c1_to_c0)),mask_c1,rh0s(ndata%c1_to_c0,il0),nam%ntry,nam%nrep, &
-    & ndata%nc2(il1),c2_to_c1)
+    & dble(geom%lat(ndata%c1_to_c0)),mask_c1,rh0s_c1,nam%ntry,nam%nrep,ndata%nc2(il1),c2_to_c1)
       call mpl_bcast(c2_to_c1,mpl%ioproc)
 
       ! Fill C2 mask

@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: driver_hdiag
-!> Purpose: hybrid_diag driver
+!> Purpose: HDIAG driver
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -47,7 +47,7 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: run_hdiag
-!> Purpose: hybrid_diag
+!> Purpose: HDIAG
 !----------------------------------------------------------------------
 subroutine run_hdiag(nam,geom,bpar,bdata,ens1)
 
@@ -57,7 +57,7 @@ implicit none
 type(namtype),target,intent(inout) :: nam                                                  !< Namelist
 type(geomtype),target,intent(in) :: geom                                                   !< Geometry
 type(bpartype),target,intent(in) :: bpar                                                   !< Block parameters
-type(bdatatype),allocatable,intent(out) :: bdata(:)                                        !< B data
+type(bdatatype),intent(out) :: bdata(bpar%nb+1)                                            !< B data
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables

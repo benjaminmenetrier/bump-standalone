@@ -18,9 +18,6 @@ extern "C"
     // Reseed generator
     void reseed_randgen(RANDGEN* randgen, unsigned long int seed);
 
-    // Get version
-    void get_version(const RANDGEN* randgen, int *version);
-
     // Random integer generator
     void rand_integer(RANDGEN* randgen, int binf, int bsup, int *ir);
 

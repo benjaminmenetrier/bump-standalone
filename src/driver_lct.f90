@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: driver_lct
-!> Purpose: hybrid_diag driver
+!> Purpose: LCT driver
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>

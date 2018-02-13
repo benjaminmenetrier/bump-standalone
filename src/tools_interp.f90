@@ -183,7 +183,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
          if (sum(b)>0.0) b = b/sum(b)
 
          if (all(ib>0).and.all(b>0.0)) then
-            if (all(mask_src(mesh%order(ib)))) then
+            if (all(mask_src(ib))) then
                ! Valid interpolation
                if (trim(interp_type)=='bilin') then
                   ! Bilinear interpolation
@@ -191,7 +191,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                      if (b(i)>S_inf) then
                         n_s = n_s+1
                         row(n_s) = i_dst
-                        col(n_s) = mesh%order(ib(i))
+                        col(n_s) = ib(i)
                         S(n_s) = b(i)
                      end if
                   end do
@@ -233,7 +233,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                         if (natwgt(inat)>0.0) then
                            n_s = n_s+1
                            row(n_s) = i_dst
-                           col(n_s) = mesh%order(natis(inat))
+                           col(n_s) = natis(inat)
                            S(n_s) = natwgt(inat)
                         end if
                      end do
@@ -502,7 +502,6 @@ call mpl_bcast(valid,mpl%ioproc)
 deallocate(done)
 
 end subroutine check_mask_bnd
-
 
 !----------------------------------------------------------------------
 ! Subroutine: check_arc
