@@ -1,6 +1,6 @@
 #!/bin/ksh
 #----------------------------------------------------------------------
-# Korn shell script: sbatch
+# Korn shell script: pbs
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2017 METEO-FRANCE
@@ -8,8 +8,8 @@
 
 # Parallel setup
 nnodes=1
-ntasks_per_node=4
-nthreads=10
+ntasks_per_node=1
+nthreads=1
 let ntasks=nnodes*ntasks_per_node
 let ncpus_per_node=nthreads*ntasks_per_node
 echo "Parallel setup:"
@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/home/gmap/mrpa/menetrie/codes/hdiag_nicas
+rootdir=/home/ms/fr/sozi/code/hdiag_nicas
 
 # Define model and xp
 model=arp
@@ -33,28 +33,31 @@ datadir=${rootdir}/data/${model}/${xp}
 workdir=${rootdir}/${model}_${xp}
 rm -fr ${workdir}
 mkdir ${workdir}
-cp -f ${rootdir}/run/hdiag_nicas ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}
+cp -f ${rootdir}/run/hdiag_nicas ${workdir}
+cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
 cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
-#!/bin/bash
-#SBATCH -N ${nnodes}
-#SBATCH -n ${ntasks}
-#SBATCH -c ${nthreads}
-#SBATCH -t 00:30:00
-#SBATCH -p normal64,huge256
-#SBATCH --exclusiv
-#SBATCH -e ${workdir}/output
-#SBATCH -o ${workdir}/output
+#!/bin/ksh
+#PBS -q np
+#PBS -l walltime=00:30:00
+#PBS -l EC_nodes=${nnodes}
+#PBS -l EC_tasks_per_node=${ntasks_per_node}
+#PBS -l EC_total_tasks=${ntasks}
+#PBS -l EC_threads_per_task=${nthreads}
+#PBS -l EC_hyperthreads=1
+#PBS -j oe
+#PBS -o ${workdir}/output
 
+module load cray-netcdf
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-srun --mpi=pmi2 ${rootdir}/run/hdiag_nicas < namelist_${model}_${xp}_sc
-EOFNAM
+aprun -N ${ntasks_per_node} -n ${ntasks} -d $OMP_NUM_THREADS -j 1 ${rootdir}/run/hdiag_nicas < namelist
 
+EOFNAM
 #----------------------------------------------------------------------
 
 # Execute
-sbatch ${workdir}/job_hdiag_nicas.ksh
+qsub ${workdir}/job_hdiag_nicas.ksh

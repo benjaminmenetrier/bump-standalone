@@ -59,7 +59,6 @@ today=`date +%Y%m%d`
 rm -fr hdiag_nicas
 mv pack hdiag_nicas
 tar -cvzf hdiag_nicas_${today}.tar.gz hdiag_nicas
-ln -sf hdiag_nicas_${today}.tar.gz hdiag_nicas_latest.tar.gz
 
 # Clean
 rm -fr hdiag_nicas

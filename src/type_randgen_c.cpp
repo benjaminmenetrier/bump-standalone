@@ -12,9 +12,6 @@
 #include <iomanip>
 #include <cmath>
 #include <climits>
-#if __cplusplus > 199711L
-#include <random>
-#endif
 
 using namespace std;
 
@@ -22,18 +19,10 @@ using namespace std;
 randGen::randGen(unsigned long int default_seed) {
     // Initialize random number generator
     if (default_seed==0) {
-#if __cplusplus > 199711L
-        std::random_device rd;
-        gen_ = new std::mt19937(rd());
-        version_ = 1;
-#else
         seed_ = (unsigned long int)clock();
-        version_ = 0;
-#endif
     }
     else {
         seed_ = default_seed;
-        version_ = 0;
     }
 }
 
@@ -42,50 +31,25 @@ randGen::~randGen(){}
 
 // Reseed generator
 void randGen::reseed_randgen(unsigned long int seed) {
-#if __cplusplus > 199711L
-    gen_ = new std::mt19937(seed);
-#endif
     seed_ = seed;
     return;
 }
 
 // Random integer generator
 void randGen::rand_integer(int binf, int bsup, int *ir) {
-    if (version_==1) {
-#if __cplusplus > 199711L
-        // Initialize uniform distribution
-        std::uniform_int_distribution<int> dis(binf,bsup);
-
-        // Generate random integer
-        *ir=dis(*gen_);
-#endif
-    }
-    else {
-        // Generate random integer
-        int range=bsup-binf+1;
-        double r;
-        r = lcg();
-        r *= range;
-        *ir=binf+(int)r;
-    }
+    // Generate random integer
+    int range=bsup-binf+1;
+    double r;
+    r = lcg();
+    r *= range;
+    *ir=binf+(int)r;
     return;
 }
 
 // Random real generator
 void randGen::rand_real(double binf, double bsup, double *rr) {
-    if (version_==1) {
-#if __cplusplus > 199711L
-        // Initialize uniform distribution
-        std::uniform_real_distribution<double> dis(binf,bsup);
-
-        // Generate random real
-        *rr=dis(*gen_);
-#endif
-    }
-    else {
-       // Generate random real
-       *rr=binf+lcg()*(bsup-binf);
-    }
+   // Generate random real
+   *rr=binf+lcg()*(bsup-binf);
     return;
 }
 

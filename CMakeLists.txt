@@ -53,9 +53,9 @@ endif (${COMPILER} MATCHES "Intel")
 #
 # Cray compiler
 if (${COMPILER} MATCHES "Cray")
-   set (CMAKE_Fortran_COMPILER crayftn)
-   set (CMAKE_C_COMPILER craycc)
-   set (CMAKE_C++_COMPILER crayCC)
+   set (CMAKE_Fortran_COMPILER ftn)
+   set (CMAKE_C_COMPILER cc)
+   set (CMAKE_C++_COMPILER CC)
 endif (${COMPILER} MATCHES "Cray")
 #
 #----------------------------------------------------------------------

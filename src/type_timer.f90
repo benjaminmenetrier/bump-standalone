@@ -161,6 +161,7 @@ timer%wchar = 'unknown'
 call fgetpid(get_pid)
 write(pidchar,'(i8)') get_pid
 filename = '/proc/'//trim(adjustl(pidchar))//'/io'
+inquire(file=filename,exist=isfile)
 if (isfile) then
    lunit = newunit()
    open(unit=lunit,file=filename,action='read')

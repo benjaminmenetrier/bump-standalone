@@ -190,6 +190,9 @@ if (mpl%main) then
    ! Allocation
    allocate(diag(hdata%nc2))
 
+   ! Initialization
+   call msr(diag)
+
    do iproc=1,mpl%nproc
       ! Allocation
       allocate(rbuf(hdata%proc_to_nc2a(iproc)))
@@ -258,6 +261,9 @@ deallocate(diag)
 if (mpl%main) then
    ! Allocation
    allocate(diag(hdata%nc2,geom%nl0))
+
+   ! Initialization
+   call msr(diag)
 
    do iproc=1,mpl%nproc
       ! Allocation

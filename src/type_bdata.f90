@@ -65,16 +65,13 @@ subroutine bdata_alloc(nam,geom,bpar,bdata)
 implicit none
 
 ! Passed variables
-type(namtype),target,intent(in) :: nam              !< Namelist
-type(geomtype),target,intent(in) :: geom            !< Geometry
-type(bpartype),intent(in) :: bpar                   !< Block parameters
-type(bdatatype),allocatable,intent(out) :: bdata(:) !< B data
+type(namtype),target,intent(in) :: nam            !< Namelist
+type(geomtype),target,intent(in) :: geom          !< Geometry
+type(bpartype),intent(in) :: bpar                 !< Block parameters
+type(bdatatype),intent(inout) :: bdata(bpar%nb+1) !< B data
 
 ! Local variables
 integer :: ib
-
-! Allocation
-allocate(bdata(bpar%nb+1))
 
 do ib=1,bpar%nb+1
    ! Set name
@@ -86,10 +83,8 @@ do ib=1,bpar%nb+1
       allocate(bdata(ib)%coef_sta(geom%nc0,geom%nl0))
       allocate(bdata(ib)%rh0(geom%nc0,geom%nl0))
       allocate(bdata(ib)%rv0(geom%nc0,geom%nl0))
-      if (trim(nam%strategy)=='specific_multivariate') then
-         allocate(bdata(ib)%rh0s(geom%nc0,geom%nl0))
-         allocate(bdata(ib)%rv0s(geom%nc0,geom%nl0))
-      end if
+      allocate(bdata(ib)%rh0s(geom%nc0,geom%nl0))
+      allocate(bdata(ib)%rv0s(geom%nc0,geom%nl0))
       if (nam%transform.and.bpar%auto_block(ib)) then
          allocate(bdata(ib)%trans(geom%nl0,geom%nl0))
          allocate(bdata(ib)%transinv(geom%nl0,geom%nl0))
@@ -100,10 +95,8 @@ do ib=1,bpar%nb+1
       call msr(bdata(ib)%coef_sta)
       call msr(bdata(ib)%rh0)
       call msr(bdata(ib)%rv0)
-      if (trim(nam%strategy)=='specific_multivariate') then
-         call msr(bdata(ib)%rh0s)
-         call msr(bdata(ib)%rv0s)
-      end if
+      call msr(bdata(ib)%rh0s)
+      call msr(bdata(ib)%rv0s)
       call msr(bdata(ib)%wgt)
       if (nam%transform.and.bpar%auto_block(ib)) then
          call msr(bdata(ib)%trans)
@@ -173,13 +166,37 @@ type(bdatatype),intent(inout) :: bdata(hdata%bpar%nb+1) !< B data
 
 ! Local variables
 integer :: ib,il0
-real(kind_real) :: rh0s(hdata%geom%nl0),rv0s(hdata%geom%nl0)
+real(kind_real),allocatable :: rh0s(:),rv0s(:)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
-! Common sampling support radii
+do ib=1,bpar%nb+1
+   if (bpar%B_block(ib)) then
+      if (bpar%nicas_block(ib)) then
+         do il0=1,geom%nl0
+            bdata(ib)%coef_ens(:,il0) = diag(ib)%raw_coef_ens(il0)
+            bdata(ib)%rh0(:,il0) = diag(ib)%fit_rh(il0)
+            bdata(ib)%rv0(:,il0) = diag(ib)%fit_rv(il0)
+            select case (trim(nam%method))
+            case ('cor','loc')
+               bdata(ib)%coef_sta(:,il0) = 0.0
+            case ('hyb-avg','hyb-rnd')
+               bdata(ib)%coef_sta(:,il0) = diag(ib)%raw_coef_sta
+            case ('dual-ens')
+               call msgerror('dual-ens not ready yet for B data')
+            end select
+         end do
+      end if
+      bdata(ib)%wgt = sum(diag(ib)%raw_coef_ens)/float(geom%nl0)
+   end if
+end do
+
 if (trim(nam%strategy)=='specific_multivariate') then
+   ! Allocation
+   allocate(rh0s(geom%nl0))
+   allocate(rv0s(geom%nl0))
+
    ! Initialization
    rh0s = huge(1.0)
    rv0s = huge(1.0)
@@ -203,33 +220,15 @@ if (trim(nam%strategy)=='specific_multivariate') then
          end do
       end if
    end do
+else
+   ! Copy
+   do ib=1,bpar%nb+1
+      if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+         bdata(ib)%rh0s = bdata(ib)%rh0
+         bdata(ib)%rv0s = bdata(ib)%rv0
+      end if
+   end do
 end if
-
-do ib=1,bpar%nb+1
-   if (bpar%B_block(ib)) then
-      if (bpar%nicas_block(ib)) then
-         do il0=1,geom%nl0
-            bdata(ib)%coef_ens(:,il0) = diag(ib)%raw_coef_ens(il0)
-            bdata(ib)%rh0(:,il0) = diag(ib)%fit_rh(il0)
-            bdata(ib)%rv0(:,il0) = diag(ib)%fit_rv(il0)
-            select case (trim(nam%method))
-            case ('cor','loc')
-               bdata(ib)%coef_sta(:,il0) = 0.0
-            case ('hyb-avg','hyb-rnd')
-               bdata(ib)%coef_sta(:,il0) = diag(ib)%raw_coef_sta
-            case ('dual-ens')
-               call msgerror('dual-ens not ready yet for B data')
-            end select
-         end do
-      end if
-      if (isanynotmsr(diag(ib)%raw_coef_ens)) then
-         bdata(ib)%wgt = sum(diag(ib)%raw_coef_ens,mask=isnotmsr(diag(ib)%raw_coef_ens)) &
-                       & /float(count(isnotmsr(diag(ib)%raw_coef_ens)))
-      else
-         call msgerror('missing weight for global B data')
-      end if
-   end if
-end do
 
 ! End associate
 end associate
@@ -251,18 +250,97 @@ type(bdatatype),intent(inout) :: bdata(hdata%bpar%nb+1)        !< B data
 
 ! Local variables
 integer :: ib,i,ic2a,il0,ic0
-real(kind_real) :: fld_c0(hdata%geom%nc0,hdata%geom%nl0)
 real(kind_real),allocatable :: fld_c2(:,:)
-real(kind_real),allocatable :: rh0s(:,:),rv0s(:,:)
+real(kind_real),allocatable :: rh0s(:,:),rv0s(:,:),fld_c0(:,:)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 
-! Common sampling support radii (no filtering)
+do ib=1,bpar%nb+1
+   if (bpar%B_block(ib)) then
+      if (bpar%nicas_block(ib)) then
+         do i=1,4
+            ! Allocation
+            allocate(fld_c2(hdata%nc2a,geom%nl0))
+
+            ! Copy data
+            do ic2a=1,hdata%nc2a
+               if (i==1) then
+                  fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_ens
+               elseif (i==2) then
+                  select case (trim(nam%method))
+                  case ('cor','loc')
+                     fld_c2(ic2a,:) = 0.0
+                  case ('hyb-avg','hyb-rnd')
+                     fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_sta
+                  case ('dual-ens')
+                     call msgerror('dual-ens not ready yet for B data')
+                  end select
+               elseif (i==3) then
+                  fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rh
+               elseif (i==4) then
+                  fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rv
+               end if
+            end do
+
+            ! Local to global
+            call diag_com_lg(hdata,fld_c2)
+            if (.not.mpl%main) allocate(fld_c2(hdata%nc2,geom%nl0))
+            call mpl_bcast(fld_c2,mpl%ioproc)
+
+            ! Median filter
+            do il0=1,geom%nl0
+               call diag_filter(hdata,il0,'median',nam%diag_rhflt,fld_c2(:,il0))
+            end do
+
+            ! Interpolate
+            if (i==1) then
+               call diag_interpolation(hdata,fld_c2,bdata(ib)%coef_ens)
+               bdata(ib)%wgt = sum(bdata(ib)%coef_ens,mask=geom%mask)/float(count(geom%mask))
+            elseif (i==2) then
+               call diag_interpolation(hdata,fld_c2,bdata(ib)%coef_sta)
+            elseif (i==3) then
+               call diag_interpolation(hdata,fld_c2,bdata(ib)%rh0)
+            elseif (i==4) then
+               call diag_interpolation(hdata,fld_c2,bdata(ib)%rv0)
+            end if
+
+            ! Release memory
+            deallocate(fld_c2)
+         end do
+      else
+         ! Allocation
+         allocate(fld_c2(hdata%nc2a,geom%nl0))
+
+         ! Copy data
+         do ic2a=1,hdata%nc2a
+            fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_ens
+         end do
+
+         ! Local to global
+         call diag_com_lg(hdata,fld_c2)
+         call mpl_bcast(fld_c2,mpl%ioproc)
+
+         ! Median filter
+         do il0=1,geom%nl0
+            call diag_filter(hdata,il0,'median',nam%diag_rhflt,fld_c2(:,il0))
+         end do
+
+         ! Copy data
+         call diag_interpolation(hdata,fld_c2,bdata(ib)%coef_ens)
+         bdata(ib)%wgt = sum(bdata(ib)%coef_ens,mask=geom%mask)/float(count(geom%mask))
+
+         ! Release memory
+         deallocate(fld_c2)
+      end if
+   end if
+end do
+
 if (trim(nam%strategy)=='specific_multivariate') then
    ! Allocation
    allocate(rh0s(geom%nc0,geom%nl0))
    allocate(rv0s(geom%nc0,geom%nl0))
+   allocate(fld_c0(geom%nc0,geom%nl0))
 
    ! Initialization
    rh0s = huge(1.0)
@@ -323,94 +401,15 @@ if (trim(nam%strategy)=='specific_multivariate') then
          bdata(ib)%rv0s = rv0s
       end if
    end do
-end if
-
-do ib=1,bpar%nb+1
-   if (bpar%B_block(ib)) then
-      if (bpar%nicas_block(ib)) then
-         do i=1,4
-            ! Allocation
-            allocate(fld_c2(hdata%nc2a,geom%nl0))
-
-            ! Copy data
-            do ic2a=1,hdata%nc2a
-               if (i==1) then
-                  fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_ens
-               elseif (i==2) then
-                  select case (trim(nam%method))
-                  case ('cor','loc')
-                     fld_c2(ic2a,:) = 0.0
-                  case ('hyb-avg','hyb-rnd')
-                     fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_sta
-                  case ('dual-ens')
-                     call msgerror('dual-ens not ready yet for B data')
-                  end select
-               elseif (i==3) then
-                  fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rh
-               elseif (i==4) then
-                  fld_c2(ic2a,:) = diag(ic2a,ib)%fit_rv
-               end if
-            end do
-
-            ! Local to global
-            call diag_com_lg(hdata,fld_c2)
-            if (.not.mpl%main) allocate(fld_c2(hdata%nc2,geom%nl0))
-            call mpl_bcast(fld_c2,mpl%ioproc)
-
-            ! Median filter
-            do il0=1,geom%nl0
-               call diag_filter(hdata,il0,'median',nam%diag_rhflt,fld_c2(:,il0))
-            end do
-
-            ! Interpolate
-            if (i==1) then
-               call diag_interpolation(hdata,fld_c2,bdata(ib)%coef_ens)
-               if (isanynotmsr(fld_c2)) then
-                  bdata(ib)%wgt = sum(fld_c2,mask=isnotmsr(fld_c2))/float(count(isnotmsr(fld_c2)))
-               else
-                 call msgerror('missing weight for local B data')
-               end if
-            elseif (i==2) then
-               call diag_interpolation(hdata,fld_c2,bdata(ib)%coef_sta)
-            elseif (i==3) then
-               call diag_interpolation(hdata,fld_c2,bdata(ib)%rh0)
-            elseif (i==4) then
-               call diag_interpolation(hdata,fld_c2,bdata(ib)%rv0)
-            end if
-
-            ! Release memory
-            deallocate(fld_c2)
-         end do
-      else
-         ! Allocation
-         allocate(fld_c2(hdata%nc2a,geom%nl0))
-
-         ! Copy data
-         do ic2a=1,hdata%nc2a
-            fld_c2(ic2a,:) = diag(ic2a,ib)%raw_coef_ens
-         end do
-
-         ! Local to global
-         call diag_com_lg(hdata,fld_c2)
-         call mpl_bcast(fld_c2,mpl%ioproc)
-
-         ! Median filter
-         do il0=1,geom%nl0
-            call diag_filter(hdata,il0,'median',nam%diag_rhflt,fld_c2(:,il0))
-         end do
-
-         ! Copy data
-         if (isanynotmsr(fld_c2)) then
-            bdata(ib)%wgt = sum(fld_c2,mask=isnotmsr(fld_c2))/float(count(isnotmsr(fld_c2)))
-         else
-            call msgerror('missing weight for local B data')
-         end if
-
-         ! Release memory
-         deallocate(fld_c2)
+else
+   ! Copy
+   do ib=1,bpar%nb+1
+      if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+         bdata(ib)%rh0s = bdata(ib)%rh0
+         bdata(ib)%rv0s = bdata(ib)%rv0
       end if
-   end if
-end do
+   end do
+end if
 
 ! End associate
 end associate
@@ -466,10 +465,8 @@ do ib=1,bpar%nb+1
             call ncerr(subr,nf90_inq_varid(ncid,'coef_sta',coef_sta_id))
             call ncerr(subr,nf90_inq_varid(ncid,'rh0',rh0_id))
             call ncerr(subr,nf90_inq_varid(ncid,'rv0',rv0_id))
-            if (trim(nam%strategy)=='specific_multivariate') then
-               call ncerr(subr,nf90_inq_varid(ncid,'rh0s',rh0s_id))
-               call ncerr(subr,nf90_inq_varid(ncid,'rv0s',rv0s_id))
-            end if
+            call ncerr(subr,nf90_inq_varid(ncid,'rh0s',rh0s_id))
+            call ncerr(subr,nf90_inq_varid(ncid,'rv0s',rv0s_id))
          end if
          if ((ib==bpar%nb+1).and.nam%displ_diag) then
             call ncerr(subr,nf90_inq_varid(ncid,'lon_c0_flt',lon_c0_flt_id))
@@ -486,10 +483,8 @@ do ib=1,bpar%nb+1
             call ncerr(subr,nf90_get_var(ncid,coef_sta_id,bdata(ib)%coef_sta))
             call ncerr(subr,nf90_get_var(ncid,rh0_id,bdata(ib)%rh0))
             call ncerr(subr,nf90_get_var(ncid,rv0_id,bdata(ib)%rv0))
-            if (trim(nam%strategy)=='specific_multivariate') then
-               call ncerr(subr,nf90_get_var(ncid,rh0s_id,bdata(ib)%rh0s))
-               call ncerr(subr,nf90_get_var(ncid,rv0s_id,bdata(ib)%rv0s))
-            end if
+            call ncerr(subr,nf90_get_var(ncid,rh0s_id,bdata(ib)%rh0s))
+            call ncerr(subr,nf90_get_var(ncid,rv0s_id,bdata(ib)%rv0s))
          end if
          if ((ib==bpar%nb+1).and.nam%displ_diag) then
             call ncerr(subr,nf90_get_var(ncid,lon_c0_flt_id,bdata(ib)%lon_c0_flt))
@@ -514,10 +509,8 @@ do ib=1,bpar%nb+1
             do il0=1,geom%nl0
                bdata(ib)%rh0(:,il0) = nam%rh(il0)
                bdata(ib)%rv0(:,il0) = nam%rv(il0)
-               if (trim(nam%strategy)=='specific_multivariate') then
-                  bdata(ib)%rh0s(:,il0) = nam%rh(il0)
-                  bdata(ib)%rv0s(:,il0) = nam%rv(il0)
-               end if
+               bdata(ib)%rh0s(:,il0) = nam%rh(il0)
+               bdata(ib)%rv0s(:,il0) = nam%rv(il0)
             end do
          end if
          if ((ib==bpar%nb+1).and.nam%displ_diag) then
@@ -542,10 +535,8 @@ do ib=1,bpar%nb+1
       if (bpar%nicas_block(ib)) then
          if (any((bdata(ib)%rh0<0.0).and.isnotmsr(bdata(ib)%rh0))) call msgerror('rh0 should be positive')
          if (any((bdata(ib)%rv0<0.0).and.isnotmsr(bdata(ib)%rv0))) call msgerror('rv0 should be positive')
-         if (trim(nam%strategy)=='specific_multivariate') then
-            if (any((bdata(ib)%rh0s<0.0).and.isnotmsr(bdata(ib)%rh0s))) call msgerror('rh0s should be positive')
-            if (any((bdata(ib)%rv0s<0.0).and.isnotmsr(bdata(ib)%rv0s))) call msgerror('rv0s should be positive')
-         end if
+         if (any((bdata(ib)%rh0s<0.0).and.isnotmsr(bdata(ib)%rh0s))) call msgerror('rh0s should be positive')
+         if (any((bdata(ib)%rv0s<0.0).and.isnotmsr(bdata(ib)%rv0s))) call msgerror('rv0s should be positive')
       end if
    end if
 end do
@@ -602,12 +593,10 @@ do ib=1,bpar%nb+1
          call ncerr(subr,nf90_put_att(ncid,rh0_id,'_FillValue',msvalr))
          call ncerr(subr,nf90_def_var(ncid,'rv0',ncfloat,(/nc0_id,nl0_1_id/),rv0_id))
          call ncerr(subr,nf90_put_att(ncid,rv0_id,'_FillValue',msvalr))
-         if (trim(nam%strategy)=='specific_multivariate') then
-            call ncerr(subr,nf90_def_var(ncid,'rh0s',ncfloat,(/nc0_id,nl0_1_id/),rh0s_id))
-            call ncerr(subr,nf90_put_att(ncid,rh0s_id,'_FillValue',msvalr))
-            call ncerr(subr,nf90_def_var(ncid,'rv0s',ncfloat,(/nc0_id,nl0_1_id/),rv0s_id))
-            call ncerr(subr,nf90_put_att(ncid,rv0s_id,'_FillValue',msvalr))
-         end if
+         call ncerr(subr,nf90_def_var(ncid,'rh0s',ncfloat,(/nc0_id,nl0_1_id/),rh0s_id))
+         call ncerr(subr,nf90_put_att(ncid,rh0s_id,'_FillValue',msvalr))
+         call ncerr(subr,nf90_def_var(ncid,'rv0s',ncfloat,(/nc0_id,nl0_1_id/),rv0s_id))
+         call ncerr(subr,nf90_put_att(ncid,rv0s_id,'_FillValue',msvalr))
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
          call ncerr(subr,nf90_def_var(ncid,'lon_c0_flt',ncfloat,(/nc0_id,nl0_1_id,nts_id/),lon_c0_flt_id))
@@ -636,10 +625,8 @@ do ib=1,bpar%nb+1
          call ncerr(subr,nf90_put_var(ncid,coef_sta_id,bdata(ib)%coef_sta))
          call ncerr(subr,nf90_put_var(ncid,rh0_id,bdata(ib)%rh0))
          call ncerr(subr,nf90_put_var(ncid,rv0_id,bdata(ib)%rv0))
-         if (trim(nam%strategy)=='specific_multivariate') then
-            call ncerr(subr,nf90_put_var(ncid,rh0s_id,bdata(ib)%rh0s))
-            call ncerr(subr,nf90_put_var(ncid,rv0s_id,bdata(ib)%rv0s))
-         end if
+         call ncerr(subr,nf90_put_var(ncid,rh0s_id,bdata(ib)%rh0s))
+         call ncerr(subr,nf90_put_var(ncid,rv0s_id,bdata(ib)%rv0s))
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
          call ncerr(subr,nf90_put_var(ncid,lon_c0_flt_id,bdata(ib)%lon_c0_flt))

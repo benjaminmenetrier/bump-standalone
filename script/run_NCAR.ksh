@@ -33,7 +33,8 @@ datadir=${rootdir}/data/${model}/${xp}
 workdir=${rootdir}/${model}_${xp}
 rm -fr ${workdir}
 mkdir ${workdir}
-cp -f ${rootdir}/run/hdiag_nicas ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}
+cp -f ${rootdir}/run/hdiag_nicas ${workdir}
+cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
@@ -50,11 +51,11 @@ cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
 
 source /glade/u/apps/ch/opt/Lmod/7.3.14/lmod/7.3.14/init/ksh
 module purge
-module load gnu openmpi netcdf
+module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-mpirun ${rootdir}/run/hdiag_nicas < namelist_${model}_${xp}_sc
+mpirun ${rootdir}/run/hdiag_nicas < namelist
 EOFNAM
 
 #----------------------------------------------------------------------

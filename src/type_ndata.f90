@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 ! Module: type_ndata
-!> Purpose: sampling data derived type
+!> Purpose: NICAS data derived type
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -25,7 +25,7 @@ use type_nam, only: namtype,namncwrite
 
 implicit none
 
-! Sampling data derived type
+! NICAS data derived type
 type ndatatype
    ! Block name
    character(len=1024) :: cname                 !< Block name
@@ -230,7 +230,7 @@ if (allocated(ndata%s)) then
    deallocate(ndata%s)
 end if
 if (allocated(ndata%d)) then
-   do its=2,nam%nts
+   do its=1,nam%nts-1
       do il0=1,geom%nl0
         call linop_dealloc(ndata%d(il0,its))
       end do
@@ -330,10 +330,13 @@ do ib=1,bpar%nb+1
          if (ndata(ib)%nsb>0) allocate(ndata(ib)%sb_to_sc(ndata(ib)%nsb))
          allocate(ndata(ib)%norm(geom%nc0a,geom%nl0))
          allocate(ndata(ib)%coef_ens(geom%nc0a,geom%nl0))
+         allocate(ndata(ib)%h(geom%nl0i))
+         allocate(ndata(ib)%s(ndata(ib)%nl1))
       end if
       if (nam%transform.and.bpar%auto_block(ib)) then
          allocate(ndata(ib)%trans(geom%nc0,geom%nl0))
          allocate(ndata(ib)%transinv(geom%nc0,geom%nl0))
+         allocate(ndata(ib)%d(geom%nl0,nam%nts-1))
       end if
 
       ! Get variable id
@@ -361,13 +364,13 @@ do ib=1,bpar%nb+1
          call com_read(ncid,'AB',ndata(ib)%AB)
          call com_read(ncid,'AC',ndata(ib)%AC)
          call linop_read(ncid,'c',ndata(ib)%c)
-         call linop_read(ncid,'h',ndata(ib)%h)
+         call linop_read(ncid,'h',geom%nl0i,ndata(ib)%h)
          call linop_read(ncid,'v',ndata(ib)%v)
-         call linop_read(ncid,'s',ndata(ib)%s)
+         call linop_read(ncid,'s',ndata(ib)%nl1,ndata(ib)%s)
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
          call com_read(ncid,'AD',ndata(ib)%AD)
-         call linop_read(ncid,'d',ndata(ib)%d)
+         call linop_read(ncid,'d',geom%nl0,nam%nts-1,ndata(ib)%d)
       end if
       if (nam%transform.and.bpar%auto_block(ib)) then
          call ncerr(subr,nf90_get_var(ncid,trans_id,ndata(ib)%trans))
@@ -469,13 +472,13 @@ do ib=1,bpar%nb+1
          call com_write(ncid,ndata(ib)%AB)
          call com_write(ncid,ndata(ib)%AC)
          call linop_write(ncid,ndata(ib)%c)
-         call linop_write(ncid,ndata(ib)%h)
+         call linop_write(ncid,geom%nl0i,ndata(ib)%h)
          call linop_write(ncid,ndata(ib)%v)
-         call linop_write(ncid,ndata(ib)%s)
+         call linop_write(ncid,ndata(ib)%nl1,ndata(ib)%s)
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
          call com_write(ncid,ndata(ib)%AD)
-         call linop_write(ncid,ndata(ib)%d)
+         call linop_write(ncid,geom%nl0,nam%nts-1,ndata(ib)%d)
       end if
       if (nam%transform.and.bpar%auto_block(ib)) then
          call ncerr(subr,nf90_put_var(ncid,trans_id,ndata(ib)%trans))

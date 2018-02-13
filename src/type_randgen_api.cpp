@@ -24,11 +24,6 @@ void reseed_randgen(RANDGEN* randgen, unsigned long int seed) {
     randgen->reseed_randgen(seed);
 }
 
-// Get version
-void get_version(const RANDGEN* randgen, int *version) {
-    randgen->get_version(version);
-}
-
 // Random integer generator
 void rand_integer(RANDGEN* randgen, int binf, int bsup, int *ir) {
     randgen->rand_integer(binf, bsup, ir);

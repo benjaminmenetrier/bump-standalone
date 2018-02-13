@@ -45,8 +45,8 @@ subroutine model_coord(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam !< Namelist variables
-type(geomtype),intent(inout) :: geom !< Sampling data
+type(namtype),intent(in) :: nam      !< Namelist variables
+type(geomtype),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: iv
@@ -81,7 +81,7 @@ implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam                                      !< Namelist
-type(geomtype),intent(in) :: geom                                    !< Sampling data
+type(geomtype),intent(in) :: geom                                    !< Geometry
 character(len=*),intent(in) :: filename                              !< File name
 integer,intent(in) :: ie                                             !< Ensemble member index
 integer,intent(in) :: jsub                                           !< Sub-ensemble index
@@ -143,16 +143,13 @@ subroutine load_ensemble(nam,geom,ens1)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam                            !< Namelist
-type(geomtype),intent(in) :: geom                          !< Sampling data
-real(kind_real),allocatable,intent(out) :: ens1(:,:,:,:,:) !< Ensemble 1
+type(namtype),intent(in) :: nam                                                    !< Namelist
+type(geomtype),intent(in) :: geom                                                  !< Geometry
+real(kind_real),intent(out) :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 integer :: isub,jsub,ie,ietot
 real(kind_real),allocatable :: fld(:,:,:,:)
-
-! Allocation
-allocate(ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne))
 
 ! Initialization
 ietot = 0
@@ -204,7 +201,7 @@ implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam                      !< Namelist
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(geomtype),intent(in) :: geom                    !< Geometry
 character(len=*),intent(in) :: filename              !< File name
 character(len=*),intent(in) :: varname               !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field

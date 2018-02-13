@@ -128,16 +128,24 @@ if (nam%load_ensemble) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Load ensemble'
 
+   ! Allocation
+   allocate(ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne))
+
+   ! Load ensemble
    call load_ensemble(nam,geom,ens1)
 end if
 
 !----------------------------------------------------------------------
-! Call hybrid_diag driver
+! Call HDIAG driver
 !----------------------------------------------------------------------
 
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Call hybrid_diag driver'
+write(mpl%unit,'(a)') '--- Call HDIAG driver'
 
+! Allocation
+allocate(bdata(bpar%nb+1))
+
+! HDIAG driver
 if (nam%load_ensemble) then
    call run_hdiag(nam,geom,bpar,bdata,ens1)
 else
@@ -151,6 +159,10 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call NICAS driver'
 
+! Allocation
+allocate(ndata(bpar%nb+1))
+
+! NICAS driver
 if (nam%load_ensemble) then
    call run_nicas(nam,geom,bpar,bdata,ndata,ens1)
 else

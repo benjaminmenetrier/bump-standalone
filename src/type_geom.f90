@@ -24,7 +24,7 @@ use type_nam, only: namtype,namncwrite
 
 implicit none
 
-! Sampling data derived type
+! Geometry derived type
 type geomtype
    ! Vector sizes
    integer :: nlon                             !< Longitude size
@@ -292,7 +292,7 @@ do it=1,nt
               & (/geom%mesh%x(ltri(2,it)),geom%mesh%y(ltri(2,it)),geom%mesh%z(ltri(2,it))/), &
               & (/geom%mesh%x(ltri(3,it)),geom%mesh%y(ltri(3,it)),geom%mesh%z(ltri(3,it))/))
    do il0=1,geom%nl0
-      frac = float(count(geom%mask(geom%mesh%order(ltri(1:3,it)),il0)))/3.0
+      frac = float(count(geom%mask(ltri(1:3,it),il0)))/3.0
       geom%area(il0) = geom%area(il0)+frac*area
    end do
 end do
@@ -328,18 +328,18 @@ do il0=1,geom%nl0
    geom%nbnd(il0) = 0
    do ic0=1,geom%mesh%nnr
       ! Check mask points only
-      if (.not.geom%mask(geom%mesh%order(ic0),il0)) then
+      if (.not.geom%mask(ic0,il0)) then
          i = geom%mesh%lend(ic0)
          init = .true.
          do while ((i/=geom%mesh%lend(ic0)).or.init)
             jc0 = abs(geom%mesh%list(i))
             kc0 = abs(geom%mesh%list(geom%mesh%lptr(i)))
-            if (.not.geom%mask(geom%mesh%order(jc0),il0).and.geom%mask(geom%mesh%order(kc0),il0)) then
+            if (.not.geom%mask(jc0,il0).and.geom%mask(kc0,il0)) then
                ! Create a new boundary arc
                geom%nbnd(il0) = geom%nbnd(il0)+1
                if (geom%nbnd(il0)>geom%mesh%nnr) call msgerror('too many boundary arcs')
-               ic0_bnd(1,geom%nbnd(il0),il0) = geom%mesh%order(ic0)
-               ic0_bnd(2,geom%nbnd(il0),il0) = geom%mesh%order(jc0)
+               ic0_bnd(1,geom%nbnd(il0),il0) = ic0
+               ic0_bnd(2,geom%nbnd(il0),il0) = jc0
             end if
             i = geom%mesh%lptr(i)
             init = .false.
@@ -443,7 +443,7 @@ type(geomtype),intent(inout) :: geom !< Geometry
 ! Local variables
 integer :: ic0,info,iproc,ic0a,nc0amax,lunit
 integer :: ncid,c0_to_proc_id,c0_to_c0a_id,nc0_id
-integer,allocatable :: c0_to_proc(:),ic0a_arr(:)
+integer,allocatable :: ic0a_arr(:)
 logical :: ismetis
 character(len=4) :: nprocchar
 character(len=1024) :: filename_nc,filename_metis
@@ -494,21 +494,18 @@ if (.not.allocated(geom%c0_to_proc)) then
                write(mpl%unit,'(a7,a)') '','Use METIS to generate the local distribution'
 
                ! Allocation
-               allocate(c0_to_proc(geom%mesh%nnr))
                allocate(ic0a_arr(mpl%nproc))
 
                ! Read METIS file
                lunit = newunit()
                open(unit=lunit,file=trim(nam%datadir)//'/'//trim(filename_metis)//'.part.'//adjustl(nprocchar),status='old')
                do ic0=1,geom%mesh%nnr
-                  read(lunit,*) c0_to_proc(ic0)
+                  read(lunit,*) geom%c0_to_proc(ic0)
                end do
                close(unit=lunit)
 
-               ! Reorder and offset
-               do ic0=1,geom%nc0
-                  geom%c0_to_proc(ic0) = c0_to_proc(geom%mesh%order_inv(ic0))+1
-               end do
+               ! Offset
+               geom%c0_to_proc = geom%c0_to_proc+1
 
                ! Local index
                ic0a_arr = 0
@@ -885,7 +882,7 @@ implicit none
 
 ! Passed variables
 type(namtype),intent(in) :: nam                      !< Namelist
-type(geomtype),intent(in) :: geom                    !< Sampling data
+type(geomtype),intent(in) :: geom                    !< Geometry
 character(len=*),intent(in) :: filename              !< File name
 character(len=*),intent(in) :: varname               !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
