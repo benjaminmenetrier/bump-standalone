@@ -17,9 +17,8 @@ use tools_interp, only: compute_grid_interp,compute_interp,check_mask_bnd,interp
 use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use tools_stripack, only: trans
-use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
-use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy
-use type_mpl, only: mpl,mpl_bcast,mpl_recv,mpl_send
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 
@@ -89,7 +88,7 @@ do jl0=1,geom%nl0
       il0inf = jl0
    end if
 end do
-call linop_alloc(ndata%v)
+call ndata%v%alloc
 do jl1=1,ndata%nl1
    jl0 = ndata%l1_to_l0(jl1)
    ndata%v%row(jl1) = jl0
@@ -162,7 +161,7 @@ do il1=1,ndata%nl1
    if (ndata%nc2(il1)==ndata%nc1) then
       ! No interpolation
       ndata%sfull(il1)%n_s = ndata%nc1
-      call linop_alloc(ndata%sfull(il1))
+      call ndata%sfull(il1)%alloc
       do i_s=1,ndata%sfull(il1)%n_s
          ndata%sfull(il1)%row(i_s) = i_s
          ndata%sfull(il1)%col(i_s) = i_s
@@ -198,7 +197,7 @@ do il1=1,ndata%nl1
 
       ! Copy valid operations
       ndata%sfull(il1)%n_s = count(valid)
-      call linop_alloc(ndata%sfull(il1))
+      call ndata%sfull(il1)%alloc
       ndata%sfull(il1)%n_s = 0
       do i_s=1,stmp%n_s
          if (valid(i_s)) then
@@ -210,7 +209,7 @@ do il1=1,ndata%nl1
       end do
 
       ! Release memory
-      call linop_dealloc(stmp)
+      call stmp%dealloc
       deallocate(valid)
 
       ! Count points that are not interpolated

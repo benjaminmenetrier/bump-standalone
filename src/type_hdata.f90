@@ -17,10 +17,10 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncerr,ncfloat
 use type_bpar, only: bpartype
-use type_ctree, only: ctreetype,delete_ctree
 use type_com, only: comtype
 use type_geom, only: geomtype
-use type_linop, only: linoptype,linop_dealloc,linop_read,linop_write
+use type_linop, only: linoptype,linop_read,linop_write
+use type_mesh, only: meshtype
 use type_mpl, only: mpl
 use type_nam, only: namtype
 
@@ -61,10 +61,7 @@ type hdatatype
    integer,allocatable :: nn_ldwv_index(:)          !< Nearest diagnostic neighbors for local diagnostics profiles
 
    ! Sampling mesh
-   integer :: nt                                    !< Number of triangles
-   integer,allocatable :: ltri(:,:)                 !< Triangles indices
-   integer,allocatable :: larc(:,:)                 !< Arcs indices
-   real(kind_real),allocatable :: bdist(:)          !< Distance to the closest boundary arc
+   type(meshtype) :: mesh                           !< Sampling mesh
 
    ! Interpolations
    type(linoptype),allocatable :: h(:)              !< Horizontal interpolation from Sc2 to Sc0
@@ -90,11 +87,15 @@ type hdatatype
    integer,allocatable :: c1_to_c1a(:)              !< Subset Sc1, global to halo A
    type(comtype) :: AC                              !< Communication between halos A and C
    type(comtype) :: AD                              !< Communication between halos A and D
+contains
+   procedure :: alloc => hdata_alloc
+   procedure :: dealloc => hdata_dealloc
+   procedure :: read => hdata_read
+   procedure :: write => hdata_write
 end type hdatatype
 
 private
 public :: hdatatype
-public :: hdata_alloc,hdata_dealloc,hdata_read,hdata_write
 
 contains
 
@@ -107,7 +108,7 @@ subroutine hdata_alloc(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< HDIAG data
+class(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -170,7 +171,7 @@ subroutine hdata_dealloc(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< HDIAG data
+class(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0
@@ -190,13 +191,13 @@ if (allocated(hdata%nn_c2_index)) deallocate(hdata%nn_c2_index)
 if (allocated(hdata%nn_c2_dist)) deallocate(hdata%nn_c2_dist)
 if (allocated(hdata%h)) then
    do il0=1,hdata%geom%nl0
-      call linop_dealloc(hdata%h(il0))
+      call hdata%h(il0)%dealloc
    end do
    deallocate(hdata%h)
 end if
 if (allocated(hdata%s)) then
    do il0=1,hdata%geom%nl0
-      call linop_dealloc(hdata%s(il0))
+      call hdata%s(il0)%dealloc
    end do
    deallocate(hdata%s)
 end if
@@ -208,13 +209,13 @@ end subroutine hdata_dealloc
 ! Subroutine: hdata_read
 !> Purpose: read hdata object
 !----------------------------------------------------------------------
-integer function hdata_read(hdata)
+subroutine hdata_read(hdata,ios)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(inout) :: hdata !< HDIAG data
-
+class(hdatatype),intent(inout) :: hdata !< HDIAG data
+integer,intent(out) :: ios              !< Status flag
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
 integer :: nl0_test,nl0r_test,nc_test,nc1_test,nc2_test
@@ -230,14 +231,14 @@ character(len=1024) :: subr = 'hdata_read'
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 ! Initialization
-hdata_read = 0
+ios = 0
 
 ! Open file
 info = nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc',nf90_nowrite,ncid)
 if (info/=nf90_noerr) then
    call msgwarning('cannot find HDIAG data to read, recomputing HDIAG sampling')
    nam%sam_write = .true.
-   hdata_read = 1
+   ios = 1
    return
 end if
 
@@ -256,21 +257,21 @@ if (nam%local_diag.or.nam%displ_diag) then
    else
       call msgwarning('cannot find nc2 when reading HDIAG sampling, recomputing HDIAG sampling')
       nam%sam_write = .true.
-      hdata_read = 2
+      ios = 2
    end if
 end if
 if ((geom%nl0/=nl0_test).or.(nam%nl0r/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%nc1/=nc1_test)) then
    call msgwarning('wrong dimension when reading HDIAG sampling, recomputing HDIAG sampling')
    nam%sam_write = .true.
    call ncerr(subr,nf90_close(ncid))
-   hdata_read = 1
+   ios = 1
    return
 end if
 if (nam%local_diag.or.nam%displ_diag) then
    if (hdata%nc2/=nc2_test) then
       call msgwarning('wrong dimension when reading HDIAG sampling, recomputing HDIAG sampling')
       nam%sam_write = .true.
-      hdata_read = 2
+      ios = 2
    end if
 end if
 
@@ -281,7 +282,7 @@ call ncerr(subr,nf90_inq_varid(ncid,'c1_to_c0',c1_to_c0_id))
 call ncerr(subr,nf90_inq_varid(ncid,'c1l0_log',c1l0_log_id))
 call ncerr(subr,nf90_inq_varid(ncid,'c1c3_to_c0',c1c3_to_c0_id))
 call ncerr(subr,nf90_inq_varid(ncid,'c1c3l0_log',c1c3l0_log_id))
-if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
+if ((ios==0).and.(nam%local_diag.or.nam%displ_diag)) then
    call ncerr(subr,nf90_inq_varid(ncid,'c2_to_c1',c2_to_c1_id))
    call ncerr(subr,nf90_inq_varid(ncid,'c2_to_c0',c2_to_c0_id))
 end if
@@ -311,7 +312,7 @@ do il0=1,geom%nl0
       end do
    end do
 end do
-if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
+if ((ios==0).and.(nam%local_diag.or.nam%displ_diag)) then
    call ncerr(subr,nf90_get_var(ncid,c2_to_c1_id,hdata%c2_to_c1))
    call ncerr(subr,nf90_get_var(ncid,c2_to_c0_id,hdata%c2_to_c0))
 end if
@@ -320,7 +321,7 @@ end if
 call ncerr(subr,nf90_close(ncid))
 
 ! Read nearest neighbors and interpolation
-if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
+if ((ios==0).and.(nam%local_diag.or.nam%displ_diag)) then
    ! Allocation
    allocate(local_maskint(nam%nc1,hdata%nc2))
    allocate(displ_maskint(nam%nc1,hdata%nc2))
@@ -331,7 +332,7 @@ if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
       if (info/=nf90_noerr) then
          call msgwarning('cannot find nearest neighbors and interpolation data to read, recomputing HDIAG sampling')
          nam%sam_write = .true.
-         hdata_read = 3
+         ios = 3
          return
       end if
       call ncerr(subr,nf90_inq_varid(ncid,'local_mask',local_mask_id))
@@ -365,7 +366,7 @@ if ((hdata_read==0).and.(nam%local_diag.or.nam%displ_diag)) then
          else
             call msgwarning('cannot find nc2 nearest neighbors data to read, recomputing HDIAG sampling')
             nam%sam_write = .true.
-            hdata_read = 4
+            ios = 4
          end if
       end if
       call linop_read(ncid,'h',hdata%h(il0i))
@@ -381,7 +382,7 @@ end if
 ! End associate
 end associate
 
-end function hdata_read
+end subroutine hdata_read
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_write
@@ -392,7 +393,7 @@ subroutine hdata_write(hdata)
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata !< HDIAG data
+class(hdatatype),intent(in) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2

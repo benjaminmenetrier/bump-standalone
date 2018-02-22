@@ -15,7 +15,7 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msr
 use type_bpar, only: bpartype
 use type_ndata, only: ndatatype
-use type_randgen, only: rand_gau
+use type_rng, only: rng
 
 implicit none
 
@@ -91,7 +91,7 @@ do ib=1,bpar%nb+1
    if (allocated(mean(ib)%alpha)) then
       mean(ib)%alpha = 0.0
       do ie=1,ne
-         call rand_gau(cv(ib,ie)%alpha)
+         call rng%rand_gau(cv(ib,ie)%alpha)
          mean(ib)%alpha = mean(ib)%alpha+cv(ib,ie)%alpha
       end do
       mean(ib)%alpha = mean(ib)%alpha/float(ne)

@@ -21,8 +21,8 @@ use type_bpar, only: bpartype
 use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
-use type_mpl, only: mpl,mpl_bcast
-use type_nam, only: namtype,namncwrite
+use type_mpl, only: mpl
+use type_nam, only: namtype
 
 implicit none
 
@@ -286,7 +286,7 @@ do ib=1,bpar%nb+1
             ! Local to global
             call diag_com_lg(hdata,fld_c2)
             if (.not.mpl%main) allocate(fld_c2(hdata%nc2,geom%nl0))
-            call mpl_bcast(fld_c2,mpl%ioproc)
+            call mpl%bcast(fld_c2,mpl%ioproc)
 
             ! Median filter
             do il0=1,geom%nl0
@@ -319,7 +319,7 @@ do ib=1,bpar%nb+1
 
          ! Local to global
          call diag_com_lg(hdata,fld_c2)
-         call mpl_bcast(fld_c2,mpl%ioproc)
+         call mpl%bcast(fld_c2,mpl%ioproc)
 
          ! Median filter
          do il0=1,geom%nl0
@@ -365,7 +365,7 @@ if (trim(nam%strategy)=='specific_multivariate') then
             ! Local to global
             call diag_com_lg(hdata,fld_c2)
             if (.not.mpl%main) allocate(fld_c2(hdata%nc2,geom%nl0))
-            call mpl_bcast(fld_c2,mpl%ioproc)
+            call mpl%bcast(fld_c2,mpl%ioproc)
 
             ! Median filter
             do il0=1,geom%nl0
@@ -571,7 +571,7 @@ do ib=1,bpar%nb+1
       ! Create file
       call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(nam%prefix)//'_'//trim(bdata(ib)%cname)//'.nc', &
        & or(nf90_clobber,nf90_64bit_offset),ncid))
-      call namncwrite(nam,ncid)
+      call nam%ncwrite(ncid)
 
       ! Define dimensions
       call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))

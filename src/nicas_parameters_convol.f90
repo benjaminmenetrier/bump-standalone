@@ -17,9 +17,8 @@ use tools_interp, only: check_arc
 use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use type_bdata, only: bdatatype
-use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
-use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy
-use type_mesh, only: meshtype,create_mesh
+use type_ctree, only: ctreetype
+use type_linop, only: linoptype
 use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
@@ -48,7 +47,7 @@ type(bdatatype),intent(in) :: bdata    !< B data
 type(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
-integer :: n_s_max,progint,ithread,is,ic1,ic0,jl0,jl1,np,np_new,i,j,k,ip,jc0,jc1,il0,djl0,il1,kc0,dkl0,kl0,jp,js,isb,offset
+integer :: n_s_max,progint,ithread,is,ic1,ic0,inr,jl0,jl1,np,np_new,i,j,k,ip,jc0,jc1,il0,djl0,il1,kc0,dkl0,kl0,jp,js,isb,offset
 integer :: c_n_s(mpl%nthread),c_nor_n_s(mpl%nthread)
 integer,allocatable :: net_nnb(:),net_inb(:,:),plist(:,:),plist_new(:,:)
 real(kind_real) :: dnb,disthsq,distvsq,rhsq,rvsq,distnorm,disttest,S_test
@@ -66,9 +65,10 @@ allocate(net_nnb(geom%nc0))
 ! Count neighbors
 net_nnb = 0
 do ic0=1,geom%nc0
-   i = geom%mesh%lend(ic0)
+   inr = geom%mesh%order_inv(ic0)
+   i = geom%mesh%lend(inr)
    init = .true.
-   do while ((i/=geom%mesh%lend(ic0)).or.init)
+   do while ((i/=geom%mesh%lend(inr)).or.init)
       net_nnb(ic0) = net_nnb(ic0)+1
       i = geom%mesh%lptr(i)
       init = .false.
@@ -82,11 +82,12 @@ allocate(net_dnb(maxval(net_nnb),-1:1,geom%nc0,geom%nl0))
 ! Find neighbors
 net_nnb = 0
 do ic0=1,geom%nc0
-   i = geom%mesh%lend(ic0)
+   inr = geom%mesh%order_inv(ic0)
+   i = geom%mesh%lend(inr)
    init = .true.
-   do while ((i/=geom%mesh%lend(ic0)).or.init)
+   do while ((i/=geom%mesh%lend(inr)).or.init)
       net_nnb(ic0) = net_nnb(ic0)+1
-      net_inb(net_nnb(ic0),ic0) = abs(geom%mesh%list(i))
+      net_inb(net_nnb(ic0),ic0) = geom%mesh%order(abs(geom%mesh%list(i)))
       i = geom%mesh%lptr(i)
       init = .false.
    end do
@@ -146,8 +147,8 @@ n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))
 do ithread=1,mpl%nthread
    c(ithread)%n_s = n_s_max
    c_nor(ithread)%n_s = n_s_max
-   call linop_alloc(c(ithread))
-   call linop_alloc(c_nor(ithread))
+   call c(ithread)%alloc
+   call c_nor(ithread)%alloc
 end do
 allocate(done(ndata%nsb))
 
@@ -292,8 +293,8 @@ ndata%c_nor%prefix = 'c_nor'
 ! Gather data
 ndata%c%n_s = sum(c_n_s)
 ndata%c_nor%n_s = sum(c_nor_n_s)
-call linop_alloc(ndata%c)
-call linop_alloc(ndata%c_nor)
+call ndata%c%alloc
+call ndata%c_nor%alloc
 
 ! Gather convolution data from OpenMP threads
 offset = 0
@@ -313,8 +314,8 @@ end do
 
 ! Release memory
 do ithread=1,mpl%nthread
-   call linop_dealloc(c(ithread))
-   call linop_dealloc(c_nor(ithread))
+   call c(ithread)%dealloc
+   call c_nor(ithread)%dealloc
 end do
 
 ! End associate
@@ -360,7 +361,7 @@ end do
 write(mpl%unit,'(a10,a)') '','Compute cover tree'
 allocate(mask_ctree(ndata%nc1))
 mask_ctree = .true.
-ctree = create_ctree(ndata%nc1,dble(geom%lon(ndata%c1_to_c0)),dble(geom%lat(ndata%c1_to_c0)),mask_ctree)
+call ctree%create(ndata%nc1,dble(geom%lon(ndata%c1_to_c0)),dble(geom%lat(ndata%c1_to_c0)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Theoretical number of neighbors
@@ -391,7 +392,7 @@ do while (.not.valid)
       ic1 = ndata%c1b_to_c1(ic1b)
 
       ! Compute nearest neighbors
-      call find_nearest_neighbors(ctree,dble(geom%lon(ndata%c1_to_c0(ic1))), &
+      call ctree%find_nearest_neighbors(dble(geom%lon(ndata%c1_to_c0(ic1))), &
     & dble(geom%lat(ndata%c1_to_c0(ic1))),ms,nn_index(:,ic1b),nn_dist(:,ic1b))
 
       ! Loop over levels
@@ -417,8 +418,8 @@ n_s_max = 100*nint(float(geom%nc0*geom%nl0)/float(mpl%nthread*mpl%nproc))
 do ithread=1,mpl%nthread
    c(ithread)%n_s = n_s_max
    c_nor(ithread)%n_s = n_s_max
-   call linop_alloc(c(ithread))
-   call linop_alloc(c_nor(ithread))
+   call c(ithread)%alloc
+   call c_nor(ithread)%alloc
 end do
 allocate(done(ndata%nsb))
 
@@ -511,8 +512,8 @@ ndata%c_nor%prefix = 'c_nor'
 ! Gather data
 ndata%c%n_s = sum(c_n_s)
 ndata%c_nor%n_s = sum(c_nor_n_s)
-call linop_alloc(ndata%c)
-call linop_alloc(ndata%c_nor)
+call ndata%c%alloc
+call ndata%c_nor%alloc
 
 ! Gather convolution data from OpenMP threads
 offset = 0
@@ -532,8 +533,8 @@ end do
 
 ! Release memory
 do ithread=1,mpl%nthread
-   call linop_dealloc(c(ithread))
-   call linop_dealloc(c_nor(ithread))
+   call c(ithread)%dealloc
+   call c_nor(ithread)%dealloc
 end do
 
 ! End associate
@@ -563,12 +564,12 @@ if (S_test>S_inf) then
    c_n_s = c_n_s+1
    if (c_n_s>c%n_s) then
       ! Copy
-      call linop_copy(c,ctmp)
+      ctmp = c%copy()
 
       ! Reallocate larger linear operation
-      call linop_dealloc(c)
+      call c%dealloc
       c%n_s = 2*ctmp%n_s
-      call linop_alloc(c)
+      call c%alloc
 
       ! Copy data
       c%row(1:ctmp%n_s) = ctmp%row
@@ -576,7 +577,7 @@ if (S_test>S_inf) then
       c%S(1:ctmp%n_s) = ctmp%S
 
       ! Release memory
-      call linop_dealloc(ctmp)
+      call ctmp%dealloc
    end if
 
    ! New operation

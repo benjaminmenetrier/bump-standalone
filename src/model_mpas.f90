@@ -16,7 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype,geom_alloc
+use type_geom, only: geomtype
 use type_nam, only: namtype
 
 implicit none
@@ -67,7 +67,7 @@ call ncerr(subr,nf90_get_var(ncid,pres_id,pres))
 call ncerr(subr,nf90_close(ncid))
 
 ! Pack
-call geom_alloc(geom)
+call geom%alloc
 geom%lon = real(lon,kind_real)
 geom%lat = real(lat,kind_real)
 geom%mask = .true.

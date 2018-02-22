@@ -9,6 +9,9 @@ build/*.mod
 data/*/*.nc
 data/*/*/*.nc
 data/*/*/*/*.nc
+data/*/*metis*
+data/*/*/*metis*
+data/*/*/*/*metis*
 
 # Documentation
 doc/html

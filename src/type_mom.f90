@@ -31,11 +31,12 @@ type momtype
    real(kind_real),allocatable :: m2full(:,:,:)   !< Full variance
    real(kind_real),allocatable :: trans(:,:)      !< Direct transform
    real(kind_real),allocatable :: transinv(:,:)   !< Inverse transform
+contains
+   procedure :: dealloc => mom_dealloc
 end type momtype
 
 private
 public :: momtype
-public :: mom_dealloc
 
 contains
 
@@ -48,7 +49,7 @@ subroutine mom_dealloc(mom)
 implicit none
 
 ! Passed variables
-type(momtype),intent(inout) :: mom  !< Moments
+class(momtype),intent(inout) :: mom  !< Moments
 
 ! Release memory
 if (allocated(mom%m1_1)) deallocate(mom%m1_1)

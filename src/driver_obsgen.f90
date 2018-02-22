@@ -14,10 +14,10 @@ use tools_const, only: pi
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use type_geom, only: geomtype
-use type_mpl, only: mpl,mpl_bcast
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_odata, only: odatatype
-use type_randgen, only: rand_real
+use type_rng, only: rng
 
 implicit none
 
@@ -88,20 +88,20 @@ if (nam%new_obsop) then
          ! Generate random observation network
          if (.true.) then
             ! Limited-area domain
-            call rand_real(minval(geom%lon),maxval(geom%lon),odata%lonobs)
-            call rand_real(minval(geom%lat),maxval(geom%lat),odata%latobs)
+            call rng%rand_real(minval(geom%lon),maxval(geom%lon),odata%lonobs)
+            call rng%rand_real(minval(geom%lat),maxval(geom%lat),odata%latobs)
          else
             ! Global domain
-            call rand_real(-pi,pi,odata%lonobs)
-            call rand_real(-1.0_kind_real,1.0_kind_real,odata%latobs)
+            call rng%rand_real(-pi,pi,odata%lonobs)
+            call rng%rand_real(-1.0_kind_real,1.0_kind_real,odata%latobs)
             odata%latobs = 0.5*pi-acos(odata%latobs)
          end if
       end if
    end if
 
    ! Broadcast data
-   call mpl_bcast(odata%lonobs,mpl%ioproc)
-   call mpl_bcast(odata%latobs,mpl%ioproc)
+   call mpl%bcast(odata%lonobs,mpl%ioproc)
+   call mpl%bcast(odata%latobs,mpl%ioproc)
 
    ! Print results
    write(mpl%unit,'(a7,a,i8)') '','Number of observations: ',odata%nobs

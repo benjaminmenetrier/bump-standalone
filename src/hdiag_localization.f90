@@ -16,7 +16,7 @@ use tools_fit, only: ver_smooth
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_avg, only: avgtype
-use type_curve, only: curvetype,curve_normalization
+use type_curve, only: curvetype
 use type_hdata, only: hdatatype
 use type_mpl, only: mpl
 
@@ -65,7 +65,7 @@ end do
 !$omp end parallel do
 
 ! Normalize localization
-call curve_normalization(hdata,ib,loc)
+call loc%normalization(hdata,ib)
 
 ! Compute localization fits
 if (bpar%fit_block(ib)) then

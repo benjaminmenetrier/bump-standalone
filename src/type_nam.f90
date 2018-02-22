@@ -18,7 +18,7 @@ use tools_display, only: msgerror,msgwarning
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr
 use tools_nc, only: ncerr,put_att
-use type_mpl, only: mpl,mpl_bcast
+use type_mpl, only: mpl
 
 implicit none
 
@@ -140,24 +140,27 @@ type namtype
    integer :: nobs                                  !< Number of observations
    real(kind_real) :: obsdis                        !< Observation distribution parameter
    character(len=1024) :: obsop_interp              !< Observation operator interpolation type
+contains
+   procedure :: read => nam_read
+   procedure :: check => nam_check
+   procedure :: ncwrite => nam_ncwrite
 end type namtype
 
 private
 public :: namtype
-public :: namread,namcheck,namncwrite
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: namread
+! Subroutine: nam_read
 !> Purpose: read and check namelist parameters
 !----------------------------------------------------------------------
-subroutine namread(nam)
+subroutine nam_read(nam)
 
 implicit none
 
 ! Passed variable
-type(namtype),intent(out) :: nam !< Namelist
+class(namtype),intent(out) :: nam !< Namelist
 
 ! Local variables
 integer :: iv
@@ -429,126 +432,126 @@ end if
 ! Broadcast parameters
 
 ! general_param
-call mpl_bcast(nam%datadir,mpl%ioproc)
-call mpl_bcast(nam%prefix,mpl%ioproc)
-call mpl_bcast(nam%model,mpl%ioproc)
-call mpl_bcast(nam%colorlog,mpl%ioproc)
-call mpl_bcast(nam%default_seed,mpl%ioproc)
-call mpl_bcast(nam%load_ensemble,mpl%ioproc)
+call mpl%bcast(nam%datadir,mpl%ioproc)
+call mpl%bcast(nam%prefix,mpl%ioproc)
+call mpl%bcast(nam%model,mpl%ioproc)
+call mpl%bcast(nam%colorlog,mpl%ioproc)
+call mpl%bcast(nam%default_seed,mpl%ioproc)
+call mpl%bcast(nam%load_ensemble,mpl%ioproc)
 
 ! driver_param
-call mpl_bcast(nam%method,mpl%ioproc)
-call mpl_bcast(nam%strategy,mpl%ioproc)
-call mpl_bcast(nam%new_hdiag,mpl%ioproc)
-call mpl_bcast(nam%new_param,mpl%ioproc)
-call mpl_bcast(nam%check_adjoints,mpl%ioproc)
-call mpl_bcast(nam%check_pos_def,mpl%ioproc)
-call mpl_bcast(nam%check_sqrt,mpl%ioproc)
-call mpl_bcast(nam%check_dirac,mpl%ioproc)
-call mpl_bcast(nam%check_randomization,mpl%ioproc)
-call mpl_bcast(nam%check_consistency,mpl%ioproc)
-call mpl_bcast(nam%check_optimality,mpl%ioproc)
-call mpl_bcast(nam%new_lct,mpl%ioproc)
-call mpl_bcast(nam%new_obsop,mpl%ioproc)
+call mpl%bcast(nam%method,mpl%ioproc)
+call mpl%bcast(nam%strategy,mpl%ioproc)
+call mpl%bcast(nam%new_hdiag,mpl%ioproc)
+call mpl%bcast(nam%new_param,mpl%ioproc)
+call mpl%bcast(nam%check_adjoints,mpl%ioproc)
+call mpl%bcast(nam%check_pos_def,mpl%ioproc)
+call mpl%bcast(nam%check_sqrt,mpl%ioproc)
+call mpl%bcast(nam%check_dirac,mpl%ioproc)
+call mpl%bcast(nam%check_randomization,mpl%ioproc)
+call mpl%bcast(nam%check_consistency,mpl%ioproc)
+call mpl%bcast(nam%check_optimality,mpl%ioproc)
+call mpl%bcast(nam%new_lct,mpl%ioproc)
+call mpl%bcast(nam%new_obsop,mpl%ioproc)
 
 ! model_param
-call mpl_bcast(nam%nl,mpl%ioproc)
-call mpl_bcast(nam%levs,mpl%ioproc)
-call mpl_bcast(nam%logpres,mpl%ioproc)
-call mpl_bcast(nam%nv,mpl%ioproc)
-call mpl_bcast(nam%varname,mpl%ioproc)
-call mpl_bcast(nam%addvar2d,mpl%ioproc)
-call mpl_bcast(nam%nts,mpl%ioproc)
-call mpl_bcast(nam%timeslot,mpl%ioproc)
-call mpl_bcast(nam%transform,mpl%ioproc)
+call mpl%bcast(nam%nl,mpl%ioproc)
+call mpl%bcast(nam%levs,mpl%ioproc)
+call mpl%bcast(nam%logpres,mpl%ioproc)
+call mpl%bcast(nam%nv,mpl%ioproc)
+call mpl%bcast(nam%varname,mpl%ioproc)
+call mpl%bcast(nam%addvar2d,mpl%ioproc)
+call mpl%bcast(nam%nts,mpl%ioproc)
+call mpl%bcast(nam%timeslot,mpl%ioproc)
+call mpl%bcast(nam%transform,mpl%ioproc)
 
 ! ens1_param
-call mpl_bcast(nam%ens1_ne,mpl%ioproc)
-call mpl_bcast(nam%ens1_ne_offset,mpl%ioproc)
-call mpl_bcast(nam%ens1_nsub,mpl%ioproc)
+call mpl%bcast(nam%ens1_ne,mpl%ioproc)
+call mpl%bcast(nam%ens1_ne_offset,mpl%ioproc)
+call mpl%bcast(nam%ens1_nsub,mpl%ioproc)
 
 ! ens2_param
-call mpl_bcast(nam%ens2_ne,mpl%ioproc)
-call mpl_bcast(nam%ens2_ne_offset,mpl%ioproc)
-call mpl_bcast(nam%ens2_nsub,mpl%ioproc)
+call mpl%bcast(nam%ens2_ne,mpl%ioproc)
+call mpl%bcast(nam%ens2_ne_offset,mpl%ioproc)
+call mpl%bcast(nam%ens2_nsub,mpl%ioproc)
 
 ! sampling_param
-call mpl_bcast(nam%sam_write,mpl%ioproc)
-call mpl_bcast(nam%sam_read,mpl%ioproc)
-call mpl_bcast(nam%mask_type,mpl%ioproc)
-call mpl_bcast(nam%mask_th,mpl%ioproc)
-call mpl_bcast(nam%mask_check,mpl%ioproc)
-call mpl_bcast(nam%nc1,mpl%ioproc)
-call mpl_bcast(nam%ntry,mpl%ioproc)
-call mpl_bcast(nam%nrep,mpl%ioproc)
-call mpl_bcast(nam%nc3,mpl%ioproc)
-call mpl_bcast(nam%dc,mpl%ioproc)
-call mpl_bcast(nam%nl0r,mpl%ioproc)
+call mpl%bcast(nam%sam_write,mpl%ioproc)
+call mpl%bcast(nam%sam_read,mpl%ioproc)
+call mpl%bcast(nam%mask_type,mpl%ioproc)
+call mpl%bcast(nam%mask_th,mpl%ioproc)
+call mpl%bcast(nam%mask_check,mpl%ioproc)
+call mpl%bcast(nam%nc1,mpl%ioproc)
+call mpl%bcast(nam%ntry,mpl%ioproc)
+call mpl%bcast(nam%nrep,mpl%ioproc)
+call mpl%bcast(nam%nc3,mpl%ioproc)
+call mpl%bcast(nam%dc,mpl%ioproc)
+call mpl%bcast(nam%nl0r,mpl%ioproc)
 
 ! diag_param
-call mpl_bcast(nam%ne,mpl%ioproc)
-call mpl_bcast(nam%gau_approx,mpl%ioproc)
-call mpl_bcast(nam%full_var,mpl%ioproc)
-call mpl_bcast(nam%local_diag,mpl%ioproc)
-call mpl_bcast(nam%local_rad,mpl%ioproc)
-call mpl_bcast(nam%displ_diag,mpl%ioproc)
-call mpl_bcast(nam%displ_rad,mpl%ioproc)
-call mpl_bcast(nam%displ_niter,mpl%ioproc)
-call mpl_bcast(nam%displ_rhflt,mpl%ioproc)
-call mpl_bcast(nam%displ_tol,mpl%ioproc)
+call mpl%bcast(nam%ne,mpl%ioproc)
+call mpl%bcast(nam%gau_approx,mpl%ioproc)
+call mpl%bcast(nam%full_var,mpl%ioproc)
+call mpl%bcast(nam%local_diag,mpl%ioproc)
+call mpl%bcast(nam%local_rad,mpl%ioproc)
+call mpl%bcast(nam%displ_diag,mpl%ioproc)
+call mpl%bcast(nam%displ_rad,mpl%ioproc)
+call mpl%bcast(nam%displ_niter,mpl%ioproc)
+call mpl%bcast(nam%displ_rhflt,mpl%ioproc)
+call mpl%bcast(nam%displ_tol,mpl%ioproc)
 
 ! fit_param
-call mpl_bcast(nam%fit_type,mpl%ioproc)
-call mpl_bcast(nam%fit_wgt,mpl%ioproc)
-call mpl_bcast(nam%lhomh,mpl%ioproc)
-call mpl_bcast(nam%lhomv,mpl%ioproc)
-call mpl_bcast(nam%rvflt,mpl%ioproc)
-call mpl_bcast(nam%lct_nscales,mpl%ioproc)
-call mpl_bcast(nam%lct_diag,mpl%ioproc)
+call mpl%bcast(nam%fit_type,mpl%ioproc)
+call mpl%bcast(nam%fit_wgt,mpl%ioproc)
+call mpl%bcast(nam%lhomh,mpl%ioproc)
+call mpl%bcast(nam%lhomv,mpl%ioproc)
+call mpl%bcast(nam%rvflt,mpl%ioproc)
+call mpl%bcast(nam%lct_nscales,mpl%ioproc)
+call mpl%bcast(nam%lct_diag,mpl%ioproc)
 
 ! output_param
-call mpl_bcast(nam%nldwh,mpl%ioproc)
-call mpl_bcast(nam%il_ldwh,mpl%ioproc)
-call mpl_bcast(nam%ic_ldwh,mpl%ioproc)
-call mpl_bcast(nam%nldwv,mpl%ioproc)
-call mpl_bcast(nam%lon_ldwv,mpl%ioproc)
-call mpl_bcast(nam%lat_ldwv,mpl%ioproc)
-call mpl_bcast(nam%flt_type,mpl%ioproc)
-call mpl_bcast(nam%diag_rhflt,mpl%ioproc)
-call mpl_bcast(nam%diag_interp,mpl%ioproc)
+call mpl%bcast(nam%nldwh,mpl%ioproc)
+call mpl%bcast(nam%il_ldwh,mpl%ioproc)
+call mpl%bcast(nam%ic_ldwh,mpl%ioproc)
+call mpl%bcast(nam%nldwv,mpl%ioproc)
+call mpl%bcast(nam%lon_ldwv,mpl%ioproc)
+call mpl%bcast(nam%lat_ldwv,mpl%ioproc)
+call mpl%bcast(nam%flt_type,mpl%ioproc)
+call mpl%bcast(nam%diag_rhflt,mpl%ioproc)
+call mpl%bcast(nam%diag_interp,mpl%ioproc)
 
 ! nicas_param
-call mpl_bcast(nam%lsqrt,mpl%ioproc)
-call mpl_bcast(nam%rh,mpl%ioproc)
-call mpl_bcast(nam%rv,mpl%ioproc)
-call mpl_bcast(nam%resol,mpl%ioproc)
-call mpl_bcast(nam%nicas_interp,mpl%ioproc)
-call mpl_bcast(nam%network,mpl%ioproc)
-call mpl_bcast(nam%mpicom,mpl%ioproc)
-call mpl_bcast(nam%ndir,mpl%ioproc)
-call mpl_bcast(nam%londir,mpl%ioproc)
-call mpl_bcast(nam%latdir,mpl%ioproc)
-call mpl_bcast(nam%levdir,mpl%ioproc)
-call mpl_bcast(nam%ivdir,mpl%ioproc)
-call mpl_bcast(nam%itsdir,mpl%ioproc)
+call mpl%bcast(nam%lsqrt,mpl%ioproc)
+call mpl%bcast(nam%rh,mpl%ioproc)
+call mpl%bcast(nam%rv,mpl%ioproc)
+call mpl%bcast(nam%resol,mpl%ioproc)
+call mpl%bcast(nam%nicas_interp,mpl%ioproc)
+call mpl%bcast(nam%network,mpl%ioproc)
+call mpl%bcast(nam%mpicom,mpl%ioproc)
+call mpl%bcast(nam%ndir,mpl%ioproc)
+call mpl%bcast(nam%londir,mpl%ioproc)
+call mpl%bcast(nam%latdir,mpl%ioproc)
+call mpl%bcast(nam%levdir,mpl%ioproc)
+call mpl%bcast(nam%ivdir,mpl%ioproc)
+call mpl%bcast(nam%itsdir,mpl%ioproc)
 
 ! obsop_param
-call mpl_bcast(nam%nobs,mpl%ioproc)
-call mpl_bcast(nam%obsdis,mpl%ioproc)
-call mpl_bcast(nam%obsop_interp,mpl%ioproc)
+call mpl%bcast(nam%nobs,mpl%ioproc)
+call mpl%bcast(nam%obsdis,mpl%ioproc)
+call mpl%bcast(nam%obsop_interp,mpl%ioproc)
 
-end subroutine namread
+end subroutine nam_read
 
 !----------------------------------------------------------------------
-! Subroutine: namcheck
+! Subroutine: nam_check
 !> Purpose: check namelist parameters
 !----------------------------------------------------------------------
-subroutine namcheck(nam)
+subroutine nam_check(nam)
 
 implicit none
 
 ! Passed variable
-type(namtype),intent(inout) :: nam !< Namelist
+class(namtype),intent(inout) :: nam !< Namelist
 
 ! Local variables
 integer :: iv,its,il,idir
@@ -770,19 +773,19 @@ end if
 ! Clean files
 if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac*.nc')
 
-end subroutine namcheck
+end subroutine nam_check
 
 !----------------------------------------------------------------------
-! Subroutine: namncwrite
+! Subroutine: nam_ncwrite
 !> Purpose: write namelist parameters as NetCDF attributes
 !----------------------------------------------------------------------
-subroutine namncwrite(nam,ncid)
+subroutine nam_ncwrite(nam,ncid)
 
 implicit none
 
 ! Passed variable
-type(namtype),intent(in) :: nam !< Namelist
-integer,intent(in) :: ncid      !< NetCDF file id
+class(namtype),intent(in) :: nam !< Namelist
+integer,intent(in) :: ncid       !< NetCDF file id
 
 ! general_param
 call put_att(ncid,'datadir',trim(nam%datadir))
@@ -892,6 +895,6 @@ call put_att(ncid,'nobs',nam%nobs)
 call put_att(ncid,'obsdis',nam%obsdis)
 call put_att(ncid,'obsop_interp',nam%obsop_interp)
 
-end subroutine namncwrite
+end subroutine nam_ncwrite
 
 end module type_nam

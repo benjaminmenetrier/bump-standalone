@@ -30,10 +30,14 @@ type timertype
    character(len=10) :: VmHWM         !< Peak resident set size
    character(len=10) :: rchar         !< Read data volume
    character(len=10) :: wchar         !< Written data volume
+contains
+   procedure :: start => timer_start
+   procedure :: end => timer_end
+   procedure :: display => timer_display
 end type timertype
 
 private
-public :: timertype,timer_start,timer_end,timer_display
+public :: timertype
 
 contains
 
@@ -46,7 +50,7 @@ subroutine timer_start(timer)
 implicit none
 
 ! Passed variables
-type(timertype),intent(inout) :: timer !< Timer data
+class(timertype),intent(inout) :: timer !< Timer data
 
 ! Execution times  initialization
 call system_clock(count_rate=timer%count_rate,count_max=timer%count_max)
@@ -64,7 +68,7 @@ subroutine timer_end(timer)
 implicit none
 
 ! Passed variables
-type(timertype),intent(inout) :: timer !< Timer data
+class(timertype),intent(inout) :: timer !< Timer data
 
 ! Execution times calculation
 call system_clock(count=timer%system_clock_end)
@@ -87,7 +91,7 @@ subroutine timer_display(timer)
 implicit none
 
 ! Passed variables
-type(timertype),intent(inout) :: timer !< Timer data
+class(timertype),intent(inout) :: timer !< Timer data
 
 ! Local variables
 integer :: ierr,get_pid,lunit
@@ -97,7 +101,7 @@ character(len=8) :: pidchar
 character(len=1024) :: filename,line
 
 ! Execution times calculation
-call timer_end(timer)
+call timer%end
 
 ! Maximum memory usage
 timer%VmPeak = 'unknown'

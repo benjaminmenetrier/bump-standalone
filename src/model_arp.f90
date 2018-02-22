@@ -16,7 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr,isnotmsr,isnotmsi
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype,geom_alloc
+use type_geom, only: geomtype
 use type_mpl, only: mpl
 use type_nam, only: namtype
 
@@ -96,7 +96,7 @@ end do
 geom%nc0 = count(geom%rgmask)
 
 ! Pack
-call geom_alloc(geom)
+call geom%alloc
 geom%lon = pack(real(lon,kind_real),mask=geom%rgmask)
 geom%lat = pack(real(lat,kind_real),mask=geom%rgmask)
 geom%mask = .true.

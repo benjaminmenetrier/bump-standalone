@@ -15,7 +15,7 @@ use tools_kinds, only: kind_real
 use tools_display, only: msgerror
 use tools_missing, only: msr
 use type_geom, only: geomtype
-use type_linop, only: apply_linop,apply_linop_ad
+use type_linop, only: linoptype
 use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
@@ -95,7 +95,7 @@ end do
 ! Subsampling horizontal interpolation
 !$omp parallel do schedule(static) private(il1)
 do il1=1,ndata%nl1
-   call apply_linop(ndata%s(il1),beta(:,il1),gamma(:,il1))
+   call ndata%s(il1)%apply(beta(:,il1),gamma(:,il1))
 end do
 !$omp end parallel do
 
@@ -130,7 +130,7 @@ do ic1b=1,ndata%nc1b
    gamma_tmp = gamma(ic1b,:)
 
    ! Apply interpolation
-   call apply_linop(ndata%v,gamma_tmp,delta_tmp)
+   call ndata%v%apply(gamma_tmp,delta_tmp)
 
    ! Copy data
    delta(ic1b,:) = delta_tmp
@@ -163,7 +163,7 @@ integer :: il0
 ! Horizontal interpolation
 !$omp parallel do schedule(static) private(il0)
 do il0=1,geom%nl0
-   call apply_linop(ndata%h(min(il0,geom%nl0i)),delta(:,il0),fld(:,il0))
+   call ndata%h(min(il0,geom%nl0i))%apply(delta(:,il0),fld(:,il0))
 end do
 !$omp end parallel do
 
@@ -225,7 +225,7 @@ integer :: il0
 
 !$omp parallel do schedule(static) private(il0)
 do il0=1,geom%nl0
-   call apply_linop_ad(ndata%h(min(il0,geom%nl0i)),fld(:,il0),delta(:,il0))
+   call ndata%h(min(il0,geom%nl0i))%apply_ad(fld(:,il0),delta(:,il0))
 end do
 !$omp end parallel do
 
@@ -260,7 +260,7 @@ do ic1b=1,ndata%nc1b
    delta_tmp = delta(ic1b,:)
 
    ! Apply interpolation
-   call apply_linop_ad(ndata%v,delta_tmp,gamma_tmp)
+   call ndata%v%apply_ad(delta_tmp,gamma_tmp)
 
    ! Copy data
    gamma(ic1b,:) = gamma_tmp
@@ -293,7 +293,7 @@ real(kind_real) :: beta(ndata%nc1b,ndata%nl1)
 ! Subsampling horizontal interpolation
 !$omp parallel do schedule(static) private(il1)
 do il1=1,ndata%nl1
-   call apply_linop_ad(ndata%s(il1),gamma(:,il1),beta(:,il1))
+   call ndata%s(il1)%apply_ad(gamma(:,il1),beta(:,il1))
 end do
 !$omp end parallel do
 

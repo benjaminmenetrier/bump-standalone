@@ -35,11 +35,16 @@ type avgtype
    real(kind_real),allocatable :: stasq(:,:,:)       !< Squared static covariance
    real(kind_real),allocatable :: m11lrm11(:,:,:)    !< LR covariance/HR covariance product average
    real(kind_real),allocatable :: m11lrm11asy(:,:,:) !< LR covariance/HR asymptotic covariance product average
+contains
+   procedure :: alloc => avg_alloc
+   procedure :: dealloc => avg_dealloc
+   procedure :: copy => avg_copy
+   procedure :: pack => avg_pack
+   procedure :: unpack => avg_unpack
 end type avgtype
 
 private
 public :: avgtype
-public :: avg_alloc,avg_dealloc,avg_copy,avg_pack,avg_unpack
 
 contains
 
@@ -47,14 +52,14 @@ contains
 ! Subroutine: avg_alloc
 !> Purpose: averaged statistics object allocation
 !----------------------------------------------------------------------
-subroutine avg_alloc(hdata,ib,avg)
+subroutine avg_alloc(avg,hdata,ib)
 
 implicit none
 
 ! Passed variables
+class(avgtype),intent(inout) :: avg !< Averaged statistics
 type(hdatatype),intent(in) :: hdata !< HDIAG data
 integer,intent(in) :: ib            !< Block index
-type(avgtype),intent(inout) :: avg  !< Averaged statistics
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -117,7 +122,7 @@ subroutine avg_dealloc(avg)
 implicit none
 
 ! Passed variables
-type(avgtype),intent(inout) :: avg  !< Averaged statistics
+class(avgtype),intent(inout) :: avg !< Averaged statistics
 
 ! Allocation
 if (allocated(avg%nc1a)) deallocate(avg%nc1a)
@@ -139,64 +144,63 @@ end subroutine avg_dealloc
 ! Subroutine: avg_copy
 !> Purpose: averaged statistics object copy
 !----------------------------------------------------------------------
-subroutine avg_copy(hdata,ib,avg_in,avg_out)
+type(avgtype) function avg_copy(avg,hdata,ib)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< HDIAG data
-integer,intent(in) :: ib               !< Block index
-type(avgtype),intent(in) :: avg_in     !< Averaged statistics, input
-type(avgtype),intent(inout) :: avg_out !< Averaged statistics, output
+class(avgtype),intent(in) :: avg    !< Averaged statistics, input
+type(hdatatype),intent(in) :: hdata !< HDIAG data
+integer,intent(in) :: ib            !< Block index
 
 ! Associate
 associate(nam=>hdata%nam)
 
 ! Initialization
-avg_out%ne = avg_in%ne
-avg_out%nsub = avg_in%nsub
+avg_copy%ne = avg%ne
+avg_copy%nsub = avg%nsub
 
 ! Allocation
-call avg_alloc(hdata,ib,avg_out)
+call avg_copy%alloc(hdata,ib)
 
 ! Copy
-avg_out%npack = avg_in%npack
-avg_out%nc1a = avg_in%nc1a
-avg_out%m11 = avg_in%m11
-avg_out%m11m11 = avg_in%m11m11
-avg_out%m2m2 = avg_in%m2m2
-if (.not.nam%gau_approx) avg_out%m22 = avg_in%m22
-avg_out%cor = avg_in%cor
-avg_out%m11asysq = avg_in%m11asysq
-avg_out%m2m2asy = avg_in%m2m2asy
-if (.not.nam%gau_approx) avg_out%m22asy = avg_in%m22asy
-avg_out%m11sq = avg_in%m11sq
+avg_copy%npack = avg%npack
+avg_copy%nc1a = avg%nc1a
+avg_copy%m11 = avg%m11
+avg_copy%m11m11 = avg%m11m11
+avg_copy%m2m2 = avg%m2m2
+if (.not.nam%gau_approx) avg_copy%m22 = avg%m22
+avg_copy%cor = avg%cor
+avg_copy%m11asysq = avg%m11asysq
+avg_copy%m2m2asy = avg%m2m2asy
+if (.not.nam%gau_approx) avg_copy%m22asy = avg%m22asy
+avg_copy%m11sq = avg%m11sq
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
-   avg_out%m11sta = avg_in%m11sta
-   avg_out%stasq = avg_in%stasq
+   avg_copy%m11sta = avg%m11sta
+   avg_copy%stasq = avg%stasq
 case ('dual-ens')
-   avg_out%m11lrm11 = avg_in%m11lrm11
-   avg_out%m11lrm11asy = avg_in%m11lrm11asy
+   avg_copy%m11lrm11 = avg%m11lrm11
+   avg_copy%m11lrm11asy = avg%m11lrm11asy
 end select
 
 ! End associate
 end associate
 
-end subroutine avg_copy
+end function avg_copy
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_pack
 !> Purpose: averaged statistics object packing
 !----------------------------------------------------------------------
-subroutine avg_pack(hdata,ib,avg,buf)
+subroutine avg_pack(avg,hdata,ib,buf)
 
 implicit none
 
 ! Passed variables
+class(avgtype),intent(in) :: avg              !< Averaged statistics
 type(hdatatype),intent(in) :: hdata           !< HDIAG data
 integer,intent(in) :: ib                      !< Block index
-type(avgtype),intent(in) :: avg               !< Averaged statistics
 real(kind_real),intent(out) :: buf(avg%npack) !< Buffer
 
 ! Local variables
@@ -230,14 +234,14 @@ end subroutine avg_pack
 ! Subroutine: avg_unpack
 !> Purpose: averaged statistics object unpacking
 !----------------------------------------------------------------------
-subroutine avg_unpack(hdata,ib,avg,buf)
+subroutine avg_unpack(avg,hdata,ib,buf)
 
 implicit none
 
 ! Passed variables
+class(avgtype),intent(inout) :: avg          !< Averaged statistics
 type(hdatatype),intent(in) :: hdata          !< HDIAG data
 integer,intent(in) :: ib                     !< Block index
-type(avgtype),intent(inout) :: avg           !< Averaged statistics
 real(kind_real),intent(in) :: buf(avg%npack) !< Buffer
 
 ! Local variables

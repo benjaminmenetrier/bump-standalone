@@ -27,14 +27,14 @@ use tools_display, only: vunitchar,prog_init,prog_print,msgerror,msgwarning,aqua
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msr,isnotmsi,isnotmsr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_avg, only: avgtype,avg_dealloc,avg_copy
+use type_avg, only: avgtype
 use type_bdata, only: bdatatype,bdata_alloc,diag_to_bdata,bdata_read,bdata_write
 use type_bpar, only: bpartype
-use type_curve, only: curvetype,curve_alloc,curve_normalization,curve_write,curve_write_all,curve_write_local
-use type_displ, only: displtype,displ_alloc,displ_write
+use type_curve, only: curvetype,curve_write_all,curve_write_local
+use type_displ, only: displtype
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
-use type_mom, only: momtype,mom_dealloc
+use type_mom, only: momtype
 use type_mpl, only: mpl
 use type_nam, only: namtype
 
@@ -163,8 +163,8 @@ if (nam%new_hdiag) then
       ! Deallocation
       do ib=1,bpar%nb
          if (bpar%auto_block(ib)) then
-            call mom_dealloc(mom_1(ib))
-            call avg_dealloc(avg_1(ib))
+            call mom_1(ib)%dealloc
+            call avg_1(ib)%dealloc
          end if
       end do
 
@@ -261,14 +261,14 @@ if (nam%new_hdiag) then
          do ic2a=1,hdata%nc2a
             ! Copy
             do ib=1,bpar%nb
-               if (hdata%bpar%diag_block(ib)) call avg_copy(hdata,ib,avg_1_c2a(ic2a,ib),avg_tmp(ib))
+               if (hdata%bpar%diag_block(ib)) avg_tmp(ib) = avg_1_c2a(ic2a,ib)%copy(hdata,ib)
             end do
 
             ! Compute local block averages
             call compute_bwavg(hdata,avg_tmp(1:bpar%nb),avg_tmp)
 
             ! Copy back
-            call avg_copy(hdata,ib,avg_tmp(hdata%bpar%nb+1),avg_1_c2a(ic2a,hdata%bpar%nb+1))
+            avg_1_c2a(ic2a,hdata%bpar%nb+1) = avg_tmp(hdata%bpar%nb+1)%copy(hdata,ib)
          end do
       end if
    end if
@@ -277,30 +277,30 @@ if (nam%new_hdiag) then
    do ib=1,bpar%nb+1
       if (bpar%diag_block(ib)) then
          ! Allocation
-         call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor',cor_1(ib))
+         call cor_1(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor')
          select case (trim(nam%method))
          case ('hyb-avg','hyb-rnd')
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_hyb',cor_2(ib))
+            call cor_2(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_hyb')
          case ('dual-ens')
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_lr',cor_2(ib))
+            call cor_2(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_lr')
          end select
 
          ! Copy
          cor_1(ib)%raw = avg_1(ib)%cor
-         call curve_normalization(hdata,ib,cor_1(ib))
+         call cor_1(ib)%normalization(hdata,ib)
          select case (trim(nam%method))
          case ('hyb-avg')
             cor_2(ib)%raw = avg_1(ib)%cor
-            call curve_normalization(hdata,ib,cor_2(ib))
+            call cor_2(ib)%normalization(hdata,ib)
          case ('hyb-rnd','dual-ens')
             cor_2(ib)%raw = avg_2(ib)%cor
-            call curve_normalization(hdata,ib,cor_2(ib))
+            call cor_2(ib)%normalization(hdata,ib)
          end select
 
          if (nam%local_diag) then
             do ic2a=1,hdata%nc2a
                ! Allocation
-               call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_c2a',cor_1_c2a(ic2a,ib))
+               call cor_1_c2a(ic2a,ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_cor_c2a')
 
                ! Copy
                cor_1_c2a(ic2a,ib)%raw = avg_1_c2a(ic2a,ib)%cor
@@ -379,10 +379,10 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
             ! Allocation
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc',loc_1(ib))
+            call loc_1(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc')
             if (nam%local_diag) then
                do ic2a=1,hdata%nc2a
-                  call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_c2a',loc_1_c2a(ic2a,ib))
+                  call loc_1_c2a(ic2a,ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_c2a')
                end do
             end if
 
@@ -422,7 +422,7 @@ if (nam%new_hdiag) then
             write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
             ! Allocation
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_hyb',loc_2(ib))
+            call loc_2(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_hyb')
 
             ! Compute global static hybridization
             write(mpl%unit,'(a7,a)') '','Compute global static hybridization'
@@ -452,7 +452,7 @@ if (nam%new_hdiag) then
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_lr',loc_2(ib))
+            call loc_2(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_lr')
 
             ! Compute global low-resolution localization
             write(mpl%unit,'(a7,a)') '','Compute global low-resolution localization'
@@ -478,8 +478,8 @@ if (nam%new_hdiag) then
       do ib=1,bpar%nb+1
          if (bpar%diag_block(ib)) then
             ! Allocation
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh',loc_3(ib))
-            call curve_alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh_lr',loc_4(ib))
+            call loc_3(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh')
+            call loc_4(ib)%alloc(hdata,ib,trim(bpar%blockname(ib))//'_loc_deh_lr')
 
             ! Compute global dual-ensemble hybridization
             write(mpl%unit,'(a7,a)') '','Compute global dual-ensemble hybridization'
@@ -557,7 +557,7 @@ if (nam%new_hdiag) then
 
    if (mpl%main) then
       ! Displacement
-      if (nam%displ_diag) call displ_write(hdata,trim(nam%prefix)//'_displ_diag.nc',displ)
+      if (nam%displ_diag) call displ%write(hdata,trim(nam%prefix)//'_displ_diag.nc')
 
       ! Full variances
       if (nam%full_var) then

@@ -5,7 +5,7 @@ GNU compiler on beaufix/prolix:
     module purge
     module load cmake/2.8.11.2 gcc/5.3.0 openmpi/1.10.2 netcdf/4.4.0 ncl
     export HDIAG_NICAS_COMPILER=GNU
-    export HDIAG_NICAS_BUILD=BUILD
+    export HDIAG_NICAS_BUILD=DEBUG
     export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF_INC_DIR}
     export HDIAG_NICAS_NETCDF_LIBPATH=${NETCDF_LIB_DIR}
     export HDIAG_NICAS_NETCDFF_INCLUDE=${NETCDF_INC_DIR}
@@ -16,7 +16,7 @@ Intel compiler on beaufix/prolix:
     module purge
     module load cmake/2.8.11.2 intel/16.1.150 intelmpi/5.1.2.150 netcdf/4.4.0 ncl
     export HDIAG_NICAS_COMPILER=Intel
-    export HDIAG_NICAS_BUILD=BUILD
+    export HDIAG_NICAS_BUILD=DEBUG
     export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF_INC_DIR}
     export HDIAG_NICAS_NETCDF_LIBPATH=${NETCDF_LIB_DIR}
     export HDIAG_NICAS_NETCDFF_INCLUDE=${NETCDF_INC_DIR}

@@ -15,10 +15,10 @@ use tools_const, only: pi,reqkm,rad2deg,sphere_dist
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr
-use type_geom, only: geomtype,fld_com_gl,fld_com_lg
-use type_mpl, only: mpl,mpl_dot_prod
-use type_odata, only: odatatype,yobs_com_gl,yobs_com_lg
-use type_randgen, only: rand_real
+use type_geom, only: geomtype
+use type_mpl, only: mpl
+use type_odata, only: odatatype
+use type_rng, only: rng
 
 implicit none
 
@@ -47,16 +47,16 @@ real(kind_real) :: yobs(odata%nobsa,odata%geom%nl0),yobs_save(odata%nobsa,odata%
 associate(geom=>odata%geom)
 
 ! Generate random fields
-call rand_real(0.0_kind_real,1.0_kind_real,fld_save)
-call rand_real(0.0_kind_real,1.0_kind_real,yobs_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,yobs_save)
 
 ! Apply direct and adjoint obsservation operators
 call apply_obsop(geom,odata,fld_save,yobs)
 call apply_obsop_ad(geom,odata,yobs_save,fld)
 
 ! Compute adjoint test
-call mpl_dot_prod(fld,fld_save,sum1)
-call mpl_dot_prod(yobs,yobs_save,sum2)
+call mpl%dot_prod(fld,fld_save,sum1)
+call mpl%dot_prod(yobs,yobs_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Observation operator adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -100,16 +100,16 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(geom,lon)
-call fld_com_gl(geom,lat)
+call geom%fld_com_gl(lon)
+call geom%fld_com_gl(lat)
 
 ! Apply obsop
 call apply_obsop(geom,odata,lon,ylon)
 call apply_obsop(geom,odata,lat,ylat)
 
 ! Local to global
-call yobs_com_lg(odata,ylon)
-call yobs_com_lg(odata,ylat)
+call odata%yobs_com_lg(ylon)
+call odata%yobs_com_lg(ylat)
 
 ! Print difference
 if (mpl%main) then

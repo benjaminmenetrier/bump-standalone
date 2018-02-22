@@ -15,9 +15,9 @@ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
-use type_com, only: com_ext
-use type_geom, only: fld_com_gl
-use type_linop, only: apply_linop
+use type_com, only: comtype
+use type_geom, only: geomtype
+use type_linop, only: linoptype
 use type_mom, only: momtype
 use type_mpl, only: mpl
 use type_hdata, only: hdatatype
@@ -143,7 +143,7 @@ do isub=1,nsub
             end if
             call model_read(nam,geom,filename,ne_offset+ie,jsub,fld)
          end if
-         call fld_com_gl(nam,geom,fld)
+         call geom%fld_com_gl(nam,fld)
       end if
 
       ! Allocation
@@ -164,7 +164,7 @@ do isub=1,nsub
             fld_com = fld(:,:,iv,its)
 
             ! Halo extension
-            call com_ext(hdata%AC,fld_com)
+            call hdata%AC%ext(fld_com)
 
             ! Copy points
             fld_halo(:,:,iv,its) = fld_com
@@ -229,8 +229,8 @@ do isub=1,nsub
                   ! Interpolate zero separation points
                   !$omp parallel do schedule(static) private(il0)
                   do il0=1,geom%nl0
-                     call apply_linop(hdata%d(il0,its),fld_halo(:,il0,iv,its),fld_1(:,1,1,il0))
-                     call apply_linop(hdata%d(il0,jts),fld_halo(:,il0,jv,jts),fld_2(:,1,1,il0))
+                     call hdata%d(il0,its)%apply(fld_halo(:,il0,iv,its),fld_1(:,1,1,il0))
+                     call hdata%d(il0,jts)%apply(fld_halo(:,il0,jv,jts),fld_2(:,1,1,il0))
                   end do
                   !$omp end parallel do
                else

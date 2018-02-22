@@ -25,9 +25,9 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr,isnotmsi
 use tools_nc, only: ncfloat,ncerr
-use type_geom, only: geomtype,fld_com_gl
+use type_geom, only: geomtype
 use type_mpl, only: mpl
-use type_nam, only: namtype,namncwrite
+use type_nam, only: namtype
 
 implicit none
 
@@ -177,7 +177,7 @@ do isub=1,nam%ens1_nsub
       end if
 
       ! Split over processors
-      call fld_com_gl(nam,geom,fld)
+      call geom%fld_com_gl(nam,fld)
 
       ! Copy
       ietot = ietot+1
@@ -239,7 +239,7 @@ if (ierr/=nf90_noerr) then
    call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_write,ncid))
    call ncerr(subr,nf90_redef(ncid))
    call ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',msvalr))
-   call namncwrite(nam,ncid)
+   call nam%ncwrite(ncid)
 end if
 call ncerr(subr,nf90_enddef(ncid))
 

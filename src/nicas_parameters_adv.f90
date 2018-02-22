@@ -15,9 +15,9 @@ use tools_interp, only: compute_interp
 use tools_kinds,only: kind_real
 use tools_missing, only: msi
 use type_bdata, only: bdatatype
-use type_com, only: comtype,com_dealloc,com_setup,com_bcast
-use type_linop, only: linoptype,linop_alloc,linop_reorder
-use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_com, only: comtype,com_setup
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 
@@ -159,14 +159,14 @@ do its=2,nam%nts
       ndata%d(il0,its-1)%prefix = 'd'
       ndata%d(il0,its-1)%n_src = ndata%nc0d
       ndata%d(il0,its-1)%n_dst = geom%nc0a
-      call linop_alloc(ndata%d(il0,its-1))
+      call ndata%d(il0,its-1)%alloc
       do i_s_loc=1,ndata%d(il0,its-1)%n_s
          i_s = interpd_lg(i_s_loc,il0,its)
          ndata%d(il0,its-1)%row(i_s_loc) = geom%c0_to_c0a(dfull(il0,its-1)%row(i_s))
          ndata%d(il0,its-1)%col(i_s_loc) = c0_to_c0d(dfull(il0,its-1)%col(i_s))
          ndata%d(il0,its-1)%S(i_s_loc) = dfull(il0,its-1)%S(i_s)
       end do
-      call linop_reorder(ndata%d(il0,its-1))
+      call ndata%d(il0,its-1)%reorder
    end do
 end do
 
@@ -180,8 +180,8 @@ if (mpl%main) then
          nc0d = ndata%nc0d
       else
          ! Receive dimensions on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
-         call mpl_recv(nc0d,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0d,iproc,mpl%tag+1)
       end if
 
       ! Allocation
@@ -195,8 +195,8 @@ if (mpl%main) then
          c0a_to_c0d_copy = c0a_to_c0d
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0d,c0d_to_c0_copy,iproc,mpl%tag+2)
-         call mpl_recv(nc0a,c0a_to_c0d_copy,iproc,mpl%tag+3)
+         call mpl%recv(nc0d,c0d_to_c0_copy,iproc,mpl%tag+2)
+         call mpl%recv(nc0a,c0a_to_c0d_copy,iproc,mpl%tag+3)
       end if
 
       ! Allocation
@@ -224,18 +224,18 @@ if (mpl%main) then
    call com_setup(comAD)
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
-   call mpl_send(ndata%nc0d,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(ndata%nc0d,mpl%ioproc,mpl%tag+1)
 
    ! Send data to ioproc
-   call mpl_send(ndata%nc0d,c0d_to_c0,mpl%ioproc,mpl%tag+2)
-   call mpl_send(geom%nc0a,c0a_to_c0d,mpl%ioproc,mpl%tag+3)
+   call mpl%send(ndata%nc0d,c0d_to_c0,mpl%ioproc,mpl%tag+2)
+   call mpl%send(geom%nc0a,c0a_to_c0d,mpl%ioproc,mpl%tag+3)
 end if
 mpl%tag = mpl%tag+4
 
 ! Communication broadcast
 ndata%AD%prefix = 'AD'
-call com_bcast(comAD,ndata%AD)
+call ndata%AD%bcast(comAD)
 
 ! Print results
 write(mpl%unit,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc

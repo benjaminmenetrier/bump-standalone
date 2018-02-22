@@ -16,7 +16,7 @@ use tools_kinds, only: kind_real
 use tools_fit, only: ver_smooth
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_avg, only: avgtype
-use type_curve, only: curvetype,curve_normalization
+use type_curve, only: curvetype
 use type_hdata, only: hdatatype
 implicit none
 
@@ -79,7 +79,7 @@ do il0=1,geom%nl0
 end do
 
 ! Normalize hybridization
-call curve_normalization(hdata,ib,loc_hyb)
+call loc_hyb%normalization(hdata,ib)
 
 ! Compute hybridization fits
 if (bpar%fit_block(ib)) then

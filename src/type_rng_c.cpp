@@ -4,8 +4,8 @@
 /// Licensing: this code is distributed under the CeCILL-C license
 /// Copyright © 2017 METEO-FRANCE
 // ----------------------------------------------------------------------
-#include "type_randgen.h"
-#include "type_randgen.hpp"
+#include "type_rng.h"
+#include "type_rng.hpp"
 #include "external/Cover_Tree.h"
 #include "external/Cover_Tree_Point.h"
 #include <ostream>
@@ -16,7 +16,7 @@
 using namespace std;
 
 // Constructor
-randGen::randGen(unsigned long int default_seed) {
+rng::rng(unsigned long int default_seed) {
     // Initialize random number generator
     if (default_seed==0) {
         seed_ = (unsigned long int)clock();
@@ -27,16 +27,16 @@ randGen::randGen(unsigned long int default_seed) {
 }
 
 // Destructor
-randGen::~randGen(){}
+rng::~rng(){}
 
 // Reseed generator
-void randGen::reseed_randgen(unsigned long int seed) {
+void rng::rng_reseed(unsigned long int seed) {
     seed_ = seed;
     return;
 }
 
 // Random integer generator
-void randGen::rand_integer(int binf, int bsup, int *ir) {
+void rng::rand_integer(int binf, int bsup, int *ir) {
     // Generate random integer
     int range=bsup-binf+1;
     double r;
@@ -47,14 +47,14 @@ void randGen::rand_integer(int binf, int bsup, int *ir) {
 }
 
 // Random real generator
-void randGen::rand_real(double binf, double bsup, double *rr) {
+void rng::rand_real(double binf, double bsup, double *rr) {
    // Generate random real
    *rr=binf+lcg()*(bsup-binf);
     return;
 }
 
 // Sampling initialization
-void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) {
+void rng::initialize_sampling(int n, double lon[], double lat[], int mask[], double rh[], int ntry, int nrep, int ns, int ihor[]) {
     // Declaration
     int ir;
 
@@ -182,7 +182,7 @@ void randGen::initialize_sampling(int n, double lon[], double lat[], int mask[],
     return;
 }
 
-double randGen::lcg() {
+double rng::lcg() {
     seed_ = (a_*seed_+c_)%m_;
     double x=(double)seed_/(double)(m_-1);
     return x;

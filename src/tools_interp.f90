@@ -16,11 +16,11 @@ use tools_display, only: msgerror,prog_init,prog_print
 use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use tools_stripack, only: trans
-use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
+use type_ctree, only: ctreetype
 use type_geom, only: geomtype
-use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_reorder
-use type_mesh, only: meshtype,create_mesh,mesh_dealloc,copy_mesh,barycentric,addnode,polygon
-use type_mpl, only: mpl,mpl_bcast,mpl_allgather,mpl_split,mpl_send,mpl_recv
+use type_linop, only: linoptype
+use type_mesh, only: meshtype
+use type_mpl, only: mpl
 
 implicit none
 
@@ -81,12 +81,12 @@ do i_src=1,n_src
 end do
 
 ! Create mesh
-call create_mesh(n_src_eff,lon_src(src_eff_to_src),lat_src(src_eff_to_src),.false.,mesh)
+call mesh%create(n_src_eff,lon_src(src_eff_to_src),lat_src(src_eff_to_src),.false.)
 
 ! Compute cover tree
 allocate(mask_ctree(n_src_eff))
 mask_ctree = .true.
-ctree = create_ctree(n_src_eff,dble(lon_src(src_eff_to_src)),dble(lat_src(src_eff_to_src)),mask_ctree)
+call ctree%create(n_src_eff,dble(lon_src(src_eff_to_src)),dble(lat_src(src_eff_to_src)),mask_ctree)
 deallocate(mask_ctree)
 
 ! Compute interpolation
@@ -98,8 +98,8 @@ interp%n_src = n_src
 interp%col = src_eff_to_src(interp%col)
 
 ! Release memory
-call delete_ctree(ctree)
-call mesh_dealloc(mesh)
+call ctree%delete
+call mesh%dealloc
 
 end subroutine compute_interp_from_lat_lon
 
@@ -125,7 +125,7 @@ type(linoptype),intent(inout) :: interp       !< Interpolation data
 
 ! Local variables
 integer :: i,i_src,i_dst,nn_index(1),n_s,progint,ib(3),nnat,inat,np,iproc,offset
-integer :: i_dst_s(mpl%nproc),i_dst_e(mpl%nproc),n_dst_loc(mpl%nproc),i_dst_loc,n_sg(mpl%nproc)
+integer :: i_dst_s(mpl%nproc),i_dst_e(mpl%nproc),n_dst_loc(mpl%nproc),i_dst_loc,proc_to_n_s(mpl%nproc)
 integer,allocatable :: natis(:),row(:),col(:)
 real(kind_real) :: nn_dist(1),b(3)
 real(kind_real),allocatable :: area_polygon(:),area_polygon_new(:),natwgt(:),S(:)
@@ -134,7 +134,7 @@ logical,allocatable :: done(:)
 type(meshtype) :: meshnew
 
 ! MPI splitting
-call mpl_split(n_dst,i_dst_s,i_dst_e,n_dst_loc)
+call mpl%split(n_dst,i_dst_s,i_dst_e,n_dst_loc)
 
 ! Allocation
 call msi(np)
@@ -161,7 +161,7 @@ if (trim(interp_type)=='natural') then
    do i_src=1,mesh%nnr
       natis(i_src) = i_src
    end do
-   call polygon(mesh,mesh%nnr,natis,area_polygon)
+   call mesh%polygon(mesh%nnr,natis,area_polygon)
 end if
 
 ! Compute interpolation
@@ -174,16 +174,16 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
 
    if (mask_dst(i_dst)) then
       ! Find nearest neighbor
-      call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)), &
+      call ctree%find_nearest_neighbors(dble(lon_dst(i_dst)), &
     & dble(lat_dst(i_dst)),1,nn_index,nn_dist)
 
       if (abs(nn_dist(1))>0.0) then
          ! Compute barycentric coordinates
-         call barycentric(lon_dst(i_dst),lat_dst(i_dst),mesh,nn_index(1),b,ib)
+         call mesh%barycentric(lon_dst(i_dst),lat_dst(i_dst),nn_index(1),b,ib)
          if (sum(b)>0.0) b = b/sum(b)
 
          if (all(ib>0).and.all(b>0.0)) then
-            if (all(mask_src(ib))) then
+            if (all(mask_src(mesh%order(ib)))) then
                ! Valid interpolation
                if (trim(interp_type)=='bilin') then
                   ! Bilinear interpolation
@@ -191,7 +191,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                      if (b(i)>S_inf) then
                         n_s = n_s+1
                         row(n_s) = i_dst
-                        col(n_s) = ib(i)
+                        col(n_s) = mesh%order(ib(i))
                         S(n_s) = b(i)
                      end if
                   end do
@@ -199,10 +199,10 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                   ! Natural neighbors interpolation
 
                   ! Copy mesh
-                  call copy_mesh(mesh,meshnew)
+                  meshnew = mesh%copy()
 
                   ! Add a node
-                  call addnode(lon_dst(i_dst),lat_dst(i_dst),meshnew)
+                  call meshnew%addnode(lon_dst(i_dst),lat_dst(i_dst))
 
                   ! Find natural neighbors
                   i_src = meshnew%lend(meshnew%nnr)
@@ -217,7 +217,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
 
                   if (all(mask_src(natis(1:nnat)))) then
                      ! Compute natural neighbors polygons areas
-                     call polygon(meshnew,nnat,natis(1:nnat),area_polygon_new(1:nnat))
+                     call meshnew%polygon(nnat,natis(1:nnat),area_polygon_new(1:nnat))
 
                      ! Compute weight
                      natwgt = 0.0
@@ -233,7 +233,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                         if (natwgt(inat)>0.0) then
                            n_s = n_s+1
                            row(n_s) = i_dst
-                           col(n_s) = natis(inat)
+                           col(n_s) = mesh%order(natis(inat))
                            S(n_s) = natwgt(inat)
                         end if
                      end do
@@ -256,49 +256,49 @@ end do
 write(mpl%unit,'(a)') '100%'
 
 ! Communication
-call mpl_allgather(1,(/n_s/),n_sg)
+call mpl%allgather(1,(/n_s/),proc_to_n_s)
 
 ! Allocation
-interp%n_s = sum(n_sg)
+interp%n_s = sum(proc_to_n_s)
 interp%n_src = n_src
 interp%n_dst = n_dst
-call linop_alloc(interp)
+call interp%alloc
 
 ! Communication
 if (mpl%main) then
    offset = 0
    do iproc=1,mpl%nproc
-      if (n_sg(iproc)>0) then
+      if (proc_to_n_s(iproc)>0) then
          if (iproc==mpl%ioproc) then
             ! Copy data
-            interp%row(offset+1:offset+n_sg(iproc)) = row(1:n_sg(iproc))
-            interp%col(offset+1:offset+n_sg(iproc)) = col(1:n_sg(iproc))
-            interp%S(offset+1:offset+n_sg(iproc)) = S(1:n_sg(iproc))
+            interp%row(offset+1:offset+proc_to_n_s(iproc)) = row(1:proc_to_n_s(iproc))
+            interp%col(offset+1:offset+proc_to_n_s(iproc)) = col(1:proc_to_n_s(iproc))
+            interp%S(offset+1:offset+proc_to_n_s(iproc)) = S(1:proc_to_n_s(iproc))
          else
             ! Receive data on ioproc
-            call mpl_recv(n_sg(iproc),interp%row(offset+1:offset+n_sg(iproc)),iproc,mpl%tag)
-            call mpl_recv(n_sg(iproc),interp%col(offset+1:offset+n_sg(iproc)),iproc,mpl%tag+1)
-            call mpl_recv(n_sg(iproc),interp%S(offset+1:offset+n_sg(iproc)),iproc,mpl%tag+2)
+            call mpl%recv(proc_to_n_s(iproc),interp%row(offset+1:offset+proc_to_n_s(iproc)),iproc,mpl%tag)
+            call mpl%recv(proc_to_n_s(iproc),interp%col(offset+1:offset+proc_to_n_s(iproc)),iproc,mpl%tag+1)
+            call mpl%recv(proc_to_n_s(iproc),interp%S(offset+1:offset+proc_to_n_s(iproc)),iproc,mpl%tag+2)
          end if
       end if
 
       ! Update offset
-      offset = offset+n_sg(iproc)
+      offset = offset+proc_to_n_s(iproc)
    end do
 else
    if (n_s>0) then
       ! Send data to ioproc
-      call mpl_send(n_s,row(1:n_s),mpl%ioproc,mpl%tag)
-      call mpl_send(n_s,col(1:n_s),mpl%ioproc,mpl%tag+1)
-      call mpl_send(n_s,S(1:n_s),mpl%ioproc,mpl%tag+2)
+      call mpl%send(n_s,row(1:n_s),mpl%ioproc,mpl%tag)
+      call mpl%send(n_s,col(1:n_s),mpl%ioproc,mpl%tag+1)
+      call mpl%send(n_s,S(1:n_s),mpl%ioproc,mpl%tag+2)
    end if
 end if
 mpl%tag = mpl%tag+3
 
 ! Broadcast data
-call mpl_bcast(interp%row,mpl%ioproc)
-call mpl_bcast(interp%col,mpl%ioproc)
-call mpl_bcast(interp%S,mpl%ioproc)
+call mpl%bcast(interp%row,mpl%ioproc)
+call mpl%bcast(interp%col,mpl%ioproc)
+call mpl%bcast(interp%S,mpl%ioproc)
 
 end subroutine compute_interp_from_mesh_ctree
 
@@ -338,7 +338,7 @@ allocate(test_c1(nc1))
 
 do il0i=1,geom%nl0i
    ! Copy
-   call linop_copy(hbase,htmp)
+   htmp = hbase%copy()
    valid = .true.
 
    ! Check mask boundaries
@@ -380,7 +380,7 @@ do il0i=1,geom%nl0i
    h(il0i)%n_src = nc1
    h(il0i)%n_dst = geom%nc0
    h(il0i)%n_s = count(valid)
-   call linop_alloc(h(il0i))
+   call h(il0i)%alloc
    h(il0i)%n_s = 0
    do i_s=1,htmp%n_s
       if (valid(i_s)) then
@@ -392,7 +392,7 @@ do il0i=1,geom%nl0i
    end do
 
    ! Release memory
-   call linop_dealloc(htmp)
+   call htmp%dealloc
 
    ! Allocation
    allocate(missing(geom%nc0))
@@ -412,7 +412,7 @@ do il0i=1,geom%nl0i
 end do
 
 ! Release memory
-call linop_dealloc(hbase)
+call hbase%dealloc
 deallocate(valid)
 deallocate(mask_extra)
 deallocate(test_c1)
@@ -441,7 +441,7 @@ real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
 logical,allocatable :: done(:)
 
 ! MPI splitting
-call mpl_split(interp%n_s,i_s_s,i_s_e,n_s_loc)
+call mpl%split(interp%n_s,i_s_s,i_s_e,n_s_loc)
 
 ! Allocation
 allocate(done(n_s_loc(mpl%myproc)))
@@ -483,20 +483,20 @@ if (mpl%main) then
       if (n_s_loc(iproc)>0) then
          if (iproc/=mpl%ioproc) then
             ! Receive data on ioproc
-            call mpl_recv(n_s_loc(iproc),valid(i_s_s(iproc):i_s_e(iproc)),iproc,mpl%tag)
+            call mpl%recv(n_s_loc(iproc),valid(i_s_s(iproc):i_s_e(iproc)),iproc,mpl%tag)
          end if
       end if
    end do
 else
    if (n_s_loc(mpl%myproc)>0) then
       ! Send data to ioproc
-      call mpl_send(n_s_loc(mpl%myproc),valid(i_s_s(mpl%myproc):i_s_e(mpl%myproc)),mpl%ioproc,mpl%tag)
+      call mpl%send(n_s_loc(mpl%myproc),valid(i_s_s(mpl%myproc):i_s_e(mpl%myproc)),mpl%ioproc,mpl%tag)
    end if
 end if
 mpl%tag = mpl%tag+1
 
 ! Broadcast data
-call mpl_bcast(valid,mpl%ioproc)
+call mpl%bcast(valid,mpl%ioproc)
 
 ! Release memory
 deallocate(done)
@@ -596,7 +596,7 @@ if (count(missing)>0) then
    else
       call msgerror('wrong interpolation')
    end if
-   call linop_alloc(interp_tmp)
+   call interp_tmp%alloc
 
    ! Fill arrays
    interp_tmp%row(1:interp%n_s) = interp%row
@@ -610,12 +610,12 @@ if (count(missing)>0) then
    lmask = mask_dst.and.(.not.missing)
 
    ! Compute cover tree
-   ctree = create_ctree(n_dst,dble(lon_dst),dble(lat_dst),lmask)
+   call ctree%create(n_dst,dble(lon_dst),dble(lat_dst),lmask)
 
    do i_dst=1,n_dst
       if (missing(i_dst)) then
          ! Compute nearest neighbor
-         call find_nearest_neighbors(ctree,dble(lon_dst(i_dst)),dble(lat_dst(i_dst)),1,nn,dum)
+         call ctree%find_nearest_neighbors(dble(lon_dst(i_dst)),dble(lat_dst(i_dst)),1,nn,dum)
 
          ! Copy data
          found = .false.
@@ -633,9 +633,9 @@ if (count(missing)>0) then
    end do
 
    ! Reallocate interpolation
-   call linop_dealloc(interp)
+   call interp%dealloc
    interp%n_s = interp_tmp%n_s
-   call linop_alloc(interp)
+   call interp%alloc
 
    ! Fill arrays
    interp%row = interp_tmp%row(1:interp%n_s)
@@ -643,8 +643,8 @@ if (count(missing)>0) then
    interp%S = interp_tmp%S(1:interp%n_s)
 
    ! Release memory
-   call linop_dealloc(interp_tmp)
-   call delete_ctree(ctree)
+   call interp_tmp%dealloc
+   call ctree%delete
 end if
 
 end subroutine interp_missing

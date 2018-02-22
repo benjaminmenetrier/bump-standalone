@@ -14,11 +14,11 @@ use tools_display, only: msgerror,prog_init,prog_print
 use tools_interp, only: compute_interp
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
-use type_com, only: comtype,com_dealloc,com_setup,com_bcast
+use type_com, only: comtype,com_setup
 use type_displ, only: displtype
 use type_hdata, only: hdatatype
-use type_linop, only: linoptype,linop_alloc,linop_copy,linop_reorder
-use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 
 implicit none
@@ -56,11 +56,11 @@ hdata%lcheck_c0a = .false.
 hdata%lcheck_c1a = .false.
 do ic0a=1,geom%nc0a
    ic0 = geom%c0a_to_c0(ic0a)
-   if (any(geom%mask(ic0,:).and.(geom%c0_to_proc(ic0)==mpl%myproc))) hdata%lcheck_c0a(ic0) = .true.
+   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c0a(ic0) = .true.
 end do
 do ic1=1,nam%nc1
    ic0 = hdata%c1_to_c0(ic1)
-   if (any(geom%mask(ic0,:).and.(geom%c0_to_proc(ic0)==mpl%myproc))) hdata%lcheck_c1a(ic1) = .true.
+   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c1a(ic1) = .true.
 end do
 hdata%nc1a = count(hdata%lcheck_c1a)
 
@@ -166,7 +166,7 @@ if (mpl%main) then
          nc0a = geom%nc0a
       else
          ! Receive dimension on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0a,iproc,mpl%tag)
       end if
 
       ! Allocation
@@ -177,7 +177,7 @@ if (mpl%main) then
          c0a_to_c0 = geom%c0a_to_c0
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
       end if
 
       ! Fill c0_to_c0a
@@ -190,10 +190,10 @@ if (mpl%main) then
    end do
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
 
    ! Send data to ioproc
-   call mpl_send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
 end if
 mpl%tag = mpl%tag+2
 
@@ -207,8 +207,8 @@ if (mpl%main) then
          nc0d = hdata%nc0d
       else
          ! Receive dimensions on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
-         call mpl_recv(nc0d,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0d,iproc,mpl%tag+1)
       end if
 
       ! Allocation
@@ -222,8 +222,8 @@ if (mpl%main) then
          c0a_to_c0d = hdata%c0a_to_c0d
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0d,c0d_to_c0,iproc,mpl%tag+2)
-         call mpl_recv(nc0a,c0a_to_c0d,iproc,mpl%tag+3)
+         call mpl%recv(nc0d,c0d_to_c0,iproc,mpl%tag+2)
+         call mpl%recv(nc0a,c0a_to_c0d,iproc,mpl%tag+3)
       end if
 
       ! Allocation
@@ -254,18 +254,18 @@ if (mpl%main) then
    deallocate(c0_to_c0a)
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
-   call mpl_send(hdata%nc0d,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(hdata%nc0d,mpl%ioproc,mpl%tag+1)
 
    ! Send data to ioproc
-   call mpl_send(hdata%nc0d,hdata%c0d_to_c0,mpl%ioproc,mpl%tag+2)
-   call mpl_send(geom%nc0a,hdata%c0a_to_c0d,mpl%ioproc,mpl%tag+3)
+   call mpl%send(hdata%nc0d,hdata%c0d_to_c0,mpl%ioproc,mpl%tag+2)
+   call mpl%send(geom%nc0a,hdata%c0a_to_c0d,mpl%ioproc,mpl%tag+3)
 end if
 mpl%tag = mpl%tag+4
 
 ! Communication broadcast
 hdata%AD%prefix = 'AD'
-call com_bcast(comAD,hdata%AD)
+call hdata%AD%bcast(comAD)
 
 ! Print results
 write(mpl%unit,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
@@ -342,7 +342,7 @@ do jc3=1,nam%nc3
       ic1 = hdata%c1a_to_c1(ic1a)
       if (any(hdata%c1c3l0_log(ic1,jc3,:))) then
          ic0 = hdata%c1c3_to_c0(ic1,jc3)
-         if (any(geom%mask(ic0,:))) hdata%lcheck_c0c(ic0) = .true.
+         hdata%lcheck_c0c(ic0) = .true.
       end if
    end do
 end do
@@ -420,14 +420,14 @@ if (nam%displ_diag) then
          hdata%d(il0,its)%prefix = 'd'
          hdata%d(il0,its)%n_src = hdata%nc0c
          hdata%d(il0,its)%n_dst = hdata%nc1a
-         call linop_alloc(hdata%d(il0,its))
+         call hdata%d(il0,its)%alloc
          do i_s_loc=1,hdata%d(il0,its)%n_s
             i_s = interpd_lg(i_s_loc,il0,its)
             hdata%d(il0,its)%row(i_s_loc) = hdata%c1_to_c1a(dfull(il0,its)%row(i_s))
             hdata%d(il0,its)%col(i_s_loc) = hdata%c0_to_c0c(dfull(il0,its)%col(i_s))
             hdata%d(il0,its)%S(i_s_loc) = dfull(il0,its)%S(i_s)
          end do
-         call linop_reorder(hdata%d(il0,its))
+         call hdata%d(il0,its)%reorder
       end do
    end do
 end if
@@ -443,7 +443,7 @@ if (mpl%main) then
          nc0a = geom%nc0a
       else
          ! Receive dimension on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0a,iproc,mpl%tag)
       end if
 
       ! Allocation
@@ -454,7 +454,7 @@ if (mpl%main) then
          c0a_to_c0 = geom%c0a_to_c0
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
       end if
 
       ! Fill c0_to_c0a
@@ -467,10 +467,10 @@ if (mpl%main) then
    end do
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
 
    ! Send data to ioproc
-   call mpl_send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
 end if
 mpl%tag = mpl%tag+2
 
@@ -484,8 +484,8 @@ if (mpl%main) then
          nc0c = hdata%nc0c
       else
          ! Receive dimensions on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
-         call mpl_recv(nc0c,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0c,iproc,mpl%tag+1)
       end if
 
       ! Allocation
@@ -499,8 +499,8 @@ if (mpl%main) then
          c0a_to_c0c = hdata%c0a_to_c0c
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0c,c0c_to_c0,iproc,mpl%tag+2)
-         call mpl_recv(nc0a,c0a_to_c0c,iproc,mpl%tag+3)
+         call mpl%recv(nc0c,c0c_to_c0,iproc,mpl%tag+2)
+         call mpl%recv(nc0a,c0a_to_c0c,iproc,mpl%tag+3)
       end if
 
       ! Allocation
@@ -531,18 +531,18 @@ if (mpl%main) then
    deallocate(c0_to_c0a)
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
-   call mpl_send(hdata%nc0c,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(hdata%nc0c,mpl%ioproc,mpl%tag+1)
 
    ! Send data to ioproc
-   call mpl_send(hdata%nc0c,hdata%c0c_to_c0,mpl%ioproc,mpl%tag+2)
-   call mpl_send(geom%nc0a,hdata%c0a_to_c0c,mpl%ioproc,mpl%tag+3)
+   call mpl%send(hdata%nc0c,hdata%c0c_to_c0,mpl%ioproc,mpl%tag+2)
+   call mpl%send(geom%nc0a,hdata%c0a_to_c0c,mpl%ioproc,mpl%tag+3)
 end if
 mpl%tag = mpl%tag+4
 
 ! Communication broadcast
 hdata%AC%prefix = 'AC'
-call com_bcast(comAC,hdata%AC)
+call hdata%AC%bcast(comAC)
 
 ! Print results
 write(mpl%unit,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc

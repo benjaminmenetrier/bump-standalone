@@ -18,9 +18,9 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use tools_nc, only: ncfloat,ncerr
 use type_bdata, only: bdatatype
-use type_mpl, only: mpl,mpl_bcast
+use type_mpl, only: mpl
 use type_ndata, only: ndatatype
-use type_randgen, only: initialize_sampling,reseed_randgen
+use type_rng, only: rng
 
 implicit none
 
@@ -58,7 +58,7 @@ allocate(rh0smin(geom%nc0))
 allocate(mask_c0(geom%nc0))
 
 ! Reset random numbers seed
-if (trim(nam%strategy)=='specific_multivariate') call reseed_randgen()
+if (trim(nam%strategy)=='specific_multivariate') call rng%reseed
 
 ! Compute support radii
 write(mpl%unit,'(a10,a,a,f8.2,a,f8.2,a)') '','Average support radii (H/V): ', &
@@ -97,9 +97,9 @@ end do
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
 allocate(ndata%c1_to_c0(ndata%nc1))
-if (mpl%main) call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0smin,nam%ntry,nam%nrep, &
+if (mpl%main) call rng%initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0smin,nam%ntry,nam%nrep, &
  & ndata%nc1,ndata%c1_to_c0)
-call mpl_bcast(ndata%c1_to_c0,mpl%ioproc)
+call mpl%bcast(ndata%c1_to_c0,mpl%ioproc)
 
 ! Inverse conversion
 allocate(ndata%c0_to_c1(geom%nc0))
@@ -213,9 +213,9 @@ do il1=1,ndata%nl1
       end do
 
       ! Compute subset
-      if (mpl%main) call initialize_sampling(ndata%nc1,dble(geom%lon(ndata%c1_to_c0)), &
+      if (mpl%main) call rng%initialize_sampling(ndata%nc1,dble(geom%lon(ndata%c1_to_c0)), &
     & dble(geom%lat(ndata%c1_to_c0)),mask_c1,rh0s_c1,nam%ntry,nam%nrep,ndata%nc2(il1),c2_to_c1)
-      call mpl_bcast(c2_to_c1,mpl%ioproc)
+      call mpl%bcast(c2_to_c1,mpl%ioproc)
 
       ! Fill C2 mask
       ndata%c2mask(:,il1) = .false.

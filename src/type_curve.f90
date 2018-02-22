@@ -21,7 +21,7 @@ use tools_missing, only: msvalr,msr,isnotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_hdata, only: hdatatype
 use type_mpl, only: mpl
-use type_nam, only: namtype,namncwrite
+use type_nam, only: namtype
 
 implicit none
 
@@ -36,12 +36,18 @@ type curvetype
    real(kind_real),allocatable :: fit(:,:,:)      !< Fit
    real(kind_real),allocatable :: fit_rh(:)       !< Fit support radius
    real(kind_real),allocatable :: fit_rv(:)       !< Fit support radius
+contains
+   procedure :: alloc => curve_alloc
+   procedure :: dealloc => curve_dealloc
+   procedure :: normalization => curve_normalization
+   procedure :: pack => curve_pack
+   procedure :: unpack => curve_unpack
+   procedure :: write => curve_write
 end type curvetype
 
 private
 public :: curvetype
-public :: curve_alloc,curve_dealloc,curve_normalization
-public :: curve_pack,curve_unpack,curve_write,curve_write_all,curve_write_local
+public :: curve_write_all,curve_write_local
 
 contains
 
@@ -49,15 +55,15 @@ contains
 ! Subroutine: curve_alloc
 !> Purpose: curve object allocation
 !----------------------------------------------------------------------
-subroutine curve_alloc(hdata,ib,cname,curve)
+subroutine curve_alloc(curve,hdata,ib,cname)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< HDIAG data
-integer,intent(in) :: ib               !< Block index
-character(len=*),intent(in) :: cname   !< Curve name
-type(curvetype),intent(inout) :: curve !< Curve
+class(curvetype),intent(inout) :: curve !< Curve
+type(hdatatype),intent(in) :: hdata     !< HDIAG data
+integer,intent(in) :: ib                !< Block index
+character(len=*),intent(in) :: cname    !< Curve name
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -103,7 +109,7 @@ subroutine curve_dealloc(curve)
 implicit none
 
 ! Passed variables
-type(curvetype),intent(inout) :: curve !< Curve
+class(curvetype),intent(inout) :: curve !< Curve
 
 ! Deallocation
 if (allocated(curve%raw)) deallocate(curve%raw)
@@ -119,14 +125,14 @@ end subroutine curve_dealloc
 ! Subroutine: curve_normalization
 !> Purpose: compute localization normalization
 !----------------------------------------------------------------------
-subroutine curve_normalization(hdata,ib,curve)
+subroutine curve_normalization(curve,hdata,ib)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< HDIAG data
-integer,intent(in) :: ib               !< Block index
-type(curvetype),intent(inout) :: curve !< Curve
+class(curvetype),intent(inout) :: curve !< Curve
+type(hdatatype),intent(in) :: hdata     !< HDIAG data
+integer,intent(in) :: ib                !< Block index
 
 ! Local variables
 integer :: il0r,il0,jl0,jc3
@@ -160,13 +166,13 @@ end subroutine curve_normalization
 ! Subroutine: curve_pack
 !> Purpose: curve packing
 !----------------------------------------------------------------------
-subroutine curve_pack(hdata,curve,buf)
+subroutine curve_pack(curve,hdata,buf)
 
 implicit none
 
 ! Passed variables
+class(curvetype),intent(in) :: curve            !< Curve
 type(hdatatype),intent(in) :: hdata             !< HDIAG data
-type(curvetype),intent(in) :: curve             !< Curve
 real(kind_real),intent(out) :: buf(curve%npack) !< Buffer
 
 ! Local variables
@@ -192,13 +198,13 @@ end subroutine curve_pack
 ! Subroutine: curve_unpack
 !> Purpose: curve unpacking
 !----------------------------------------------------------------------
-subroutine curve_unpack(hdata,curve,buf)
+subroutine curve_unpack(curve,hdata,buf)
 
 implicit none
 
 ! Passed variables
+class(curvetype),intent(inout) :: curve        !< Curve
 type(hdatatype),intent(in) :: hdata            !< HDIAG data
-type(curvetype),intent(inout) :: curve         !< Curve
 real(kind_real),intent(in) :: buf(curve%npack) !< Buffer
 
 ! Local variables
@@ -229,14 +235,14 @@ end subroutine curve_unpack
 ! Subroutine: curve_write
 !> Purpose: write a curve
 !----------------------------------------------------------------------
-subroutine curve_write(hdata,ncid,curve)
+subroutine curve_write(curve,hdata,ncid)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< HDIAG data
-integer,intent(in) :: ncid             !< NetCDF file id
-type(curvetype),intent(inout) :: curve !< Curve
+class(curvetype),intent(inout) :: curve !< Curve
+type(hdatatype),intent(in) :: hdata     !< HDIAG data
+integer,intent(in) :: ncid              !< NetCDF file id
 
 ! Local variables
 integer :: one_id,nc_id,nl0r_id,nl0_id
@@ -334,7 +340,7 @@ associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Add namelist
-call namncwrite(nam,ncid)
+call nam%ncwrite(ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'one',1,one_id))
@@ -354,22 +360,22 @@ call ncerr(subr,nf90_put_var(ncid,disth_id,geom%disth(1:nam%nc3)))
 call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit))
 do ib=1,bpar%nb+1
    if (bpar%diag_block(ib)) then
-      call curve_write(hdata,ncid,cor_1(ib))
+      call cor_1(ib)%write(hdata,ncid)
       select case (trim(nam%method))
       case ('hyb-avg','hyb-rnd','dual-ens')
-         call curve_write(hdata,ncid,cor_2(ib))
+         call cor_2(ib)%write(hdata,ncid)
       end select
       select case (trim(nam%method))
       case ('loc','hyb-avg','hyb-rnd','dual-ens')
-         call curve_write(hdata,ncid,loc_1(ib))
+         call loc_1(ib)%write(hdata,ncid)
       end select
       select case (trim(nam%method))
       case ('hyb-avg','hyb-rnd','dual-ens')
-         call curve_write(hdata,ncid,loc_2(ib))
+         call loc_2(ib)%write(hdata,ncid)
       end select
       if (trim(nam%method)=='dual-ens') then
-         call curve_write(hdata,ncid,loc_3(ib))
-         call curve_write(hdata,ncid,loc_4(ib))
+         call loc_3(ib)%write(hdata,ncid)
+         call loc_4(ib)%write(hdata,ncid)
       end if
    end if
 end do
@@ -410,7 +416,7 @@ if (mpl%main) then
    call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
    ! Add namelist
-   call namncwrite(nam,ncid)
+   call nam%ncwrite(ncid)
 
    ! End definition
    call ncerr(subr,nf90_enddef(ncid))

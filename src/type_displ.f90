@@ -17,9 +17,8 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr
 use tools_nc, only: ncfloat,ncerr
 use type_hdata, only: hdatatype
-use type_linop, only: linoptype,linop_dealloc
 use type_mpl, only: mpl
-use type_nam, only: namncwrite
+use type_nam, only: namtype
 
 implicit none
 
@@ -40,11 +39,14 @@ type displtype
    real(kind_real),allocatable :: dist_c2_flt(:,:,:) !< Displacement distance, filtered
    real(kind_real),allocatable :: lon_c0_flt(:,:,:)  !< Interpolated displaced longitude
    real(kind_real),allocatable :: lat_c0_flt(:,:,:)  !< Interpolated displaced latitude
+contains
+   procedure :: alloc => displ_alloc
+   procedure :: dealloc => displ_dealloc
+   procedure :: write => displ_write
 end type displtype
 
 private
 public :: displtype
-public :: displ_alloc,displ_dealloc,displ_write
 
 contains
 
@@ -52,13 +54,13 @@ contains
 ! Subroutine: displ_alloc
 !> Purpose: displacement data allocation
 !----------------------------------------------------------------------
-subroutine displ_alloc(hdata,displ)
+subroutine displ_alloc(displ,hdata)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata    !< HDIAG data
-type(displtype),intent(inout) :: displ !< Displacement data
+class(displtype),intent(inout) :: displ !< Displacement data
+type(hdatatype),intent(in) :: hdata     !< HDIAG data
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
@@ -107,7 +109,7 @@ subroutine displ_dealloc(displ)
 implicit none
 
 ! Passed variables
-type(displtype),intent(inout) :: displ !< Displacement data
+class(displtype),intent(inout) :: displ !< Displacement data
 
 ! Deallocation
 if (allocated(displ%dist)) deallocate(displ%dist)
@@ -130,14 +132,14 @@ end subroutine displ_dealloc
 ! Subroutine: displ_write
 !> Purpose: write displacement data
 !----------------------------------------------------------------------
-subroutine displ_write(hdata,filename,displ)
+subroutine displ_write(displ,hdata,filename)
 
 implicit none
 
 ! Passed variables
-type(hdatatype),intent(in) :: hdata     !< HDIAG data
-character(len=*),intent(in) :: filename !< File name
-type(displtype),intent(in) :: displ     !< Displacement data
+class(displtype),intent(in) :: displ     !< Displacement data
+type(hdatatype),intent(in) :: hdata      !< HDIAG data
+character(len=*),intent(in) :: filename  !< File name
 
 ! Local variables
 integer :: ncid,nc0_id,nc2_id,nl0_id,nts_id,displ_niter_id,vunit_id,valid_id,dist_id,rhflt_id
@@ -153,7 +155,7 @@ if (.not.mpl%main) call msgerror('only I/O proc should enter '//trim(subr))
 
 ! Create file
 call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
-call namncwrite(nam,ncid)
+call nam%ncwrite(ncid)
 
 ! Define dimensions
 call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))

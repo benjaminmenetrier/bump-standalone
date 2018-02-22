@@ -19,14 +19,14 @@ use model_interface, only: model_coord,load_ensemble
 use tools_display, only: listing_setup,msgerror
 use tools_kinds,only: kind_real
 use type_bdata, only: bdatatype
-use type_bpar, only: bpartype,bpar_alloc
-use type_geom, only: geomtype,compute_grid_mesh
+use type_bpar, only: bpartype
+use type_geom, only: geomtype
 use type_mpl, only: mpl,mpl_start,mpl_end
-use type_nam, only: namtype,namread,namcheck
+use type_nam, only: namtype
 use type_ndata, only: ndatatype
 use type_odata, only: odatatype
-use type_randgen, only: create_randgen
-use type_timer, only: timertype,timer_start,timer_display
+use type_rng, only: rng
+use type_timer, only: timertype
 
 implicit none
 
@@ -44,19 +44,19 @@ type(timertype) :: timer
 ! Initialize MPL
 !----------------------------------------------------------------------
 
-call mpl_start
+call mpl_start()
 
 !----------------------------------------------------------------------
 ! Initialize timer
 !----------------------------------------------------------------------
 
-if (mpl%main) call timer_start(timer)
+if (mpl%main) call timer%start
 
 !----------------------------------------------------------------------
 ! Read namelist
 !----------------------------------------------------------------------
 
-call namread(nam)
+call nam%read
 
 !----------------------------------------------------------------------
 ! Setup display
@@ -78,7 +78,7 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 ! Check namelist
 !----------------------------------------------------------------------
 
-call namcheck(nam)
+call nam%check
 
 !----------------------------------------------------------------------
 ! Parallel setup
@@ -93,7 +93,7 @@ write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI task
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Initialize random number generator'
 
-call create_randgen(nam)
+call rng%create(nam)
 
 !----------------------------------------------------------------------
 ! Initialize geometry
@@ -108,7 +108,7 @@ call model_coord(nam,geom)
 ! Initialize block parameters
 !----------------------------------------------------------------------
 
-call bpar_alloc(nam,geom,bpar)
+call bpar%alloc(nam,geom)
 
 !----------------------------------------------------------------------
 ! Compute grid mesh
@@ -118,7 +118,7 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 write(mpl%unit,'(a)') '--- Compute grid mesh'
 
 ! Compute grid mesh
-call compute_grid_mesh(nam,geom)
+call geom%compute_grid_mesh(nam)
 
 !----------------------------------------------------------------------
 ! Load ensemble
@@ -200,7 +200,7 @@ if (mpl%main) then
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Execution stats'
 
-   call timer_display(timer)
+   call timer%display
 
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 else
@@ -219,6 +219,6 @@ if ((mpl%main.and..not.nam%colorlog).or..not.mpl%main) close(unit=mpl%unit)
 ! Finalize MPL
 !----------------------------------------------------------------------
 
-call mpl_end
+call mpl_end()
 
 end program main

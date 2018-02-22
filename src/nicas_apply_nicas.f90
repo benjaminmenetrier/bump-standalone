@@ -15,9 +15,9 @@ use nicas_apply_interp, only: apply_interp,apply_interp_ad
 use omp_lib
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
-use type_com, only: com_ext,com_red
+use type_com, only: comtype
 use type_geom, only: geomtype
-use type_mpl, only: mpl,mpl_barrier
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 use yomhook, only: lhook,dr_hook
@@ -76,7 +76,7 @@ if (ndata%mpicom==1) then
    deallocate(alpha_tmp)
 elseif (ndata%mpicom==2) then
    ! Halo reduction from zone B to zone A
-   call com_red(ndata%AB,alpha)
+   call ndata%AB%red(alpha)
 
    ! Allocation
    allocate(alpha_tmp(ndata%nsa))
@@ -102,10 +102,10 @@ end if
 call apply_convol(ndata,alpha)
 
 ! Halo reduction from zone C to zone A
-call com_red(ndata%AC,alpha)
+call ndata%AC%red(alpha)
 
 ! Halo extension from zone A to zone B
-call com_ext(ndata%AB,alpha)
+call ndata%AB%ext(alpha)
 
 ! Interpolation
 call apply_interp(geom,ndata,alpha,fld)
@@ -177,10 +177,10 @@ deallocate(alpha_tmp)
 call apply_convol(ndata,alpha_copy)
 
 ! Halo reduction from zone C to zone A
-call com_red(ndata%AC,alpha_copy)
+call ndata%AC%red(alpha_copy)
 
 ! Halo extension from zone A to zone B
-call com_ext(ndata%AB,alpha_copy)
+call ndata%AB%ext(alpha_copy)
 
 ! Interpolation
 call apply_interp(geom,ndata,alpha_copy,fld)
@@ -221,7 +221,7 @@ allocate(alpha_tmp(ndata%nsa))
 call apply_interp_ad(geom,ndata,fld,alpha_copy)
 
 ! Halo reduction from zone B to zone A
-call com_red(ndata%AB,alpha_copy)
+call ndata%AB%red(alpha_copy)
 
 ! Copy zone A
 !$omp parallel do schedule(static) private(isa)
@@ -251,7 +251,7 @@ deallocate(alpha_tmp)
 call apply_convol(ndata,alpha_copy)
 
 ! Halo reduction from zone C to zone A
-call com_red(ndata%AC,alpha_copy)
+call ndata%AC%red(alpha_copy)
 
 ! Copy
 !$omp parallel do schedule(static) private(isa)
