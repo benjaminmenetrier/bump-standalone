@@ -17,11 +17,11 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr
 use tools_nc, only: ncerr,ncfloat
 use type_bpar, only: bpartype
-use type_com, only: comtype,com_dealloc,com_read,com_write
+use type_com, only: comtype
 use type_geom, only: geomtype
-use type_linop, only: linoptype,linop_alloc,linop_dealloc,linop_copy,linop_read,linop_write
+use type_linop, only: linoptype,linop_read,linop_write
 use type_mpl, only: mpl
-use type_nam, only: namtype,namncwrite
+use type_nam, only: namtype
 
 implicit none
 
@@ -136,11 +136,13 @@ type ndatatype
    ! Transforms
    real(kind_real),allocatable :: trans(:,:)    !< Direct transform
    real(kind_real),allocatable :: transinv(:,:) !< Inverse transform
+contains
+   procedure :: dealloc => ndata_dealloc
 end type ndatatype
 
 private
 public :: ndatatype
-public :: ndata_dealloc,ndata_read,ndata_write,ndata_write_mpi_summary
+public :: ndata_read,ndata_write,ndata_write_mpi_summary
 
 contains
 
@@ -153,7 +155,7 @@ subroutine ndata_dealloc(ndata)
 implicit none
 
 ! Passed variables
-type(ndatatype),intent(inout) :: ndata !< NICAS data
+class(ndatatype),intent(inout) :: ndata !< NICAS data
 
 ! Local variables
 integer :: il0,il1,its
@@ -167,13 +169,13 @@ if (allocated(ndata%vtop)) deallocate(ndata%vtop)
 if (allocated(ndata%nc2)) deallocate(ndata%nc2)
 if (allocated(ndata%hfull)) then
    do il0=1,geom%nl0
-      call linop_dealloc(ndata%hfull(il0))
+      call ndata%hfull(il0)%dealloc
    end do
    deallocate(ndata%hfull)
 end if
 if (allocated(ndata%sfull)) then
    do il1=1,ndata%nl1
-      call linop_dealloc(ndata%sfull(il1))
+      call ndata%sfull(il1)%dealloc
    end do
    deallocate(ndata%sfull)
 end if
@@ -212,27 +214,27 @@ if (allocated(ndata%s_to_sc)) deallocate(ndata%s_to_sc)
 if (allocated(ndata%sc_nor_to_s)) deallocate(ndata%sc_nor_to_s)
 if (allocated(ndata%s_to_sc_nor)) deallocate(ndata%s_to_sc_nor)
 if (allocated(ndata%sb_to_sc_nor)) deallocate(ndata%sb_to_sc_nor)
-call linop_dealloc(ndata%c_nor)
+call ndata%c_nor%dealloc
 if (allocated(ndata%sa_to_sc)) deallocate(ndata%sa_to_sc)
 if (allocated(ndata%sb_to_sc)) deallocate(ndata%sb_to_sc)
-call linop_dealloc(ndata%c)
+call ndata%c%dealloc
 if (allocated(ndata%h)) then
    do il0=1,geom%nl0
-      call linop_dealloc(ndata%h(il0))
+      call ndata%h(il0)%dealloc
    end do
    deallocate(ndata%h)
 end if
-call linop_dealloc(ndata%v)
+call ndata%v%dealloc
 if (allocated(ndata%s)) then
    do il1=1,ndata%nl1
-      call linop_dealloc(ndata%s(il1))
+      call ndata%s(il1)%dealloc
    end do
    deallocate(ndata%s)
 end if
 if (allocated(ndata%d)) then
    do its=1,nam%nts-1
       do il0=1,geom%nl0
-        call linop_dealloc(ndata%d(il0,its))
+        call ndata%d(il0,its)%dealloc
       end do
    end do
    deallocate(ndata%d)
@@ -242,8 +244,8 @@ if (allocated(ndata%sb_to_l1)) deallocate(ndata%sb_to_l1)
 if (allocated(ndata%norm)) deallocate(ndata%norm)
 if (allocated(ndata%coef_ens)) deallocate(ndata%coef_ens)
 if (allocated(ndata%trans)) deallocate(ndata%trans)
-call com_dealloc(ndata%AB)
-call com_dealloc(ndata%AC)
+call ndata%AB%dealloc
+call ndata%AC%dealloc
 if (allocated(ndata%transinv)) deallocate(ndata%transinv)
 if (allocated(ndata%sb_to_c1b)) deallocate(ndata%sb_to_c1b)
 
@@ -333,10 +335,10 @@ do ib=1,bpar%nb+1
          allocate(ndata(ib)%h(geom%nl0i))
          allocate(ndata(ib)%s(ndata(ib)%nl1))
       end if
+      if ((ib==bpar%nb+1).and.nam%displ_diag) allocate(ndata(ib)%d(geom%nl0,nam%nts-1))
       if (nam%transform.and.bpar%auto_block(ib)) then
          allocate(ndata(ib)%trans(geom%nc0,geom%nl0))
          allocate(ndata(ib)%transinv(geom%nc0,geom%nl0))
-         allocate(ndata(ib)%d(geom%nl0,nam%nts-1))
       end if
 
       ! Get variable id
@@ -361,15 +363,15 @@ do ib=1,bpar%nb+1
          if (ndata(ib)%nsb>0) call ncerr(subr,nf90_get_var(ncid,sb_to_sc_id,ndata(ib)%sb_to_sc))
          call ncerr(subr,nf90_get_var(ncid,norm_id,ndata(ib)%norm))
          call ncerr(subr,nf90_get_var(ncid,coef_ens_id,ndata(ib)%coef_ens))
-         call com_read(ncid,'AB',ndata(ib)%AB)
-         call com_read(ncid,'AC',ndata(ib)%AC)
+         call ndata(ib)%AB%read(ncid,'AB')
+         call ndata(ib)%AC%read(ncid,'AC')
          call linop_read(ncid,'c',ndata(ib)%c)
          call linop_read(ncid,'h',geom%nl0i,ndata(ib)%h)
          call linop_read(ncid,'v',ndata(ib)%v)
          call linop_read(ncid,'s',ndata(ib)%nl1,ndata(ib)%s)
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
-         call com_read(ncid,'AD',ndata(ib)%AD)
+         call ndata(ib)%AD%read(ncid,'AD')
          call linop_read(ncid,'d',geom%nl0,nam%nts-1,ndata(ib)%d)
       end if
       if (nam%transform.and.bpar%auto_block(ib)) then
@@ -417,7 +419,7 @@ do ib=1,bpar%nb+1
       call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
       ! Write namelist parameters
-      call namncwrite(nam,ncid)
+      call nam%ncwrite(ncid)
 
       ! Define dimensions
       call ncerr(subr,nf90_def_dim(ncid,'nl0_1',geom%nl0,nl0_1_id))
@@ -469,15 +471,15 @@ do ib=1,bpar%nb+1
          if (ndata(ib)%nsb>0) call ncerr(subr,nf90_put_var(ncid,sb_to_sc_id,ndata(ib)%sb_to_sc))
          call ncerr(subr,nf90_put_var(ncid,norm_id,ndata(ib)%norm))
          call ncerr(subr,nf90_put_var(ncid,coef_ens_id,ndata(ib)%coef_ens))
-         call com_write(ncid,ndata(ib)%AB)
-         call com_write(ncid,ndata(ib)%AC)
+         call ndata(ib)%AB%write(ncid)
+         call ndata(ib)%AC%write(ncid)
          call linop_write(ncid,ndata(ib)%c)
          call linop_write(ncid,geom%nl0i,ndata(ib)%h)
          call linop_write(ncid,ndata(ib)%v)
          call linop_write(ncid,ndata(ib)%nl1,ndata(ib)%s)
       end if
       if ((ib==bpar%nb+1).and.nam%displ_diag) then
-         call com_write(ncid,ndata(ib)%AD)
+         call ndata(ib)%AD%write(ncid)
          call linop_write(ncid,geom%nl0,nam%nts-1,ndata(ib)%d)
       end if
       if (nam%transform.and.bpar%auto_block(ib)) then
@@ -524,7 +526,7 @@ do ib=1,bpar%nb+1
       call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
 
       ! Write namelist parameters
-      call namncwrite(nam,ncid)
+      call nam%ncwrite(ncid)
 
       ! Define dimensions
       call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))

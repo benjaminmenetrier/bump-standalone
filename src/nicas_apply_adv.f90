@@ -12,10 +12,10 @@ module nicas_apply_adv
 
 use omp_lib
 use tools_kinds, only: kind_real
-use type_com, only: com_ext,com_red
+use type_com, only: comtype
 use type_geom, only: geomtype
-use type_linop, only: apply_linop,apply_linop_ad
-use type_mpl, only: mpl,mpl_barrier
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 use yomhook, only: lhook,dr_hook
@@ -57,12 +57,12 @@ do its=2,nam%nts
       fld_tmp = fld(:,:,iv,its)
 
       ! Halo extension from zone A to zone D
-      call com_ext(ndata%AD,fld_tmp)
+      call ndata%AD%ext(fld_tmp)
 
       ! Interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call apply_linop(ndata%d(il0,its-1),fld_tmp(:,il0),fld(:,il0,iv,its))
+         call ndata%d(il0,its-1)%apply(fld_tmp(:,il0),fld(:,il0,iv,its))
       end do
       !$omp end parallel do
 
@@ -104,12 +104,12 @@ do its=2,nam%nts
       ! Adjoint interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call apply_linop_ad(ndata%d(il0,its-1),fld(:,il0,iv,its),fld_tmp(:,il0))
+         call ndata%d(il0,its-1)%apply_ad(fld(:,il0,iv,its),fld_tmp(:,il0))
       end do
       !$omp end parallel do
 
       ! Halo reduction from zone D to zone A
-      call com_red(ndata%AD,fld_tmp)
+      call ndata%AD%red(fld_tmp)
 
       ! Copy
       fld(:,:,iv,its) = fld_tmp

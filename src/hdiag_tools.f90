@@ -19,8 +19,8 @@ use tools_missing, only: msvalr,msr,isnotmsi,isnotmsr,isanynotmsr,isallnotmsr
 use tools_nc, only: ncfloat,ncerr
 use tools_qsort, only: qsort
 use type_hdata, only: hdatatype
-use type_linop, only: apply_linop
-use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 implicit none
 
 interface diag_com_lg
@@ -149,7 +149,7 @@ associate(geom=>hdata%geom)
 
 do il0=1,geom%nl0
    ! Compute interpolation on a single level
-   call apply_linop(hdata%h(min(il0,geom%nl0i)),fld_c2(:,il0),fld(:,il0))
+   call hdata%h(min(il0,geom%nl0i))%apply(fld_c2(:,il0),fld(:,il0))
 end do
 
 ! End associate
@@ -202,7 +202,7 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Receive data from iproc
-         call mpl_recv(hdata%proc_to_nc2a(iproc),rbuf,iproc,mpl%tag)
+         call mpl%recv(hdata%proc_to_nc2a(iproc),rbuf,iproc,mpl%tag)
       end if
 
       ! Copy from buffer
@@ -219,7 +219,7 @@ if (mpl%main) then
    end do
 else
    ! Sending data to iproc
-   call mpl_send(hdata%nc2a,sbuf,mpl%ioproc,mpl%tag)
+   call mpl%send(hdata%nc2a,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
@@ -276,7 +276,7 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Receive data from iproc
-         call mpl_recv(hdata%proc_to_nc2a(iproc)*geom%nl0,rbuf,iproc,mpl%tag)
+         call mpl%recv(hdata%proc_to_nc2a(iproc)*geom%nl0,rbuf,iproc,mpl%tag)
       end if
 
       ! Copy from buffer
@@ -297,7 +297,7 @@ if (mpl%main) then
    end do
 else
    ! Sending data to iproc
-   call mpl_send(hdata%nc2a*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
+   call mpl%send(hdata%nc2a*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 

@@ -27,15 +27,13 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
 use type_bdata, only: bdatatype,bdata_alloc,bdata_copy
 use type_bpar, only: bpartype
-use type_com, only: com_ext,com_red
-use type_ctree, only: find_nearest_neighbors
-use type_geom, only: geomtype,fld_com_gl,fld_com_lg,fld_write
-use type_linop, only: apply_linop,apply_linop_ad
-use type_mpl, only: mpl,mpl_dot_prod,mpl_bcast
+use type_com, only: comtype
+use type_ctree, only: ctreetype
+use type_geom, only: geomtype
+use type_mpl, only: mpl
 use type_nam, only: namtype
-use type_ndata, only: ndatatype,ndata_dealloc
-use type_randgen, only: rand_real,rand_integer
-use type_timer, only: timertype,timer_start,timer_end
+use type_ndata, only: ndatatype
+use type_rng, only: rng
 
 implicit none
 
@@ -85,64 +83,64 @@ allocate(fld_save(geom%nc0a,ndata%geom%nl0))
 ! Interpolation (subsampling)
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,alpha_save)
-call rand_real(0.0_kind_real,1.0_kind_real,gamma_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,gamma_save)
 
 ! Adjoint test
 call apply_interp_s(ndata,alpha_save,gamma)
 call apply_interp_s_ad(ndata,gamma_save,alpha)
 
 ! Print result
-call mpl_dot_prod(alpha,alpha_save,sum1)
-call mpl_dot_prod(gamma,gamma_save,sum2)
+call mpl%dot_prod(alpha,alpha_save,sum1)
+call mpl%dot_prod(gamma,gamma_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (subsampling): ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Interpolation (vertical)
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,gamma_save)
-call rand_real(0.0_kind_real,1.0_kind_real,delta_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,gamma_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,delta_save)
 
 ! Adjoint test
 call apply_interp_v(geom,ndata,gamma_save,delta)
 call apply_interp_v_ad(geom,ndata,delta_save,gamma)
 
 ! Print result
-call mpl_dot_prod(gamma,gamma_save,sum1)
-call mpl_dot_prod(delta,delta_save,sum2)
+call mpl%dot_prod(gamma,gamma_save,sum1)
+call mpl%dot_prod(delta,delta_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (vertical):    ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Interpolation (horizontal)
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,delta_save)
-call rand_real(0.0_kind_real,1.0_kind_real,fld_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,delta_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld_save)
 
 ! Adjoint test
 call apply_interp_h(geom,ndata,delta_save,fld)
 call apply_interp_h_ad(geom,ndata,fld_save,delta)
 
 ! Print result
-call mpl_dot_prod(delta,delta_save,sum1)
-call mpl_dot_prod(fld,fld_save,sum2)
+call mpl%dot_prod(delta,delta_save,sum1)
+call mpl%dot_prod(fld,fld_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (horizontal):  ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
 ! Interpolation (total)
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,alpha_save)
-call rand_real(0.0_kind_real,1.0_kind_real,fld_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld_save)
 
 ! Adjoint test
 call apply_interp(geom,ndata,alpha_save,fld)
 call apply_interp_ad(geom,ndata,fld_save,alpha)
 
 ! Print result
-call mpl_dot_prod(alpha,alpha_save,sum1)
-call mpl_dot_prod(fld,fld_save,sum2)
+call mpl%dot_prod(alpha,alpha_save,sum1)
+call mpl%dot_prod(fld,fld_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (total):       ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -153,8 +151,8 @@ allocate(alpha2(ndata%nsc))
 allocate(alpha2_save(ndata%nsc))
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
-call rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
 alpha1 = alpha1_save
 alpha2 = alpha2_save
 
@@ -163,8 +161,8 @@ call apply_convol(ndata,alpha1)
 call apply_convol(ndata,alpha2)
 
 ! Print result
-call mpl_dot_prod(alpha1,alpha2_save,sum1)
-call mpl_dot_prod(alpha2,alpha1_save,sum2)
+call mpl%dot_prod(alpha1,alpha2_save,sum1)
+call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Convolution adjoint test:                 ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -179,18 +177,18 @@ allocate(alpha2(ndata%nsa))
 allocate(alpha2_save(ndata%nsa))
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
-call rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
 alpha1 = alpha1_save
 alpha2 = alpha2_save
 
 ! Adjoint test
-call com_red(ndata%AB,alpha1)
-call com_ext(ndata%AB,alpha2)
+call ndata%AB%red(alpha1)
+call ndata%AB%ext(alpha2)
 
 ! Print result
-call mpl_dot_prod(alpha1,alpha2_save,sum1)
-call mpl_dot_prod(alpha2,alpha1_save,sum2)
+call mpl%dot_prod(alpha1,alpha2_save,sum1)
+call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Communication AB adjoint test:            ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -205,18 +203,18 @@ allocate(alpha2(ndata%nsa))
 allocate(alpha2_save(ndata%nsa))
 
 ! Initialization
-call rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
-call rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha1_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,alpha2_save)
 alpha1 = alpha1_save
 alpha2 = alpha2_save
 
 ! Adjoint test
-call com_red(ndata%AC,alpha1)
-call com_ext(ndata%AC,alpha2)
+call ndata%AC%red(alpha1)
+call ndata%AC%ext(alpha2)
 
 ! Print result
-call mpl_dot_prod(alpha1,alpha2_save,sum1)
-call mpl_dot_prod(alpha2,alpha1_save,sum2)
+call mpl%dot_prod(alpha1,alpha2_save,sum1)
+call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Communication AC adjoint test:            ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -227,8 +225,8 @@ allocate(fld1_save(geom%nc0,geom%nl0))
 allocate(fld2_save(geom%nc0,geom%nl0))
 
 ! Generate random field
-call rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
-call rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
 fld1 = fld1_save
 fld2 = fld2_save
 
@@ -242,8 +240,8 @@ else
 end if
 
 ! Print result
-call mpl_dot_prod(fld1,fld2_save,sum1)
-call mpl_dot_prod(fld2,fld1_save,sum2)
+call mpl%dot_prod(fld1,fld2_save,sum1)
+call mpl%dot_prod(fld2,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test:                       ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 
@@ -272,8 +270,8 @@ real(kind_real) :: fld(ndata%geom%nc0a,ndata%geom%nl0),fld_prev(ndata%geom%nc0a,
 associate(nam=>ndata%nam,geom=>ndata%geom)
 
 ! Power method to find the largest eigenvalue
-call rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
-call mpl_dot_prod(fld_prev,fld_prev,norm)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
+call mpl%dot_prod(fld_prev,fld_prev,norm)
 fld_prev = fld_prev/norm
 egvmax_prev = huge(1.0)
 iter = 1
@@ -289,12 +287,12 @@ do while (iter<=nitermax)
    end if
 
    ! Compute Rayleigh quotient
-   call mpl_dot_prod(fld,fld_prev,num)
-   call mpl_dot_prod(fld_prev,fld_prev,den)
+   call mpl%dot_prod(fld,fld_prev,num)
+   call mpl%dot_prod(fld_prev,fld_prev,den)
    egvmax = num/den
 
    ! Renormalize the vector
-   call mpl_dot_prod(fld,fld,norm)
+   call mpl%dot_prod(fld,fld,norm)
    fld = fld/norm
 
    ! Exit test
@@ -307,8 +305,8 @@ do while (iter<=nitermax)
 end do
 
 ! Power method to find the smallest eigenvalue
-call rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
-call mpl_dot_prod(fld_prev,fld_prev,norm)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld_prev)
+call mpl%dot_prod(fld_prev,fld_prev,norm)
 egvmin_prev = huge(1.0)
 fld_prev = fld_prev/norm
 egvmin_prev = huge(1.0)
@@ -326,12 +324,12 @@ do while (iter<=nitermax)
    fld = fld-egvmax*fld_prev
 
    ! Compute Rayleigh quotient
-   call mpl_dot_prod(fld,fld_prev,num)
-   call mpl_dot_prod(fld_prev,fld_prev,den)
+   call mpl%dot_prod(fld,fld_prev,num)
+   call mpl%dot_prod(fld_prev,fld_prev,den)
    egvmin = num/den
 
    ! Renormalize the vector
-   call mpl_dot_prod(fld,fld,norm)
+   call mpl%dot_prod(fld,fld,norm)
    fld = fld/norm
 
    ! Exit test
@@ -380,7 +378,7 @@ ndata_other%nam => ndata%nam
 ndata_other%geom => ndata%geom
 
 ! Generate random field
-call rand_real(-1.0_kind_real,1.0_kind_real,fld)
+call rng%rand_real(-1.0_kind_real,1.0_kind_real,fld)
 fld_sqrt = fld
 
 ! Apply NICAS, initial version
@@ -453,7 +451,7 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(geom,fld)
+call geom%fld_com_gl(fld)
 
 ! Apply NICAS method
 if (nam%lsqrt) then
@@ -463,12 +461,12 @@ else
 end if
 
 ! Local to global
-call fld_com_lg(geom,fld)
+call geom%fld_com_lg(fld)
 
 if (mpl%main) then
    ! Write field
    call model_write(nam,geom,trim(nam%prefix)//'_dirac_gridded.nc',trim(blockname)//'_dirac',fld)
-   call fld_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac',fld)
+   call geom%fld_write(nam,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac',fld)
 
    ! Print results
    write(mpl%unit,'(a7,a)') '','Values at dirac points:'
@@ -490,7 +488,7 @@ if (mpl%main) then
          fld_c1(ic0,:) = fld(ic0,:)
       end do
       call model_write(nam,geom,trim(nam%prefix)//'_dirac_gridded.nc',trim(blockname)//'_dirac_c1',fld_c1)
-      call fld_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac_c1',fld_c1)
+      call geom%fld_write(nam,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac_c1',fld_c1)
 
       ! Write field at subgrid points
       allocate(fld_s(geom%nc0,geom%nl0))
@@ -503,7 +501,7 @@ if (mpl%main) then
          fld_s(ic0,il0) = fld(ic0,il0)
       end do
       call model_write(nam,geom,trim(nam%prefix)//'_dirac_gridded.nc',trim(blockname)//'_dirac_s',fld_s)
-      call fld_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac_s',fld_s)
+      call geom%fld_write(nam,trim(nam%prefix)//'_dirac.nc',trim(blockname)//'_dirac_s',fld_s)
    end if
 end if
 
@@ -543,8 +541,8 @@ if (present(ens1)) then
 end if
 
 ! Generate random field
-call rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
-call rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld1_save)
+call rng%rand_real(0.0_kind_real,1.0_kind_real,fld2_save)
 
 ! Adjoint test
 fld1_loc = fld1_save
@@ -570,19 +568,19 @@ if (present(ens1)) then
 end if
 
 ! Print result
-call mpl_dot_prod(fld1_loc,fld2_save,sum1)
-call mpl_dot_prod(fld2_loc,fld1_save,sum2)
+call mpl%dot_prod(fld1_loc,fld2_save,sum1)
+call mpl%dot_prod(fld2_loc,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 if (nam%displ_diag) then
-   call mpl_dot_prod(fld1_adv,fld2_save,sum1)
-   call mpl_dot_prod(fld2_adv,fld1_save,sum2)
+   call mpl%dot_prod(fld1_adv,fld2_save,sum1)
+   call mpl%dot_prod(fld2_adv,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 end if
 if (present(ens1)) then
-   call mpl_dot_prod(fld1_bens,fld2_save,sum1)
-   call mpl_dot_prod(fld2_bens,fld1_save,sum2)
+   call mpl%dot_prod(fld1_bens,fld2_save,sum1)
+   call mpl%dot_prod(fld2_bens,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Ensemble B adjoint test:   ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
 end if
@@ -621,10 +619,10 @@ if (present(ens1)) then
 end if
 
 ! Generate random field
-call rand_real(-1.0_kind_real,1.0_kind_real,fld_loc)
+call rng%rand_real(-1.0_kind_real,1.0_kind_real,fld_loc)
 fld_loc_sqrt = fld_loc
 if (present(ens1)) then
-   call rand_real(-1.0_kind_real,1.0_kind_real,fld_bens)
+   call rng%rand_real(-1.0_kind_real,1.0_kind_real,fld_bens)
    fld_bens_sqrt = fld_bens
 end if
 
@@ -743,7 +741,7 @@ if (mpl%main) then
 end if
 
 ! Global to local
-call fld_com_gl(nam,geom,fld)
+call geom%fld_com_gl(nam,fld)
 
 ! Allocation
 allocate(fld_loc(geom%nc0a,geom%nl0,nam%nv,nam%nts))
@@ -764,8 +762,8 @@ if (present(ens1)) then
 end if
 
 ! Local to global
-call fld_com_lg(nam,geom,fld_loc)
-if (present(ens1)) call fld_com_lg(nam,geom,fld_bens)
+call geom%fld_com_lg(nam,fld_loc)
+if (present(ens1)) call geom%fld_com_lg(nam,fld_bens)
 
 if (mpl%main) then
    ! Write field
@@ -773,11 +771,11 @@ if (mpl%main) then
       write(itschar,'(i2.2)') its
       do iv=1,nam%nv
          call model_write(nam,geom,trim(nam%prefix)//'_dirac_gridded.nc',trim(nam%varname(iv))//'_'//itschar,fld_loc(:,:,iv,its))
-         call fld_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(nam%varname(iv))//'_'//itschar,fld_loc(:,:,iv,its))
+         call geom%fld_write(nam,trim(nam%prefix)//'_dirac.nc',trim(nam%varname(iv))//'_'//itschar,fld_loc(:,:,iv,its))
          if (present(ens1)) then
             call model_write(nam,geom,trim(nam%prefix)//'_dirac_gridded.nc',trim(nam%varname(iv))//'_'//itschar//'_Bens', &
           & fld_bens(:,:,iv,its))
-            call fld_write(nam,geom,trim(nam%prefix)//'_dirac.nc',trim(nam%varname(iv))//'_'//itschar//'_Bens', &
+            call geom%fld_write(nam,trim(nam%prefix)//'_dirac.nc',trim(nam%varname(iv))//'_'//itschar//'_Bens', &
           & fld_bens(:,:,iv,its))
          end if
       end do
@@ -828,7 +826,7 @@ do itest=1,min(ntest,10)
    fld_tmp = fld_ref(:,:,:,:,itest)
 
    ! Local to global
-   call fld_com_lg(nam,geom,fld_tmp)
+   call geom%fld_com_lg(nam,fld_tmp)
 
    if (mpl%main) then
       ! Write field
@@ -880,7 +878,7 @@ do ifac=1,nfac
          fld_tmp = fld
 
          ! Local to global
-         call fld_com_lg(nam,geom,fld_tmp)
+         call geom%fld_com_lg(nam,fld_tmp)
 
          if (mpl%main) then
             ! Write field
@@ -1098,7 +1096,7 @@ do ifac=1,nfac
 
    ! Release memory
    do ib=1,bpar%nb+1
-      if (bpar%nicas_block(ib)) call ndata_dealloc(ndata_test(ib))
+      if (bpar%nicas_block(ib)) call ndata_test(ib)%dealloc
    end do
 
    ! Print scores
@@ -1139,7 +1137,7 @@ real(kind_real) :: nn_dist(1)
 
 do idir=1,nam%ndir
    ! Find nearest neighbor
-   call find_nearest_neighbors(geom%ctree,dble(nam%londir(idir)*deg2rad),dble(nam%latdir(idir)*deg2rad),1,nn_index,nn_dist)
+   call geom%ctree%find_nearest_neighbors(dble(nam%londir(idir)*deg2rad),dble(nam%latdir(idir)*deg2rad),1,nn_index,nn_dist)
    ic0dir(idir) = nn_index(1)
 
    ! Find level index
@@ -1167,11 +1165,11 @@ integer :: itest,ic0,iproc,ic0a
 
 ! Define dirac locations
 if (mpl%main) then
-   call rand_integer(1,geom%nc0,ic0dir)
-   call rand_integer(1,geom%nl0,il0dir)
+   call rng%rand_integer(1,geom%nc0,ic0dir)
+   call rng%rand_integer(1,geom%nl0,il0dir)
 end if
-call mpl_bcast(ic0dir,mpl%ioproc)
-call mpl_bcast(il0dir,mpl%ioproc)
+call mpl%bcast(ic0dir,mpl%ioproc)
+call mpl%bcast(il0dir,mpl%ioproc)
 ivdir = 1
 itsdir = 1
 

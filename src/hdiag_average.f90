@@ -16,10 +16,11 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
 use tools_qsort, only: qsort
-use type_avg, only: avgtype,avg_alloc,avg_copy,avg_pack,avg_unpack
+use type_avg, only: avgtype
 use type_mom, only: momtype
-use type_mpl, only: mpl,mpl_allreduce_sum
+use type_mpl, only: mpl
 use type_hdata, only: hdatatype
+
 implicit none
 
 private
@@ -56,7 +57,7 @@ avg%ne = mom%ne
 avg%nsub = mom%nsub
 
 ! Allocation
-call avg_alloc(hdata,ib,avg)
+call avg%alloc(hdata,ib)
 
 ! Global index
 if (ic2a==0) then
@@ -148,13 +149,13 @@ if (ic2a==0) then
    allocate(rbuf(avg%npack))
 
    ! Pack data
-   call avg_pack(hdata,ib,avg,sbuf)
+   call avg%pack(hdata,ib,sbuf)
 
    ! Allreduce
-   call mpl_allreduce_sum(sbuf,rbuf)
+   call mpl%allreduce_sum(sbuf,rbuf)
 
    ! Unpack data
-   call avg_unpack(hdata,ib,avg,rbuf)
+   call avg%unpack(hdata,ib,rbuf)
 end if
 
 ! Normalize
@@ -282,7 +283,7 @@ if (ic2a==0) then
    sbuf = pack(m11lrm11,mask=.true.)
 
    ! Allreduce
-   call mpl_allreduce_sum(sbuf,rbuf)
+   call mpl%allreduce_sum(sbuf,rbuf)
 
    ! Unpack data
    mask_unpack = .true.
@@ -478,7 +479,7 @@ avg(bpar%nb+1)%ne = avg(1)%ne
 avg(bpar%nb+1)%nsub = avg(1)%nsub
 
 ! Allocation
-call avg_alloc(hdata,bpar%nb+1,avg(bpar%nb+1))
+call avg(bpar%nb+1)%alloc(hdata,bpar%nb+1)
 
 ! Allocation
 allocate(cor(nam%nc3,nam%nl0r,geom%nl0))

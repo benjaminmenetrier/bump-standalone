@@ -17,7 +17,7 @@ use tools_kinds, only: kind_real
 use tools_fit, only: fast_fit,ver_smooth
 use tools_minim, only: minim
 use tools_missing, only: msi,msr,isnotmsr
-use type_curve, only: curvetype,curve_pack,curve_unpack
+use type_curve, only: curvetype
 use type_geom, only: geomtype
 use type_hdata, only: hdatatype
 use type_mdata, only: mdatatype

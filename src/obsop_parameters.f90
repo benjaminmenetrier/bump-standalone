@@ -16,15 +16,13 @@ use tools_interp, only: compute_interp
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,isnotmsi
 use tools_qsort, only: qsort
-use type_com, only: comtype,com_setup,com_bcast,com_dealloc
-use type_ctree, only: ctreetype,create_ctree
+use type_com, only: comtype,com_setup
 use type_geom, only: geomtype
-use type_linop, only: linoptype,linop_alloc,linop_reorder,linop_dealloc
-use type_mesh, only: create_mesh
-use type_mpl, only: mpl,mpl_allgather,mpl_send,mpl_recv,mpl_bcast
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_odata, only: odatatype
-use type_randgen, only: rand_real
+use type_rng, only: rng
 
 implicit none
 
@@ -66,7 +64,7 @@ allocate(odata%proc_to_nobsa(mpl%nproc))
 
 if (llocal) then
    ! Get global number of observations
-   call mpl_allgather(1,(/odata%nobsa/),odata%proc_to_nobsa)
+   call mpl%allgather(1,(/odata%nobsa/),odata%proc_to_nobsa)
    odata%nobs = sum(odata%proc_to_nobsa)
 
    ! Allocation
@@ -84,8 +82,8 @@ if (llocal) then
                latobs(offset+1:offset+odata%proc_to_nobsa(iproc)) = odata%latobs
             else
                ! Receive data on ioproc
-               call mpl_recv(odata%proc_to_nobsa(iproc),lonobs(offset+1:offset+odata%proc_to_nobsa(iproc)),iproc,mpl%tag)
-               call mpl_recv(odata%proc_to_nobsa(iproc),latobs(offset+1:offset+odata%proc_to_nobsa(iproc)),iproc,mpl%tag+1)
+               call mpl%recv(odata%proc_to_nobsa(iproc),lonobs(offset+1:offset+odata%proc_to_nobsa(iproc)),iproc,mpl%tag)
+               call mpl%recv(odata%proc_to_nobsa(iproc),latobs(offset+1:offset+odata%proc_to_nobsa(iproc)),iproc,mpl%tag+1)
             end if
          end if
 
@@ -95,15 +93,15 @@ if (llocal) then
    else
       if (odata%nobsa>0) then
          ! Send data to ioproc
-         call mpl_send(odata%nobsa,odata%lonobs,mpl%ioproc,mpl%tag)
-         call mpl_send(odata%nobsa,odata%latobs,mpl%ioproc,mpl%tag+1)
+         call mpl%send(odata%nobsa,odata%lonobs,mpl%ioproc,mpl%tag)
+         call mpl%send(odata%nobsa,odata%latobs,mpl%ioproc,mpl%tag+1)
       end if
    end if
    mpl%tag = mpl%tag+2
 
    ! Broadcast data
-   call mpl_bcast(lonobs,mpl%ioproc)
-   call mpl_bcast(latobs,mpl%ioproc)
+   call mpl%bcast(lonobs,mpl%ioproc)
+   call mpl%bcast(latobs,mpl%ioproc)
 else
    ! Allocation
    allocate(lonobs(odata%nobs))
@@ -170,8 +168,8 @@ else
       allocate(order(odata%nobs))
    
       ! Random repartition
-      if (mpl%main) call rand_real(0.0_kind_real,1.0_kind_real,list)
-      call mpl_bcast(list,mpl%ioproc)
+      if (mpl%main) call rng%rand_real(0.0_kind_real,1.0_kind_real,list)
+      call mpl%bcast(list,mpl%ioproc)
       call qsort(odata%nobs,list,order)
       nobsa = odata%nobs/mpl%nproc
       if (nobsa*mpl%nproc<odata%nobs) nobsa = nobsa+1
@@ -315,7 +313,7 @@ end do
 odata%h%prefix = 'o'
 odata%h%n_src = odata%nc0b
 odata%h%n_dst = odata%nobsa
-call linop_alloc(odata%h)
+call odata%h%alloc
 odata%h%n_s = 0
 do i_s=1,odata%hfull%n_s
    iobs = odata%hfull%row(i_s)
@@ -348,7 +346,7 @@ if (mpl%main) then
          nc0a = geom%nc0a
       else
          ! Receive dimension on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0a,iproc,mpl%tag)
       end if
 
       ! Allocation
@@ -359,7 +357,7 @@ if (mpl%main) then
          c0a_to_c0 = geom%c0a_to_c0
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,c0a_to_c0,iproc,mpl%tag+1)
       end if
 
       ! Fill c0_to_c0a
@@ -372,10 +370,10 @@ if (mpl%main) then
    end do
 else
    ! Send dimensions to ioproc
-   call mpl_send(geom%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
 
    ! Send data to ioproc
-   call mpl_send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag+1)
 end if
 mpl%tag = mpl%tag+2
 
@@ -389,8 +387,8 @@ if (mpl%main) then
          nc0b = odata%nc0b
       else
          ! Receive dimensions on ioproc
-         call mpl_recv(nc0a,iproc,mpl%tag)
-         call mpl_recv(nc0b,iproc,mpl%tag+1)
+         call mpl%recv(nc0a,iproc,mpl%tag)
+         call mpl%recv(nc0b,iproc,mpl%tag+1)
       end if
 
       ! Allocation
@@ -404,8 +402,8 @@ if (mpl%main) then
          c0a_to_c0b = odata%c0a_to_c0b
       else
          ! Receive data on ioproc
-         call mpl_recv(nc0b,c0b_to_c0,iproc,mpl%tag+2)
-         call mpl_recv(nc0a,c0a_to_c0b,iproc,mpl%tag+3)
+         call mpl%recv(nc0b,c0b_to_c0,iproc,mpl%tag+2)
+         call mpl%recv(nc0a,c0a_to_c0b,iproc,mpl%tag+3)
       end if
 
       ! Allocation
@@ -436,18 +434,18 @@ if (mpl%main) then
    deallocate(c0_to_c0a)
 else
    ! Send dimensions to ioproc
-   call mpl_send(odata%nc0a,mpl%ioproc,mpl%tag)
-   call mpl_send(odata%nc0b,mpl%ioproc,mpl%tag+1)
+   call mpl%send(odata%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(odata%nc0b,mpl%ioproc,mpl%tag+1)
 
    ! Send data to ioproc
-   call mpl_send(odata%nc0b,odata%c0b_to_c0,mpl%ioproc,mpl%tag+2)
-   call mpl_send(geom%nc0a,odata%c0a_to_c0b,mpl%ioproc,mpl%tag+3)
+   call mpl%send(odata%nc0b,odata%c0b_to_c0,mpl%ioproc,mpl%tag+2)
+   call mpl%send(geom%nc0a,odata%c0a_to_c0b,mpl%ioproc,mpl%tag+3)
 end if
 mpl%tag = mpl%tag+4
 
 ! Communications broadcast
 odata%com%prefix = 'o'
-call com_bcast(comobs,odata%com)
+call odata%com%bcast(comobs)
 
 ! Write data
 if (mpl%main) then
@@ -469,7 +467,7 @@ if (mpl%main) then
 end if
 if (mpl%main) then
    do iproc=1,mpl%nproc
-      call com_dealloc(comobs(iproc))
+      call comobs(iproc)%dealloc
    end do
 end if
 

@@ -14,9 +14,9 @@ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: isnotmsi
-use type_com, only: com_ext,com_red
+use type_com, only: comtype
 use type_geom, only: geomtype
-use type_linop, only: apply_linop,apply_linop_ad
+use type_linop, only: linoptype
 use type_mpl, only: mpl
 use type_odata, only: odatatype
 
@@ -55,7 +55,7 @@ do il0=1,geom%nl0
    slab = fld(:,il0)
 
    ! Extend halo
-   call com_ext(odata%com,slab)
+   call odata%com%ext(slab)
 
    ! Copy extended slab
    fld_ext(:,il0) = slab
@@ -68,7 +68,7 @@ if (odata%nobsa>0) then
    ! Horizontal interpolation
    !$omp parallel do schedule(static) private(il0)
    do il0=1,geom%nl0
-      call apply_linop(odata%h,fld_ext(:,il0),obs(:,il0))
+      call odata%h%apply(fld_ext(:,il0),obs(:,il0))
    end do
    !$omp end parallel do
 end if
@@ -98,7 +98,7 @@ if (odata%nobsa>0) then
    ! Horizontal interpolation
    !$omp parallel do schedule(static) private(il0)
    do il0=1,geom%nl0
-      call apply_linop_ad(odata%h,obs(:,il0),fld_ext(:,il0))
+      call odata%h%apply_ad(obs(:,il0),fld_ext(:,il0))
    end do
    !$omp end parallel do
 end if
@@ -112,7 +112,7 @@ do il0=1,geom%nl0
    slab = fld_ext(:,il0)
 
    ! Reduce halo
-   call com_red(odata%com,slab)
+   call odata%com%red(slab)
 
    ! Copy reduced slab
    fld(:,il0) = slab

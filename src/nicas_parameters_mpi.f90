@@ -16,9 +16,9 @@ use tools_const, only: pi,rad2deg,req,sphere_dist
 use tools_display, only: msgerror,prog_init,prog_print
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsr,isnotmsi
 use tools_nc, only: ncfloat,ncerr
-use type_com, only: comtype,com_setup,com_bcast
-use type_linop, only: linop_alloc,linop_reorder
-use type_mpl, only: mpl,mpl_send,mpl_recv
+use type_com, only: comtype,com_setup
+use type_linop, only: linoptype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 
@@ -335,14 +335,14 @@ do il0i=1,geom%nl0i
    ndata%h(il0i)%prefix = 'h'
    ndata%h(il0i)%n_src = ndata%nc1b
    ndata%h(il0i)%n_dst = geom%nc0a
-   call linop_alloc(ndata%h(il0i))
+   call ndata%h(il0i)%alloc
    do i_s_loc=1,ndata%h(il0i)%n_s
       i_s = interph_lg(i_s_loc,il0i)
       ndata%h(il0i)%row(i_s_loc) = geom%c0_to_c0a(ndata%hfull(il0i)%row(i_s))
       ndata%h(il0i)%col(i_s_loc) = ndata%c1_to_c1b(ndata%hfull(il0i)%col(i_s))
       ndata%h(il0i)%S(i_s_loc) = ndata%hfull(il0i)%S(i_s)
    end do
-   call linop_reorder(ndata%h(il0i))
+   call ndata%h(il0i)%reorder
 end do
 
 ! Subsampling horizontal interpolation
@@ -350,14 +350,14 @@ do il1=1,ndata%nl1
    ndata%s(il1)%prefix = 's'
    ndata%s(il1)%n_src = ndata%nc1b
    ndata%s(il1)%n_dst = ndata%nc1b
-   call linop_alloc(ndata%s(il1))
+   call ndata%s(il1)%alloc
    do i_s_loc=1,ndata%s(il1)%n_s
       i_s = interps_lg(i_s_loc,il1)
       ndata%s(il1)%row(i_s_loc) = ndata%c1_to_c1b(ndata%sfull(il1)%row(i_s))
       ndata%s(il1)%col(i_s_loc) = ndata%c1_to_c1b(ndata%sfull(il1)%col(i_s))
       ndata%s(il1)%S(i_s_loc) = ndata%sfull(il1)%S(i_s)
    end do
-   call linop_reorder(ndata%s(il1))
+   call ndata%s(il1)%reorder
 end do
 
 ! Convolution
@@ -367,7 +367,7 @@ do i_s=1,ndata%c%n_s
    ndata%c%row(i_s) = ndata%s_to_sc(ndata%c%row(i_s))
    ndata%c%col(i_s) = ndata%s_to_sc(ndata%c%col(i_s))
 end do
-call linop_reorder(ndata%c)
+call ndata%c%reorder
 
 ! Convolution for normalization
 ndata%c_nor%n_src = ndata%nsc
@@ -376,7 +376,7 @@ do i_s=1,ndata%c_nor%n_s
    ndata%c_nor%row(i_s) = ndata%s_to_sc_nor(ndata%c_nor%row(i_s))
    ndata%c_nor%col(i_s) = ndata%s_to_sc_nor(ndata%c_nor%col(i_s))
 end do
-call linop_reorder(ndata%c_nor)
+call ndata%c_nor%reorder
 
 ! Conversions
 allocate(ndata%sb_to_c1b(ndata%nsb))
@@ -404,7 +404,7 @@ if (mpl%main) then
          nsa = ndata%nsa
       else
          ! Receive dimension on ioproc
-         call mpl_recv(nsa,iproc,mpl%tag)
+         call mpl%recv(nsa,iproc,mpl%tag)
       end if
 
       ! Allocation
@@ -415,7 +415,7 @@ if (mpl%main) then
          sa_to_s = ndata%sa_to_s
       else
          ! Receive data on ioproc
-         call mpl_recv(nsa,sa_to_s,iproc,mpl%tag+1)
+         call mpl%recv(nsa,sa_to_s,iproc,mpl%tag+1)
       end if
 
       ! Fill s_to_sa
@@ -428,10 +428,10 @@ if (mpl%main) then
    end do
 else
    ! Send dimensions to ioproc
-   call mpl_send(ndata%nsa,mpl%ioproc,mpl%tag)
+   call mpl%send(ndata%nsa,mpl%ioproc,mpl%tag)
 
    ! Send data to ioproc
-   call mpl_send(ndata%nsa,ndata%sa_to_s,mpl%ioproc,mpl%tag+1)
+   call mpl%send(ndata%nsa,ndata%sa_to_s,mpl%ioproc,mpl%tag+1)
 end if
 mpl%tag = mpl%tag+2
 
@@ -446,9 +446,9 @@ if (mpl%main) then
          nsc = ndata%nsc
       else
          ! Receive dimensions on ioproc
-         call mpl_recv(nsa,iproc,mpl%tag)
-         call mpl_recv(nsb,iproc,mpl%tag+1)
-         call mpl_recv(nsc,iproc,mpl%tag+2)
+         call mpl%recv(nsa,iproc,mpl%tag)
+         call mpl%recv(nsb,iproc,mpl%tag+1)
+         call mpl%recv(nsc,iproc,mpl%tag+2)
       end if
 
       ! Allocation
@@ -466,10 +466,10 @@ if (mpl%main) then
          sa_to_sc = ndata%sa_to_sc
       else
          ! Receive data on ioproc
-         call mpl_recv(nsb,sb_to_s,iproc,mpl%tag+3)
-         call mpl_recv(nsc,sc_to_s,iproc,mpl%tag+4)
-         call mpl_recv(nsa,sa_to_sb,iproc,mpl%tag+5)
-         call mpl_recv(nsa,sa_to_sc,iproc,mpl%tag+6)
+         call mpl%recv(nsb,sb_to_s,iproc,mpl%tag+3)
+         call mpl%recv(nsc,sc_to_s,iproc,mpl%tag+4)
+         call mpl%recv(nsa,sa_to_sb,iproc,mpl%tag+5)
+         call mpl%recv(nsa,sa_to_sc,iproc,mpl%tag+6)
       end if
 
       ! Allocation
@@ -521,23 +521,23 @@ if (mpl%main) then
    deallocate(s_to_sa)
 else
    ! Send dimensions to ioproc
-   call mpl_send(ndata%nsa,mpl%ioproc,mpl%tag)
-   call mpl_send(ndata%nsb,mpl%ioproc,mpl%tag+1)
-   call mpl_send(ndata%nsc,mpl%ioproc,mpl%tag+2)
+   call mpl%send(ndata%nsa,mpl%ioproc,mpl%tag)
+   call mpl%send(ndata%nsb,mpl%ioproc,mpl%tag+1)
+   call mpl%send(ndata%nsc,mpl%ioproc,mpl%tag+2)
 
    ! Send data to ioproc
-   call mpl_send(ndata%nsb,ndata%sb_to_s,mpl%ioproc,mpl%tag+3)
-   call mpl_send(ndata%nsc,ndata%sc_to_s,mpl%ioproc,mpl%tag+4)
-   call mpl_send(ndata%nsa,ndata%sa_to_sb,mpl%ioproc,mpl%tag+5)
-   call mpl_send(ndata%nsa,ndata%sa_to_sc,mpl%ioproc,mpl%tag+6)
+   call mpl%send(ndata%nsb,ndata%sb_to_s,mpl%ioproc,mpl%tag+3)
+   call mpl%send(ndata%nsc,ndata%sc_to_s,mpl%ioproc,mpl%tag+4)
+   call mpl%send(ndata%nsa,ndata%sa_to_sb,mpl%ioproc,mpl%tag+5)
+   call mpl%send(ndata%nsa,ndata%sa_to_sc,mpl%ioproc,mpl%tag+6)
 end if
 mpl%tag = mpl%tag+7
 
 ! Communication broadcast
 ndata%AB%prefix = 'AB'
-call com_bcast(comAB,ndata%AB)
+call ndata%AB%bcast(comAB)
 ndata%AC%prefix = 'AC'
-call com_bcast(comAC,ndata%AC)
+call ndata%AC%bcast(comAC)
 
 ! Copy mpicom
 ndata%mpicom = nam%mpicom

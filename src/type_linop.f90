@@ -30,6 +30,14 @@ type linoptype
    integer,allocatable :: row(:)       !< Output indices
    integer,allocatable :: col(:)       !< Input indices
    real(kind_real),allocatable :: S(:) !< Coefficients
+contains
+   procedure :: alloc => linop_alloc
+   procedure :: dealloc => linop_dealloc
+   procedure :: copy => linop_copy
+   procedure :: reorder => linop_reorder
+   procedure :: apply => linop_apply
+   procedure :: apply_ad => linop_apply_ad
+   procedure :: apply_sym => linop_apply_sym
 end type linoptype
 
 interface linop_read
@@ -47,8 +55,7 @@ logical :: check_data = .false. !< Activate data check for all linear operations
 
 private
 public :: linoptype
-public :: linop_alloc,linop_dealloc,linop_copy,linop_reorder, &
- & apply_linop,apply_linop_ad,apply_linop_sym,linop_read,linop_write
+public :: linop_read,linop_write
 
 contains
 
@@ -61,7 +68,7 @@ subroutine linop_alloc(linop)
 implicit none
 
 ! Passed variables
-type(linoptype),intent(inout) :: linop !< Linear operator
+class(linoptype),intent(inout) :: linop !< Linear operator
 
 ! Allocation
 allocate(linop%row(linop%n_s))
@@ -84,7 +91,7 @@ subroutine linop_dealloc(linop)
 implicit none
 
 ! Passed variables
-type(linoptype),intent(inout) :: linop !< Linear operator
+class(linoptype),intent(inout) :: linop !< Linear operator
 
 ! Release memory
 if (allocated(linop%row)) deallocate(linop%row)
@@ -94,35 +101,34 @@ if (allocated(linop%S)) deallocate(linop%S)
 end subroutine linop_dealloc
 
 !----------------------------------------------------------------------
-! Subroutine: linop_copy
+! Function: linop_copy
 !> Purpose: linear operator object copy
 !----------------------------------------------------------------------
-subroutine linop_copy(linop_in,linop_out)
+type(linoptype) function linop_copy(linop)
 
 implicit none
 
 ! Passed variables
-type(linoptype),intent(in) :: linop_in     !< Input linear operator
-type(linoptype),intent(inout) :: linop_out !< Output linear operator
+class(linoptype),intent(in) :: linop !< Input linear operator
 
 ! Copy attributes
-linop_out%prefix = trim(linop_in%prefix)
-linop_out%n_src = linop_in%n_src
-linop_out%n_dst = linop_in%n_dst
-linop_out%n_s = linop_in%n_s
+linop_copy%prefix = trim(linop%prefix)
+linop_copy%n_src = linop%n_src
+linop_copy%n_dst = linop%n_dst
+linop_copy%n_s = linop%n_s
 
 ! Deallocation
-call linop_dealloc(linop_out)
+call linop_copy%dealloc
 
 ! Allocation
-call linop_alloc(linop_out)
+call linop_copy%alloc
 
 ! Copy data
-linop_out%row = linop_in%row
-linop_out%col = linop_in%col
-linop_out%S = linop_in%S
+linop_copy%row = linop%row
+linop_copy%col = linop%col
+linop_copy%S = linop%S
 
-end subroutine linop_copy
+end function linop_copy
 
 !----------------------------------------------------------------------
 ! Subroutine: linop_reorder
@@ -133,7 +139,7 @@ subroutine linop_reorder(linop)
 implicit none
 
 ! Passed variables
-type(linoptype),intent(inout) :: linop !< Linear operator
+class(linoptype),intent(inout) :: linop !< Linear operator
 
 ! Local variables
 integer :: row,i_s_s,i_s_e,n_s,i_s
@@ -174,15 +180,15 @@ end if
 end subroutine linop_reorder
 
 !----------------------------------------------------------------------
-! Subroutine: apply_linop
+! Subroutine: linop_apply
 !> Purpose: apply linear operator
 !----------------------------------------------------------------------
-subroutine apply_linop(linop,fld_src,fld_dst)
+subroutine linop_apply(linop,fld_src,fld_dst)
 
 implicit none
 
 ! Passed variables
-type(linoptype),intent(in) :: linop                 !< Linear operator
+class(linoptype),intent(in) :: linop                !< Linear operator
 real(kind_real),intent(in) :: fld_src(linop%n_src)  !< Source vector
 real(kind_real),intent(out) :: fld_dst(linop%n_dst) !< Destination vector
 
@@ -216,18 +222,18 @@ if (check_data) then
    if (any(isnan(fld_dst))) call msgerror('NaN in fld_dst for linear operation '//trim(linop%prefix))
 end if
 
-end subroutine apply_linop
+end subroutine linop_apply
 
 !----------------------------------------------------------------------
-! Subroutine: apply_linop_ad
+! Subroutine: linop_apply_ad
 !> Purpose: apply linear operator, adjoint
 !----------------------------------------------------------------------
-subroutine apply_linop_ad(linop,fld_dst,fld_src)
+subroutine linop_apply_ad(linop,fld_dst,fld_src)
 
 implicit none
 
 ! Passed variables
-type(linoptype),intent(in) :: linop                 !< Linear operator
+class(linoptype),intent(in) :: linop                !< Linear operator
 real(kind_real),intent(in) :: fld_dst(linop%n_dst)  !< Destination vector
 real(kind_real),intent(out) :: fld_src(linop%n_src) !< Source vector
 
@@ -261,18 +267,18 @@ if (check_data) then
    if (any(isnan(fld_src))) call msgerror('NaN in fld_src for adjoint linear operation '//trim(linop%prefix))
 end if
 
-end subroutine apply_linop_ad
+end subroutine linop_apply_ad
 
 !----------------------------------------------------------------------
-! Subroutine: apply_linop_sym
+! Subroutine: linop_apply_sym
 !> Purpose: apply linear operator, symmetric
 !----------------------------------------------------------------------
-subroutine apply_linop_sym(linop,fld)
+subroutine linop_apply_sym(linop,fld)
 
 implicit none
 
 ! Passed variables
-type(linoptype),intent(in) :: linop               !< Linear operator
+class(linoptype),intent(in) :: linop              !< Linear operator
 real(kind_real),intent(inout) :: fld(linop%n_src) !< Source/destination vector
 
 ! Local variables
@@ -313,7 +319,7 @@ if (check_data) then
    if (any(isnan(fld))) call msgerror('NaN in fld for symmetric linear operation '//trim(linop%prefix))
 end if
 
-end subroutine apply_linop_sym
+end subroutine linop_apply_sym
 
 !----------------------------------------------------------------------
 ! Subroutine: linop_read_0d
@@ -452,7 +458,7 @@ character(len=1024) :: subr = 'linop_read_2d'
 ! Get maximum operator size
 info = nf90_inq_dimid(ncid,trim(prefix)//'_n_s_max',n_s_max_id)
 if (info==nf90_noerr) then
-   call ncerr(subr,nf90_inquire_dimension(ncid,n_s_id,len=n_s_max))
+   call ncerr(subr,nf90_inquire_dimension(ncid,n_s_max_id,len=n_s_max))
 else
    n_s_max = 0
 end if

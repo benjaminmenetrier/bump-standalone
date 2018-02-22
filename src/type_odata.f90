@@ -15,7 +15,7 @@ use tools_missing, only: msr
 use type_com, only: comtype
 use type_geom, only: geomtype
 use type_linop, only: linoptype
-use type_mpl, only: mpl,mpl_recv,mpl_send
+use type_mpl, only: mpl
 use type_nam, only: namtype
 
 implicit none
@@ -58,10 +58,13 @@ type odatatype
 
    ! Communication data
    type(comtype) :: com                     !< Communication data
+contains
+   procedure :: yobs_com_gl
+   procedure :: yobs_com_lg
 end type odatatype
 
 private
-public :: odatatype,yobs_com_gl,yobs_com_lg
+public :: odatatype
 
 contains
 
@@ -74,7 +77,7 @@ subroutine yobs_com_gl(odata,yobs)
 implicit none
 
 ! Passed variables
-type(odatatype),intent(in) :: odata                    !< Observation operator data
+class(odatatype),intent(in) :: odata                   !< Observation operator data
 real(kind_real),allocatable,intent(inout) :: yobs(:,:) !< Observations
 
 ! Local variables
@@ -110,7 +113,7 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Send data to iproc
-         call mpl_send(odata%proc_to_nobsa(iproc)*geom%nl0,sbuf,iproc,mpl%tag)
+         call mpl%send(odata%proc_to_nobsa(iproc)*geom%nl0,sbuf,iproc,mpl%tag)
       end if
 
       ! Release memory
@@ -121,7 +124,7 @@ else
    allocate(rbuf(odata%proc_to_nobsa(mpl%myproc)*geom%nl0))
 
    ! Receive data from ioproc
-   call mpl_recv(odata%proc_to_nobsa(mpl%myproc)*geom%nl0,rbuf,mpl%ioproc,mpl%tag)
+   call mpl%recv(odata%proc_to_nobsa(mpl%myproc)*geom%nl0,rbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 
@@ -148,7 +151,7 @@ subroutine yobs_com_lg(odata,yobs)
 implicit none
 
 ! Passed variables
-type(odatatype),intent(in) :: odata                    !< Observation operator data
+class(odatatype),intent(in) :: odata                   !< Observation operator data
 real(kind_real),allocatable,intent(inout) :: yobs(:,:) !< Observations
 
 ! Local variables
@@ -183,7 +186,7 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Receive data from iproc
-         call mpl_recv(odata%proc_to_nobsa(iproc)*geom%nl0,rbuf,iproc,mpl%tag)
+         call mpl%recv(odata%proc_to_nobsa(iproc)*geom%nl0,rbuf,iproc,mpl%tag)
       end if
 
       ! Copy from buffer
@@ -200,7 +203,7 @@ if (mpl%main) then
    end do
 else
    ! Sending data to iproc
-   call mpl_send(odata%proc_to_nobsa(mpl%myproc)*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
+   call mpl%send(odata%proc_to_nobsa(mpl%myproc)*geom%nl0,sbuf,mpl%ioproc,mpl%tag)
 end if
 mpl%tag = mpl%tag+1
 

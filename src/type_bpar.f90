@@ -36,11 +36,12 @@ type bpartype
    integer,allocatable :: b_to_v2(:)               !< Block to second variable
    integer,allocatable :: b_to_ts1(:)              !< Block to first timeslot
    integer,allocatable :: b_to_ts2(:)              !< Block to second timeslot
+contains
+   procedure :: alloc => bpar_alloc
 end type bpartype
 
 private
 public :: bpartype
-public :: bpar_alloc
 
 contains
 
@@ -48,14 +49,14 @@ contains
 ! Subroutine: bpar_alloc
 !> Purpose: allocate general parameters
 !----------------------------------------------------------------------
-subroutine bpar_alloc(nam,geom,bpar)
+subroutine bpar_alloc(bpar,nam,geom)
 
 implicit none
 
 ! Passed variable
-type(namtype),intent(in) :: nam      !< Namelist
-type(geomtype),intent(in) :: geom    !< Geometry
-type(bpartype),intent(inout) :: bpar !< Block parameters
+class(bpartype),intent(inout) :: bpar !< Block parameters
+type(namtype),intent(in) :: nam       !< Namelist
+type(geomtype),intent(in) :: geom     !< Geometry
 
 ! Local variables
 integer :: ib,iv,jv,its,jts,il0r,jl0,il0off

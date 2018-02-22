@@ -15,7 +15,6 @@ use tools_display, only: msgerror,prog_init,prog_print
 use tools_kinds,only: kind_real
 use tools_missing, only: msr,isnotmsi,msi
 use tools_qsort, only: qsort
-use type_geom, only: fld_com_lg
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype
 

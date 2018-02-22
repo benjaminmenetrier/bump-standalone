@@ -15,9 +15,9 @@ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr
-use type_geom, only: geomtype
-use type_mpl, only: mpl,mpl_send,mpl_recv,mpl_alltoallv
 use tools_nc, only: ncfloat,ncerr
+use type_geom, only: geomtype
+use type_mpl, only: mpl
 use yomhook, only: lhook,dr_hook
 
 implicit none
@@ -41,21 +41,22 @@ type comtype
    integer,allocatable :: jexcldispl(:)  !< Exclusive interior displacement
    integer,allocatable :: halo(:)        !< Halo buffer
    integer,allocatable :: excl(:)        !< Exclusive interior buffer
+contains
+   procedure :: dealloc => com_dealloc
+   procedure :: bcast => com_bcast
+   procedure :: com_ext_1d
+   procedure :: com_ext_2d
+   generic :: ext => com_ext_1d,com_ext_2d
+   procedure :: com_red_1d
+   procedure :: com_red_2d
+   generic :: red => com_red_1d,com_red_2d
+   procedure :: read => com_read
+   procedure :: write => com_write
 end type comtype
-
-interface com_ext
-  module procedure com_ext_1d
-  module procedure com_ext_2d
-end interface
-
-interface com_red
-  module procedure com_red_1d
-  module procedure com_red_2d
-end interface
 
 private
 public :: comtype
-public :: com_dealloc,com_bcast,com_setup,com_ext,com_red,com_read,com_write
+public :: com_setup
 
 contains
 
@@ -68,7 +69,7 @@ subroutine com_dealloc(com)
 implicit none
 
 ! Passed variables
-type(comtype),intent(inout) :: com !< Communication data
+class(comtype),intent(inout) :: com !< Communication data
 
 ! Release memory
 if (allocated(com%red_to_ext)) deallocate(com%red_to_ext)
@@ -179,13 +180,13 @@ end subroutine com_setup
 ! Subroutine: com_bcast
 !> Purpose: communications object broadcast
 !----------------------------------------------------------------------
-subroutine com_bcast(com_in,com_out)
+subroutine com_bcast(com_out,com_in)
 
 implicit none
 
 ! Passed variables
+class(comtype),intent(inout) :: com_out       !< Output communication data
 type(comtype),intent(in) :: com_in(mpl%nproc) !< Input communication data
-type(comtype),intent(inout) :: com_out        !< Output communication data
 
 ! Local variables
 integer :: iproc
@@ -201,18 +202,18 @@ if (mpl%main) then
          com_out%nexcl = com_in(iproc)%nexcl
       else
          ! Send dimensions to iproc
-         call mpl_send(com_in(iproc)%nred,iproc,mpl%tag)
-         call mpl_send(com_in(iproc)%next,iproc,mpl%tag+1)
-         call mpl_send(com_in(iproc)%nhalo,iproc,mpl%tag+2)
-         call mpl_send(com_in(iproc)%nexcl,iproc,mpl%tag+3)
+         call mpl%send(com_in(iproc)%nred,iproc,mpl%tag)
+         call mpl%send(com_in(iproc)%next,iproc,mpl%tag+1)
+         call mpl%send(com_in(iproc)%nhalo,iproc,mpl%tag+2)
+         call mpl%send(com_in(iproc)%nexcl,iproc,mpl%tag+3)
       end if
    end do
 else
    ! Receive dimensions from ioproc
-   call mpl_recv(com_out%nred,mpl%ioproc,mpl%tag)
-   call mpl_recv(com_out%next,mpl%ioproc,mpl%tag+1)
-   call mpl_recv(com_out%nhalo,mpl%ioproc,mpl%tag+2)
-   call mpl_recv(com_out%nexcl,mpl%ioproc,mpl%tag+3)
+   call mpl%recv(com_out%nred,mpl%ioproc,mpl%tag)
+   call mpl%recv(com_out%next,mpl%ioproc,mpl%tag+1)
+   call mpl%recv(com_out%nhalo,mpl%ioproc,mpl%tag+2)
+   call mpl%recv(com_out%nexcl,mpl%ioproc,mpl%tag+3)
 end if
 mpl%tag = mpl%tag+4
 
@@ -239,24 +240,24 @@ if (mpl%main) then
          com_out%excl = com_in(iproc)%excl
       else
          ! Send dimensions to iproc
-         call mpl_send(com_in(iproc)%nred,com_in(iproc)%red_to_ext,iproc,mpl%tag)
-         call mpl_send(mpl%nproc,com_in(iproc)%jhalocounts,iproc,mpl%tag+1)
-         call mpl_send(mpl%nproc,com_in(iproc)%jexclcounts,iproc,mpl%tag+2)
-         call mpl_send(mpl%nproc,com_in(iproc)%jhalodispl,iproc,mpl%tag+3)
-         call mpl_send(mpl%nproc,com_in(iproc)%jexcldispl,iproc,mpl%tag+4)
-         if (com_in(iproc)%nhalo>0) call mpl_send(com_in(iproc)%nhalo,com_in(iproc)%halo,iproc,mpl%tag+5)
-         if (com_in(iproc)%nexcl>0) call mpl_send(com_in(iproc)%nexcl,com_in(iproc)%excl,iproc,mpl%tag+6)
+         call mpl%send(com_in(iproc)%nred,com_in(iproc)%red_to_ext,iproc,mpl%tag)
+         call mpl%send(mpl%nproc,com_in(iproc)%jhalocounts,iproc,mpl%tag+1)
+         call mpl%send(mpl%nproc,com_in(iproc)%jexclcounts,iproc,mpl%tag+2)
+         call mpl%send(mpl%nproc,com_in(iproc)%jhalodispl,iproc,mpl%tag+3)
+         call mpl%send(mpl%nproc,com_in(iproc)%jexcldispl,iproc,mpl%tag+4)
+         if (com_in(iproc)%nhalo>0) call mpl%send(com_in(iproc)%nhalo,com_in(iproc)%halo,iproc,mpl%tag+5)
+         if (com_in(iproc)%nexcl>0) call mpl%send(com_in(iproc)%nexcl,com_in(iproc)%excl,iproc,mpl%tag+6)
       end if
    end do
 else
    ! Receive dimensions from ioproc
-   call mpl_recv(com_out%nred,com_out%red_to_ext,mpl%ioproc,mpl%tag)
-   call mpl_recv(mpl%nproc,com_out%jhalocounts,mpl%ioproc,mpl%tag+1)
-   call mpl_recv(mpl%nproc,com_out%jexclcounts,mpl%ioproc,mpl%tag+2)
-   call mpl_recv(mpl%nproc,com_out%jhalodispl,mpl%ioproc,mpl%tag+3)
-   call mpl_recv(mpl%nproc,com_out%jexcldispl,mpl%ioproc,mpl%tag+4)
-   if (com_out%nhalo>0) call mpl_recv(com_out%nhalo,com_out%halo,mpl%ioproc,mpl%tag+5)
-   if (com_out%nexcl>0) call mpl_recv(com_out%nexcl,com_out%excl,mpl%ioproc,mpl%tag+6)
+   call mpl%recv(com_out%nred,com_out%red_to_ext,mpl%ioproc,mpl%tag)
+   call mpl%recv(mpl%nproc,com_out%jhalocounts,mpl%ioproc,mpl%tag+1)
+   call mpl%recv(mpl%nproc,com_out%jexclcounts,mpl%ioproc,mpl%tag+2)
+   call mpl%recv(mpl%nproc,com_out%jhalodispl,mpl%ioproc,mpl%tag+3)
+   call mpl%recv(mpl%nproc,com_out%jexcldispl,mpl%ioproc,mpl%tag+4)
+   if (com_out%nhalo>0) call mpl%recv(com_out%nhalo,com_out%halo,mpl%ioproc,mpl%tag+5)
+   if (com_out%nexcl>0) call mpl%recv(com_out%nexcl,com_out%excl,mpl%ioproc,mpl%tag+6)
 end if
 mpl%tag = mpl%tag+7
 
@@ -271,7 +272,7 @@ subroutine com_ext_1d(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com                     !< Communication data
+class(comtype),intent(in) :: com                    !< Communication data
 real(kind_real),allocatable,intent(inout) :: vec(:) !< Vector
 
 ! Local variables
@@ -282,7 +283,7 @@ real(kind_real) :: zhook_handle
 if (lhook) call dr_hook('com_ext_1d',0,zhook_handle)
 
 ! Check input vector size
-if (size(vec)/=com%nred) call msgerror('vector size inconsistent in com_ext')
+if (size(vec)/=com%nred) call msgerror('vector size inconsistent in com_ext_1d')
 
 ! Prepare buffers to send
 !$omp parallel do schedule(static) private(iexcl)
@@ -292,7 +293,7 @@ end do
 !$omp end parallel do
 
 ! Communication
-call mpl_alltoallv(com%nexcl,sbuf,com%jexclcounts,com%jexcldispl,com%nhalo,rbuf,com%jhalocounts,com%jhalodispl)
+call mpl%alltoallv(com%nexcl,sbuf,com%jexclcounts,com%jexcldispl,com%nhalo,rbuf,com%jhalocounts,com%jhalodispl)
 
 ! Copy
 vec_tmp = vec
@@ -328,7 +329,7 @@ subroutine com_ext_2d(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com                       !< Communication data
+class(comtype),intent(in) :: com                      !< Communication data
 real(kind_real),allocatable,intent(inout) :: vec(:,:) !< Vector
 
 ! Local variables
@@ -339,7 +340,7 @@ real(kind_real) :: zhook_handle
 if (lhook) call dr_hook('com_ext_2d',0,zhook_handle)
 
 ! Check input vector size
-if (size(vec,1)/=com%nred) call msgerror('vector size inconsistent in com_ext')
+if (size(vec,1)/=com%nred) call msgerror('vector size inconsistent in com_ext_2d')
 
 ! Second dimension
 nl = size(vec,2)
@@ -359,7 +360,7 @@ end do
 !$omp end parallel do
 
 ! Communication
-call mpl_alltoallv(com%nexcl*nl,sbuf,com%jexclcounts*nl,com%jexcldispl*nl,com%nhalo*nl,rbuf,com%jhalocounts*nl,com%jhalodispl*nl)
+call mpl%alltoallv(com%nexcl*nl,sbuf,com%jexclcounts*nl,com%jexcldispl*nl,com%nhalo*nl,rbuf,com%jhalocounts*nl,com%jhalodispl*nl)
 
 ! Copy
 vec_tmp = vec
@@ -399,7 +400,7 @@ subroutine com_red_1d(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com                     !< Communication data
+class(comtype),intent(in) :: com                    !< Communication data
 real(kind_real),allocatable,intent(inout) :: vec(:) !< Vector
 
 ! Local variables
@@ -420,7 +421,7 @@ end do
 !$omp end parallel do
 
 ! Communication
-call mpl_alltoallv(com%nhalo,sbuf,com%jhalocounts,com%jhalodispl,com%nexcl,rbuf,com%jexclcounts,com%jexcldispl)
+call mpl%alltoallv(com%nhalo,sbuf,com%jhalocounts,com%jhalodispl,com%nexcl,rbuf,com%jexclcounts,com%jexcldispl)
 
 ! Copy
 vec_tmp = vec
@@ -463,7 +464,7 @@ subroutine com_red_2d(com,vec)
 implicit none
 
 ! Passed variables
-type(comtype),intent(in) :: com                       !< Communication data
+class(comtype),intent(in) :: com                      !< Communication data
 real(kind_real),allocatable,intent(inout) :: vec(:,:) !< Vector
 
 ! Local variables
@@ -495,7 +496,7 @@ end do
 !$omp end parallel do
 
 ! Communication
-call mpl_alltoallv(com%nhalo*nl,sbuf,com%jhalocounts*nl,com%jhalodispl*nl,com%nexcl*nl,rbuf,com%jexclcounts*nl,com%jexcldispl*nl)
+call mpl%alltoallv(com%nhalo*nl,sbuf,com%jhalocounts*nl,com%jhalodispl*nl,com%nexcl*nl,rbuf,com%jexclcounts*nl,com%jexcldispl*nl)
 
 ! Copy
 vec_tmp = vec
@@ -537,14 +538,14 @@ end subroutine com_red_2d
 ! Subroutine: com_read
 !> Purpose: read communications from a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_read(ncid,prefix,com)
+subroutine com_read(com,ncid,prefix)
 
 implicit none
 
 ! Passed variables
+class(comtype),intent(inout) :: com   !< Communication data
 integer,intent(in) :: ncid            !< NetCDF file id
 character(len=*),intent(in) :: prefix !< Communication prefix
-type(comtype),intent(inout) :: com    !< Communication data
 
 ! Local variables
 integer :: info
@@ -614,13 +615,13 @@ end subroutine com_read
 ! Subroutine: com_write
 !> Purpose: write communications to a NetCDF file
 !----------------------------------------------------------------------
-subroutine com_write(ncid,com)
+subroutine com_write(com,ncid)
 
 implicit none
 
 ! Passed variables
-integer,intent(in) :: ncid      !< NetCDF file id
-type(comtype),intent(in) :: com !< Communication data
+class(comtype),intent(in) :: com !< Communication data
+integer,intent(in) :: ncid       !< NetCDF file id
 
 ! Local variables
 integer :: info

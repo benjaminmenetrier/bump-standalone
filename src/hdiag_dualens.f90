@@ -16,7 +16,7 @@ use tools_fit, only: ver_smooth
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_avg, only: avgtype
-use type_curve, only: curvetype,curve_normalization
+use type_curve, only: curvetype
 use type_hdata, only: hdatatype
 implicit none
 
@@ -70,8 +70,8 @@ do il0=1,geom%nl0
 end do
 
 ! Normalize dual-ensemble hybridization
-call curve_normalization(hdata,ib,loc_deh)
-call curve_normalization(hdata,ib,loc_deh_lr)
+call loc_deh%normalization(hdata,ib)
+call loc_deh_lr%normalization(hdata,ib)
 
 ! Compute dual-ensemble hybridization fits
 if (bpar%fit_block(ib)) then

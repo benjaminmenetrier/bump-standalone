@@ -24,7 +24,7 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 15,
+nl = 1,
 levs = 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
 logpres = .false.,
 nv = 1,
@@ -48,15 +48,15 @@ ens2_nsub = 1,
 /
 
 &sampling_param
-sam_write = .false.,
-sam_read = .true.,
+sam_write = .true.,
+sam_read = .false.,
 mask_type = "none",
 mask_th = 0.0,
 mask_check = .true.,
-nc1 = 1000,
+nc1 = 115,
 ntry = 3,
 nrep = 2,
-nc3 = 300,
+nc3 = 250,
 dc = 75.0e3,
 nl0r = 7,
 /
@@ -75,13 +75,13 @@ displ_tol = 0.01,
 /
 
 &fit_param
-fit_type = "praxis",
+fit_type = "compass_search",
 fit_wgt = .true.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
-lct_nscales = 2,
-lct_diag = .false.,.true.,
+lct_nscales = 1,
+lct_diag = .true.,
 /
 
 &output_param

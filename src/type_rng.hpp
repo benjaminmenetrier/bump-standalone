@@ -5,16 +5,16 @@
 /// Copyright © 2017 METEO-FRANCE
 // ----------------------------------------------------------------------
 
-class randGen {
+class rng {
     public:
         // Constructor
-        randGen(unsigned long int default_seed);
+        rng(unsigned long int default_seed);
 
         // Destructor
-        ~randGen();
+        ~rng();
 
         // Reseed generator
-        void reseed_randgen(unsigned long int seed);
+        void rng_reseed(unsigned long int seed);
 
         // Random integer generator
         void rand_integer(int binf, int bsup, int *ir);

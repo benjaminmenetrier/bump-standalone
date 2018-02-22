@@ -16,7 +16,7 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr
 use type_bpar, only: bpartype
 use type_geom, only: geomtype
-use type_mpl, only: mpl,mpl_dot_prod
+use type_mpl, only: mpl
 use type_nam, only: namtype
 use type_ndata, only: ndatatype
 
@@ -145,7 +145,7 @@ do ie=1,nam%ens1_ne
    pert = (ens1(:,:,:,:,ie)-mean)/sqrt(float(nam%ens1_ne-1))
 
    ! Dot product
-   call mpl_dot_prod(pert,fld_copy,alpha)
+   call mpl%dot_prod(pert,fld_copy,alpha)
 
    ! Schur product
    fld = fld+alpha*pert

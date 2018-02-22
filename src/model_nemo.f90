@@ -16,7 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype,geom_alloc
+use type_geom, only: geomtype
 use type_nam, only: namtype
 
 implicit none
@@ -82,7 +82,7 @@ lon = lon*real(deg2rad,kind=4)
 lat = lat*real(deg2rad,kind=4)
 
 ! Pack
-call geom_alloc(geom)
+call geom%alloc
 geom%lon = pack(real(lon,kind_real),mask=.true.)
 geom%lat = pack(real(lat,kind_real),mask=.true.)
 do il0=1,geom%nl0

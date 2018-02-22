@@ -16,7 +16,7 @@ use tools_display, only: msgerror
 use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype,geom_alloc
+use type_geom, only: geomtype
 use type_nam, only: namtype
 
 implicit none
@@ -84,7 +84,7 @@ do ilon=1,geom%nlon
 end do
 
 ! Pack
-call geom_alloc(geom)
+call geom%alloc
 geom%lon = pack(real(lon,kind_real),mask=.true.)
 geom%lat = pack(real(lat,kind_real),mask=.true.)
 geom%mask = .true.

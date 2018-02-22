@@ -17,8 +17,8 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
 use tools_qsort, only: qsort
-use type_geom, only: geomtype,geom_alloc
-use type_mpl, only: mpl,mpl_allgather,mpl_send,mpl_recv,mpl_bcast,mpl_allreduce_sum
+use type_geom, only: geomtype
+use type_mpl, only: mpl
 use type_nam, only: namtype
 
 implicit none
@@ -49,7 +49,7 @@ integer :: proc_to_nc0a(mpl%nproc),ic0,ic0a,il0,offset,iproc
 logical,allocatable :: lmask(:,:)
 
 ! Communication
-call mpl_allgather(1,(/geom%nc0a/),proc_to_nc0a)
+call mpl%allgather(1,(/geom%nc0a/),proc_to_nc0a)
 
 ! Global number of gridpoints
 geom%nc0 = sum(proc_to_nc0a)
@@ -62,7 +62,7 @@ end do
 write(mpl%unit,'(a10,a,i8,a)') '','Total: ',geom%nc0,' grid-points'
 
 ! Allocation
-call geom_alloc(geom)
+call geom%alloc
 allocate(geom%c0_to_proc(geom%nc0))
 allocate(geom%c0_to_c0a(geom%nc0))
 allocate(lmask(geom%nc0a,geom%nl0))
@@ -105,10 +105,10 @@ if (mpl%main) then
          end do
       else
          ! Receive data on ioproc
-         call mpl_recv(proc_to_nc0a(iproc),geom%lon(offset+1:offset+proc_to_nc0a(iproc)),iproc,mpl%tag)
-         call mpl_recv(proc_to_nc0a(iproc),geom%lat(offset+1:offset+proc_to_nc0a(iproc)),iproc,mpl%tag+1)
+         call mpl%recv(proc_to_nc0a(iproc),geom%lon(offset+1:offset+proc_to_nc0a(iproc)),iproc,mpl%tag)
+         call mpl%recv(proc_to_nc0a(iproc),geom%lat(offset+1:offset+proc_to_nc0a(iproc)),iproc,mpl%tag+1)
          do il0=1,geom%nl0
-            call mpl_recv(proc_to_nc0a(iproc),geom%mask(offset+1:offset+proc_to_nc0a(iproc),il0),iproc,mpl%tag+1+il0)
+            call mpl%recv(proc_to_nc0a(iproc),geom%mask(offset+1:offset+proc_to_nc0a(iproc),il0),iproc,mpl%tag+1+il0)
          end do
       end if
 
@@ -117,22 +117,22 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl_send(geom%nc0a,lon,mpl%ioproc,mpl%tag)
-   call mpl_send(geom%nc0a,lat,mpl%ioproc,mpl%tag+1)
+   call mpl%send(geom%nc0a,lon,mpl%ioproc,mpl%tag)
+   call mpl%send(geom%nc0a,lat,mpl%ioproc,mpl%tag+1)
    do il0=1,geom%nl0
-      call mpl_send(geom%nc0a,lmask(:,il0),mpl%ioproc,mpl%tag+1+il0)
+      call mpl%send(geom%nc0a,lmask(:,il0),mpl%ioproc,mpl%tag+1+il0)
    end do
 end if
 mpl%tag = mpl%tag+2+geom%nl0
 
 ! Broadcast data
-call mpl_bcast(geom%lon,mpl%ioproc)
-call mpl_bcast(geom%lat,mpl%ioproc)
-call mpl_bcast(geom%mask,mpl%ioproc)
+call mpl%bcast(geom%lon,mpl%ioproc)
+call mpl%bcast(geom%lat,mpl%ioproc)
+call mpl%bcast(geom%mask,mpl%ioproc)
 
 ! Normalized area
 do il0=1,geom%nl0
-   call mpl_allreduce_sum(sum(area,mask=lmask(:,il0))/req**2,geom%area(il0))
+   call mpl%allreduce_sum(sum(area,mask=lmask(:,il0))/req**2,geom%area(il0))
 end do
 
 ! Vertical unit

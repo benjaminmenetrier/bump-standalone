@@ -12,7 +12,7 @@ module nicas_apply_convol
 
 use tools_kinds, only: kind_real
 use tools_missing, only: msr
-use type_linop, only: apply_linop_sym
+use type_linop, only: linoptype
 use type_mpl, only: mpl
 use type_ndata, only: ndatatype
 use yomhook, only: lhook,dr_hook
@@ -42,7 +42,7 @@ real(kind_real) :: zhook_handle
 if (lhook) call dr_hook('apply_convol',0,zhook_handle)
 
 ! Apply linear operator, symmetric
-call apply_linop_sym(ndata%c,alpha)
+call ndata%c%apply_sym(alpha)
 
 if (lhook) call dr_hook('apply_convol',1,zhook_handle)
 

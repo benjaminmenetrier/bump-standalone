@@ -5,7 +5,7 @@ GNU compiler on <a target="_blank" href="https://www2.cisl.ucar.edu/resources/co
     module purge
     module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
     export HDIAG_NICAS_COMPILER=GNU
-    export HDIAG_NICAS_BUILD=BUILD
+    export HDIAG_NICAS_BUILD=DEBUG
     export HDIAG_NICAS_NETCDF_INCLUDE=${NETCDF}/include
     export HDIAG_NICAS_NETCDF_LIBPATH=${NETCDF}/lib
     export HDIAG_NICAS_NETCDFF_INCLUDE=${NETCDF}/include

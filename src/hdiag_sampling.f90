@@ -13,21 +13,21 @@ module hdiag_sampling
 use omp_lib
 use tools_const, only: pi,req,deg2rad,sphere_dist,vector_product,vector_triple_product
 use tools_display, only: prog_init,prog_print,msgerror,msgwarning,black,green,peach
+use tools_icos, only: closest_icos,build_icos
 use tools_interp, only: compute_grid_interp,check_arc
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,isnotmsi
-use tools_stripack, only: trans,trmesh,trlist,bnodes,scoord
-use type_ctree, only: ctreetype,create_ctree,find_nearest_neighbors,delete_ctree
-use type_hdata, only: hdatatype,hdata_alloc,hdata_read,hdata_write
-use type_linop, only: linop_alloc
-use type_mpl, only: mpl,mpl_bcast,mpl_send,mpl_recv
-use type_randgen, only: rand_integer,initialize_sampling
+use tools_stripack, only: trans
+use type_ctree, only: ctreetype
+use type_hdata, only: hdatatype
+use type_mpl, only: mpl
+use type_rng, only: rng
 implicit none
 
 integer,parameter :: irmax = 10000 !< Maximum number of random number draws
 
 private
-public :: setup_sampling,compute_sampling_zs,compute_sampling_lct,compute_sampling_mesh
+public :: setup_sampling,compute_sampling_zs,compute_sampling_lct
 
 contains
 
@@ -72,11 +72,11 @@ elseif (nam%displ_diag) then
 end if
 
 ! Allocation
-call hdata_alloc(hdata)
+call hdata%alloc
 
 ! Read or compute sampling data
 info = 1
-if (nam%sam_read) info = hdata_read(hdata)
+if (nam%sam_read) call hdata%read(info)
 if (info==1) then
    ! Compute zero-separation sampling
    call compute_sampling_zs(hdata)
@@ -99,9 +99,9 @@ if (nam%local_diag.or.nam%displ_diag) then
       write(mpl%unit,'(a7,a)') '','Define subsampling'
       mask_ind = 1
       rh0 = 1.0
-      if (mpl%main) call initialize_sampling(nam%nc1,dble(geom%lon(hdata%c1_to_c0)),dble(geom%lat(hdata%c1_to_c0)),mask_ind, &
+      if (mpl%main) call rng%initialize_sampling(nam%nc1,dble(geom%lon(hdata%c1_to_c0)),dble(geom%lat(hdata%c1_to_c0)),mask_ind, &
     & rh0,nam%ntry,nam%nrep,hdata%nc2,hdata%c2_to_c1)
-      call mpl_bcast(hdata%c2_to_c1,mpl%ioproc)
+      call mpl%bcast(hdata%c2_to_c1,mpl%ioproc)
       hdata%c2_to_c0 = hdata%c1_to_c0(hdata%c2_to_c1)
    end if
 
@@ -112,23 +112,24 @@ if (nam%local_diag.or.nam%displ_diag) then
          do il0=1,geom%nl0
             if ((il0==1).or.(geom%nl0i>1)) then
                write(mpl%unit,'(a10,a,i3)') '','Level ',nam%levs(il0)
-               ctree_diag = create_ctree(hdata%nc2,geom%lon(hdata%c2_to_c0),geom%lat(hdata%c2_to_c0), &
+               call ctree_diag%create(hdata%nc2,geom%lon(hdata%c2_to_c0),geom%lat(hdata%c2_to_c0), &
                           & hdata%c1l0_log(hdata%c2_to_c1,il0))
                do ic2=1,hdata%nc2
                   ic1 = hdata%c2_to_c1(ic2)
                   ic0 = hdata%c2_to_c0(ic2)
-                  if (hdata%c1l0_log(ic1,il0)) call find_nearest_neighbors(ctree_diag,geom%lon(ic0),geom%lat(ic0), &
+                  if (hdata%c1l0_log(ic1,il0)) call ctree_diag%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0), &
                    & hdata%nc2,hdata%nn_c2_index(:,ic2,il0),hdata%nn_c2_dist(:,ic2,il0))
                end do
-               call delete_ctree(ctree_diag)
+               call ctree_diag%delete
             end if
          end do
       end if
    end if
 
-   ! Compute sampling mesh
-   write(mpl%unit,'(a7,a)') '','Compute sampling mesh'
-   call compute_sampling_mesh(hdata)
+   ! Compute sampling mesh and triangles list
+   write(mpl%unit,'(a7,a)') '','Compute sampling mesh and triangles list'
+   call hdata%mesh%create(hdata%nc2,geom%lon(hdata%c2_to_c0),geom%lat(hdata%c2_to_c0),.false.)
+   call hdata%mesh%trlist
 
    if ((info==1).or.(info==2).or.(info==3)) then
       ! Allocation
@@ -141,22 +142,22 @@ if (nam%local_diag.or.nam%displ_diag) then
       write(mpl%unit,'(a7,a)') '','Compute nearest neighbors'
       do il0i=1,geom%nl0i
          write(mpl%unit,'(a10,a,i3)') '','Independent level ',il0i
-         ctree_diag = create_ctree(nam%nc1,geom%lon(hdata%c1_to_c0),geom%lat(hdata%c1_to_c0),hdata%c1l0_log(:,il0i))
+         call ctree_diag%create(nam%nc1,geom%lon(hdata%c1_to_c0),geom%lat(hdata%c1_to_c0),hdata%c1l0_log(:,il0i))
          do ic2=1,hdata%nc2
             ic1 = hdata%c2_to_c1(ic2)
             ic0 = hdata%c2_to_c0(ic2)
             if (hdata%c1l0_log(ic1,il0i)) then
                ! Find nearest neighbors
-               call find_nearest_neighbors(ctree_diag,geom%lon(ic0),geom%lat(ic0),nam%nc1,nn_c1_index,nn_c1_dist)
+               call ctree_diag%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nam%nc1,nn_c1_index,nn_c1_dist)
 
                do jc1=1,nam%nc1
                   kc1 = nn_c1_index(jc1)
-                  hdata%local_mask(kc1,ic2,il0i) = (jc1==1).or.(nn_c1_dist(jc1)<min(nam%local_rad,hdata%bdist(ic2)))
-                  hdata%displ_mask(kc1,ic2,il0i) = (jc1==1).or.(nn_c1_dist(jc1)<min(nam%displ_rad,hdata%bdist(ic2)))
+                  hdata%local_mask(kc1,ic2,il0i) = (jc1==1).or.(nn_c1_dist(jc1)<min(nam%local_rad,hdata%mesh%bdist(ic2)))
+                  hdata%displ_mask(kc1,ic2,il0i) = (jc1==1).or.(nn_c1_dist(jc1)<min(nam%displ_rad,hdata%mesh%bdist(ic2)))
                end do
             end if
          end do
-         call delete_ctree(ctree_diag)
+         call ctree_diag%delete
       end do
 
       ! Initialize vbot and vtop
@@ -177,7 +178,7 @@ if (nam%local_diag.or.nam%displ_diag) then
                if (hdata%c1_to_c0(ic1)==hdata%h(il0i)%row(i_s)) hdata%s(il0i)%n_s = hdata%s(il0i)%n_s+1
             end do
          end do
-         call linop_alloc(hdata%s(il0i))
+         call hdata%s(il0i)%alloc
          hdata%s(il0i)%n_s = 0
          do i_s=1,hdata%h(il0i)%n_s
             do ic1=1,nam%nc1
@@ -226,7 +227,7 @@ if (nam%local_diag.or.nam%displ_diag) then
             c2a_to_c2 = hdata%c2a_to_c2
          else
             ! Receive data
-            call mpl_recv(hdata%proc_to_nc2a(iproc),c2a_to_c2,iproc,mpl%tag)
+            call mpl%recv(hdata%proc_to_nc2a(iproc),c2a_to_c2,iproc,mpl%tag)
          end if
 
          ! Translate index
@@ -239,26 +240,26 @@ if (nam%local_diag.or.nam%displ_diag) then
       end do
    else
       ! Send data
-      call mpl_send(hdata%nc2a,hdata%c2a_to_c2,mpl%ioproc,mpl%tag)
+      call mpl%send(hdata%nc2a,hdata%c2a_to_c2,mpl%ioproc,mpl%tag)
    end if
    mpl%tag = mpl%tag+1
    write(mpl%unit,'(a7,a,i8)') '','Local nc2a: ',hdata%nc2a
 end if
 
 ! Write sampling data
-if (nam%sam_write.and.mpl%main) call hdata_write(hdata)
+if (nam%sam_write.and.mpl%main) call hdata%write
 
 ! Compute nearest neighbors for local diagnostics output
 if (nam%local_diag.and.(nam%nldwv>0)) then
    write(mpl%unit,'(a7,a)') '','Compute nearest neighbors for local diagnostics output'
    allocate(hdata%nn_ldwv_index(nam%nldwv))
-   ctree_diag = create_ctree(hdata%nc2,geom%lon(hdata%c2_to_c0), &
+   call ctree_diag%create(hdata%nc2,geom%lon(hdata%c2_to_c0), &
                 geom%lat(hdata%c2_to_c0),hdata%c1l0_log(hdata%c2_to_c1,1))
    do ildw=1,nam%nldwv
-      call find_nearest_neighbors(ctree_diag,nam%lon_ldwv(ildw)*deg2rad,nam%lat_ldwv(ildw)*deg2rad, &
+      call ctree_diag%find_nearest_neighbors(nam%lon_ldwv(ildw)*deg2rad,nam%lat_ldwv(ildw)*deg2rad, &
     & 1,hdata%nn_ldwv_index(ildw:ildw),dum)
    end do
-   call delete_ctree(ctree_diag)
+   call ctree_diag%delete
 end if
 
 ! Print results
@@ -297,9 +298,11 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: ic0,ic1
-integer :: mask_ind_col(hdata%geom%nc0)
-real(kind_real) :: rh0(hdata%geom%nc0)
+integer :: ic0,ic1,fac,np,ip
+integer :: mask_ind_col(hdata%geom%nc0),nn_index(1)
+real(kind_real) :: rh0(hdata%geom%nc0),dum(1)
+real(kind_real),allocatable :: lon(:),lat(:)
+character(len=5) :: ic1char
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
@@ -316,9 +319,52 @@ rh0 = 1.0
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
 if (nam%nc1<maxval(count(geom%mask,dim=1))) then
-   if (mpl%main) call initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
- & nam%nc1,hdata%c1_to_c0)
-   call mpl_bcast(hdata%c1_to_c0,mpl%ioproc)
+   if (mpl%main) then
+      if (.true.) then
+         ! Random draw
+         call rng%initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,rh0,nam%ntry,nam%nrep, &
+       & nam%nc1,hdata%c1_to_c0)
+      else
+         ! Compute icosahedron size
+         call closest_icos(nam%nc1,fac,np)
+
+         ! Allocation
+         allocate(lon(np))
+         allocate(lat(np))
+
+         ! Compute icosahedron
+         call build_icos(fac,np,lon,lat)
+
+         ! Fill c1_to_c0
+         ic1 = 0
+         do ip=1,np
+            ! Find nearest neighbor
+            call geom%ctree%find_nearest_neighbors(lon(ip),lat(ip),1,nn_index,dum)
+            ic0 = nn_index(1)
+
+            ! Check mask
+            if (mask_ind_col(ic0)==1) then
+               ic1 = ic1+1
+               if (ic1<=nam%nc1) hdata%c1_to_c0(ic1) = ic0
+            end if
+         end do
+
+         ! Check size
+         if (ic1<nam%nc1) then
+            write(ic1char,'(i5)') ic1
+            call msgerror('nc1 should be decreased to '//ic1char)
+         end if
+         if (ic1>nam%nc1) then
+            write(ic1char,'(i5)') ic1
+            call msgwarning('nc1 could be increased to '//ic1char)
+         end if
+
+         ! Release memory
+         deallocate(lon)
+         deallocate(lat)
+      end if
+   end if
+   call mpl%bcast(hdata%c1_to_c0,mpl%ioproc)
 else
    ic1 = 0
    do ic0=1,geom%nc0
@@ -383,8 +429,8 @@ if (nam%nc3>1) then
    irmaxloc = irmax
    do while ((.not.all(isnotmsi(hdata%c1c3_to_c0))).and.(nvc0>1).and.(ir<=irmaxloc))
       ! Try a random point
-      if (mpl%main) call rand_integer(1,nvc0,i)
-      call mpl_bcast(i,mpl%ioproc)
+      if (mpl%main) call rng%rand_integer(1,nvc0,i)
+      call mpl%bcast(i,mpl%ioproc)
       ir = ir+1
       jc0 = vic0(i)
 
@@ -530,162 +576,193 @@ implicit none
 type(hdatatype),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: ic1,progint
+integer :: i,il0,ic1,ic0,jc0,ibnd,ic3,progint
 integer :: nn(hdata%nam%nc3)
+integer :: iproc,ic1_s(mpl%nproc),ic1_e(mpl%nproc),nc1_loc(mpl%nproc),ic1_loc
+integer,allocatable :: sbufi(:),rbufi(:)
 real(kind_real) :: dum(hdata%nam%nc3)
-logical,allocatable :: done(:)
+real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
+logical,allocatable :: sbufl(:),rbufl(:),done(:)
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom)
 
 write(mpl%unit,'(a7,a)',advance='no') '','Compute LCT sampling: '
 
-! Initialize
-allocate(done(nam%nc1))
-call prog_init(progint,done)
+! MPI splitting
+call mpl%split(nam%nc1,ic1_s,ic1_e,nc1_loc)
 
-do ic1=1,nam%nc1
+! Allocation
+allocate(done(nc1_loc(mpl%myproc)))
+
+! Initialization
+call prog_init(progint)
+
+do ic1_loc=1,nc1_loc(mpl%myproc)
+   ! MPI offset
+   ic1 = ic1_s(mpl%myproc)+ic1_loc-1
+
    ! Check location validity
    if (isnotmsi(hdata%c1_to_c0(ic1))) then
       ! Find neighbors
-      call find_nearest_neighbors(geom%ctree,dble(geom%lon(hdata%c1_to_c0(ic1))),dble(geom%lat(hdata%c1_to_c0(ic1))), &
+      call geom%ctree%find_nearest_neighbors(dble(geom%lon(hdata%c1_to_c0(ic1))),dble(geom%lat(hdata%c1_to_c0(ic1))), &
     & nam%nc3,nn,dum)
+
+      ! Copy neighbor index
+      do ic3=1,nam%nc3
+         jc0 = nn(ic3)
+         hdata%c1c3_to_c0(ic1,ic3) = nn(ic3)
+         do il0=1,geom%nl0
+            hdata%c1c3l0_log(ic1,ic3,il0) = geom%mask(jc0,il0)
+         end do
+      end do
+
+      if (nam%mask_check) then
+         ! Check that great circle to neighbors is not crossing mask boundaries
+         do il0=1,geom%nl0
+            !$omp parallel do schedule(static) private(ic3,ic0,jc0) firstprivate(x,y,z,v1,v2,va,vp,t)
+            do ic3=1,nam%nc3
+               ! Allocation
+               allocate(x(2))
+               allocate(y(2))
+               allocate(z(2))
+               allocate(v1(3))
+               allocate(v2(3))
+               allocate(va(3))
+               allocate(vp(3))
+               allocate(t(4))
+
+               ! Indices
+               ic0 = hdata%c1_to_c0(ic1)
+               jc0 = hdata%c1c3_to_c0(ic1,ic3)
+
+               ! Transform to cartesian coordinates
+               call trans(2,geom%lat((/ic0,jc0/)),geom%lon((/ic0,jc0/)),x,y,z)
+
+               ! Compute arc orthogonal vector
+               v1 = (/x(1),y(1),z(1)/)
+               v2 = (/x(2),y(2),z(2)/)
+               call vector_product(v1,v2,va)
+
+               ! Check if arc is crossing boundary arcs
+               do ibnd=1,geom%nbnd(il0)
+                  call vector_product(va,geom%vbnd(:,ibnd,il0),vp)
+                  v1 = (/x(1),y(1),z(1)/)
+                  call vector_triple_product(v1,va,vp,t(1))
+                  v1 = (/x(2),y(2),z(2)/)
+                  call vector_triple_product(v1,va,vp,t(2))
+                  v1 = (/geom%xbnd(1,ibnd,il0),geom%ybnd(1,ibnd,il0),geom%zbnd(1,ibnd,il0)/)
+                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(3))
+                  v1 = (/geom%xbnd(2,ibnd,il0),geom%ybnd(2,ibnd,il0),geom%zbnd(2,ibnd,il0)/)
+                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(4))
+                  t(1) = -t(1)
+                  t(3) = -t(3)
+                  if (all(t>0).or.(all(t<0))) then
+                     hdata%c1c3l0_log(ic1,ic3,il0) = .false.
+                     exit
+                  end if
+               end do
+
+               ! Memory release
+               deallocate(x)
+               deallocate(y)
+               deallocate(z)
+               deallocate(v1)
+               deallocate(v2)
+               deallocate(va)
+               deallocate(vp)
+               deallocate(t)
+            end do
+            !$omp end parallel do
+         end do
+      end if
    end if
 
    ! Print progression
-   done(ic1) = .true.
+   done(ic1_loc) = .true.
    call prog_print(progint,done)
 end do
 write(mpl%unit,'(a)') '100%'
+
+! Communication
+if (mpl%main) then
+   do iproc=1,mpl%nproc
+      if (iproc/=mpl%ioproc) then
+         ! Allocation
+         allocate(rbufi(nc1_loc(iproc)*nam%nc3))
+         allocate(rbufl(nc1_loc(iproc)*nam%nc3*geom%nl0))
+
+         ! Receive data on ioproc
+         call mpl%recv(nc1_loc(iproc)*nam%nc3,rbufi,iproc,mpl%tag)
+         call mpl%recv(nc1_loc(iproc)*nam%nc3*geom%nl0,rbufl,iproc,mpl%tag+1)
+
+         ! Format data
+         i = 0
+         do ic3=1,nam%nc3
+            do ic1_loc=1,nc1_loc(iproc)
+               i = i+1
+               ic1 = ic1_s(iproc)+ic1_loc-1
+               hdata%c1c3_to_c0(ic1,ic3) = rbufi(i)
+            end do
+         end do
+         i = 0
+         do il0=1,geom%nl0
+            do ic3=1,nam%nc3
+               do ic1_loc=1,nc1_loc(iproc)
+                  i = i+1
+                  ic1 = ic1_s(iproc)+ic1_loc-1
+                  hdata%c1c3l0_log(ic1,ic3,il0) = rbufl(i)
+               end do
+            end do
+         end do
+
+         ! Release memory
+         deallocate(rbufi)
+         deallocate(rbufl)
+      end if
+   end do
+else
+   ! Allocation
+   allocate(sbufi(nc1_loc(mpl%myproc)*nam%nc3))
+   allocate(sbufl(nc1_loc(mpl%myproc)*nam%nc3*geom%nl0))
+
+   ! Prepare buffers
+   i = 0
+   do ic3=1,nam%nc3
+      do ic1_loc=1,nc1_loc(mpl%myproc)
+         i = i+1
+         ic1 = ic1_s(mpl%myproc)+ic1_loc-1
+         sbufi(i) = hdata%c1c3_to_c0(ic1,ic3)
+      end do
+   end do
+   i = 0
+   do il0=1,geom%nl0
+      do ic3=1,nam%nc3
+         do ic1_loc=1,nc1_loc(mpl%myproc)
+            i = i+1
+            ic1 = ic1_s(mpl%myproc)+ic1_loc-1
+            sbufl(i) = hdata%c1c3l0_log(ic1,ic3,il0)
+         end do
+      end do
+   end do
+
+   ! Send data to ioproc
+   call mpl%send(nc1_loc(mpl%myproc)*nam%nc3,sbufi,mpl%ioproc,mpl%tag)
+   call mpl%send(nc1_loc(mpl%myproc)*nam%nc3*geom%nl0,sbufl,mpl%ioproc,mpl%tag+1)
+
+   ! Release memory
+   deallocate(sbufi)
+   deallocate(sbufl)
+end if
+mpl%tag = mpl%tag+2
+
+! Broadcast data
+call mpl%bcast(hdata%c1c3_to_c0,mpl%ioproc)
+call mpl%bcast(hdata%c1c3l0_log,mpl%ioproc)
 
 ! End associate
 end associate
 
 end subroutine compute_sampling_lct
-
-!----------------------------------------------------------------------
-! Subroutine: compute_sampling_mesh
-!> Purpose: compute sampling mesh
-!----------------------------------------------------------------------
-subroutine compute_sampling_mesh(hdata)
-
-implicit none
-
-! Passed variables
-type(hdatatype),intent(inout) :: hdata !< HDIAG data
-
-! Local variables
-integer :: info,ic2
-integer :: list(6*(hdata%nc2-2)),lptr(6*(hdata%nc2-2)),lend(hdata%nc2),lnew,near(hdata%nc2)
-integer :: next(hdata%nc2),ltri(9,2*(hdata%nc2-2))
-integer :: na,ia,it,i,i1,i2,nodes(hdata%nc2),nb,natmp,nttmp,nab,larcb(2,3*(hdata%nc2-2)),iab
-real(kind_real) :: x(hdata%nc2),y(hdata%nc2),z(hdata%nc2),dist(hdata%nc2),dist_12
-real(kind_real) :: v1(3),v2(3),vp(3),v(3),vf(3),vt(3),tlat,tlon,trad,dist_t1,dist_t2
-
-! Associate
-associate(nam=>hdata%nam,geom=>hdata%geom)
-
-! Transform to cartesian coordinates
-call trans(hdata%nc2,geom%lat(hdata%c2_to_c0),geom%lon(hdata%c2_to_c0),x,y,z)
-
-! Create mesh
-list = 0
-call trmesh(hdata%nc2,x,y,z,list,lptr,lend,lnew,near,next,dist,info)
-
-! Create triangles list
-call trlist(hdata%nc2,list,lptr,lend,9,hdata%nt,ltri,info)
-
-! Copy triangle list
-allocate(hdata%ltri(3,hdata%nt))
-hdata%ltri(:,1:hdata%nt) = ltri(1:3,1:hdata%nt)
-
-! Copy arcs list
-na = maxval(ltri(7:9,1:hdata%nt))
-allocate(hdata%larc(2,na))
-do ia=1,na
-   it = 1
-   do while (it<=hdata%nt)
-      if (any(ltri(7:9,it)==ia)) exit
-      it = it+1
-   end do
-   i = 1
-   do while (i<=3)
-      if (ltri(6+i,it)==ia) exit
-      i = i+1
-   end do
-   i1 = mod(i+1,3)
-   if (i1==0) i1 = 3
-   i2 = mod(i+2,3)
-   if (i2==0) i2 = 3
-   hdata%larc(1,ia) = ltri(i1,it)
-   hdata%larc(2,ia) = ltri(i2,it)
-end do
-
-! Find boundary nodes
-allocate(hdata%bdist(hdata%nc2))
-call msi(nodes)
-call bnodes(hdata%nc2,list,lptr,lend,nodes,nb,natmp,nttmp)
-if (nb>0) then
-   ! Find boundary arcs
-   nab = 0
-   do ia=1,na
-      if (any(nodes(1:nb)==hdata%larc(1,ia)).and.any(nodes(1:nb)==hdata%larc(2,ia))) then
-         nab = nab+1
-         larcb(:,nab) = hdata%larc(:,ia)
-      end if
-   end do
-
-   ! Find minimal distance to a boundary arc
-   hdata%bdist = huge(1.0)
-   do iab=1,nab
-      ! Distance
-      call sphere_dist(geom%lon(hdata%c2_to_c0(larcb(1,iab))),geom%lat(hdata%c2_to_c0(larcb(1,iab))), &
-    & geom%lon(hdata%c2_to_c0(larcb(2,iab))),geom%lat(hdata%c2_to_c0(larcb(2,iab))),dist_12)
-
-      ! Vectors
-      v1 = (/x(larcb(1,iab)),y(larcb(1,iab)),z(larcb(1,iab))/)
-      v2 = (/x(larcb(2,iab)),y(larcb(2,iab)),z(larcb(2,iab))/)
-
-      ! Compute normal vector to the boundary arc plane
-      call vector_product(v1,v2,vp)
-
-      ! Compute the shortest distance from each point to the boundary arc great-circle
-      do ic2=1,hdata%nc2
-         ! Vector
-         v = (/x(ic2),y(ic2),z(ic2)/)
-
-         ! Vector products
-         call vector_product(v,vp,vf)
-         call vector_product(vp,vf,vt)
-
-         ! Back to spherical coordinates
-         call scoord(vt(1),vt(2),vt(3),tlat,tlon,trad)
-
-         ! Check whether T is on the arc
-         call sphere_dist(tlon,tlat,geom%lon(hdata%c2_to_c0(larcb(1,iab))),geom%lat(hdata%c2_to_c0(larcb(1,iab))),dist_t1)
-         call sphere_dist(tlon,tlat,geom%lon(hdata%c2_to_c0(larcb(2,iab))),geom%lat(hdata%c2_to_c0(larcb(2,iab))),dist_t2)
-         if ((dist_t1<dist_12).and.(dist_t2<dist_12)) then
-            ! T is on the arc
-            call sphere_dist(geom%lon(hdata%c2_to_c0(ic2)),geom%lat(hdata%c2_to_c0(ic2)),tlon,tlat,dist_t1)
-            hdata%bdist(ic2) = min(hdata%bdist(ic2),dist_t1)
-         else
-            ! T is not on the arc
-            call sphere_dist(geom%lon(hdata%c2_to_c0(ic2)),geom%lat(hdata%c2_to_c0(ic2)), &
-          & geom%lon(hdata%c2_to_c0(larcb(1,iab))),geom%lat(hdata%c2_to_c0(larcb(1,iab))),dist_t1)
-            call sphere_dist(geom%lon(hdata%c2_to_c0(ic2)),geom%lat(hdata%c2_to_c0(ic2)), &
-          & geom%lon(hdata%c2_to_c0(larcb(2,iab))),geom%lat(hdata%c2_to_c0(larcb(2,iab))),dist_t2)
-            hdata%bdist(ic2) = min(hdata%bdist(ic2),min(dist_t1,dist_t2))
-         end if
-      end do
-   end do
-   hdata%bdist = hdata%bdist/req
-else
-   hdata%bdist = huge(1.0)
-end if
-
-! End associate
-end associate
-
-end subroutine compute_sampling_mesh
 
 end module hdiag_sampling

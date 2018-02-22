@@ -19,13 +19,14 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr,isanynotmsr
 use tools_qsort, only: qsort
 use tools_stripack, only: trans,scoord
-use type_com, only: com_ext
-use type_displ, only: displtype,displ_alloc
-use type_geom, only: fld_com_gl
-use type_linop, only: apply_linop
-use type_mesh, only: check_mesh
-use type_mpl, only: mpl,mpl_bcast
+use type_com, only: comtype
+use type_displ, only: displtype
+use type_geom, only: geomtype
+use type_linop, only: linoptype
+use type_mesh, only: meshtype
+use type_mpl, only: mpl
 use type_hdata, only: hdatatype
+
 implicit none
 
 real(kind_real),parameter :: cor_th = 0.2     !< Correlation threshold
@@ -65,6 +66,7 @@ real(kind_real) :: dx_ini(hdata%nc2),dy_ini(hdata%nc2),dz_ini(hdata%nc2)
 real(kind_real) :: dx(hdata%nc2),dy(hdata%nc2),dz(hdata%nc2)
 real(kind_real) :: dlon_c0(hdata%geom%nc0),dlat_c0(hdata%geom%nc0)
 logical :: dichotomy,convergence
+type(meshtype) :: mesh
 
 ! Associate
 associate(nam=>hdata%nam,geom=>hdata%geom,bpar=>hdata%bpar)
@@ -75,7 +77,7 @@ ne_offset = nam%ens1_ne_offset
 nsub = nam%ens1_nsub
 
 ! Allocation
-call displ_alloc(hdata,displ)
+call displ%alloc(hdata)
 allocate(fld_halo(hdata%nc0d,geom%nl0,nam%nv,2:nam%nts))
 allocate(m1_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
 allocate(m2_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
@@ -144,7 +146,7 @@ do isub=1,nsub
             end if
             call model_read(nam,geom,'ens1',ne_offset+ie,jsub,fld)
          end if
-         call fld_com_gl(nam,geom,fld)
+         call geom%fld_com_gl(nam,fld)
       end if
 
       do its=2,nam%nts
@@ -156,7 +158,7 @@ do isub=1,nsub
             fld_com = fld(:,:,iv,its)
 
             ! Halo extension
-            call com_ext(hdata%AD,fld_com)
+            call hdata%AD%ext(fld_com)
 
             ! Copy points
             fld_halo(:,:,iv,its) = fld_com
@@ -301,21 +303,26 @@ do its=2,nam%nts
       end if
 
       ! Broadcast data
-      call mpl_bcast(dlon_c2,mpl%ioproc)
-      call mpl_bcast(dlat_c2,mpl%ioproc)
-      call mpl_bcast(dist_c2,mpl%ioproc)
+      call mpl%bcast(dlon_c2,mpl%ioproc)
+      call mpl%bcast(dlat_c2,mpl%ioproc)
+      call mpl%bcast(dist_c2,mpl%ioproc)
 
       ! Average distance
       displ%dist(0,il0,its) = sum(dist_c2,mask=hdata%c1l0_log(hdata%c2_to_c1,il0)) &
                             & /count(hdata%c1l0_log(hdata%c2_to_c1,il0))
 
-      ! Check raw mesh
+      ! Copy lon/lat
       do ic2=1,hdata%nc2
          lon_c2(ic2) = lon_c2_ori(ic2,il0)+dlon_c2(ic2)
          lat_c2(ic2) = lat_c2_ori(ic2,il0)+dlat_c2(ic2)
          call lonlatmod(lon_c2(ic2),lat_c2(ic2))
       end do
-      call check_mesh(hdata%nc2,lon_c2,lat_c2,hdata%nt,hdata%ltri,valid)
+
+      ! Check raw mesh
+      mesh = hdata%mesh%copy()
+      mesh%lon = lon_c2
+      mesh%lat = lat_c2
+      call mesh%check(valid)
       displ%valid(0,il0,its) = sum(valid,mask=hdata%c1l0_log(hdata%c2_to_c1,il0)) &
                              & /count(hdata%c1l0_log(hdata%c2_to_c1,il0))
       displ%rhflt(0,il0,its) = 0.0
@@ -370,19 +377,25 @@ do its=2,nam%nts
             ! Reduce distance with respect to boundary
             do ic2=1,hdata%nc2
                if (hdata%c1l0_log(hdata%c2_to_c1(ic2),il0)) then
-                  call reduce_arc(lon_c2_ori(ic2,il0),lat_c2_ori(ic2,il0),lon_c2(ic2),lat_c2(ic2),hdata%bdist(ic2),dist_c2(ic2))
+                  call reduce_arc(lon_c2_ori(ic2,il0),lat_c2_ori(ic2,il0),lon_c2(ic2),lat_c2(ic2),hdata%mesh%bdist(ic2), &
+                & dist_c2(ic2))
                   dlon_c2(ic2) = lon_c2(ic2)-lon_c2_ori(ic2,il0)
                   dlat_c2(ic2) = lat_c2(ic2)-lat_c2_ori(ic2,il0)
                end if
             end do
 
-            ! Check mesh
+            ! Copy lon/lat
             do ic2=1,hdata%nc2
                lon_c2(ic2) = lon_c2_ori(ic2,il0)+dlon_c2(ic2)
                lat_c2(ic2) = lat_c2_ori(ic2,il0)+dlat_c2(ic2)
                call lonlatmod(lon_c2(ic2),lat_c2(ic2))
             end do
-            call check_mesh(hdata%nc2,lon_c2,lat_c2,hdata%nt,hdata%ltri,valid)
+
+            ! Check mesh
+            mesh = hdata%mesh%copy()
+            mesh%lon = lon_c2
+            mesh%lat = lat_c2
+            call mesh%check(valid)
             displ%valid(iter,il0,its) = sum(valid,mask=hdata%c1l0_log(hdata%c2_to_c1,il0)) &
                                       & /count(hdata%c1l0_log(hdata%c2_to_c1,il0))
 
@@ -443,8 +456,8 @@ do its=2,nam%nts
       do ic2=1,hdata%nc2
          call lonlatmod(dlon_c2(ic2),dlat_c2(ic2))
       end do
-      call apply_linop(hdata%h(min(il0,geom%nl0i)),dlon_c2,dlon_c0)
-      call apply_linop(hdata%h(min(il0,geom%nl0i)),dlat_c2,dlat_c0)
+      call hdata%h(min(il0,geom%nl0i))%apply(dlon_c2,dlon_c0)
+      call hdata%h(min(il0,geom%nl0i))%apply(dlat_c2,dlat_c0)
 
       ! Displaced grid
       displ%lon_c0_flt(:,il0,its) = geom%lon+dlon_c0
