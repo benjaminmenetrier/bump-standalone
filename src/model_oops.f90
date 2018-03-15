@@ -17,9 +17,9 @@ use tools_kinds,only: kind_real
 use tools_missing, only: msvalr,msi,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
 use tools_qsort, only: qsort
-use type_geom, only: geomtype
+use type_geom, only: geom_type
 use type_mpl, only: mpl
-use type_nam, only: namtype
+use type_nam, only: nam_type
 
 implicit none
 
@@ -37,7 +37,7 @@ subroutine model_oops_coord(geom,lon,lat,area,vunit,imask)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(inout) :: geom             !< Geometry
+type(geom_type),intent(inout) :: geom            !< Geometry
 real(kind_real),intent(in) :: lon(geom%nc0a)     !< Longitudes
 real(kind_real),intent(in) :: lat(geom%nc0a)     !< Latitudes
 real(kind_real),intent(in) :: area(geom%nc0a)    !< Area
@@ -149,10 +149,10 @@ subroutine model_oops_write(geom,ncid,varname,fld)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom                    !< Geometry
+type(geom_type),intent(in) :: geom                   !< Geometry
 integer,intent(in) :: ncid                           !< NetCDF file ID
 character(len=*),intent(in) :: varname               !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
+real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Field
 
 ! Local variables
 integer :: il0,ierr

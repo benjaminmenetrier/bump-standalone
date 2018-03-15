@@ -17,7 +17,7 @@ use type_mpl, only: mpl
 implicit none
 
 ! Timer data derived type
-type timertype
+type timer_type
    real(kind_real) :: cpu_time_start  !< CPU time start
    real(kind_real) :: cpu_time_end    !< CPU time end
    integer :: count_rate              !< Count rate
@@ -34,10 +34,10 @@ contains
    procedure :: start => timer_start
    procedure :: end => timer_end
    procedure :: display => timer_display
-end type timertype
+end type timer_type
 
 private
-public :: timertype
+public :: timer_type
 
 contains
 
@@ -50,7 +50,7 @@ subroutine timer_start(timer)
 implicit none
 
 ! Passed variables
-class(timertype),intent(inout) :: timer !< Timer data
+class(timer_type),intent(inout) :: timer !< Timer data
 
 ! Execution times  initialization
 call system_clock(count_rate=timer%count_rate,count_max=timer%count_max)
@@ -68,7 +68,7 @@ subroutine timer_end(timer)
 implicit none
 
 ! Passed variables
-class(timertype),intent(inout) :: timer !< Timer data
+class(timer_type),intent(inout) :: timer !< Timer data
 
 ! Execution times calculation
 call system_clock(count=timer%system_clock_end)
@@ -91,7 +91,7 @@ subroutine timer_display(timer)
 implicit none
 
 ! Passed variables
-class(timertype),intent(inout) :: timer !< Timer data
+class(timer_type),intent(inout) :: timer !< Timer data
 
 ! Local variables
 integer :: ierr,get_pid,lunit

@@ -30,9 +30,9 @@ subroutine closest_icos(n,fac,np)
 implicit none
 
 ! Passed variable
-integer,intent(in) :: n
-integer,intent(out) :: fac
-integer,intent(out) :: np
+integer,intent(in) :: n    !< Target number of nodes
+integer,intent(out) :: fac !< Division factor
+integer,intent(out) :: np  !< Number of nodes
 
 ! Initialization
 fac = 1
@@ -55,10 +55,10 @@ subroutine build_icos(fac,np,lon,lat)
 implicit none
 
 ! Passed variable
-integer,intent(in) :: fac
-integer,intent(in) :: np
-real(kind_real),intent(inout) :: lon(np) !<
-real(kind_real),intent(inout) :: lat(np) !<
+integer,intent(in) :: fac                !< Division factor
+integer,intent(in) :: np                 !< Number of nodes
+real(kind_real),intent(inout) :: lon(np) !< Nodes longitudes
+real(kind_real),intent(inout) :: lat(np) !< Nodes latitudes
 
 ! Local variables
 integer :: a,b,c,e,f,f1,f2,i

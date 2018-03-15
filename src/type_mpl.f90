@@ -17,7 +17,7 @@ use tools_kinds, only: kind_real
 
 implicit none
 
-type mpltype
+type mpl_type
    ! MPL parameters
    integer :: nproc      !< Number of MPI tasks
    integer :: myproc     !< MPI task index
@@ -70,15 +70,17 @@ contains
    procedure :: mpl_allreduce_sum_real
    procedure :: mpl_allreduce_sum_real_array_1d
    generic :: allreduce_sum => mpl_allreduce_sum_real,mpl_allreduce_sum_real_array_1d
+   procedure :: allreduce_min => mpl_allreduce_min_real
+   procedure :: allreduce_max => mpl_allreduce_max_real
    procedure :: mpl_dot_prod_1d
    procedure :: mpl_dot_prod_2d
    procedure :: mpl_dot_prod_3d
    procedure :: mpl_dot_prod_4d
    generic :: dot_prod => mpl_dot_prod_1d,mpl_dot_prod_2d,mpl_dot_prod_3d,mpl_dot_prod_4d
    procedure :: split => mpl_split
-end type mpltype
+end type mpl_type
 
-type(mpltype) :: mpl
+type(mpl_type) :: mpl
 
 private
 public :: mpl
@@ -95,7 +97,7 @@ subroutine mpl_check(mpl,info)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl      !< MPL object
+class(mpl_type) :: mpl     !< MPL object
 integer,intent(in) :: info !< Error index
 
 ! Local variables
@@ -192,7 +194,7 @@ subroutine mpl_abort(mpl,message)
 implicit none
 
 ! Passed variable
-class(mpltype) :: mpl !< MPL object
+class(mpl_type) :: mpl                 !< MPL object
 character(len=*),intent(in) :: message !< Message
 
 ! Flush
@@ -218,7 +220,7 @@ subroutine mpl_barrier(mpl)
 implicit none
 
 ! Passed variable
-class(mpltype) :: mpl !< MPL object
+class(mpl_type) :: mpl!< MPL object
 
 ! Local variable
 integer :: info
@@ -240,7 +242,7 @@ subroutine mpl_bcast_integer(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl      !< MPL object
+class(mpl_type) :: mpl     !< MPL object
 integer,intent(in) :: var  !< Integer
 integer,intent(in) :: root !< Root task
 
@@ -267,7 +269,7 @@ subroutine mpl_bcast_integer_array_1d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                  !< MPL object
+class(mpl_type) :: mpl                 !< MPL object
 integer,dimension(:),intent(in) :: var !< Integer array, 1d
 integer,intent(in) :: root             !< Root task
 
@@ -294,7 +296,7 @@ subroutine mpl_bcast_integer_array_2d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                    !< MPL object
+class(mpl_type) :: mpl                   !< MPL object
 integer,dimension(:,:),intent(in) :: var !< Integer array, 2d
 integer,intent(in) :: root               !< Root task
 
@@ -321,7 +323,7 @@ subroutine mpl_bcast_real(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl             !< MPL object
+class(mpl_type) :: mpl            !< MPL object
 real(kind_real),intent(in) :: var !< Real
 integer,intent(in) :: root        !< Root task
 
@@ -348,7 +350,7 @@ subroutine mpl_bcast_real_array_1d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                          !< MPL object
+class(mpl_type) :: mpl                         !< MPL object
 real(kind_real),dimension(:),intent(in) :: var !< Real array, 1d
 integer,intent(in) :: root                     !< Root task
 
@@ -375,7 +377,7 @@ subroutine mpl_bcast_real_array_2d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                            !< MPL object
+class(mpl_type) :: mpl                           !< MPL object
 real(kind_real),dimension(:,:),intent(in) :: var !< Real array, 2d
 integer,intent(in) :: root                       !< Root task
 
@@ -402,7 +404,7 @@ subroutine mpl_bcast_real_array_3d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                              !< MPL object
+class(mpl_type) :: mpl                             !< MPL object
 real(kind_real),dimension(:,:,:),intent(in) :: var !< Real array, 3d
 integer,intent(in) :: root                         !< Root task
 
@@ -429,7 +431,7 @@ subroutine mpl_bcast_real_array_4d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                                !< MPL object
+class(mpl_type) :: mpl                               !< MPL object
 real(kind_real),dimension(:,:,:,:),intent(in) :: var !< Real array, 4d
 integer,intent(in) :: root                           !< Root task
 
@@ -456,7 +458,7 @@ subroutine mpl_bcast_real_array_5d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                                  !< MPL object
+class(mpl_type) :: mpl                                 !< MPL object
 real(kind_real),dimension(:,:,:,:,:),intent(in) :: var !< Real array, 5d
 integer,intent(in) :: root                             !< Root task
 
@@ -483,7 +485,7 @@ subroutine mpl_bcast_real_array_6d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                                    !< MPL object
+class(mpl_type) :: mpl                                   !< MPL object
 real(kind_real),dimension(:,:,:,:,:,:),intent(in) :: var !< Real array, 6d
 integer,intent(in) :: root                               !< Root task
 
@@ -510,7 +512,7 @@ subroutine mpl_bcast_logical(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl      !< MPL object
+class(mpl_type) :: mpl     !< MPL object
 logical,intent(in) :: var  !< Logical
 integer,intent(in) :: root !< Root task
 
@@ -537,7 +539,7 @@ subroutine mpl_bcast_logical_array_1d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                  !< MPL object
+class(mpl_type) :: mpl                 !< MPL object
 logical,dimension(:),intent(in) :: var !< Logical array, 1d
 integer,intent(in) :: root             !< Root task
 
@@ -564,7 +566,7 @@ subroutine mpl_bcast_logical_array_2d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                    !< MPL object
+class(mpl_type) :: mpl                   !< MPL object
 logical,dimension(:,:),intent(in) :: var !< Logical array, 1d
 integer,intent(in) :: root               !< Root task
 
@@ -591,7 +593,7 @@ subroutine mpl_bcast_logical_array_3d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                      !< MPL object
+class(mpl_type) :: mpl                     !< MPL object
 logical,dimension(:,:,:),intent(in) :: var !< Logical array, 1d
 integer,intent(in) :: root                 !< Root task
 
@@ -618,7 +620,7 @@ subroutine mpl_bcast_string(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl              !< MPL object
+class(mpl_type) :: mpl             !< MPL object
 character(len=*),intent(in) :: var !< String
 integer,intent(in) :: root         !< Root task
 
@@ -645,7 +647,7 @@ subroutine mpl_bcast_string_array_1d(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                           !< MPL object
+class(mpl_type) :: mpl                          !< MPL object
 character(len=*),dimension(:),intent(in) :: var !< Logical array, 1d
 integer,intent(in) :: root                      !< Root task
 
@@ -671,7 +673,7 @@ subroutine mpl_recv_integer(mpl,var,src,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl      !< MPL object
+class(mpl_type) :: mpl     !< MPL object
 integer,intent(out) :: var !< Integer
 integer,intent(in) :: src  !< Source task
 integer,intent(in) :: tag  !< Tag
@@ -697,7 +699,7 @@ subroutine mpl_recv_integer_array_1d(mpl,n,var,src,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl         !< MPL object
+class(mpl_type) :: mpl        !< MPL object
 integer,intent(in) :: n       !< Array size
 integer,intent(out) :: var(n) !< Integer array, 1d
 integer,intent(in) :: src     !< Source task
@@ -724,7 +726,7 @@ subroutine mpl_recv_real_array_1d(mpl,n,var,src,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                 !< MPL object
+class(mpl_type) :: mpl                !< MPL object
 integer,intent(in) :: n               !< Array size
 real(kind_real),intent(out) :: var(n) !< Real array, 1d
 integer,intent(in) :: src             !< Source task
@@ -751,7 +753,7 @@ subroutine mpl_recv_logical_array_1d(mpl,n,var,src,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl         !< MPL object
+class(mpl_type) :: mpl        !< MPL object
 integer,intent(in) :: n       !< Array size
 logical,intent(out) :: var(n) !< Logical array, 1d
 integer,intent(in) :: src     !< Source task
@@ -778,7 +780,7 @@ subroutine mpl_send_integer(mpl,var,dst,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl     !< MPL object
+class(mpl_type) :: mpl    !< MPL object
 integer,intent(in) :: var !< Integer
 integer,intent(in) :: dst !< Destination task
 integer,intent(in) :: tag !< Tag
@@ -803,7 +805,7 @@ subroutine mpl_send_integer_array_1d(mpl,n,var,dst,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl        !< MPL object
+class(mpl_type) :: mpl       !< MPL object
 integer,intent(in) :: n      !< Array size
 integer,intent(in) :: var(n) !< Integer array, 1d
 integer,intent(in) :: dst    !< Destination task
@@ -829,7 +831,7 @@ subroutine mpl_send_real_array_1d(mpl,n,var,dst,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                !< MPL object
+class(mpl_type) :: mpl               !< MPL object
 integer,intent(in) :: n              !< Array size
 real(kind_real),intent(in) :: var(n) !< Real array, 1d
 integer,intent(in) :: dst            !< Destination task
@@ -855,7 +857,7 @@ subroutine mpl_send_logical_array_1d(mpl,n,var,dst,tag)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl        !< MPL object
+class(mpl_type) :: mpl       !< MPL object
 integer,intent(in) :: n      !< Array size
 logical,intent(in) :: var(n) !< Logical array, 1d
 integer,intent(in) :: dst    !< Destination task
@@ -881,7 +883,7 @@ subroutine mpl_allgather_integer(mpl,ns,sbuf,rbuf)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                      !< MPL object
+class(mpl_type) :: mpl                     !< MPL object
 integer,intent(in) :: ns                   !< Sent buffer size
 integer,intent(in) :: sbuf(ns)             !< Sent buffer
 integer,intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
@@ -906,7 +908,7 @@ subroutine mpl_allgather_real(mpl,ns,sbuf,rbuf)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                              !< MPL object
+class(mpl_type) :: mpl                             !< MPL object
 integer,intent(in) :: ns                           !< Sent buffer size
 real(kind_real),intent(in) :: sbuf(ns)             !< Sent buffer
 real(kind_real),intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
@@ -931,7 +933,7 @@ subroutine mpl_allgather_logical(mpl,ns,sbuf,rbuf)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                      !< MPL object
+class(mpl_type) :: mpl                     !< MPL object
 integer,intent(in) :: ns                   !< Sent buffer size
 logical,intent(in) :: sbuf(ns)             !< Sent buffer
 logical,intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
@@ -956,7 +958,7 @@ subroutine mpl_alltoallv_real(mpl,ns,sbuf,scounts,sdispl,nr,rbuf,rcounts,rdispl)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                    !< MPL object
+class(mpl_type) :: mpl                   !< MPL object
 integer,intent(in) :: ns                 !< Sent buffer size
 real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
 integer,intent(in) :: scounts(mpl%nproc) !< Sending counts
@@ -986,7 +988,7 @@ subroutine mpl_allreduce_sum_real(mpl,var_in,var_out)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                  !< MPL object
+class(mpl_type) :: mpl                 !< MPL object
 real(kind_real),intent(in) :: var_in   !< Input real
 real(kind_real),intent(out) :: var_out !< Output real
 
@@ -1013,7 +1015,7 @@ subroutine mpl_allreduce_sum_real_array_1d(mpl,var_in,var_out)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                     !< MPL object
+class(mpl_type) :: mpl                    !< MPL object
 real(kind_real),intent(in) :: var_in(:)   !< Input real
 real(kind_real),intent(out) :: var_out(:) !< Output real
 
@@ -1032,6 +1034,60 @@ call mpl%check(info)
 end subroutine mpl_allreduce_sum_real_array_1d
 
 !----------------------------------------------------------------------
+! Subroutine: mpl_allreduce_min_real
+!> Purpose: allreduce min for a real number
+!----------------------------------------------------------------------
+subroutine mpl_allreduce_min_real(mpl,var_in,var_out)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                 !< MPL object
+real(kind_real),intent(in) :: var_in   !< Input real
+real(kind_real),intent(out) :: var_out !< Output real
+
+! Local variable
+integer :: info
+real(kind_real) :: sbuf(1),rbuf(1)
+
+! Allreduce
+sbuf(1) = var_in
+call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_min,mpi_comm_world,info)
+var_out = rbuf(1)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allreduce_min_real
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_allreduce_max_real
+!> Purpose: allreduce max for a real number
+!----------------------------------------------------------------------
+subroutine mpl_allreduce_max_real(mpl,var_in,var_out)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                 !< MPL object
+real(kind_real),intent(in) :: var_in   !< Input real
+real(kind_real),intent(out) :: var_out !< Output real
+
+! Local variable
+integer :: info
+real(kind_real) :: sbuf(1),rbuf(1)
+
+! Allreduce
+sbuf(1) = var_in
+call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_max,mpi_comm_world,info)
+var_out = rbuf(1)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allreduce_max_real
+
+!----------------------------------------------------------------------
 ! Subroutine: mpl_dot_prod_1d
 !> Purpose: global dot product over local fields, 1d
 !----------------------------------------------------------------------
@@ -1040,7 +1096,7 @@ subroutine mpl_dot_prod_1d(mpl,fld1,fld2,dp)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                 !< MPL object
+class(mpl_type) :: mpl                !< MPL object
 real(kind_real),intent(in) :: fld1(:) !< Field 1
 real(kind_real),intent(in) :: fld2(:) !< Field 2
 real(kind_real),intent(out) :: dp     !< Global dot product
@@ -1076,7 +1132,7 @@ subroutine mpl_dot_prod_2d(mpl,fld1,fld2,dp)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                   !< MPL object
+class(mpl_type) :: mpl                  !< MPL object
 real(kind_real),intent(in) :: fld1(:,:) !< Field 1
 real(kind_real),intent(in) :: fld2(:,:) !< Field 2
 real(kind_real),intent(out) :: dp       !< Global dot product
@@ -1112,7 +1168,7 @@ subroutine mpl_dot_prod_3d(mpl,fld1,fld2,dp)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                     !< MPL object
+class(mpl_type) :: mpl                    !< MPL object
 real(kind_real),intent(in) :: fld1(:,:,:) !< Field 1
 real(kind_real),intent(in) :: fld2(:,:,:) !< Field 2
 real(kind_real),intent(out) :: dp         !< Global dot product
@@ -1148,7 +1204,7 @@ subroutine mpl_dot_prod_4d(mpl,fld1,fld2,dp)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                       !< MPL object
+class(mpl_type) :: mpl                      !< MPL object
 real(kind_real),intent(in) :: fld1(:,:,:,:) !< Field 1
 real(kind_real),intent(in) :: fld2(:,:,:,:) !< Field 2
 real(kind_real),intent(out) :: dp           !< Global dot product
@@ -1184,7 +1240,7 @@ subroutine mpl_split(mpl,n,i_s,i_e,n_loc)
 implicit none
 
 ! Passed variables
-class(mpltype) :: mpl                   !< MPL object
+class(mpl_type) :: mpl                  !< MPL object
 integer,intent(in) :: n                 !< Total array size
 integer,intent(out) :: i_s(mpl%nproc)   !< Index start
 integer,intent(out) :: i_e(mpl%nproc)   !< Index end

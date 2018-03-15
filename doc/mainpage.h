@@ -62,10 +62,7 @@ Input and output files use the NetCDF format. The NetCDF library can be download
 The source code is organized in modules with several groups indicated by a prefix:
   - main.f90: main program
   - driver_[...]: drivers
-  - hdiag_[...]: HDIAG computation routines
   - model_[...]: model related routines, to get the coordinates, read and write fields
-  - nicas_[...]: NICAS computation routines
-  - obsop_[...]: observation operator computation routines
   - tools_[...]: useful tools for the whole code
   - type_[...]: derived types
   - external/[...]: external tools

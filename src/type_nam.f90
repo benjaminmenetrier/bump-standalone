@@ -31,7 +31,7 @@ integer,parameter :: nscalesmax = 5                 !< Maximum number of variabl
 integer,parameter :: nldwvmax = 100                 !< Maximum number of local diagnostic profiles
 integer,parameter :: ndirmax = 100                  !< Maximum number of diracs
 
-type namtype
+type nam_type
    ! general_param
    character(len=1024) :: datadir                   !< Data directory
    character(len=1024) :: prefix                    !< Files prefix
@@ -39,6 +39,7 @@ type namtype
    logical :: colorlog                              !< Add colors to the log (for display on terminal)
    logical :: default_seed                          !< Default seed for random numbers
    logical :: load_ensemble                         !< Load ensemble before computations
+   logical :: use_metis                             !< Use METIS to split the domain between processors
 
    ! driver_param
    character(len=1024) :: method                    !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
@@ -64,7 +65,6 @@ type namtype
    character(len=1024),dimension(nvmax) :: addvar2d !< Additionnal 2d variables names
    integer :: nts                                   !< Number of time slots
    integer,dimension(ntsmax) :: timeslot            !< Timeslots
-   logical :: transform                             !< Apply transforms
 
    ! ens1_param
    integer :: ens1_ne                               !< Ensemble 1 size
@@ -102,8 +102,7 @@ type namtype
    real(kind_real) ::  displ_tol                    !< Displacement tolerance for mesh check (for displ_diag = .true.)
 
    ! fit_param
-   character(len=1024) :: fit_type                  !< Fit type ('none', 'fast', 'nelder_mead', 'compass_search' or 'praxis')
-   logical :: fit_wgt                               !< Apply a fit weight given by the curve on which localization is applied
+   character(len=1024) :: minim_algo                !< Minimization algorithm ('none', 'fast' or 'hooke')
    logical :: lhomh                                 !< Vertically homogenous horizontal support radius
    logical :: lhomv                                 !< Vertically homogenous vertical support radius
    real(kind_real) ::  rvflt                        !< Vertical smoother support radius
@@ -117,7 +116,6 @@ type namtype
    integer :: nldwv                                 !< Number of local diagnostics profiles to write (for local_diag = .true.)
    real(kind_real) ::  lon_ldwv(nldwvmax)           !< Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
    real(kind_real) ::  lat_ldwv(nldwvmax)           !< Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-   character(len=1024) :: flt_type                  !< Diagnostics filtering type ('none', 'average', 'gc99', 'median')
    real(kind_real) ::  diag_rhflt                   !< Diagnostics filtering radius
    character(len=1024) :: diag_interp               !< Diagnostics interpolation type
 
@@ -129,6 +127,7 @@ type namtype
    character(len=1024) :: nicas_interp              !< NICAS interpolation type
    logical :: network                               !< Network-base convolution calculation (distance-based if false)
    integer :: mpicom                                !< Number of communication steps
+   integer :: advmode                               !< Advection mode (1: direct, -1: direct and inverse)
    integer :: ndir                                  !< Number of Diracs
    real(kind_real) :: londir(ndirmax)               !< Diracs longitudes
    real(kind_real) :: latdir(ndirmax)               !< Diracs latitudes
@@ -144,10 +143,10 @@ contains
    procedure :: read => nam_read
    procedure :: check => nam_check
    procedure :: ncwrite => nam_ncwrite
-end type namtype
+end type nam_type
 
 private
-public :: namtype
+public :: nam_type
 
 contains
 
@@ -160,7 +159,7 @@ subroutine nam_read(nam)
 implicit none
 
 ! Passed variable
-class(namtype),intent(out) :: nam !< Namelist
+class(nam_type),intent(out) :: nam !< Namelist
 
 ! Local variables
 integer :: iv
@@ -168,28 +167,28 @@ integer :: iv
 ! Namelist variables
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 integer :: nc1,ntry,nrep,nc3,nl0r,ne,displ_niter,lct_nscales,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv
-integer :: mpicom,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs
-logical :: colorlog,default_seed,load_ensemble
+integer :: mpicom,advmode,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs
+logical :: colorlog,default_seed,load_ensemble,use_metis
 logical :: new_hdiag,new_param,check_adjoints,check_pos_def,check_sqrt,check_dirac,check_randomization,check_consistency
-logical :: check_optimality,new_lct,new_obsop,logpres,transform,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag
-logical :: displ_diag,fit_wgt,lhomh,lhomv,lct_diag(nscalesmax),lsqrt,network
+logical :: check_optimality,new_lct,new_obsop,logpres,sam_write,sam_read,mask_check,gau_approx,full_var,local_diag
+logical :: displ_diag,lhomh,lhomv,lct_diag(nscalesmax),lsqrt,network
 real(kind_real) :: mask_th,dc,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt
 real(kind_real) :: rh(nlmax),rv(nlmax),resol,londir(ndirmax),latdir(ndirmax),obsdis
-character(len=1024) :: datadir,prefix,model,strategy,method,mask_type,fit_type,flt_type,diag_interp,nicas_interp,obsop_interp
+character(len=1024) :: datadir,prefix,model,strategy,method,mask_type,minim_algo,diag_interp,nicas_interp,obsop_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
 
 ! Namelist blocks
-namelist/general_param/datadir,prefix,model,colorlog,default_seed,load_ensemble
+namelist/general_param/datadir,prefix,model,colorlog,default_seed,load_ensemble,use_metis
 namelist/driver_param/method,strategy,new_hdiag,new_param,check_adjoints,check_pos_def,check_sqrt,check_dirac, &
                     & check_randomization,check_consistency,check_optimality,new_lct,new_obsop
-namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot,transform
+namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,nc1,ntry,nrep,nc3,dc,nl0r
 namelist/diag_param/ne,gau_approx,full_var,local_diag,local_rad,displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
-namelist/fit_param/fit_type,fit_wgt,lhomh,lhomv,rvflt,lct_nscales,lct_diag
-namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,flt_type,diag_rhflt,diag_interp
-namelist/nicas_param/lsqrt,rh,rv,resol,nicas_interp,network,mpicom,ndir,londir,latdir,levdir,ivdir,itsdir
+namelist/fit_param/minim_algo,lhomh,lhomv,rvflt,lct_nscales,lct_diag
+namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,diag_rhflt,diag_interp
+namelist/nicas_param/lsqrt,rh,rv,resol,nicas_interp,network,mpicom,advmode,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
 
 ! Default initialization
@@ -201,6 +200,7 @@ model = ''
 colorlog = .false.
 default_seed = .false.
 load_ensemble = .false.
+use_metis = .false.
 
 ! driver_param default
 method = ''
@@ -228,7 +228,6 @@ do iv=1,nvmax
 end do
 call msi(nts)
 call msi(timeslot)
-transform = .false.
 
 ! ens1_param default
 call msi(ens1_ne)
@@ -266,8 +265,7 @@ call msr(displ_rhflt)
 call msr(displ_tol)
 
 ! fit_param default
-fit_type = ''
-fit_wgt = .false.
+minim_algo = ''
 lhomh = .false.
 lhomv = .false.
 call msr(rvflt)
@@ -281,7 +279,6 @@ call msi(ic_ldwh)
 call msi(nldwv)
 call msr(lon_ldwv)
 call msr(lat_ldwv)
-flt_type = ''
 call msr(diag_rhflt)
 diag_interp = ''
 
@@ -293,6 +290,7 @@ call msr(resol)
 nicas_interp = ''
 network = .false.
 call msi(mpicom)
+call msi(advmode)
 call msi(ndir)
 call msr(londir)
 call msr(latdir)
@@ -316,6 +314,7 @@ if (mpl%main) then
    nam%colorlog = colorlog
    nam%default_seed = default_seed
    nam%load_ensemble = load_ensemble
+   nam%use_metis = use_metis
 
    ! driver_param
    read(*,nml=driver_param)
@@ -343,7 +342,6 @@ if (mpl%main) then
    nam%addvar2d = addvar2d
    nam%nts = nts
    nam%timeslot = timeslot
-   nam%transform = transform
 
    ! ens1_param
    read(*,nml=ens1_param)
@@ -386,8 +384,7 @@ if (mpl%main) then
 
    ! fit_param
    read(*,nml=fit_param)
-   nam%fit_type = fit_type
-   nam%fit_wgt = fit_wgt
+   nam%minim_algo = minim_algo
    nam%lhomh = lhomh
    nam%lhomv = lhomv
    nam%rvflt = rvflt
@@ -402,7 +399,6 @@ if (mpl%main) then
    nam%nldwv = nldwv
    nam%lon_ldwv = lon_ldwv
    nam%lat_ldwv = lat_ldwv
-   nam%flt_type = flt_type
    nam%diag_rhflt = diag_rhflt/req
    nam%diag_interp = diag_interp
 
@@ -415,6 +411,7 @@ if (mpl%main) then
    nam%nicas_interp = nicas_interp
    nam%network = network
    nam%mpicom = mpicom
+   nam%advmode = advmode
    nam%ndir = ndir
    nam%londir = londir
    nam%latdir = latdir
@@ -438,6 +435,7 @@ call mpl%bcast(nam%model,mpl%ioproc)
 call mpl%bcast(nam%colorlog,mpl%ioproc)
 call mpl%bcast(nam%default_seed,mpl%ioproc)
 call mpl%bcast(nam%load_ensemble,mpl%ioproc)
+call mpl%bcast(nam%use_metis,mpl%ioproc)
 
 ! driver_param
 call mpl%bcast(nam%method,mpl%ioproc)
@@ -463,7 +461,6 @@ call mpl%bcast(nam%varname,mpl%ioproc)
 call mpl%bcast(nam%addvar2d,mpl%ioproc)
 call mpl%bcast(nam%nts,mpl%ioproc)
 call mpl%bcast(nam%timeslot,mpl%ioproc)
-call mpl%bcast(nam%transform,mpl%ioproc)
 
 ! ens1_param
 call mpl%bcast(nam%ens1_ne,mpl%ioproc)
@@ -501,8 +498,7 @@ call mpl%bcast(nam%displ_rhflt,mpl%ioproc)
 call mpl%bcast(nam%displ_tol,mpl%ioproc)
 
 ! fit_param
-call mpl%bcast(nam%fit_type,mpl%ioproc)
-call mpl%bcast(nam%fit_wgt,mpl%ioproc)
+call mpl%bcast(nam%minim_algo,mpl%ioproc)
 call mpl%bcast(nam%lhomh,mpl%ioproc)
 call mpl%bcast(nam%lhomv,mpl%ioproc)
 call mpl%bcast(nam%rvflt,mpl%ioproc)
@@ -516,7 +512,6 @@ call mpl%bcast(nam%ic_ldwh,mpl%ioproc)
 call mpl%bcast(nam%nldwv,mpl%ioproc)
 call mpl%bcast(nam%lon_ldwv,mpl%ioproc)
 call mpl%bcast(nam%lat_ldwv,mpl%ioproc)
-call mpl%bcast(nam%flt_type,mpl%ioproc)
 call mpl%bcast(nam%diag_rhflt,mpl%ioproc)
 call mpl%bcast(nam%diag_interp,mpl%ioproc)
 
@@ -528,6 +523,7 @@ call mpl%bcast(nam%resol,mpl%ioproc)
 call mpl%bcast(nam%nicas_interp,mpl%ioproc)
 call mpl%bcast(nam%network,mpl%ioproc)
 call mpl%bcast(nam%mpicom,mpl%ioproc)
+call mpl%bcast(nam%advmode,mpl%ioproc)
 call mpl%bcast(nam%ndir,mpl%ioproc)
 call mpl%bcast(nam%londir,mpl%ioproc)
 call mpl%bcast(nam%latdir,mpl%ioproc)
@@ -551,11 +547,14 @@ subroutine nam_check(nam)
 implicit none
 
 ! Passed variable
-class(namtype),intent(inout) :: nam !< Namelist
+class(nam_type),intent(inout) :: nam !< Namelist
 
 ! Local variables
-integer :: iv,its,il,idir
+integer :: iv,its,il,idir,ildw,itest
 character(len=2) :: ivchar
+character(len=4) :: itestchar
+character(len=7) :: lonchar,latchar
+character(len=1024) :: filename
 
 ! Check general_param
 if (trim(nam%datadir)=='') call msgerror('datadir not specified')
@@ -682,14 +681,12 @@ if (nam%new_hdiag.or.nam%new_lct) then
    end if
 
    ! Check fit_param
-   select case (trim(nam%fit_type))
-   case ('none','fast')
-   case ('nelder_mead','compass_search','praxis')
-      call msgwarning('this minimizer leads to reproducibilty issues between compilers')
+   select case (trim(nam%minim_algo))
+   case ('none','fast','hooke')
    case default
-      call msgerror('wrong fit_type')
+      call msgerror('wrong minim_algo')
    end select
-   if (nam%new_lct.and.((trim(nam%fit_type)=='none').or.(trim(nam%fit_type)=='fast'))) call msgerror('wrong fit_type for LCT')
+   if (nam%new_lct.and.((trim(nam%minim_algo)=='none').or.(trim(nam%minim_algo)=='fast'))) call msgerror('wrong minim_algo for LCT')
    if (nam%rvflt<0) call msgerror('rvflt should be non-negative')
    if (nam%new_lct) then
       if (nam%lct_nscales<0) call msgerror('lct_nscales should be non-negative')
@@ -707,13 +704,7 @@ if (nam%new_hdiag.or.nam%new_lct) then
       if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call msgerror('wrong lat_ldwv')
    end if
    if (nam%local_diag.or.nam%displ_diag) then
-      select case (trim(nam%flt_type))
-      case ('average','gc99','median')
-         if (nam%diag_rhflt<0.0) call msgerror('diag_rhflt should be non-negative')
-      case ('none')
-      case default
-         call msgerror('wrong filtering type')
-      end select
+      if (nam%diag_rhflt<0.0) call msgerror('diag_rhflt should be non-negative')
    end if
    select case (trim(nam%diag_interp))
    case ('bilin','natural')
@@ -742,6 +733,7 @@ if (nam%new_param.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_sqrt.o
  & nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality) then
    if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call msgerror('mpicom should be 1 or 2')
 end if
+if (abs(nam%advmode)>1) call msgerror('nam%advmode should be -1, 0 or 1')
 if (nam%check_dirac) then
    if (nam%ndir<1) call msgerror('ndir should be positive')
    do idir=1,nam%ndir
@@ -771,7 +763,48 @@ if (nam%new_obsop) then
 end if
 
 ! Clean files
-if (nam%check_dirac) call system('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_dirac*.nc')
+if (mpl%main) then
+   ! Diagnostics
+   if (nam%new_hdiag) then
+      filename = trim(nam%prefix)//'_diag.nc'
+      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+
+      if (nam%local_diag) then
+         filename = trim(nam%prefix)//'_local_diag_*.nc'
+         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+      end if
+
+      do ildw=1,nam%nldwv
+         write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
+         write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
+         filename = trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc'
+         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+      end do
+   end if
+
+   ! Dirac test
+   if (nam%check_dirac) then
+      filename = trim(nam%prefix)//'_dirac.nc'
+      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+      filename = trim(nam%prefix)//'_dirac_gridded.nc'
+      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+   end if
+
+   ! Randomization test
+   if (nam%check_randomization) then
+      do itest=1,10
+         write(itestchar,'(i4.4)') itest
+         filename = trim(nam%prefix)//'_randomize_'//itestchar//'_gridded.nc'
+         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+      end do
+   end if
+
+   ! LCT
+   if (nam%new_lct) then
+      filename = trim(nam%prefix)//'_lct_gridded.nc'
+      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
+   end if
+end if
 
 end subroutine nam_check
 
@@ -784,8 +817,8 @@ subroutine nam_ncwrite(nam,ncid)
 implicit none
 
 ! Passed variable
-class(namtype),intent(in) :: nam !< Namelist
-integer,intent(in) :: ncid       !< NetCDF file id
+class(nam_type),intent(in) :: nam !< Namelist
+integer,intent(in) :: ncid        !< NetCDF file ID
 
 ! general_param
 call put_att(ncid,'datadir',trim(nam%datadir))
@@ -794,6 +827,7 @@ call put_att(ncid,'model',trim(nam%model))
 call put_att(ncid,'colorlog',nam%colorlog)
 call put_att(ncid,'default_seed',nam%default_seed)
 call put_att(ncid,'load_ensemble',nam%load_ensemble)
+call put_att(ncid,'use_metis',nam%use_metis)
 
 ! driver_param
 call put_att(ncid,'method',trim(nam%method))
@@ -818,7 +852,6 @@ call put_att(ncid,'varname',nam%nv,nam%varname(1:nam%nv))
 call put_att(ncid,'addvar2d',nam%nv,nam%addvar2d(1:nam%nv))
 call put_att(ncid,'nts',nam%nts)
 call put_att(ncid,'timeslot',nam%nts,nam%timeslot(1:nam%nts))
-call put_att(ncid,'transform',nam%transform)
 
 ! ens1_param
 call put_att(ncid,'ens1_ne',nam%ens1_ne)
@@ -856,8 +889,7 @@ call put_att(ncid,'displ_rhflt',nam%displ_rhflt)
 call put_att(ncid,'displ_tol',nam%displ_tol)
 
 ! fit_param
-call put_att(ncid,'fit_type',nam%fit_type)
-call put_att(ncid,'fit_wgt',nam%fit_wgt)
+call put_att(ncid,'minim_algo',nam%minim_algo)
 call put_att(ncid,'lhomh',nam%lhomh)
 call put_att(ncid,'lhomv',nam%lhomv)
 call put_att(ncid,'rvflt',nam%rvflt)
@@ -871,7 +903,6 @@ call put_att(ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
 call put_att(ncid,'nldwv',nam%nldwv)
 call put_att(ncid,'lon_ldwv',nam%nldwv,nam%lon_ldwv(1:nam%nldwv))
 call put_att(ncid,'lat_ldwv',nam%nldwv,nam%lat_ldwv(1:nam%nldwv))
-call put_att(ncid,'flt_type',nam%flt_type)
 call put_att(ncid,'diag_rhflt',nam%diag_rhflt)
 call put_att(ncid,'diag_interp',nam%diag_interp)
 
@@ -883,6 +914,7 @@ call put_att(ncid,'resol',nam%resol)
 call put_att(ncid,'nicas_interp',nam%nicas_interp)
 call put_att(ncid,'network',nam%network)
 call put_att(ncid,'mpicom',nam%mpicom)
+call put_att(ncid,'advmode',nam%advmode)
 call put_att(ncid,'ndir',nam%ndir)
 call put_att(ncid,'londir',nam%ndir,nam%londir(1:nam%ndir))
 call put_att(ncid,'latdir',nam%ndir,nam%latdir(1:nam%ndir))

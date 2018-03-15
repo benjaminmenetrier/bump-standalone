@@ -100,10 +100,6 @@ nc2 = dims(1)
 lon_c2_flt = data->lon_c2_flt
 lat_c2_flt = data->lat_c2_flt
 dist_c2_flt = data->dist_c2_flt
-lon_c0 = data->lon_c0
-lat_c0 = data->lat_c0
-lon_c0_flt = data->lon_c0_flt
-lat_c0_flt = data->lat_c0_flt
 dot = new(nc2,graphic)
 line = new(nc2,graphic)
 dist_min = 0.0
@@ -148,8 +144,6 @@ do ilevs=0,nlevs-1
    end do
 end do
 
-exit
-
 do ilevs=0,nlevs-1
    do its=1,nts-1
       output = "../fig/" + prefix + "_displ_diag_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
@@ -166,43 +160,6 @@ do ilevs=0,nlevs-1
          dot(ic2) = gsn_add_polymarker(wks,plot,lon_c2(ilevs_plot(ilevs),ic2),lat_c2(ilevs_plot(ilevs),ic2),pmres)
          line(ic2) = gsn_add_polyline(wks,plot,(/lon_c2(ilevs_plot(ilevs),ic2),lon_c2_flt(its-1,ilevs_plot(ilevs),ic2)/),(/lat_c2(ilevs_plot(ilevs),ic2),lat_c2_flt(its-1,ilevs_plot(ilevs),ic2)/),plres)
       end do
-
-      draw(plot)
-      frame(wks)
-      delete(wks)
-      system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
-   end do
-end do
-
-res@sfXArray = lon_c0
-res@sfYArray = lat_c0
-
-do ilevs=0,nlevs-1
-   do its=1,nts-1
-      output = "../fig/" + prefix + "_displ_lon_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
-      wks = gsn_open_wks("epsi",output)
-      gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
-
-      res@cnMaxLevelValF = 180.0
-      res@cnMinLevelValF = -180.0
-      res@cnLevelSpacingF = 5.0
-      res@tiMainString = "Displaced longitude @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
-      plot = gsn_csm_contour_map(wks,lon_c0_flt(its-1,ilevs_plot(ilevs),:),res)
-
-      draw(plot)
-      frame(wks)
-      delete(wks)
-      system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
-
-      res@cnMaxLevelValF = 90.0
-      res@cnMinLevelValF = -90.0
-      res@cnLevelSpacingF = 5.0
-      output = "../fig/" + prefix + "_displ_lat_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
-      wks = gsn_open_wks("epsi",output)
-      gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
-
-      res@tiMainString = "Displaced latitude @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
-      plot = gsn_csm_contour_map(wks,lat_c0_flt(its-1,ilevs_plot(ilevs),:),res)
 
       draw(plot)
       frame(wks)

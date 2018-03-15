@@ -5,6 +5,7 @@ model = "aro",
 colorlog = .true.,
 default_seed = .true.,
 load_ensemble = .false.,
+use_metis = .true.,
 /
 
 &driver_param
@@ -32,7 +33,6 @@ varname = "TEMPERATURE","HUMI_SPECIFI",
 addvar2d = "","",
 nts = 1,
 timeslot = 3,
-transform = .false.,
 /
 
 &ens1_param
@@ -75,8 +75,7 @@ displ_tol = 0.01,
 /
 
 &fit_param
-fit_type = "praxis",
-fit_wgt = .true.,
+minim_algo = "hooke",
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
@@ -91,7 +90,6 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-flt_type = "average",
 diag_rhflt = 250.0e3,
 diag_interp = "bilin",
 /
@@ -104,6 +102,7 @@ resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
+advmode = 0,
 ndir = 0,
 londir = 0.0,
 latdir = 0.0,

@@ -15,11 +15,11 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi
 use type_mpl, only: mpl
-use type_nam, only: namtype
+use type_nam, only: nam_type
 
 implicit none
 
-type rngtype
+type rng_type
    type(c_ptr) :: ptr !< Pointer to the C++ class
 contains
    procedure :: create => rng_create
@@ -39,9 +39,9 @@ contains
    procedure :: rand_gau_5d
    generic :: rand_gau => rand_gau_1d,rand_gau_5d
    procedure :: initialize_sampling
-end type rngtype
+end type rng_type
 
-type(rngtype) :: rng !< Random number generator
+type(rng_type) :: rng !< Random number generator
 
 ! C++ interface
 interface
@@ -121,8 +121,8 @@ subroutine rng_create(rng,nam)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng !< Random number generator
-type(namtype),intent(in) :: nam     !< Namelist variables
+class(rng_type),intent(inout) :: rng !< Random number generator
+type(nam_type),intent(in) :: nam     !< Namelist variables
 
 ! Local variable
 integer(kind=8) :: default_seed
@@ -155,7 +155,7 @@ subroutine rng_delete(rng)
 implicit none
 
 ! Passed variable
-class(rngtype),intent(inout) :: rng !< Random number generator
+class(rng_type),intent(inout) :: rng !< Random number generator
 
 ! Call C++ function
 call rng_delete_c(rng%ptr)
@@ -171,7 +171,7 @@ subroutine rng_reseed(rng)
 implicit none
 
 ! Passed variable
-class(rngtype),intent(inout) :: rng !< Random number generator
+class(rng_type),intent(inout) :: rng !< Random number generator
 
 ! Local variable
 integer(kind=8) :: default_seed
@@ -193,10 +193,10 @@ subroutine rand_integer_0d(rng,binf,bsup,ir)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng !< Random number generator
-integer,intent(in) :: binf          !< Lower bound
-integer,intent(in) :: bsup          !< Upper bound
-integer,intent(out) :: ir           !< Random integer
+class(rng_type),intent(inout) :: rng !< Random number generator
+integer,intent(in) :: binf           !< Lower bound
+integer,intent(in) :: bsup           !< Upper bound
+integer,intent(out) :: ir            !< Random integer
 
 ! Call C++ function
 call rand_integer_c(rng%ptr,binf,bsup,ir)
@@ -212,10 +212,10 @@ subroutine rand_integer_1d(rng,binf,bsup,ir)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng !< Random number generator
-integer,intent(in) :: binf          !< Lower bound
-integer,intent(in) :: bsup          !< Upper bound
-integer,intent(out) :: ir(:)        !< Random integer
+class(rng_type),intent(inout) :: rng !< Random number generator
+integer,intent(in) :: binf           !< Lower bound
+integer,intent(in) :: bsup           !< Upper bound
+integer,intent(out) :: ir(:)         !< Random integer
 
 ! Local variables
 integer :: i
@@ -236,10 +236,10 @@ subroutine rand_real_0d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng !< Random number generator
-real(kind_real),intent(in) :: binf  !< Lower bound
-real(kind_real),intent(in) :: bsup  !< Upper bound
-real(kind_real),intent(out) :: rr   !< Random integer
+class(rng_type),intent(inout) :: rng !< Random number generator
+real(kind_real),intent(in) :: binf   !< Lower bound
+real(kind_real),intent(in) :: bsup   !< Upper bound
+real(kind_real),intent(out) :: rr    !< Random integer
 
 ! Call C++ function
 call rand_real_c(rng%ptr,binf,bsup,rr)
@@ -255,7 +255,7 @@ subroutine rand_real_1d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng  !< Random number generator
+class(rng_type),intent(inout) :: rng !< Random number generator
 real(kind_real),intent(in) :: binf   !< Lower bound
 real(kind_real),intent(in) :: bsup   !< Upper bound
 real(kind_real),intent(out) :: rr(:) !< Random integer
@@ -279,10 +279,10 @@ subroutine rand_real_2d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng    !< Random number generator
-real(kind_real),intent(in) :: binf     !< Lower bound
-real(kind_real),intent(in) :: bsup     !< Upper bound
-real(kind_real),intent(out) :: rr(:,:) !< Random integer
+class(rng_type),intent(inout) :: rng    !< Random number generator
+real(kind_real),intent(in) :: binf      !< Lower bound
+real(kind_real),intent(in) :: bsup      !< Upper bound
+real(kind_real),intent(out) :: rr(:,:)  !< Random integer
 
 ! Local variables
 integer :: i,j
@@ -305,7 +305,7 @@ subroutine rand_real_3d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng      !< Random number generator
+class(rng_type),intent(inout) :: rng     !< Random number generator
 real(kind_real),intent(in) :: binf       !< Lower bound
 real(kind_real),intent(in) :: bsup       !< Upper bound
 real(kind_real),intent(out) :: rr(:,:,:) !< Random integer
@@ -333,7 +333,7 @@ subroutine rand_real_4d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng        !< Random number generator
+class(rng_type),intent(inout) :: rng       !< Random number generator
 real(kind_real),intent(in) :: binf         !< Lower bound
 real(kind_real),intent(in) :: bsup         !< Upper bound
 real(kind_real),intent(out) :: rr(:,:,:,:) !< Random integer
@@ -363,7 +363,7 @@ subroutine rand_real_5d(rng,binf,bsup,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng          !< Random number generator
+class(rng_type),intent(inout) :: rng         !< Random number generator
 real(kind_real),intent(in) :: binf           !< Lower bound
 real(kind_real),intent(in) :: bsup           !< Upper bound
 real(kind_real),intent(out) :: rr(:,:,:,:,:) !< Random integer
@@ -395,7 +395,7 @@ subroutine rand_gau_1d(rng,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng  !< Random number generator
+class(rng_type),intent(inout) :: rng !< Random number generator
 real(kind_real),intent(out) :: rr(:) !< Random integer
 
 ! Local variables
@@ -436,7 +436,7 @@ subroutine rand_gau_5d(rng,rr)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng          !< Random number generator
+class(rng_type),intent(inout) :: rng         !< Random number generator
 real(kind_real),intent(out) :: rr(:,:,:,:,:) !< Random integer
 
 ! Local variables
@@ -463,7 +463,7 @@ subroutine initialize_sampling(rng,n,lon,lat,mask,rh,ntry,nrep,ns,ihor)
 implicit none
 
 ! Passed variables
-class(rngtype),intent(inout) :: rng  !< Random number generator
+class(rng_type),intent(inout) :: rng !< Random number generator
 integer,intent(in) :: n              !< Number of points
 real(kind_real),intent(in) :: lon(n) !< Longitudes
 real(kind_real),intent(in) :: lat(n) !< Latitudes

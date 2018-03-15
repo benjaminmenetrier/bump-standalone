@@ -7,16 +7,16 @@
 #----------------------------------------------------------------------
 # NetCDF files
 nc_files='
-bdata_common
+cmat_common
 diag
 dirac_gridded
 dirac
-local_diag_cor_gridded
-local_diag_loc_gridded
-ndata_2_0001-0001_common
-ndata_2_0001-0001_common_summary
-sampling_001
-sampling'
+local_diag_cor
+local_diag_loc
+nicas_2_0001-0001_common
+nicas_2_0001-0001_common_summary
+sampling
+sampling_001'
 
 # Check in DEBUG mode
 if [[ $HDIAG_NICAS_BUILD != "DEBUG" ]] ; then

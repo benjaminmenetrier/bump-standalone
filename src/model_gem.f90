@@ -16,8 +16,9 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype
-use type_nam, only: namtype
+use type_geom, only: geom_type
+use type_mpl, only: mpl
+use type_nam, only: nam_type
 
 implicit none
 
@@ -35,8 +36,8 @@ subroutine model_gem_coord(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam      !< Namelist
-type(geomtype),intent(inout) :: geom !< Geometry
+type(nam_type),intent(in) :: nam      !< Namelist
+type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ilon,ilat
@@ -117,17 +118,18 @@ subroutine model_gem_read(nam,geom,ncid,its,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam                              !< Namelist
-type(geomtype),intent(in) :: geom                            !< Geometry
+type(nam_type),intent(in) :: nam                             !< Namelist
+type(geom_type),intent(in) :: geom                           !< Geometry
 integer,intent(in) :: ncid                                   !< NetCDF file ID
 integer,intent(in) :: its                                    !< Timeslot index
-real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Read field
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
 integer :: iv,il0,xt,dum
 integer :: fld_id
 integer,allocatable :: fld_loc_int(:,:)
 real(kind_real) :: add_offset,scale_factor
+real(kind_real) :: fld_glb(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_loc(:,:)
 character(len=1024) :: subr = 'model_gem_read'
 
@@ -135,55 +137,60 @@ character(len=1024) :: subr = 'model_gem_read'
 call msr(fld)
 
 do iv=1,nam%nv
-   ! 3d variable
+   if (mpl%main) then
+      ! 3d variable
 
-   ! Get variable id
-   call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+      ! Get variable id
+      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
-   ! Check variable type
-   call ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt))
-   if (xt==nf90_short) then
-      allocate(fld_loc_int(geom%nlon,geom%nlat))
-   elseif (xt==nf90_double) then
-      allocate(fld_loc(geom%nlon,geom%nlat))
-   else
-      call msgerror('wrong variable type')
+      ! Check variable type
+      call ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt))
+      if (xt==nf90_short) then
+         allocate(fld_loc_int(geom%nlon,geom%nlat))
+      elseif (xt==nf90_double) then
+         allocate(fld_loc(geom%nlon,geom%nlat))
+      else
+         call msgerror('wrong variable type')
+      end if
+
+      ! 3d variable
+      do il0=1,nam%nl
+         if (xt==nf90_short) then
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+            call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
+            call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
+            fld_glb(:,il0) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
+         elseif (xt==nf90_double) then
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+            fld_glb(:,il0) = pack(fld_loc,mask=.true.)
+         else
+            call msgerror('wrong netcdf variable type')
+         end if
+      end do
+
+      if (trim(nam%addvar2d(iv))/='') then
+         ! 2d variable
+
+         ! Get id
+         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+
+         ! Read data
+         if (xt==nf90_short) then
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1/),(/geom%nlon,geom%nlat/)))
+            call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
+            call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
+            fld_glb(:,geom%nl0) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
+         elseif (xt==nf90_double) then
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
+            fld_glb(:,geom%nl0) = pack(fld_loc,mask=.true.)
+         else
+            call msgerror('wrong netcdf variable type')
+         end if
+      end if
    end if
 
-   ! 3d variable
-   do il0=1,nam%nl
-      if (xt==nf90_short) then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-         call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
-         call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
-         fld(:,il0,iv) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
-      elseif (xt==nf90_double) then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-         fld(:,il0,iv) = pack(fld_loc,mask=.true.)
-      else
-         call msgerror('wrong netcdf variable type')
-      end if
-   end do
-
-   if (trim(nam%addvar2d(iv))/='') then
-      ! 2d variable
-
-      ! Get id
-      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-      ! Read data
-      if (xt==nf90_short) then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc_int,(/1,1/),(/geom%nlon,geom%nlat/)))
-         call ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
-         call ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
-         fld(:,geom%nl0,iv) = pack(add_offset+scale_factor*float(fld_loc_int),mask=.true.)
-      elseif (xt==nf90_double) then
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1/),(/geom%nlon,geom%nlat/)))
-         fld(:,geom%nl0,iv) = pack(fld_loc,mask=.true.)
-      else
-         call msgerror('wrong netcdf variable type')
-      end if
-   end if
+   ! Split over processors
+   call geom%fld_com_gl(fld_glb,fld(:,:,iv))
 end do
 
 ! Use timeslot to avoid warning
@@ -200,46 +207,51 @@ subroutine model_gem_write(geom,ncid,varname,fld)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom                    !< Geometry
-integer,intent(in) :: ncid                           !< NetCDF file ID
-character(len=*),intent(in) :: varname               !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
+type(geom_type),intent(in) :: geom                    !< Geometry
+integer,intent(in) :: ncid                            !< NetCDF file ID
+character(len=*),intent(in) :: varname                !< Variable name
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
 integer :: il0,ierr
 integer :: nlon_id,nlat_id,nlev_id,fld_id
-real(kind_real) :: fld_loc(geom%nlon,geom%nlat)
+real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0)
 logical :: mask_unpack(geom%nlon,geom%nlat)
 character(len=1024) :: subr = 'model_gem_write'
 
-! Initialization
-mask_unpack = .true.
+! Local to global
+call geom%fld_com_lg(fld,fld_glb)
 
-! Get variable id
-ierr = nf90_inq_varid(ncid,trim(varname),fld_id)
+if (mpl%main) then
+   ! Initialization
+   mask_unpack = .true.
 
-! Define dimensions and variable if necessary
-if (ierr/=nf90_noerr) then
-   call ncerr(subr,nf90_redef(ncid))
-   ierr = nf90_inq_dimid(ncid,'lon',nlon_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lon',geom%nlon,nlon_id))
-   ierr = nf90_inq_dimid(ncid,'lat',nlat_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lat',geom%nlat,nlat_id))
-   ierr = nf90_inq_dimid(ncid,'lev',nlev_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lev',geom%nl0,nlev_id))
-   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
-   call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_enddef(ncid))
-end if
+   ! Get variable id
+   ierr = nf90_inq_varid(ncid,trim(varname),fld_id)
 
-! Write data
-do il0=1,geom%nl0
-   if (isanynotmsr(fld(:,il0))) then
-      call msr(fld_loc)
-      fld_loc = unpack(fld(:,il0),mask=mask_unpack,field=fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
+   ! Define dimensions and variable if necessary
+   if (ierr/=nf90_noerr) then
+      call ncerr(subr,nf90_redef(ncid))
+      ierr = nf90_inq_dimid(ncid,'lon',nlon_id)
+      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lon',geom%nlon,nlon_id))
+      ierr = nf90_inq_dimid(ncid,'lat',nlat_id)
+      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lat',geom%nlat,nlat_id))
+      ierr = nf90_inq_dimid(ncid,'lev',nlev_id)
+      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lev',geom%nl0,nlev_id))
+      call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
+      call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_enddef(ncid))
    end if
-end do
+
+   ! Write data
+   do il0=1,geom%nl0
+      if (isanynotmsr(fld(:,il0))) then
+         call msr(fld_loc)
+         fld_loc = unpack(fld_glb(:,il0),mask=mask_unpack,field=fld_loc)
+         call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
+      end if
+   end do
+end if
 
 end subroutine model_gem_write
 

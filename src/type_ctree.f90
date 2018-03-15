@@ -17,13 +17,13 @@ use tools_qsort, only: qsort
 
 implicit none
 
-type ctreetype
+type ctree_type
     type(c_ptr) :: ptr !< Pointer to the C++ class
 contains
     procedure :: create => ctree_create
     procedure :: delete => ctree_delete
     procedure :: find_nearest_neighbors
-end type ctreetype
+end type ctree_type
 
 real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
 
@@ -60,7 +60,7 @@ interface
 end interface
 
 private
-public :: ctreetype
+public :: ctree_type
 
 contains
 
@@ -73,7 +73,7 @@ subroutine ctree_create(ctree,n,lon,lat,mask)
 implicit none
 
 ! Passed variables
-class(ctreetype) :: ctree            !< Cover tree object
+class(ctree_type) :: ctree           !< Cover tree object
 integer,intent(in) :: n              !< Number of points
 real(kind_real),intent(in) :: lon(n) !< Points longitudes
 real(kind_real),intent(in) :: lat(n) !< Points latitudes
@@ -108,7 +108,7 @@ subroutine ctree_delete(ctree)
 implicit none
 
 ! Passed variables
-class(ctreetype),intent(inout) :: ctree !< Cover tree object
+class(ctree_type),intent(inout) :: ctree !< Cover tree object
 
 ! Call C++ function
 call delete_ctree_c(ctree%ptr)
@@ -124,7 +124,7 @@ subroutine find_nearest_neighbors(ctree,lon,lat,nn,nn_index,nn_dist)
 implicit none
 
 ! Passed variables
-class(ctreetype),intent(in) :: ctree       !< Cover tree object
+class(ctree_type),intent(in) :: ctree      !< Cover tree object
 real(kind_real),intent(in) :: lon          !< Point longitude
 real(kind_real),intent(in) :: lat          !< Point latitude
 integer,intent(in) :: nn                   !< Number of nearest neighbors to find

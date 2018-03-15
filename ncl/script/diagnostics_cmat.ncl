@@ -73,14 +73,24 @@ resP@gsnPanelYWhiteSpacePercent = 5
 ;--------------------
 
 do ivar=0,nvar-1
-   data = addfile(datadir + "/" + prefix + "_bdata_" + var + ".nc","r")
+   data = addfile(datadir + "/" + prefix + "_cmat_" + var + ".nc","r")
    nl = data@nl
    levs = new(nl,integer)
    do il=0,nl-1
       levs(il) = toint(str_get_field(data@levs,il+1,":"))
    end do
    nlevs = min((/nl,10/))
-   ilevs_plot = toint(fspan(0,nlevs-1,nlevs))
+   if (nlevs.gt.1) then
+      ilevs_plot = toint(fspan(0,nlevs-1,nlevs))
+   else
+      ilevs_plot = (/0/)
+   end if
+   nts = data@nts
+   timeslot = new(nts,string)
+   do its=0,nts-1
+      timeslot(its) = str_get_field(data@timeslot,its+1,":")
+   end do
+   displ_diag = (data@displ_diag.eq.".true.")
    if (ivar.eq.0) then
       lon = data->lon
       lat = data->lat
@@ -91,9 +101,14 @@ do ivar=0,nvar-1
    coef_sta = tofloat(data->coef_sta)
    rh0 = tofloat(data->rh0)*6371.229
    rv0 = tofloat(data->rv0)
+   if (displ_diag) then
+      displ_lon = tofloat(data->displ_lon)
+      displ_lat = tofloat(data->displ_lat)
+   end if
 
    ; Plot maps
    do ilevs=0,nlevs-1
+if (False) then
       if (min(coef_ens(ilevs_plot(ilevs),:)).ne.max(coef_ens(ilevs_plot(ilevs),:))) then
          output = "../fig/" + prefix + "_coef_ens_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
@@ -149,8 +164,36 @@ do ivar=0,nvar-1
          delete(wks)
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
       end if
-   end do
+end if
+      if (displ_diag) then
+         do its=1,nts-1
+            output = "../fig/" + prefix + "_displ_lon_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+            wks = gsn_open_wks("epsi",output)
+            gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
+            res@tiMainString = "Displaced longitude @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
+            plot = gsn_csm_contour_map(wks,displ_lon(its-1,ilevs_plot(ilevs),:),res)
+
+            draw(plot)
+            frame(wks)
+            delete(wks)
+            system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+
+            output = "../fig/" + prefix + "_displ_lat_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+            wks = gsn_open_wks("epsi",output)
+            gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+            res@tiMainString = "Displaced latitude @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
+            plot = gsn_csm_contour_map(wks,displ_lat(its-1,ilevs_plot(ilevs),:),res)
+
+            draw(plot)
+            frame(wks)
+            delete(wks)
+            system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+         end do
+      end if
+   end do
+exit
    ; Plot profiles
    coef_ens_prof = new((/3,nl/),float)
    coef_sta_prof = new((/3,nl/),float)
@@ -171,7 +214,7 @@ do ivar=0,nvar-1
       rv0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
    end do
 
-   output = "../fig/" + prefix + "_bdata_profiles"
+   output = "../fig/" + prefix + "_cmat_profiles"
    wks = gsn_open_wks("epsi",output)
    gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 

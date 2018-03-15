@@ -5,6 +5,7 @@ model = "arp",
 colorlog = .true.,
 default_seed = .true.,
 load_ensemble = .true.,
+use_metis = .true.,
 /
 
 &driver_param
@@ -24,7 +25,7 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 3,
+nl = 1,
 levs = 35,36,37,50,55,
 logpres = .true.,
 nv = 1,
@@ -32,7 +33,6 @@ varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
 nts = 2,
 timeslot = 0,6,
-transform = .false.,
 /
 
 &ens1_param
@@ -75,8 +75,7 @@ displ_tol = 0.0,
 /
 
 &fit_param
-fit_type = "fast",
-fit_wgt = .true.,
+minim_algo = "fast",
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 2.0,
@@ -91,7 +90,6 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-flt_type = "average",
 diag_rhflt = 3000.0e3,
 diag_interp = "bilin",
 /
@@ -104,6 +102,7 @@ resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
+advmode = 1,
 ndir = 12,
 londir = -135.0,-45.0,45.0,135.0,-135.0,-45.0,45.0,135.0,-135.0,-45.0,45.0,135.0,
 latdir = -50.0,-50.0,-50.0,-50.0,32.0,32.0,32.0,32.0,60.0,60.0,60.0,60.0,
