@@ -16,8 +16,8 @@ use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use type_geom, only: geomtype
-use type_nam, only: namtype
+use type_geom, only: geom_type
+use type_nam, only: nam_type
 
 implicit none
 
@@ -35,8 +35,8 @@ subroutine model_geos_coord(nam,geom)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam      !< Namelist
-type(geomtype),intent(inout) :: geom !< Geometry
+type(nam_type),intent(in) :: nam      !< Namelist
+type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ilon,ilat
@@ -113,11 +113,11 @@ subroutine model_geos_read(nam,geom,ncid,its,fld)
 implicit none
 
 ! Passed variables
-type(namtype),intent(in) :: nam                              !< Namelist
-type(geomtype),intent(in) :: geom                            !< Geometry
+type(nam_type),intent(in) :: nam                             !< Namelist
+type(geom_type),intent(in) :: geom                           !< Geometry
 integer,intent(in) :: ncid                                   !< NetCDF file ID
 integer,intent(in) :: its                                    !< Timeslot index
-real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Read field
+real(kind_real),intent(out) :: fld(geom%nc0,geom%nl0,nam%nv) !< Field
 
 ! Local variables
 integer :: iv,il0
@@ -163,10 +163,10 @@ subroutine model_geos_write(geom,ncid,varname,fld)
 implicit none
 
 ! Passed variables
-type(geomtype),intent(in) :: geom                    !< Geometry
+type(geom_type),intent(in) :: geom                   !< Geometry
 integer,intent(in) :: ncid                           !< NetCDF file ID
 character(len=*),intent(in) :: varname               !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Written field
+real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Field
 
 ! Local variables
 integer :: il0,ierr

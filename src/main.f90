@@ -18,27 +18,27 @@ use driver_obsop, only: run_obsop
 use model_interface, only: model_coord,load_ensemble
 use tools_display, only: listing_setup,msgerror
 use tools_kinds,only: kind_real
-use type_bdata, only: bdatatype
-use type_bpar, only: bpartype
-use type_geom, only: geomtype
+use type_cmat, only: cmat_type
+use type_bpar, only: bpar_type
+use type_geom, only: geom_type
 use type_mpl, only: mpl,mpl_start,mpl_end
-use type_nam, only: namtype
-use type_ndata, only: ndatatype
-use type_odata, only: odatatype
+use type_nam, only: nam_type
+use type_nicas, only: nicas_type
+use type_obsop, only: obsop_type
 use type_rng, only: rng
-use type_timer, only: timertype
+use type_timer, only: timer_type
 
 implicit none
 
 ! Local variables
 real(kind_real),allocatable :: ens1(:,:,:,:,:)
-type(geomtype),target :: geom
-type(namtype),target :: nam
-type(bpartype) :: bpar
-type(bdatatype),allocatable :: bdata(:)
-type(ndatatype),allocatable :: ndata(:)
-type(odatatype) :: odata
-type(timertype) :: timer
+type(geom_type),target :: geom
+type(nam_type),target :: nam
+type(bpar_type) :: bpar
+type(cmat_type) :: cmat
+type(nicas_type) :: nicas
+type(obsop_type) :: obsop
+type(timer_type) :: timer
 
 !----------------------------------------------------------------------
 ! Initialize MPL
@@ -142,14 +142,11 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call HDIAG driver'
 
-! Allocation
-allocate(bdata(bpar%nb+1))
-
 ! HDIAG driver
 if (nam%load_ensemble) then
-   call run_hdiag(nam,geom,bpar,bdata,ens1)
+   call run_hdiag(nam,geom,bpar,cmat,ens1)
 else
-   call run_hdiag(nam,geom,bpar,bdata)
+   call run_hdiag(nam,geom,bpar,cmat)
 end if
 
 !----------------------------------------------------------------------
@@ -159,14 +156,11 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call NICAS driver'
 
-! Allocation
-allocate(ndata(bpar%nb+1))
-
 ! NICAS driver
 if (nam%load_ensemble) then
-   call run_nicas(nam,geom,bpar,bdata,ndata,ens1)
+   call run_nicas(nam,geom,bpar,cmat,nicas,ens1)
 else
-   call run_nicas(nam,geom,bpar,bdata,ndata)
+   call run_nicas(nam,geom,bpar,cmat,nicas)
 end if
 
 !----------------------------------------------------------------------
@@ -189,8 +183,8 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i5,a)') '--- Call observation operator driver'
 
-call run_obsgen(nam,geom,odata)
-call run_obsop(nam,geom,odata)
+call run_obsgen(nam,geom,obsop)
+call run_obsop(nam,geom,obsop)
 
 !----------------------------------------------------------------------
 ! Execution stats

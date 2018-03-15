@@ -5,6 +5,7 @@ model = "ifs",
 colorlog = .true.,
 default_seed = .true.,
 load_ensemble = .false.,
+use_metis = .true.,
 /
 
 &driver_param
@@ -32,7 +33,6 @@ varname = "t",
 addvar2d = "","",
 nts = 1,
 timeslot = 1,
-transform = .false.,
 /
 
 &ens1_param
@@ -75,8 +75,7 @@ displ_tol = 0.01,
 /
 
 &fit_param
-fit_type = "praxis",
-fit_wgt = .true.,
+minim_algo = "hooke",
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
@@ -91,7 +90,6 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-flt_type = "average",
 diag_rhflt = 500.0e3,
 diag_interp = "bilin",
 /
@@ -104,6 +102,7 @@ resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
+advmode = 0,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
