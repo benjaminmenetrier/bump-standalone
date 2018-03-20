@@ -68,10 +68,19 @@ if (nam%new_hdiag) then
 
    ! Compute MPI distribution, halo A
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
+   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
 
-   call hdata%compute_mpi_ab(nam,geom)
+   call hdata%compute_mpi_a(nam,geom)
    call flush(mpl%unit)
+
+   if (nam%local_diag.or.nam%displ_diag) then
+      ! Compute MPI distribution, halos A-B
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
+
+      call hdata%compute_mpi_ab(geom)
+      call flush(mpl%unit)
+   end if
 
    if (nam%displ_diag) then
       ! Compute MPI distribution, halo D

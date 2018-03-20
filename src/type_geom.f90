@@ -17,7 +17,7 @@ use tools_func, only: lonlatmod,sphere_dist,vector_product,vector_triple_product
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsi,msvalr,isanynotmsr
 use tools_nc, only: ncerr,ncfloat
-use tools_stripack, only: areas,trans,trlist
+use tools_stripack, only: areas,trans
 use type_ctree, only: ctree_type
 use type_mesh, only: mesh_type
 use type_mpl, only: mpl
@@ -277,30 +277,23 @@ implicit none
 class(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: info,il0,nt,it
-integer,allocatable :: ltri(:,:)
+integer :: il0,it
 real(kind_real) :: area,frac
 
-! Allocation
-allocate(ltri(6,2*(geom%mesh%nnr-2)))
-
 ! Create triangles list
-call trlist(geom%mesh%nnr,geom%mesh%list,geom%mesh%lptr,geom%mesh%lend,6,nt,ltri,info)
+if (.not.allocated(geom%mesh%ltri)) call geom%mesh%trlist
 
 ! Compute area
 geom%area = 0.0
-do it=1,nt
-   area = areas((/geom%mesh%x(ltri(1,it)),geom%mesh%y(ltri(1,it)),geom%mesh%z(ltri(1,it))/), &
-              & (/geom%mesh%x(ltri(2,it)),geom%mesh%y(ltri(2,it)),geom%mesh%z(ltri(2,it))/), &
-              & (/geom%mesh%x(ltri(3,it)),geom%mesh%y(ltri(3,it)),geom%mesh%z(ltri(3,it))/))
+do it=1,geom%mesh%nt
+   area = areas((/geom%mesh%x(geom%mesh%ltri(1,it)),geom%mesh%y(geom%mesh%ltri(1,it)),geom%mesh%z(geom%mesh%ltri(1,it))/), &
+              & (/geom%mesh%x(geom%mesh%ltri(2,it)),geom%mesh%y(geom%mesh%ltri(2,it)),geom%mesh%z(geom%mesh%ltri(2,it))/), &
+              & (/geom%mesh%x(geom%mesh%ltri(3,it)),geom%mesh%y(geom%mesh%ltri(3,it)),geom%mesh%z(geom%mesh%ltri(3,it))/))
    do il0=1,geom%nl0
-      frac = float(count(geom%mask(geom%mesh%order(ltri(1:3,it)),il0)))/3.0
+      frac = float(count(geom%mask(geom%mesh%order(geom%mesh%ltri(1:3,it)),il0)))/3.0
       geom%area(il0) = geom%area(il0)+frac*area
    end do
 end do
-
-! Release memory
-deallocate(ltri)
 
 end subroutine compute_area
 
@@ -396,7 +389,7 @@ character(len=1024) :: filename
 if (mpl%main) then
    ! Compute triangles list
    write(mpl%unit,'(a7,a)') '','Compute METIS graph'
-   call geom%mesh%trlist
+   call geom%mesh%bnodes
 
    ! Open file
    filename = trim(nam%prefix)//'_metis'
@@ -648,13 +641,14 @@ real(kind_real),intent(out) :: fld_loc(geom%nc0a,geom%nl0) !< Field (local)
 
 ! Local variables
 integer :: il0,ic0,ic0a,iproc,jproc
-real(kind_real),allocatable :: sbuf(:),rbuf(:)
+real(kind_real),allocatable :: sbuf(:),rbuf(:),fld_tmp(:,:)
 logical :: mask_unpack(geom%nc0a,geom%nl0)
 
 ! Communication
 if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
+      allocate(fld_tmp(geom%proc_to_nc0a(iproc),geom%nl0))
       allocate(sbuf(geom%proc_to_nc0a(iproc)*geom%nl0))
 
       ! Initialization
@@ -666,11 +660,11 @@ if (mpl%main) then
             jproc = geom%c0_to_proc(ic0)
             if (jproc==iproc) then
                ic0a = geom%c0_to_c0a(ic0)
-               fld_loc(ic0a,il0) = fld_glb(ic0,il0)
+               fld_tmp(ic0a,il0) = fld_glb(ic0,il0)
             end if
          end do
       end do
-      sbuf = pack(fld_loc,mask=.true.)
+      sbuf = pack(fld_tmp,mask=.true.)
 
       if (iproc==mpl%ioproc) then
          ! Allocation
@@ -684,6 +678,7 @@ if (mpl%main) then
       end if
 
       ! Release memory
+      deallocate(fld_tmp)
       deallocate(sbuf)
    end do
 else
@@ -698,7 +693,7 @@ mpl%tag = mpl%tag+1
 ! Copy from buffer
 mask_unpack = .true.
 call msr(fld_loc)
-fld_loc = unpack(rbuf,mask=mask_unpack,field=fld_loc)
+fld_loc = unpack(rbuf,mask_unpack,fld_loc)
 
 end subroutine fld_com_gl
 
@@ -744,7 +739,7 @@ if (mpl%main) then
 
       ! Copy from buffer
       mask_unpack = .true.
-      fld_tmp = unpack(rbuf,mask=mask_unpack,field=fld_loc)
+      fld_tmp = unpack(rbuf,mask_unpack,fld_tmp)
       do il0=1,geom%nl0
          do ic0=1,geom%nc0
             jproc = geom%c0_to_proc(ic0)

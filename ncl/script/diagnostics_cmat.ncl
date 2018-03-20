@@ -108,7 +108,6 @@ do ivar=0,nvar-1
 
    ; Plot maps
    do ilevs=0,nlevs-1
-if (False) then
       if (min(coef_ens(ilevs_plot(ilevs),:)).ne.max(coef_ens(ilevs_plot(ilevs),:))) then
          output = "../fig/" + prefix + "_coef_ens_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
@@ -164,7 +163,7 @@ if (False) then
          delete(wks)
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
       end if
-end if
+
       if (displ_diag) then
          do its=1,nts-1
             output = "../fig/" + prefix + "_displ_lon_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
@@ -193,7 +192,7 @@ end if
          end do
       end if
    end do
-exit
+
    ; Plot profiles
    coef_ens_prof = new((/3,nl/),float)
    coef_sta_prof = new((/3,nl/),float)

@@ -67,9 +67,10 @@ contains
    generic :: allgather => mpl_allgather_integer,mpl_allgather_real,mpl_allgather_logical
    procedure :: mpl_alltoallv_real
    generic :: alltoallv => mpl_alltoallv_real
+   procedure :: mpl_allreduce_sum_integer
    procedure :: mpl_allreduce_sum_real
    procedure :: mpl_allreduce_sum_real_array_1d
-   generic :: allreduce_sum => mpl_allreduce_sum_real,mpl_allreduce_sum_real_array_1d
+   generic :: allreduce_sum => mpl_allreduce_sum_integer,mpl_allreduce_sum_real,mpl_allreduce_sum_real_array_1d
    procedure :: allreduce_min => mpl_allreduce_min_real
    procedure :: allreduce_max => mpl_allreduce_max_real
    procedure :: mpl_dot_prod_1d
@@ -101,12 +102,12 @@ class(mpl_type) :: mpl     !< MPL object
 integer,intent(in) :: info !< Error index
 
 ! Local variables
-integer :: len,ierr
+integer :: len,info_loc
 character(len=mpi_max_error_string) :: message
 
 if (info/=mpi_success) then
    ! Get string
-   call mpi_error_string(info,message,len,ierr)
+   call mpi_error_string(info,message,len,info_loc)
 
    ! Abort MPI
    call mpl%abort(message(1:len))
@@ -978,6 +979,33 @@ call mpi_alltoallv(sbuf,scounts,sdispl,mpl%rtype,rbuf,rcounts,rdispl,mpl%rtype,m
 call mpl%check(info)
 
 end subroutine mpl_alltoallv_real
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_allreduce_sum_integer
+!> Purpose: allreduce sum for an integer
+!----------------------------------------------------------------------
+subroutine mpl_allreduce_sum_integer(mpl,var_in,var_out)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl         !< MPL object
+integer,intent(in) :: var_in   !< Input integer
+integer,intent(out) :: var_out !< Output integer
+
+! Local variable
+integer :: info
+integer :: sbuf(1),rbuf(1)
+
+! Allreduce
+sbuf(1) = var_in
+call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,mpi_comm_world,info)
+var_out = rbuf(1)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allreduce_sum_integer
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_allreduce_sum_real

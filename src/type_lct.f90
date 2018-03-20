@@ -12,7 +12,7 @@ module type_lct
 
 use model_interface, only: model_write
 use tools_const, only: req,reqkm
-use tools_display, only: prog_init,prog_print
+use tools_display, only: prog_init,prog_print,msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_bpar, only: bpar_type
@@ -36,6 +36,7 @@ type lct_type
 contains
    procedure :: alloc => lct_alloc
    procedure :: compute => lct_compute
+   procedure :: filter => lct_filter
    procedure :: rmse => lct_rmse
    procedure :: write => lct_write
    procedure :: write_cor => lct_write_cor
@@ -104,11 +105,12 @@ type(hdata_type),intent(in) :: hdata !< HDIAG data
 type(mom_type),intent(in) :: mom     !< Moments
 
 ! Local variables
-integer :: ib,il0,ic1a,progint
-logical,allocatable :: done(:)
+integer :: ib,il0,ic1a,progint,missing_tot
+logical,allocatable :: missing(:),done(:)
 
 ! Allocation
 call lct%alloc(nam,geom,bpar,hdata)
+allocate(missing(hdata%nc1a))
 allocate(done(hdata%nc1a))
 
 do ib=1,bpar%nb
@@ -126,16 +128,124 @@ do ib=1,bpar%nb
 
          ! Compute LCT fit
          call lct%blk(ic1a,il0,ib)%fitting(nam,geom,bpar,hdata)
+         missing(ic1a) = .not.isnotmsr(lct%blk(ic1a,il0,ib)%H(1))
 
          ! Update
          done(ic1a) = .true.
          call prog_print(progint,done)
       end do
-      write(mpl%unit,'(a)') '100%'
+
+      ! Gather missing points
+      call mpl%allreduce_sum(count(missing),missing_tot)
+      write(mpl%unit,'(a,i6,a)') '100% (',missing_tot,' missing points)'
    end do
 end do
 
 end subroutine lct_compute
+
+!----------------------------------------------------------------------
+! Subroutine: lct_filter
+!> Purpose: filter LCT
+!----------------------------------------------------------------------
+subroutine lct_filter(lct,nam,geom,bpar,hdata)
+
+implicit none
+
+! Passed variables
+class(lct_type),intent(inout) :: lct    !< LCT
+type(nam_type),intent(in) :: nam        !< Namelist
+type(geom_type),intent(in) :: geom      !< Geometry
+type(bpar_type),intent(in) :: bpar      !< Block parameters
+type(hdata_type),intent(inout) :: hdata !< HDIAG data
+
+! Local variables
+integer :: ib,il0,ic1a,ic1,icomp,ic0,iscales,offset
+real(kind_real) :: fac
+real(kind_real),allocatable :: fld_c1a(:,:,:),fld_c1a_tmp(:,:)
+logical :: valid,proc_to_valid(mpl%nproc)
+
+do ib=1,bpar%nb
+   write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
+
+   ! Initialization
+   offset = 0
+
+   do iscales=1,lct%nscales
+      ! Allocation
+      allocate(fld_c1a(hdata%nc1a,geom%nl0,lct%ncomp(iscales)+1))
+      allocate(fld_c1a_tmp(hdata%nc1a,lct%ncomp(iscales)+1))
+
+      ! Copy
+      do il0=1,geom%nl0
+         do ic1a=1,hdata%nc1a
+            fld_c1a(ic1a,il0,1:lct%ncomp(iscales)) = lct%blk(ic1a,il0,ib)%H(offset+1:offset+lct%ncomp(iscales))
+            fld_c1a(ic1a,il0,lct%ncomp(iscales)+1) = lct%blk(ic1a,il0,ib)%coef(iscales)
+         end do
+      end do
+
+      do il0=1,geom%nl0
+         write(mpl%unit,'(a10,a,i3,a,i3,a)') '','Scale ',iscales,', level',nam%levs(il0),': '
+
+         ! Initialization
+         fld_c1a_tmp = fld_c1a(:,il0,:)
+         fac = 1.0
+
+         ! Check invalid points
+         valid = .true.
+         do ic1a=1,hdata%nc1a
+            ic1 = hdata%c1a_to_c1(ic1a)
+            ic0 = hdata%c1_to_c0(ic1)
+            if (geom%mask(ic0,il0).and.(.not.isallnotmsr(fld_c1a_tmp(ic1a,:)))) valid = .false.
+         end do
+
+         ! Gather validity results
+         call mpl%allgather(1,(/valid/),proc_to_valid)
+
+         do while (.not.all(proc_to_valid))
+            ! Copy
+            fld_c1a_tmp = fld_c1a(:,il0,:)
+
+            ! Filter LCT
+            write(mpl%unit,'(a13,a,f9.2,a)') '','Filter LCT with radius ',fac*nam%diag_rhflt*reqkm,' km'
+            do icomp=1,lct%ncomp(iscales)+1
+               call hdata%diag_filter(geom,il0,'median',fac*nam%diag_rhflt,fld_c1a_tmp(:,icomp))
+               call hdata%diag_filter(geom,il0,'average',fac*nam%diag_rhflt,fld_c1a_tmp(:,icomp))
+            end do
+
+            ! Check invalid points
+            valid = .true.
+            do ic1a=1,hdata%nc1a
+               ic1 = hdata%c1a_to_c1(ic1a)
+               ic0 = hdata%c1_to_c0(ic1)
+               if (geom%mask(ic0,il0).and.(.not.isallnotmsr(fld_c1a_tmp(ic1a,:)))) valid = .false.
+            end do
+
+            ! Gather validity results
+            call mpl%allgather(1,(/valid/),proc_to_valid)
+
+            ! Update fac (increase smoothing)
+            fac = 2.0*fac
+         end do
+
+         ! Copy
+         fld_c1a(:,il0,:) = fld_c1a_tmp
+      end do
+
+      ! Copy
+      do il0=1,geom%nl0
+         do ic1a=1,hdata%nc1a
+            lct%blk(ic1a,il0,ib)%H(offset+1:offset+lct%ncomp(iscales)) = fld_c1a(ic1a,il0,1:lct%ncomp(iscales))
+            lct%blk(ic1a,il0,ib)%coef(iscales) = fld_c1a(ic1a,il0,lct%ncomp(iscales)+1)
+         end do
+      end do
+
+      ! Release memory
+      deallocate(fld_c1a)
+      deallocate(fld_c1a_tmp)
+   end do
+end do
+
+end subroutine lct_filter
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_rmse
@@ -201,10 +311,9 @@ type(bpar_type),intent(in) :: bpar      !< Block parameters
 type(hdata_type),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: ib,iv,il0,il0i,ic1a,ic1,icomp,ic0a,ic0,iscales,offset
-real(kind_real) :: fac,det
-real(kind_real),allocatable :: fld_c1a(:,:,:),fld_c1a_tmp(:,:),fld_c1b(:,:),fld(:,:,:)
-logical :: valid,proc_to_valid(mpl%nproc)
+integer :: ib,iv,il0,il0i,ic1a,icomp,ic0a,ic0,iscales,offset
+real(kind_real) :: det
+real(kind_real),allocatable :: fld_c1a(:,:,:),fld_c1b(:,:),fld(:,:,:)
 character(len=1) :: iscaleschar
 character(len=1024) :: filename
 
@@ -217,7 +326,6 @@ do ib=1,bpar%nb
    do iscales=1,lct%nscales
       ! Allocation
       allocate(fld_c1a(hdata%nc1a,geom%nl0,lct%ncomp(iscales)+1))
-      allocate(fld_c1a_tmp(hdata%nc1a,lct%ncomp(iscales)+1))
       allocate(fld_c1b(hdata%nc2b,geom%nl0))
       allocate(fld(geom%nc0a,geom%nl0,lct%ncomp(iscales)+2))
 
@@ -227,54 +335,6 @@ do ib=1,bpar%nb
             fld_c1a(ic1a,il0,1:lct%ncomp(iscales)) = lct%blk(ic1a,il0,ib)%H(offset+1:offset+lct%ncomp(iscales))
             fld_c1a(ic1a,il0,lct%ncomp(iscales)+1) = lct%blk(ic1a,il0,ib)%coef(iscales)
          end do
-      end do
-
-      do il0=1,geom%nl0
-         write(mpl%unit,'(a10,a,i3,a)') '','Level ',nam%levs(il0),': '
-
-         ! Initialization
-         fld_c1a_tmp = fld_c1a(:,il0,:)
-         fac = 1.0
-
-         ! Check invalid points
-         valid = .true.
-         do ic1a=1,hdata%nc1a
-            ic1 = hdata%c1a_to_c1(ic1a)
-            ic0 = hdata%c1_to_c0(ic1)
-            if (geom%mask(ic0,il0).and.(.not.isallnotmsr(fld_c1a_tmp(ic1a,:)))) valid = .false.
-         end do
-
-         ! Gather validity results
-         call mpl%allgather(1,(/valid/),proc_to_valid)
-
-         do while (.not.all(proc_to_valid))
-            ! Copy
-            fld_c1a_tmp = fld_c1a(:,il0,:)
-
-            ! Filter LCT
-            write(mpl%unit,'(a13,a,f9.2,a)') '','Filter LCT with radius ',fac*nam%diag_rhflt*reqkm,' km'
-            do icomp=1,lct%ncomp(iscales)+1
-               call hdata%diag_filter(geom,il0,'median',fac*nam%diag_rhflt,fld_c1a_tmp(:,icomp))
-               call hdata%diag_filter(geom,il0,'average',fac*nam%diag_rhflt,fld_c1a_tmp(:,icomp))
-            end do
-
-            ! Check invalid points
-            valid = .true.
-            do ic1a=1,hdata%nc1a
-               ic1 = hdata%c1a_to_c1(ic1a)
-               ic0 = hdata%c1_to_c0(ic1)
-               if (geom%mask(ic0,il0).and.(.not.isallnotmsr(fld_c1a_tmp(ic1a,:)))) valid = .false.
-            end do
-
-            ! Gather validity results
-            call mpl%allgather(1,(/valid/),proc_to_valid)
-
-            ! Update fac (increase smoothing)
-            fac = 2.0*fac
-         end do
-
-         ! Copy
-         fld_c1a(:,il0,:) = fld_c1a_tmp
       end do
 
       ! Interpolate LCT
@@ -291,7 +351,8 @@ do ib=1,bpar%nb
       write(mpl%unit,'(a10,a)') '','Compute horizontal length-scale'
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(ic0a,il0)) then
+            ic0 = geom%c0a_to_c0(ic0a)
+            if (geom%mask(ic0,il0)) then
                ! Compute determinant
                if (lct%ncomp(iscales)==3) then
                   det = fld(ic0a,il0,1)*fld(ic0a,il0,2)
@@ -300,7 +361,11 @@ do ib=1,bpar%nb
                end if
 
                ! Length-scale = determinant^{1/4}
-               if (det>0.0) fld(ic0a,il0,lct%ncomp(iscales)+2) = 1.0/sqrt(sqrt(det))
+               if (det>0.0) then
+                  fld(ic0a,il0,lct%ncomp(iscales)+2) = 1.0/sqrt(sqrt(det))
+               else
+                  call msgerror('non-positive determinant in LCT')
+               end if
             end if
          end do
       end do
@@ -319,7 +384,6 @@ do ib=1,bpar%nb
 
       ! Release memory
       deallocate(fld_c1a)
-      deallocate(fld_c1a_tmp)
       deallocate(fld_c1b)
       deallocate(fld)
    end do
@@ -343,28 +407,24 @@ type(bpar_type),intent(in) :: bpar      !< Block parameters
 type(hdata_type),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: ib,iv,il0,jl0r,jl0,ic1a,ic1,jc3,i,iproc,jproc,ic0,ic0a
-real(kind_real),allocatable :: fld(:,:,:)
+integer :: ib,iv,il0,jl0r,jl0,ic1a,ic1,jc3,i,iproc,jproc,ic0
+real(kind_real) :: fld_glb(geom%nc0,geom%nl0,2),fld(geom%nc0a,geom%nl0,2)
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 logical :: valid
-logical,allocatable :: free(:,:)
+logical :: free(geom%nc0,geom%nl0)
 character(len=1024) :: filename
 
 do ib=1,bpar%nb
    write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
 
    ! Allocation
-   allocate(free(geom%nc0,geom%nl0))
-   if (mpl%main) then
-      allocate(rbuf(nam%nc3*bpar%nl0r(ib)*2))
-      allocate(fld(geom%nc0a,geom%nl0,2))
-   end if
+   if (mpl%main) allocate(rbuf(nam%nc3*bpar%nl0r(ib)*2))
 
    ! Select level
    il0 = 1
 
    ! Prepare field
-   if (mpl%main) call msr(fld)
+   call msr(fld_glb)
    free = .true.
    do ic1=1,nam%nc1
       ! Select tensor to plot
@@ -378,7 +438,7 @@ do ib=1,bpar%nb
       end do
 
       if (valid) then
-         ! Footprint is not free anymore
+         ! Remember that the footprint is not free anymore
          do jl0r=1,bpar%nl0r(ib)
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
             do jc3=1,nam%nc3
@@ -424,12 +484,8 @@ do ib=1,bpar%nb
                do jc3=1,nam%nc3
                   if (hdata%c1l0_log(ic1,il0).and.hdata%c1c3l0_log(ic1,jc3,jl0)) then
                      ic0 = hdata%c1c3_to_c0(ic1,jc3)
-                     jproc = geom%c0_to_proc(ic0)
-                     if (jproc==mpl%myproc) then
-                        ic0a = geom%c0_to_c0a(ic0)
-                        fld(ic0a,jl0,1) = rbuf(i)
-                        fld(ic0a,jl0,2) = rbuf(i+1)
-                     end if
+                     fld_glb(ic0,jl0,1) = rbuf(i)
+                     fld_glb(ic0,jl0,2) = rbuf(i+1)
                   end if
                   i = i+2
                end do
@@ -445,6 +501,10 @@ do ib=1,bpar%nb
       end if
    end do
 
+   ! Global to local
+   call geom%fld_com_gl(fld_glb(:,:,1),fld(:,:,1))
+   call geom%fld_com_gl(fld_glb(:,:,2),fld(:,:,2))
+
    ! Write LCT diagnostics
    write(mpl%unit,'(a10,a)') '','Write LCT diagnostics'
    filename = trim(nam%prefix)//'_lct_gridded.nc'
@@ -453,9 +513,7 @@ do ib=1,bpar%nb
    call model_write(nam,geom,filename,trim(nam%varname(iv))//'_fit',fld(:,:,2))
 
    ! Release memory
-   deallocate(free)
-   deallocate(rbuf)
-   deallocate(fld)
+   if (mpl%main) deallocate(rbuf)
 end do
 
 end subroutine lct_write_cor

@@ -11,7 +11,7 @@
 module model_gem
 
 use netcdf
-use tools_const, only: pi,req,deg2rad,ps
+use tools_const, only: pi,req,deg2rad,rad2deg,ps
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msvalr,msr,isanynotmsr
@@ -58,8 +58,12 @@ call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 ! Allocation
 allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
+allocate(geom%rgmask(geom%nlon,geom%nlat))
 allocate(a(geom%nlev))
 allocate(b(geom%nlev))
+
+! Initialization
+geom%rgmask = .true.
 
 ! Read data and close file
 call ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
@@ -213,31 +217,27 @@ character(len=*),intent(in) :: varname                !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
-integer :: il0,ierr
-integer :: nlon_id,nlat_id,nlev_id,fld_id
+integer :: il0,info
+integer :: nlon_id,nlat_id,nlev_id,fld_id,lon_id,lat_id
 real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0)
-logical :: mask_unpack(geom%nlon,geom%nlat)
 character(len=1024) :: subr = 'model_gem_write'
 
 ! Local to global
 call geom%fld_com_lg(fld,fld_glb)
 
 if (mpl%main) then
-   ! Initialization
-   mask_unpack = .true.
-
    ! Get variable id
-   ierr = nf90_inq_varid(ncid,trim(varname),fld_id)
+   info = nf90_inq_varid(ncid,trim(varname),fld_id)
 
    ! Define dimensions and variable if necessary
-   if (ierr/=nf90_noerr) then
+   if (info/=nf90_noerr) then
       call ncerr(subr,nf90_redef(ncid))
-      ierr = nf90_inq_dimid(ncid,'lon',nlon_id)
-      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lon',geom%nlon,nlon_id))
-      ierr = nf90_inq_dimid(ncid,'lat',nlat_id)
-      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lat',geom%nlat,nlat_id))
-      ierr = nf90_inq_dimid(ncid,'lev',nlev_id)
-      if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lev',geom%nl0,nlev_id))
+      info = nf90_inq_dimid(ncid,'lon',nlon_id)
+      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lon',geom%nlon,nlon_id))
+      info = nf90_inq_dimid(ncid,'lat',nlat_id)
+      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lat',geom%nlat,nlat_id))
+      info = nf90_inq_dimid(ncid,'lev',nlev_id)
+      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'lev',geom%nl0,nlev_id))
       call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
       call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
       call ncerr(subr,nf90_enddef(ncid))
@@ -247,10 +247,26 @@ if (mpl%main) then
    do il0=1,geom%nl0
       if (isanynotmsr(fld(:,il0))) then
          call msr(fld_loc)
-         fld_loc = unpack(fld_glb(:,il0),mask=mask_unpack,field=fld_loc)
+         fld_loc = unpack(fld_glb(:,il0),geom%rgmask,fld_loc)
          call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
       end if
    end do
+
+   ! Write coordinates
+   info = nf90_inq_varid(ncid,'lon',lon_id)
+   if (info/=nf90_noerr) then
+      call ncerr(subr,nf90_redef(ncid))
+      call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nlon_id,nlat_id/),lon_id))
+      call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nlon_id,nlat_id/),lat_id))
+      call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_enddef(ncid))
+      call msr(fld_loc)
+      fld_loc = unpack(geom%lon*rad2deg,geom%rgmask,fld_loc)
+      call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc))
+      fld_loc = unpack(geom%lat*rad2deg,geom%rgmask,fld_loc)
+      call ncerr(subr,nf90_put_var(ncid,lat_id,fld_loc))
+   end if
 end if
 
 end subroutine model_gem_write

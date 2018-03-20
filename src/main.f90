@@ -18,8 +18,8 @@ use driver_obsop, only: run_obsop
 use model_interface, only: model_coord,load_ensemble
 use tools_display, only: listing_setup,msgerror
 use tools_kinds,only: kind_real
-use type_cmat, only: cmat_type
 use type_bpar, only: bpar_type
+use type_cmat, only: cmat_type
 use type_geom, only: geom_type
 use type_mpl, only: mpl,mpl_start,mpl_end
 use type_nam, only: nam_type

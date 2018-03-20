@@ -48,7 +48,6 @@ contains
    procedure :: fitting => lct_blk_fitting
 end type lct_blk_type
 
-real(kind_real),parameter :: Hmin = 1.0e-12 !< Minimum tensor diagonal value
 real(kind_real),parameter :: Hscale = 10.0  !< Typical factor between LCT scales
 logical :: lprt = .false.                   !< Optimization print
 
@@ -215,6 +214,7 @@ type(hdata_type),intent(in) :: hdata         !< HDIAG data
 integer :: jl0r,jl0,ic1,jc3,iscales,offset
 real(kind_real) :: distsq,Hhbar,Hvbar
 real(kind_real),allocatable :: Hh(:),Hv(:),dx(:,:),dy(:,:),dz(:)
+logical :: spd
 logical,allocatable :: dmask(:,:),done(:)
 type(lct_blk_type) :: lct_guess,lct_norm,lct_binf,lct_bsup
 type(minim_type) :: minim
@@ -364,24 +364,31 @@ if (bpar%nl0r(ib)==1) then
    end do
 end if
 
-! Force positive-definiteness
+! Check positive-definiteness
+spd = .true.
+offset = 0
 do iscales=1,lct_blk%nscales
-   offset = 0
-   lct_blk%H(offset+1) = max(Hmin,lct_blk%H(offset+1))
-   lct_blk%H(offset+2) = max(Hmin,lct_blk%H(offset+2))
-   lct_blk%H(offset+3) = max(Hmin,lct_blk%H(offset+3))
-   if (lct_blk%ncomp(iscales)==4) lct_blk%H(offset+4) = max(-1.0_kind_real,min(lct_blk%H(offset+4),1.0_kind_real))
-   if (lct_blk%coef(iscales)<0.0) lct_blk%coef(iscales) = 0.0
+   spd = spd.and.(lct_blk%H(offset+1)>0.0).and.(lct_blk%H(offset+2)>0.0).and.(lct_blk%H(offset+3)>0.0)
+   if (lct_blk%ncomp(iscales)==4) spd = spd.and.(lct_blk%H(offset+4)>-1.0).and.(lct_blk%H(offset+4)<1.0)
+   if (iscales<lct_blk%nscales) spd = spd.and.(lct_blk%coef(iscales)>0.0)
    offset = offset+lct_blk%ncomp(iscales)
 end do
-if (lct_blk%nscales==1) then
-   lct_blk%coef(1) = 1.0
-else
-   lct_blk%coef(lct_blk%nscales) = 1.0-sum(lct_blk%coef(1:lct_blk%nscales-1))
-end if
+if (spd) then
+   ! Rebuild fit
+   call fit_lct(nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct_blk%nscales,lct_blk%ncomp,lct_blk%H,lct_blk%coef,lct_blk%fit)
 
-! Rebuild fit
-call fit_lct(nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct_blk%nscales,lct_blk%ncomp,lct_blk%H,lct_blk%coef,lct_blk%fit)
+   ! Last coefficient
+   if (lct_blk%nscales==1) then
+       lct_blk%coef(1) = 1.0
+   else
+      lct_blk%coef(lct_blk%nscales) = 1.0-sum(lct_blk%coef(1:lct_blk%nscales-1))
+   end if
+else
+   ! Missing values
+   call msr(lct_blk%H)
+   call msr(lct_blk%coef)
+   call msr(lct_blk%fit)
+end if
 
 ! End associate
 end associate
