@@ -149,51 +149,57 @@ subroutine model_oops_write(geom,ncid,varname,fld)
 implicit none
 
 ! Passed variables
-type(geom_type),intent(in) :: geom                   !< Geometry
-integer,intent(in) :: ncid                           !< NetCDF file ID
-character(len=*),intent(in) :: varname               !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0,geom%nl0) !< Field
+type(geom_type),intent(in) :: geom                    !< Geometry
+integer,intent(in) :: ncid                            !< NetCDF file ID
+character(len=*),intent(in) :: varname                !< Variable name
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
-integer :: il0,ierr
+integer :: il0,info
 integer :: nc0_id,nlev_id,fld_id,lon_id,lat_id
+real(kind_real) :: fld_glb(geom%nc0,geom%nl0)
 character(len=1024) :: subr = 'model_oops_write'
 
-! Get variable id
-ierr = nf90_inq_varid(ncid,trim(varname),fld_id)
+! Local to global
+call geom%fld_com_lg(fld,fld_glb)
 
-! Define dimensions and variable if necessary
-if (ierr/=nf90_noerr) then
-   call ncerr(subr,nf90_redef(ncid))
-   ierr = nf90_inq_dimid(ncid,'nc0',nc0_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
-   ierr = nf90_inq_dimid(ncid,'nlev',nlev_id)
-   if (ierr/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nlev',geom%nl0,nlev_id))
-   call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlev_id,nc0_id/),fld_id))
-   call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_enddef(ncid))
-end if
-
-! Write data
-do il0=1,geom%nl0
-   if (isanynotmsr(fld(:,il0))) then
-      call ncerr(subr,nf90_put_var(ncid,fld_id,fld(:,il0),(/il0,1/),(/1,geom%nc0/)))
+if (mpl%main) then
+   ! Get variable id
+   info = nf90_inq_varid(ncid,trim(varname),fld_id)
+   
+   ! Define dimensions and variable if necessary
+   if (info/=nf90_noerr) then
+      call ncerr(subr,nf90_redef(ncid))
+      info = nf90_inq_dimid(ncid,'nc0',nc0_id)
+      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
+      info = nf90_inq_dimid(ncid,'nlev',nlev_id)
+      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'nlev',geom%nl0,nlev_id))
+      call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlev_id,nc0_id/),fld_id))
+      call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_enddef(ncid))
    end if
-end do
-
-! Write coordinates
-ierr = nf90_inq_varid(ncid,'lon',lon_id)
-if (ierr/=nf90_noerr) then
-   call ncerr(subr,nf90_redef(ncid))
-   call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
-   call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_put_att(ncid,lon_id,'unit','degrees_north'))
-   call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
-   call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
-   call ncerr(subr,nf90_put_att(ncid,lat_id,'unit','degrees_east'))
-   call ncerr(subr,nf90_enddef(ncid))
-   call ncerr(subr,nf90_put_var(ncid,lon_id,geom%lon*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lat_id,geom%lat*rad2deg))
+   
+   ! Write data
+   do il0=1,geom%nl0
+      if (isanynotmsr(fld_glb(:,il0))) then
+         call ncerr(subr,nf90_put_var(ncid,fld_id,fld_glb(:,il0),(/il0,1/),(/1,geom%nc0/)))
+      end if
+   end do
+   
+   ! Write coordinates
+   info = nf90_inq_varid(ncid,'lon',lon_id)
+   if (info/=nf90_noerr) then
+      call ncerr(subr,nf90_redef(ncid))
+      call ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
+      call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_put_att(ncid,lon_id,'unit','degrees_north'))
+      call ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
+      call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
+      call ncerr(subr,nf90_put_att(ncid,lat_id,'unit','degrees_east'))
+      call ncerr(subr,nf90_enddef(ncid))
+      call ncerr(subr,nf90_put_var(ncid,lon_id,geom%lon*rad2deg))
+      call ncerr(subr,nf90_put_var(ncid,lat_id,geom%lat*rad2deg))
+   end if
 end if
 
 end subroutine model_oops_write

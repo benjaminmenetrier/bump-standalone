@@ -94,7 +94,7 @@ implicit none
 class(timer_type),intent(inout) :: timer !< Timer data
 
 ! Local variables
-integer :: ierr,get_pid,lunit
+integer :: info,get_pid,lunit
 real(kind_real) :: VmPeak,VmHWM,rchar,wchar
 logical :: isfile
 character(len=8) :: pidchar
@@ -114,10 +114,10 @@ if (isfile) then
    lunit = newunit()
    open(unit=lunit,file=filename,action='read')
    do
-      read(lunit,'(a)',iostat=ierr) line
-      if (ierr>0) then
+      read(lunit,'(a)',iostat=info) line
+      if (info>0) then
          call msgerror('cannot read /proc/pid/status')
-      elseif (ierr<0) then
+      elseif (info<0) then
          exit
       else
          if (line(1:7)=='VmPeak:') then
@@ -170,10 +170,10 @@ if (isfile) then
    lunit = newunit()
    open(unit=lunit,file=filename,action='read')
    do
-      read(lunit,'(a)',iostat=ierr) line
-      if (ierr>0) then
+      read(lunit,'(a)',iostat=info) line
+      if (info>0) then
          call msgerror('cannot read /proc/pid/io')
-      elseif (ierr<0) then
+      elseif (info<0) then
          exit
       else
          if (line(1:6)=='rchar:') then

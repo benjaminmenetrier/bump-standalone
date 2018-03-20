@@ -104,6 +104,7 @@ contains
    procedure :: compute_sampling_ps => hdata_compute_sampling_ps
    procedure :: compute_sampling_lct => hdata_compute_sampling_lct
    procedure :: compute_sampling_mask => hdata_compute_sampling_mask
+   procedure :: compute_mpi_a => hdata_compute_mpi_a
    procedure :: compute_mpi_ab => hdata_compute_mpi_ab
    procedure :: compute_mpi_d => hdata_compute_mpi_d
    procedure :: compute_mpi_c => hdata_compute_mpi_c
@@ -644,10 +645,17 @@ if (nam%local_diag.or.nam%displ_diag) then
       end do
    end if
 
-   ! Compute sampling mesh and triangles list
-   write(mpl%unit,'(a7,a)') '','Compute sampling mesh and triangles list'
+   ! Compute sampling mesh
+   write(mpl%unit,'(a7,a)') '','Compute sampling mesh'
    call hdata%mesh%create(hdata%nc2,geom%lon(hdata%c2_to_c0),geom%lat(hdata%c2_to_c0),.false.)
+
+   ! Compute triangles list
+   write(mpl%unit,'(a7,a)') '','Compute triangles list '
    call hdata%mesh%trlist
+
+   ! Find boundary nodes
+   write(mpl%unit,'(a7,a)') '','Find boundary nodes'
+   call hdata%mesh%bnodes
 
    if ((info==1).or.(info==2).or.(info==3)) then
       ! Allocation
@@ -1197,10 +1205,10 @@ end do
 end subroutine hdata_compute_sampling_mask
 
 !----------------------------------------------------------------------
-! Subroutine: hdata_compute_mpi_ab
-!> Purpose: compute HDIAG MPI distribution, halos A-B
+! Subroutine: hdata_compute_mpi_a
+!> Purpose: compute HDIAG MPI distribution, halo A
 !----------------------------------------------------------------------
-subroutine hdata_compute_mpi_ab(hdata,nam,geom)
+subroutine hdata_compute_mpi_a(hdata,nam,geom)
 
 implicit none
 
@@ -1210,7 +1218,67 @@ type(nam_type),intent(in) :: nam         !< Namelist
 type(geom_type),intent(in) :: geom       !< Geometry
 
 ! Local variables
-integer :: iproc,ic0a,ic0,ic1a,ic1,ic2a,ic2b,ic2,jc2,i_s,i_s_loc,h_n_s_max,il0i,h_n_s_max_loc,nc2a,nc2b
+integer :: ic0a,ic0,ic1a,ic1
+
+! Allocation
+allocate(hdata%lcheck_c0a(geom%nc0))
+allocate(hdata%lcheck_c1a(nam%nc1))
+
+! Halo definitions
+
+! Halo A
+hdata%lcheck_c0a = .false.
+hdata%lcheck_c1a = .false.
+do ic0a=1,geom%nc0a
+   ic0 = geom%c0a_to_c0(ic0a)
+   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c0a(ic0) = .true.
+end do
+do ic1=1,nam%nc1
+   ic0 = hdata%c1_to_c0(ic1)
+   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c1a(ic1) = .true.
+end do
+
+! Halo sizes
+hdata%nc1a = count(hdata%lcheck_c1a)
+
+! Global <-> local conversions for fields
+
+! Halo A
+allocate(hdata%c1a_to_c1(hdata%nc1a))
+allocate(hdata%c1_to_c1a(nam%nc1))
+ic1a = 0
+do ic1=1,nam%nc1
+   if (hdata%lcheck_c1a(ic1)) then
+      ic1a = ic1a+1
+      hdata%c1a_to_c1(ic1a) = ic1
+      hdata%c1_to_c1a(ic1) = ic1a
+   end if
+end do
+
+! Print results
+write(mpl%unit,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
+write(mpl%unit,'(a10,a,i8)') '','nc0 =        ',geom%nc0
+write(mpl%unit,'(a10,a,i8)') '','nc0a =       ',geom%nc0a
+write(mpl%unit,'(a10,a,i8)') '','nl0 =        ',geom%nl0
+write(mpl%unit,'(a10,a,i8)') '','nc1 =        ',nam%nc1
+write(mpl%unit,'(a10,a,i8)') '','nc1a =       ',hdata%nc1a
+
+end subroutine hdata_compute_mpi_a
+
+!----------------------------------------------------------------------
+! Subroutine: hdata_compute_mpi_ab
+!> Purpose: compute HDIAG MPI distribution, halos A-B
+!----------------------------------------------------------------------
+subroutine hdata_compute_mpi_ab(hdata,geom)
+
+implicit none
+
+! Passed variables
+class(hdata_type),intent(inout) :: hdata !< HDIAG data
+type(geom_type),intent(in) :: geom       !< Geometry
+
+! Local variables
+integer :: iproc,ic0,ic2a,ic2b,ic2,jc2,i_s,i_s_loc,h_n_s_max,il0i,h_n_s_max_loc,nc2a,nc2b
 integer,allocatable :: interph_lg(:,:)
 integer,allocatable :: c2a_to_c2(:),c2b_to_c2(:),c2a_to_c2b(:)
 type(com_type) :: com_AB(mpl%nproc)
@@ -1223,8 +1291,6 @@ end do
 allocate(hdata%c2_to_proc(hdata%nc2))
 allocate(hdata%proc_to_nc2a(mpl%nproc))
 allocate(hdata%h(geom%nl0i))
-allocate(hdata%lcheck_c0a(geom%nc0))
-allocate(hdata%lcheck_c1a(nam%nc1))
 allocate(hdata%lcheck_c2a(hdata%nc2))
 allocate(hdata%lcheck_c2b(hdata%nc2))
 allocate(hdata%lcheck_h(h_n_s_max,geom%nl0i))
@@ -1232,17 +1298,7 @@ allocate(hdata%lcheck_h(h_n_s_max,geom%nl0i))
 ! Halo definitions
 
 ! Halo A
-hdata%lcheck_c0a = .false.
-hdata%lcheck_c1a = .false.
 hdata%lcheck_c2a = .false.
-do ic0a=1,geom%nc0a
-   ic0 = geom%c0a_to_c0(ic0a)
-   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c0a(ic0) = .true.
-end do
-do ic1=1,nam%nc1
-   ic0 = hdata%c1_to_c0(ic1)
-   if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c1a(ic1) = .true.
-end do
 do ic2=1,hdata%nc2
    ic0 = hdata%c2_to_c0(ic2)
    if (geom%c0_to_proc(ic0)==mpl%myproc) hdata%lcheck_c2a(ic2) = .true.
@@ -1264,7 +1320,6 @@ do il0i=1,geom%nl0i
 end do
 
 ! Halo sizes
-hdata%nc1a = count(hdata%lcheck_c1a)
 hdata%nc2a = count(hdata%lcheck_c2a)
 do il0i=1,geom%nl0i
    hdata%h(il0i)%n_s = count(hdata%lcheck_h(:,il0i))
@@ -1272,18 +1327,6 @@ end do
 hdata%nc2b = count(hdata%lcheck_c2b)
 
 ! Global <-> local conversions for fields
-
-! Halo A
-allocate(hdata%c1a_to_c1(hdata%nc1a))
-allocate(hdata%c1_to_c1a(nam%nc1))
-ic1a = 0
-do ic1=1,nam%nc1
-   if (hdata%lcheck_c1a(ic1)) then
-      ic1a = ic1a+1
-      hdata%c1a_to_c1(ic1a) = ic1
-      hdata%c1_to_c1a(ic1) = ic1a
-   end if
-end do
 
 allocate(hdata%c2a_to_c2(hdata%nc2a))
 allocate(hdata%c2_to_c2a(hdata%nc2))
@@ -1460,11 +1503,6 @@ end do
 
 ! Print results
 write(mpl%unit,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
-write(mpl%unit,'(a10,a,i8)') '','nc0 =        ',geom%nc0
-write(mpl%unit,'(a10,a,i8)') '','nc0a =       ',geom%nc0a
-write(mpl%unit,'(a10,a,i8)') '','nl0 =        ',geom%nl0
-write(mpl%unit,'(a10,a,i8)') '','nc1 =        ',nam%nc1
-write(mpl%unit,'(a10,a,i8)') '','nc1a =       ',hdata%nc1a
 write(mpl%unit,'(a10,a,i8)') '','nc2 =        ',hdata%nc2
 write(mpl%unit,'(a10,a,i8)') '','nc2a =       ',hdata%nc2a
 write(mpl%unit,'(a10,a,i8)') '','nc2b =       ',hdata%nc2b
@@ -1963,7 +2001,7 @@ if (mpl%main) then
 
       ! Copy from buffer
       mask_unpack = .true.
-      diag_tmp = unpack(rbuf,mask=mask_unpack,field=diag_tmp)
+      diag_tmp = unpack(rbuf,mask_unpack,diag_tmp)
       do ic2=1,hdata%nc2
          jproc = hdata%c2_to_proc(ic2)
          if (jproc==iproc) then

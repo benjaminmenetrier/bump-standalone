@@ -61,9 +61,16 @@ if (nam%new_lct) then
 
    ! Compute MPI distribution, halo A
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
+
+   call hdata%compute_mpi_a(nam,geom)
+   call flush(mpl%unit)
+
+   ! Compute MPI distribution, halos A-B
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
 
-   call hdata%compute_mpi_ab(nam,geom)
+   call hdata%compute_mpi_ab(geom)
    call flush(mpl%unit)
 
    ! Compute MPI distribution, halo C
@@ -88,6 +95,12 @@ if (nam%new_lct) then
    write(mpl%unit,'(a)') '--- Compute LCT'
 
    call lct%compute(nam,geom,bpar,hdata,mom)
+
+   ! Filter LCT
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Filter LCT'
+
+   call lct%filter(nam,geom,bpar,hdata)
 
    ! LCT RMSE
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'

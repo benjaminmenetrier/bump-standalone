@@ -227,7 +227,7 @@ if (mpl%main) then
    do il0=1,geom%nl0
       if (isanynotmsr(fld_glb(:,il0))) then
          call msr(fld_loc)
-         fld_loc = unpack(fld_glb(:,il0),mask=geom%rgmask,field=fld_loc)
+         fld_loc = unpack(fld_glb(:,il0),geom%rgmask,fld_loc)
          call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
       end if
    end do
@@ -242,7 +242,7 @@ if (mpl%main) then
       call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
       call ncerr(subr,nf90_enddef(ncid))
       call msr(fld_loc)
-      fld_loc = unpack(geom%lon,mask=geom%rgmask,field=fld_loc)
+      fld_loc = unpack(geom%lon,geom%rgmask,fld_loc)
       do ilon=1,geom%nlon
          do ilat=1,geom%nlat
             if (isnotmsr(fld_loc(ilon,ilat))) fld_loc(ilon,ilat) = fld_loc(ilon,ilat)*rad2deg
@@ -250,7 +250,7 @@ if (mpl%main) then
       end do
       call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc))
       call msr(fld_loc)
-      fld_loc = unpack(geom%lat,mask=geom%rgmask,field=fld_loc)
+      fld_loc = unpack(geom%lat,geom%rgmask,fld_loc)
       do ilon=1,geom%nlon
          do ilat=1,geom%nlat
             if (isnotmsr(fld_loc(ilon,ilat))) fld_loc(ilon,ilat) = fld_loc(ilon,ilat)*rad2deg

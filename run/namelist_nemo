@@ -48,12 +48,12 @@ ens2_nsub = 1,
 /
 
 &sampling_param
-sam_write = .true.,
-sam_read = .false.,
+sam_write = .false.,
+sam_read = .true.,
 mask_type = "none",
 mask_th = 0.0,
 mask_check = .true.,
-nc1 = 115,
+nc1 = 500,
 ntry = 3,
 nrep = 2,
 nc3 = 250,

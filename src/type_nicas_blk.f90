@@ -3398,8 +3398,8 @@ do idir=1,nam%ndir
 end do
 write(mpl%unit,'(a7,a)') '','Min - max: '
 do il0=1,geom%nl0
-   valmin = minval(fld(:,il0),mask=geom%mask(:,il0))
-   valmax = maxval(fld(:,il0),mask=geom%mask(:,il0))
+   valmin = minval(fld(:,il0),mask=geom%mask(geom%c0a_to_c0,il0))
+   valmax = maxval(fld(:,il0),mask=geom%mask(geom%c0a_to_c0,il0))
    call mpl%allreduce_min(valmin,valmin_tot)
    call mpl%allreduce_max(valmax,valmax_tot)
    write(mpl%unit,'(a10,a,i3,a,f10.7,a,f10.7)') '','Level ',nam%levs(il0),': ',valmin_tot,' - ',valmax_tot

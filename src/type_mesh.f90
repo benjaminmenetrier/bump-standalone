@@ -53,6 +53,7 @@ contains
    procedure :: copy => mesh_copy
    procedure :: trans => mesh_trans
    procedure :: trlist => mesh_trlist
+   procedure :: bnodes => mesh_bnodes
    procedure :: check => mesh_check
    procedure :: barycentric
    procedure :: addnode
@@ -93,7 +94,7 @@ allocate(mesh%redundant(mesh%n))
 call msi(mesh%redundant)
 
 ! Look for redundant points
-if (lred.and..false.) then
+if (lred) then
    ! MPI splitting
    call mpl%split(n,i_s,i_e,n_loc)
 
@@ -192,14 +193,14 @@ if (shuffle) then
 end if
 
 ! Restrictive inverse order
+call msi(mesh%order_inv)
 do i=1,mesh%nnr
    mesh%order_inv(mesh%order(i)) = i
 end do
 
 ! Include redundant points in inverse order
-do i=1,mesh%nnr
-   j = mesh%order(i)
-   if (isnotmsi(mesh%redundant(j))) mesh%order_inv(j) = mesh%order_inv(mesh%redundant(j))
+do i=1,mesh%n
+   if (isnotmsi(mesh%redundant(i))) mesh%order_inv(i) = mesh%order_inv(mesh%redundant(i))
 end do
 
 ! Transform to cartesian coordinates
@@ -326,7 +327,7 @@ end subroutine mesh_trans
 
 !----------------------------------------------------------------------
 ! Subroutine: mesh_trlist
-!> Purpose: compute triangle list, arc list, and find boundary nodes
+!> Purpose: compute triangle list, arc list
 !----------------------------------------------------------------------
 subroutine mesh_trlist(mesh)
 
@@ -336,16 +337,12 @@ implicit none
 class(mesh_type),intent(inout) :: mesh !< Mesh
 
 ! Local variables
-integer :: inr,info
-integer,allocatable :: ltri(:,:),nodes(:),larcb(:,:)
-integer :: ia,it,i,i1,i2,natmp,nttmp,nab,iab
-real(kind_real) :: dist_12,v1(3),v2(3),vp(3),v(3),vf(3),vt(3),tlat,tlon,trad,dist_t1,dist_t2
+integer :: info
+integer,allocatable :: ltri(:,:)
+integer :: ia,it,i,i1,i2
 
 ! Allocation
 allocate(ltri(9,2*(mesh%nnr-2)))
-allocate(nodes(mesh%nnr))
-allocate(larcb(2,3*(mesh%nnr-2)))
-allocate(mesh%bdist(mesh%nnr))
 
 ! Create triangles list
 call trlist(mesh%nnr,mesh%list,mesh%lptr,mesh%lend,9,mesh%nt,ltri,info)
@@ -378,9 +375,33 @@ do ia=1,mesh%na
    mesh%larc(2,ia) = ltri(i2,it)
 end do
 
+end subroutine mesh_trlist
+
+!----------------------------------------------------------------------
+! Subroutine: mesh_bnodes
+!> Purpose: find boundary nodes
+!----------------------------------------------------------------------
+subroutine mesh_bnodes(mesh)
+
+implicit none
+
+! Passed variables
+class(mesh_type),intent(inout) :: mesh !< Mesh
+
+! Local variables
+integer :: inr
+integer,allocatable :: nodes(:),larcb(:,:)
+integer :: ia,nab,iab
+real(kind_real) :: dist_12,v1(3),v2(3),vp(3),v(3),vf(3),vt(3),tlat,tlon,trad,dist_t1,dist_t2
+
+! Allocation
+allocate(nodes(mesh%nnr))
+allocate(larcb(2,3*(mesh%nnr-2)))
+allocate(mesh%bdist(mesh%nnr))
+
 ! Find boundary nodes
 call msi(nodes)
-call bnodes(mesh%nnr,mesh%list,mesh%lptr,mesh%lend,nodes,mesh%nb,natmp,nttmp)
+call bnodes(mesh%nnr,mesh%list,mesh%lptr,mesh%lend,nodes,mesh%nb,mesh%na,mesh%nt)
 if (mesh%nb>0) then
    ! Find boundary arcs
    nab = 0
@@ -437,7 +458,7 @@ else
    mesh%bdist = huge(1.0)
 end if
 
-end subroutine mesh_trlist
+end subroutine mesh_bnodes
 
 !----------------------------------------------------------------------
 ! Subroutine: mesh_check

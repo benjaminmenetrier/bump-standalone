@@ -14,11 +14,13 @@ use tools_const, only: pi
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
+use type_mpl
 
 implicit none
 
-integer,parameter :: M = 0                !< Number of implicit itteration for the Matern function (Gaussian function if M = 0)
-real(kind_real),parameter :: eta = 1.0e-9 !< Small parameter for the Cholesky decomposition
+real(kind_real),parameter :: Hmin = 1.0e-12 !< Minimum tensor diagonal value
+integer,parameter :: M = 0                  !< Number of implicit itteration for the Matern function (Gaussian function if M = 0)
+real(kind_real),parameter :: eta = 1.0e-9   !< Small parameter for the Cholesky decomposition
 
 private
 public :: lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide,fac,fit_diag,gc99,fit_lct,cholesky
@@ -437,17 +439,14 @@ real(kind_real),intent(out) :: fit(nc,nl0)  !< Fit
 integer :: jl0,jc3,iscales,offset
 real(kind_real) :: H11,H22,H33,Hc12,rsq
 
-! Initialization
-call msr(fit)
-
 offset = 0
 do iscales=1,nscales
-   ! Force positive definiteness
-   H11 = H(offset+1)
-   H22 = H(offset+2)
-   H33 = H(offset+3)
+   ! Ensure positive-definiteness
+   H11 = max(Hmin,H(offset+1))
+   H22 = max(Hmin,H(offset+2))
+   H33 = max(Hmin,H(offset+3))
    call msr(Hc12)
-   if (ncomp(iscales)==4) Hc12 = H(offset+4)
+   if (ncomp(iscales)==4) Hc12 = max(-1.0_kind_real+Hmin,min(H(offset+4),1.0_kind_real-Hmin))
 
    ! Homogeneous anisotropic approximation
    do jl0=1,nl0
@@ -455,11 +454,11 @@ do iscales=1,nscales
          if (dmask(jc3,jl0)) then
             ! Initialization
             if (iscales==1) fit(jc3,jl0) = 0.0
-
+  
             ! Squared distance
             rsq = H11*dx(jc3,jl0)**2+H22*dy(jc3,jl0)**2+H33*dz(jl0)**2
             if (ncomp(iscales)==4) rsq = rsq+2.0*sqrt(H11*H22)*Hc12*dx(jc3,jl0)*dy(jc3,jl0)
-
+   
             if (M==0) then
                ! Gaussian function
                fit(jc3,jl0) = fit(jc3,jl0)+coef(iscales)*exp(-0.5*rsq)
