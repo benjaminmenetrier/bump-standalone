@@ -1,7 +1,6 @@
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 
 begin
 
@@ -64,22 +63,22 @@ resP@gsnPanelYWhiteSpacePercent = 5
 do iproc=1,nproc
    if (strategy.eq."common") then
       ; Load data
-      data_ndata = addfile(datadir + "/" + prefix + "_ndata_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_common_summary.nc","r")
+      data_nicas = addfile(datadir + "/" + prefix + "_nicas_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_common_summary.nc","r")
       if (iproc.eq.1) then
-         nl = data_distribution@nl
+         nl = data_nicas@nl
          levs = new(nl,integer)
          do il=0,nl-1
-            levs(il) = toint(str_get_field(data_distribution@levs,il+1,":"))
+            levs(il) = toint(str_get_field(data_nicas@levs,il+1,":"))
          end do
-         lon = data_ndata->lon
-         lat = data_ndata->lat
-         c1_to_c0 = data_ndata->c1_to_c0
-         l1_to_l0 = data_ndata->l1_to_l0
+         lon = data_nicas->lon
+         lat = data_nicas->lat
+         c1_to_c0 = data_nicas->c1_to_c0
+         l1_to_l0 = data_nicas->l1_to_l0
          nc1 = dimsizes(c1_to_c0)
          nl1 = dimsizes(l1_to_l0)
       end if
 
-      lcheck = data_ndata->lcheck
+      lcheck = data_nicas->lcheck
       lcheck@_FillValue = -999.0
 
       do il1=0,nl1-1
@@ -100,7 +99,7 @@ do iproc=1,nproc
          end do
 
          ; Plot data
-         output = "../fig/" + prefix + "_distribution_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_lev" + sprinti("%0.3i",levs(il0-1))
+         output = "../fig/" + prefix + "_halos_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_lev" + sprinti("%0.3i",levs(il0-1))
          wks = gsn_open_wks("epsi",output)
          gsn_define_colormap(wks,"WhiteBlueGreenYellowRed")
          gsn_reverse_colormap(wks)

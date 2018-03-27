@@ -1,7 +1,6 @@
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 
 begin
 
@@ -193,55 +192,57 @@ do ivar=0,nvar-1
       end if
    end do
 
-   ; Plot profiles
-   coef_ens_prof = new((/3,nl/),float)
-   coef_sta_prof = new((/3,nl/),float)
-   rh0_prof = new((/3,nl/),float)
-   rv0_prof = new((/3,nl/),float)
-   do il=0,nl-1
-      lavg = avg(coef_ens(il,:))
-      lstd = stddev(coef_ens(il,:))
-      coef_ens_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
-      lavg = avg(coef_sta(il,:))
-      lstd = stddev(coef_sta(il,:))
-      coef_sta_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
-      lavg = avg(rh0(il,:))
-      lstd = stddev(rh0(il,:))
-      rh0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
-      lavg = avg(rv0(il,:))
-      lstd = stddev(rv0(il,:))
-      rv0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
-   end do
-
-   output = "../fig/" + prefix + "_cmat_profiles"
-   wks = gsn_open_wks("epsi",output)
-   gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
-
-   xyres@trYMinF = min(levs)
-   xyres@trYMaxF = max(levs)
-   plot_prof = new(4,graphic)
-
-   xyres@trXMinF = -0.05
-   xyres@trXMaxF = 1.05
-   xyres@tiXAxisString = "Ensemble coefficient"
-   plot_prof(0) = gsn_csm_xy(wks,coef_ens_prof,levs,xyres)
-
-   xyres@tiXAxisString = "Static coefficient"
-   plot_prof(1) = gsn_csm_xy(wks,coef_sta_prof,levs,xyres)
-
-   xyres@trXMinF = 0.0
-   xyres@trXMaxF = max(rh0_prof)*1.1
-   xyres@tiXAxisString = "Horizontal length-scale (km)"
-   plot_prof(2) = gsn_csm_xy(wks,rh0_prof,levs,xyres)
-
-   xyres@trXMaxF = max(rv0_prof)*1.1
-   xyres@tiXAxisString = "Vertical length-scale"
-   plot_prof(3) = gsn_csm_xy(wks,rv0_prof,levs,xyres)
-
-   gsn_panel(wks,plot_prof,(/2,2/),resP)
-   frame(wks)
-   delete(wks)
-   system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+   if (nl.gt.1) then
+      ; Plot profiles
+      coef_ens_prof = new((/3,nl/),float)
+      coef_sta_prof = new((/3,nl/),float)
+      rh0_prof = new((/3,nl/),float)
+      rv0_prof = new((/3,nl/),float)
+      do il=0,nl-1
+         lavg = avg(coef_ens(il,:))
+         lstd = stddev(coef_ens(il,:))
+         coef_ens_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
+         lavg = avg(coef_sta(il,:))
+         lstd = stddev(coef_sta(il,:))
+         coef_sta_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
+         lavg = avg(rh0(il,:))
+         lstd = stddev(rh0(il,:))
+         rh0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
+         lavg = avg(rv0(il,:))
+         lstd = stddev(rv0(il,:))
+         rv0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
+      end do
+   
+      output = "../fig/" + prefix + "_cmat_profiles"
+      wks = gsn_open_wks("epsi",output)
+      gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+   
+      xyres@trYMinF = min(levs)
+      xyres@trYMaxF = max(levs)
+      plot_prof = new(4,graphic)
+   
+      xyres@trXMinF = -0.05
+      xyres@trXMaxF = 1.05
+      xyres@tiXAxisString = "Ensemble coefficient"
+      plot_prof(0) = gsn_csm_xy(wks,coef_ens_prof,levs,xyres)
+   
+      xyres@tiXAxisString = "Static coefficient"
+      plot_prof(1) = gsn_csm_xy(wks,coef_sta_prof,levs,xyres)
+   
+      xyres@trXMinF = 0.0
+      xyres@trXMaxF = max(rh0_prof)*1.1
+      xyres@tiXAxisString = "Horizontal length-scale (km)"
+      plot_prof(2) = gsn_csm_xy(wks,rh0_prof,levs,xyres)
+   
+      xyres@trXMaxF = max(rv0_prof)*1.1
+      xyres@tiXAxisString = "Vertical length-scale"
+      plot_prof(3) = gsn_csm_xy(wks,rv0_prof,levs,xyres)
+   
+      gsn_panel(wks,plot_prof,(/2,2/),resP)
+      frame(wks)
+      delete(wks)
+      system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+   end if
 end do
 
 end

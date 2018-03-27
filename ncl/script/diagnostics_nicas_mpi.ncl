@@ -1,7 +1,6 @@
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 
 begin
 
@@ -11,6 +10,8 @@ begin
 datadir = "../../data/arp/877D"
 prefix = "arp_877D"
 nproc = 3
+mpicom = 2
+strategy = "common"
 
 procs = fspan(1,nproc,nproc)
 
@@ -54,36 +55,32 @@ resP@gsnPanelYWhiteSpacePercent = 5
 ; Load and plot data:
 ; -------------------
 
-data_distribution = addfile(datadir + "/" + prefix + "_distribution_" + sprinti("%0.4i",nproc) + ".nc","r")
-mpicom = data_distribution@mpicom
-strategy = data_distribution@strategy
-
-AB_halo = new((/nproc,nproc/),integer)
-AB_excl = new((/nproc,nproc/),integer)
-AC_halo = new((/nproc,nproc/),integer)
-AC_excl = new((/nproc,nproc/),integer)
+com_AB_halo = new((/nproc,nproc/),integer)
+com_AB_excl = new((/nproc,nproc/),integer)
+com_AC_halo = new((/nproc,nproc/),integer)
+com_AC_excl = new((/nproc,nproc/),integer)
 do iproc=1,nproc
-   data_ndata = addfile(datadir + "/" + prefix + "_ndata_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_common.nc","r")
-   AB_halo(iproc-1,:) = data_ndata->AB_jhalocounts
-   AB_excl(iproc-1,:) = data_ndata->AB_jexclcounts
-   AC_halo(iproc-1,:) = data_ndata->AC_jhalocounts
-   AC_excl(iproc-1,:) = data_ndata->AC_jexclcounts
+   data_nicas = addfile(datadir + "/" + prefix + "_nicas_" + mpicom + "_" + sprinti("%0.4i",nproc) + "-" + sprinti("%0.4i",iproc) + "_common.nc","r")
+   com_AB_halo(iproc-1,:) = data_nicas->com_AB_jhalocounts
+   com_AB_excl(iproc-1,:) = data_nicas->com_AB_jexclcounts
+   com_AC_halo(iproc-1,:) = data_nicas->com_AC_jhalocounts
+   com_AC_excl(iproc-1,:) = data_nicas->com_AC_jexclcounts
 end do
 
-output = "../fig/" + prefix + "_distribution_" + mpicom + "_" + sprinti("%0.4i",nproc)
+output = "../fig/" + prefix + "_halos_" + mpicom + "_" + sprinti("%0.4i",nproc)
 wks = gsn_open_wks("epsi",output)
 gsn_define_colormap(wks,"WhiteBlueGreenYellowRed")
 
 plot = new(4,graphic)
 
 res@tiMainString = "Halos A/B, halo"
-plot(0) = gsn_csm_contour(wks,AB_halo,res)
+plot(0) = gsn_csm_contour(wks,com_AB_halo,res)
 res@tiMainString = "Halos A/B, excl"
-plot(1) = gsn_csm_contour(wks,AB_excl,res)
+plot(1) = gsn_csm_contour(wks,com_AB_excl,res)
 res@tiMainString = "Halos A/C, halo"
-plot(2) = gsn_csm_contour(wks,AC_halo,res)
+plot(2) = gsn_csm_contour(wks,com_AC_halo,res)
 res@tiMainString = "Halos A/C, excl"
-plot(3) = gsn_csm_contour(wks,AC_excl,res)
+plot(3) = gsn_csm_contour(wks,com_AC_excl,res)
 
 gsn_panel(wks,plot,(/2,2/),resP)
 frame(wks)
