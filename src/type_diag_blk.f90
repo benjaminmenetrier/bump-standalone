@@ -148,12 +148,12 @@ character(len=1024) :: subr = 'diag_blk_write'
 ! Check if the file exists
 info = nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_noclobber,nf90_64bit_offset),ncid)
 if (info==nf90_noerr) then
-   ! Add namelist
+   ! Write namelist parameters
    call nam%ncwrite(ncid)
 
    ! Define dimensions
    call ncerr(subr,nf90_def_dim(ncid,'one',1,one_id))
-   call ncerr(subr,nf90_def_dim(ncid,'nc',nam%nc3,nc_id))
+   call ncerr(subr,nf90_def_dim(ncid,'nc3',nam%nc3,nc_id))
    call ncerr(subr,nf90_def_dim(ncid,'nl0r',nam%nl0r,nl0r_id))
    call ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
 
@@ -166,7 +166,7 @@ else
 
    ! Get dimensions ID
    call ncerr(subr,nf90_inq_dimid(ncid,'one',one_id))
-   call ncerr(subr,nf90_inq_dimid(ncid,'nc',nc_id))
+   call ncerr(subr,nf90_inq_dimid(ncid,'nc3',nc_id))
    call ncerr(subr,nf90_inq_dimid(ncid,'nl0r',nl0r_id))
    call ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
 

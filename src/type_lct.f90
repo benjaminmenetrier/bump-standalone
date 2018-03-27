@@ -407,7 +407,7 @@ type(bpar_type),intent(in) :: bpar      !< Block parameters
 type(hdata_type),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
-integer :: ib,iv,il0,jl0r,jl0,ic1a,ic1,jc3,i,iproc,jproc,ic0
+integer :: ib,iv,il0,jl0r,jl0,ic1a,ic1,jc3,i,iproc,ic0
 real(kind_real) :: fld_glb(geom%nc0,geom%nl0,2),fld(geom%nc0a,geom%nl0,2)
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 logical :: valid
