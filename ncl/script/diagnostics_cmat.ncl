@@ -80,7 +80,7 @@ do ivar=0,nvar-1
    end do
    nlevs = min((/nl,10/))
    if (nlevs.gt.1) then
-      ilevs_plot = toint(fspan(0,nlevs-1,nlevs))
+      ilevs_plot = toint(fspan(0,nl-1,nlevs))
    else
       ilevs_plot = (/0/)
    end if
@@ -212,32 +212,32 @@ do ivar=0,nvar-1
          lstd = stddev(rv0(il,:))
          rv0_prof(:,il) = (/lavg,lavg-lstd,lavg+lstd/)
       end do
-   
+
       output = "../fig/" + prefix + "_cmat_profiles"
       wks = gsn_open_wks("epsi",output)
       gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
-   
+
       xyres@trYMinF = min(levs)
       xyres@trYMaxF = max(levs)
       plot_prof = new(4,graphic)
-   
+
       xyres@trXMinF = -0.05
       xyres@trXMaxF = 1.05
       xyres@tiXAxisString = "Ensemble coefficient"
       plot_prof(0) = gsn_csm_xy(wks,coef_ens_prof,levs,xyres)
-   
+
       xyres@tiXAxisString = "Static coefficient"
       plot_prof(1) = gsn_csm_xy(wks,coef_sta_prof,levs,xyres)
-   
+
       xyres@trXMinF = 0.0
       xyres@trXMaxF = max(rh0_prof)*1.1
       xyres@tiXAxisString = "Horizontal length-scale (km)"
       plot_prof(2) = gsn_csm_xy(wks,rh0_prof,levs,xyres)
-   
+
       xyres@trXMaxF = max(rv0_prof)*1.1
       xyres@tiXAxisString = "Vertical length-scale"
       plot_prof(3) = gsn_csm_xy(wks,rv0_prof,levs,xyres)
-   
+
       gsn_panel(wks,plot_prof,(/2,2/),resP)
       frame(wks)
       delete(wks)

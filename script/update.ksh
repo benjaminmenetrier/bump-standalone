@@ -47,8 +47,7 @@ cd ../script
 # Recompute truth
 echo '--- Recompute truth'
 cd ../run
-export OMP_NUM_THREADS=1
-./hdiag_nicas < namelist_truth
+export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_truth
 
 # Pack everything
 echo '--- Pack everything'

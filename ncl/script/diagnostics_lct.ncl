@@ -7,8 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/arp/877D"
-prefix = "arp_877D"
+datadir = "../../data/nemo"
+prefix = "nemo"
 
 ; Resources :
 ; -----------
@@ -30,10 +30,6 @@ res@cnLineLabelsOn = False
 res@cnLinesOn = False
 res@cnNoDataLabelOn = False
 res@cnMissingValFillColor = 0
-res@cnLevelSelectionMode = "ManualLevels"
-res@cnMaxLevelValF = 1.0
-res@cnMinLevelValF = -1.0
-res@cnLevelSpacingF = 0.1
 
 res@mpOutlineOn = True
 res@mpDataBaseVersion = "MediumRes"
@@ -62,7 +58,7 @@ do il=0,nl-1
 end do
 nlevs = min((/nl,10/))
 if (nlevs.gt.1) then
-   ilevs_plot = toint(fspan(0,nlevs-1,nlevs))
+   ilevs_plot = toint(fspan(0,nl-1,nlevs))
 else
    ilevs_plot = (/0/)
 end if
@@ -71,11 +67,7 @@ varname = new(nv,string)
 do iv=0,nv-1
    varname(iv) = str_get_field(data@varname,iv+1,":")
 end do
-nts = data@nts
-timeslot = new(nts,string)
-do its=0,nts-1
-   timeslot(its) = str_get_field(data@timeslot,its+1,":")
-end do
+lct_nscales = data@lct_nscales
 
 lon = data->lon
 lat = data->lat
@@ -84,15 +76,138 @@ res@sfYArray = lat
 
 do ilevs=0,nlevs-1
    do iv=0,nv-1
-      do its=0,nts-1
-         tmp = varname(iv) + "_" + sprinti("%0.2i",its+1)
+      res@cnLevelSelectionMode = "ManualLevels"
+      res@cnMaxLevelValF = 1.0
+      res@cnMinLevelValF = -1.0
+      res@cnLevelSpacingF = 0.1
+
+      tmp = varname(iv) + "_raw"
+      if (isfilevar(data,tmp)) then
          var = data->$tmp$(:,ilevs_plot(ilevs))
 
-         output = "../fig/" + prefix + "_dirac_" + varname(iv) + "_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_raw_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
          gsn_define_colormap(wks,"BlWhRe")
 
-         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+      end if
+
+      tmp = varname(iv) + "_fit"
+      if (isfilevar(data,tmp)) then
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_fit_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlWhRe")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+      end if
+
+      do iscales=1,lct_nscales
+         tmp = varname(iv) + "_H12_" + iscales
+         if (isfilevar(data,tmp)) then
+            var = data->$tmp$(:,ilevs_plot(ilevs))
+
+            output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H12_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+            wks = gsn_open_wks("epsi",output)
+            gsn_define_colormap(wks,"BlWhRe")
+
+            res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+            plot = gsn_csm_contour_map(wks,var,res)
+
+            draw(plot)
+            frame(wks)
+            delete(wks)
+            system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+         end if
+      end do
+
+      delete(res@cnLevelSelectionMode)
+      delete(res@cnMaxLevelValF)
+      delete(res@cnMinLevelValF)
+      delete(res@cnLevelSpacingF)
+
+      do iscales=1,lct_nscales
+         tmp = varname(iv) + "_H11_" + iscales
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H11_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+
+         tmp = varname(iv) + "_H22_" + iscales
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H22_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+
+         tmp = varname(iv) + "_H33_" + iscales
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H33_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+
+         tmp = varname(iv) + "_coef_" + iscales
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_coef_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
+         plot = gsn_csm_contour_map(wks,var,res)
+
+         draw(plot)
+         frame(wks)
+         delete(wks)
+         system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
+
+         tmp = varname(iv) + "_Lh_" + iscales
+         var = data->$tmp$(:,ilevs_plot(ilevs))
+
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_Lh_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         wks = gsn_open_wks("epsi",output)
+         gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
+
+         res@tiMainString = varname(iv) + " @ lev " + levs(ilevs_plot(ilevs))
          plot = gsn_csm_contour_map(wks,var,res)
 
          draw(plot)

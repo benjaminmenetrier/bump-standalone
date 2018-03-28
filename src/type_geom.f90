@@ -46,6 +46,7 @@ type geom_type
    real(kind_real),allocatable :: vunit(:)    !< Vertical unit
    real(kind_real),allocatable :: disth(:)    !< Horizontal distance
    real(kind_real),allocatable :: distv(:,:)  !< Vertical distance
+   logical :: redgrid                         !< Redundant grid
 
    ! Mesh
    type(mesh_type) :: mesh                    !< Mesh
@@ -110,6 +111,7 @@ call msr(geom%lat)
 geom%mask = .false.
 call msr(geom%vunit)
 call msr(geom%distv)
+geom%redgrid = .true.
 
 end subroutine geom_alloc
 
@@ -140,7 +142,7 @@ call geom%define_mask(nam)
 ! Create mesh
 if ((.not.all(geom%area>0.0)).or.(nam%new_hdiag.and.nam%displ_diag).or.((nam%new_param.or.nam%new_lct) &
  & .and.nam%mask_check).or.(nam%new_param.and.nam%network).or.nam%new_obsop) &
- & call geom%mesh%create(geom%nc0,geom%lon,geom%lat,.true.)
+ & call geom%mesh%create(geom%nc0,geom%lon,geom%lat,geom%redgrid)
 
 ! Compute area
 if ((.not.all(geom%area>0.0))) call geom%compute_area
@@ -545,12 +547,12 @@ if (.not.allocated(geom%c0_to_proc)) then
 
          ! Write distribution
          if (mpl%main) then
-            ! Create file             
+            ! Create file
             call ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename_nc),or(nf90_clobber,nf90_64bit_offset),ncid))
 
             ! Write namelist parameters
             call nam%ncwrite(ncid)
- 
+
             ! Define dimension
             call ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
 
@@ -841,7 +843,7 @@ if (mpl%main) then
       ! Write namelist parameters
       call nam%ncwrite(ncid)
 
-      ! Define attribute 
+      ! Define attribute
       call ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',msvalr))
 
       ! End definition mode

@@ -9,14 +9,14 @@ use_metis = .true.,
 /
 
 &driver_param
-method = "loc",
-strategy = "common",
-new_hdiag = .false.,
-new_param = .true.,
+method = "cor",
+strategy = "diag_all",
+new_hdiag = .true.,
+new_param = .false.,
 check_adjoints = .false.,
 check_pos_def = .false.,
 check_sqrt = .false.,
-check_dirac = .true.,
+check_dirac = .false.,
 check_randomization = .false.,
 check_consistency = .false.,
 check_optimality = .false.,
@@ -25,13 +25,13 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 1,
-levs = 35,36,37,50,55,
+nl = 21,
+levs = 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
 logpres = .true.,
-nv = 1,
+nv = 2,
 varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
-nts = 2,
+nts = 1,
 timeslot = 0,6,
 /
 
@@ -59,16 +59,16 @@ ntry = 3,
 nrep = 2,
 nc3 = 20,
 dc = 100.0e3,
-nl0r = 3,
+nl0r = 7,
 /
 
 &diag_param
 ne = 50,
 gau_approx = .false.,
 full_var = .false.,
-local_diag = .true.,
+local_diag = .false.,
 local_rad = 500.0e3,
-displ_diag = .true.,
+displ_diag = .false.,
 displ_rad = 3000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,

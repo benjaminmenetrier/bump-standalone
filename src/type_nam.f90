@@ -576,7 +576,7 @@ case default
    call msgerror('wrong method')
 end select
 select case (trim(nam%strategy))
-case ('common','specific_univariate','common_weighted')
+case ('diag_all','common','specific_univariate','common_weighted')
 case ('specific_multivariate')
    if (.not.nam%lsqrt) call msgerror('specific multivariate strategy requires a square-root formulation')
 case default
@@ -810,6 +810,8 @@ if (mpl%main) then
 
    ! LCT
    if (nam%new_lct) then
+      filename = trim(nam%prefix)//'_lct.nc'
+      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
       filename = trim(nam%prefix)//'_lct_gridded.nc'
       call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
    end if
