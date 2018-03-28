@@ -684,6 +684,10 @@ if (nam%local_diag.or.nam%displ_diag) then
    write(mpl%unit,'(a7,a)') '','Find boundary nodes'
    call hdata%mesh%bnodes
 
+   ! Find boundary arcs
+   write(mpl%unit,'(a7,a)') '','Find boundary arcs'
+   call hdata%mesh%barcs
+
    if ((info==1).or.(info==2).or.(info==3)) then
       ! Allocation
       allocate(nn_c1_index(nam%nc1))
