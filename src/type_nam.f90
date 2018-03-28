@@ -43,7 +43,7 @@ type nam_type
 
    ! driver_param
    character(len=1024) :: method                    !< Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
-   character(len=1024) :: strategy                  !< Localization strategy ('common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
+   character(len=1024) :: strategy                  !< Localization strategy ('diag_all', 'common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
    logical :: new_hdiag                             !< Compute new HDIAG diagnostics (if false, read file)
    logical :: new_param                             !< Compute new NICAS parameters (if false, read file)
    logical :: check_adjoints                        !< Test adjoints
