@@ -94,7 +94,7 @@ allocate(mesh%redundant(mesh%n))
 call msi(mesh%redundant)
 
 ! Look for redundant points
-if (lred.and..false.) then
+if (lred) then
    ! MPI splitting
    call mpl%split(n,i_s,i_e,n_loc)
 

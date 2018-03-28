@@ -242,7 +242,7 @@ if (mpl%main) then
       ! Write namelist parameters
       call nam%ncwrite(ncid)
 
-      ! Define attribute 
+      ! Define attribute
       call ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',msvalr))
 
       ! End definition mode

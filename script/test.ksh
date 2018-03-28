@@ -11,7 +11,11 @@ cmat_common
 diag
 dirac_gridded
 dirac
+local_diag_cor_gridded
 local_diag_cor
+local_diag_cov_gridded
+local_diag_cov
+local_diag_loc_gridded
 local_diag_loc
 nicas_2_0001-0001_common
 nicas_2_0001-0001_common_summary
@@ -27,7 +31,7 @@ fi
 if [[ ! -e "../test/test_dirac.nc" ]] ; then
    # Execute
    cd ../run
-   export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test > ../test/hdiag_nicas.log 2>&1
+   export OMP_NUM_THREADS=1;./hdiag_nicas < namelist_test
    if [[ -e "../test/test_dirac.nc" ]] ; then
       echo -e "[32mExecution successful[m"
    else

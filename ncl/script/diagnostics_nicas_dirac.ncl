@@ -62,7 +62,7 @@ do il=0,nl-1
 end do
 nlevs = min((/nl,10/))
 if (nlevs.gt.1) then
-   ilevs_plot = toint(fspan(0,nlevs-1,nlevs))
+   ilevs_plot = toint(fspan(0,nl-1,nlevs))
 else
    ilevs_plot = (/0/)
 end if
