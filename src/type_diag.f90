@@ -274,7 +274,7 @@ do ib=1,bpar%nb+1
          if (isnotmsr(avg%blk(0,ib)%cor(1,bpar%il0rz(il0,ib),il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,e9.2,a)') '', &
        & 'Level: ',nam%levs(il0),' ~> ','amplitude: ',trim(peach),avg%blk(0,ib)%cor(1,bpar%il0rz(il0,ib),il0),trim(black)
          if (bpar%fit_block(ib)) then
-            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f8.2,a,f8.2,a)') '','Level: ', &
+            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f10.2,a,f10.2,a)') '','Level: ', &
           & nam%levs(il0),' ~> ','loc. support radii:  ',trim(aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
           & trim(black)//' km  / '//trim(aqua),diag%blk(0,ib)%fit_rv(il0),trim(black)//' '//trim(vunitchar)
          end if
@@ -337,10 +337,10 @@ do ib=1,bpar%nb+1
 
       ! Print results
       do il0=1,geom%nl0
-         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f10.2,a)') '','Level: ', &
        & nam%levs(il0),' ~> ','diagonal value: ',trim(peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(black)
          if (bpar%fit_block(ib)) then
-            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a48,a,f8.2,a,f8.2,a)') 'loc. support radii: ', &
+            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a48,a,f10.2,a,f10.2,a)') 'loc. support radii: ', &
           & trim(aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(black)//' km  / '//trim(aqua),diag%blk(0,ib)%fit_rv(il0), &
           & trim(black)//' '//trim(vunitchar)
          end if
@@ -404,15 +404,15 @@ do ib=1,bpar%nb+1
 
       ! Print results
       do il0=1,geom%nl0
-         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a13,a,i3,a4,a21,a,f10.2,a)') '','Level: ', &
        & nam%levs(il0),' ~> ','diagonal value: ',trim(peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(black)
          if (bpar%fit_block(ib)) then
-            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a48,a,f8.2,a,f8.2,a)') 'loc. support radii: ', &
+            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a48,a,f10.2,a,f10.2,a)') 'loc. support radii: ', &
           & trim(aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(black)//' km  / '//trim(aqua),diag%blk(0,ib)%fit_rv(il0), &
           & trim(black)//' '//trim(vunitchar)
          end if
       end do
-      write(mpl%unit,'(a13,a,f8.2,a)') '','Raw static coeff.: ',trim(purple),diag%blk(0,ib)%raw_coef_sta,trim(black)
+      write(mpl%unit,'(a13,a,f10.2,a)') '','Raw static coeff.: ',trim(purple),diag%blk(0,ib)%raw_coef_sta,trim(black)
    end if
 end do
 
@@ -479,15 +479,15 @@ do ib=1,bpar%nb+1
 
       ! Print results
       do il0=1,geom%nl0
-         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f8.2,a)') '','Level: ', &
+         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a10,a,i3,a4,a21,a,f10.2,a)') '','Level: ', &
        & nam%levs(il0),' ~> ','diagonal value (HR): ',trim(peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(black)
-         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a45,a,f8.2,a)') 'diagonal value (LR): ', &
+         if (isnotmsr(diag%blk(0,ib)%raw_coef_ens(il0))) write(mpl%unit,'(a45,a,f10.2,a)') 'diagonal value (LR): ', &
        & trim(peach),diag_lr%blk(0,ib)%raw_coef_ens(il0),trim(black)
          if (bpar%fit_block(ib)) then
-            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (HR): ', &
+            if (isnotmsr(diag%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a45,a,f10.2,a,f10.2,a)') 'loc. support radii (HR): ', &
           & trim(aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(black)//' km  / '//trim(aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
           & trim(black)//' '//trim(vunitchar)
-            if (isnotmsr(diag_lr%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a45,a,f8.2,a,f8.2,a)') 'loc. support radii (LR): ', &
+            if (isnotmsr(diag_lr%blk(0,ib)%fit_rh(il0))) write(mpl%unit,'(a45,a,f10.2,a,f10.2,a)') 'loc. support radii (LR): ', &
           & trim(aqua),diag_lr%blk(0,ib)%fit_rh(il0)*reqkm,trim(black)//' km  / '//trim(aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
           & trim(black)//' '//trim(vunitchar)
          end if

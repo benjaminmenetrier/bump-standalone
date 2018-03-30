@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/glade/u/home/menetrie/codes/hdiag_nicas
+rootdir=/glade/u/home/menetrie/code/hdiag_nicas
 
 # Define model and xp
 model=arp

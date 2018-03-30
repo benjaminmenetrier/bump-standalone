@@ -35,9 +35,12 @@ if [[ ! -e "../test/test_dirac.nc" ]] ; then
    if [[ -e "../test/test_dirac.nc" ]] ; then
       echo -e "[32mExecution successful[m"
    else
-     echo -e "[31mExecution failed[m"
+      echo -e "[31mExecution failed[m"
       exit
    fi
+   newexec=true
+else
+   newexec=false
 fi
 
 # Get the differences
@@ -142,4 +145,7 @@ EOFNAM
 done
 
 # Clean
-rm -f test_*.nc *.out
+rm -f *.out
+if $newexec; then
+   rm -f test_*.nc
+fi

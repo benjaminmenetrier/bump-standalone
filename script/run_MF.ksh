@@ -7,7 +7,7 @@
 #----------------------------------------------------------------------
 
 # Parallel setup
-nnodes=1
+nnodes=2
 ntasks_per_node=4
 nthreads=10
 let ntasks=nnodes*ntasks_per_node
@@ -20,11 +20,11 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/home/gmap/mrpa/menetrie/codes/hdiag_nicas
+rootdir=/home/gmap/mrpa/menetrie/code/hdiag_nicas
 
 # Define model and xp
 model=arp
-xp=877D
+xp=86SV
 
 # Define data directory
 datadir=${rootdir}/data/${model}/${xp}
@@ -32,7 +32,7 @@ datadir=${rootdir}/data/${model}/${xp}
 # New working directory
 workdir=${rootdir}/${model}_${xp}
 rm -fr ${workdir}
-mkdir ${workdir}
+mkdir -p ${workdir}
 cp -f ${rootdir}/run/hdiag_nicas ${workdir}
 cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
 

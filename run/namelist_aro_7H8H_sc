@@ -1,0 +1,120 @@
+&general_param
+datadir = "../data/aro/7H8H",
+prefix = "aro_7H8H_tq",
+model = "aro",
+colorlog = .true.,
+default_seed = .true.,
+load_ensemble = .false.,
+use_metis = .true.,
+/
+
+&driver_param
+method = "cor",
+strategy = "diag_all",
+new_hdiag = .true.,
+new_param = .false.,
+check_adjoints = .false.,
+check_pos_def = .false.,
+check_sqrt = .false.,
+check_dirac = .false.,
+check_randomization = .false.,
+check_consistency = .false.,
+check_optimality = .false.,
+new_lct = .false.,
+new_obsop = .false.,
+/
+
+&model_param
+nl = 30,
+levs = 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,
+logpres = .true.,
+nv = 2,
+varname = "TEMPERATURE","HUMI_SPECIFI","VORTICITY","DIVERGENCE","RAIN","SNOW","GRAUPEL","CLOUD_WATER","ICE_CRYSTAL",
+addvar2d = "","",
+nts = 1,
+timeslot = 3,
+/
+
+&ens1_param
+ens1_ne = 25,
+ens1_ne_offset = 0,
+ens1_nsub = 1,
+/
+
+&ens2_param
+ens2_ne = 10,
+ens2_ne_offset = 0,
+ens2_nsub = 1,
+/
+
+&sampling_param
+sam_write = .false.,
+sam_read = .true.,
+mask_type = "none",
+mask_th = 0,
+mask_check = .false.,
+draw_type = "random_uniform",
+nc1 = 3500,
+ntry = 3,
+nrep = 2,
+nc3 = 75,
+dc = 10.0e3,
+nl0r = 21,
+/
+
+&diag_param
+ne = 25,
+gau_approx = .false.,
+full_var = .false.,
+local_diag = .false.,
+local_rad = 500.0e3,
+displ_diag = .false.,
+displ_rad = 500.0e3,
+displ_niter = 10,
+displ_rhflt = 250.0e3,
+displ_tol = 0.01,
+/
+
+&fit_param
+minim_algo = "hooke",
+lhomh = .false.,
+lhomv = .false.,
+rvflt = 0.0,
+lct_nscales = 0,
+lct_diag = .false.,
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+diag_rhflt = 250.0e3,
+diag_interp = "bilin",
+/
+
+&nicas_param
+lsqrt = .false.,
+rh = 0.0,
+rv = 0.0,
+resol = 8.0,
+nicas_interp = "bilin",
+network = .false.,
+mpicom = 2,
+advmode = 0,
+ndir = 1,
+londir = 1.38,
+latdir = 43.63,
+levdir = 70,
+ivdir = 1,
+itsdir = 0,
+/
+
+&obsop_param
+nobs = 200,
+obsdis = 0.0,
+obsop_interp = "natural",
+/
+

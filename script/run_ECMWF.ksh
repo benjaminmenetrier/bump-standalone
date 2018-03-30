@@ -22,19 +22,15 @@ echo "   Number of cpus per nodes: "${ncpus_per_node}
 # Define root directory
 rootdir=/home/ms/fr/sozi/code/hdiag_nicas
 
-# Define model and xp
-model=arp
-xp=877D
-
 # Define data directory
-datadir=${rootdir}/data/${model}/${xp}
+datadir=${rootdir}/test
 
 # New working directory
-workdir=${rootdir}/${model}_${xp}
+workdir=${rootdir}/work
 rm -fr ${workdir}
 mkdir ${workdir}
 cp -f ${rootdir}/run/hdiag_nicas ${workdir}
-cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
+cp -f ${rootdir}/run/namelist_test ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
