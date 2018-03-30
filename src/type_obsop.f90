@@ -723,12 +723,12 @@ call mpl%bcast(ylatmax,iprocmax(1))
 
 ! Print results
 if (norm_tot>0.0) then
-   write(mpl%unit,'(a7,a,f8.2,a,f8.2,a,f8.2,a)') '','Interpolation error (min/mean/max): ',distmin_tot, &
+   write(mpl%unit,'(a7,a,f10.2,a,f10.2,a,f10.2,a)') '','Interpolation error (min/mean/max): ',distmin_tot, &
  & ' km / ',distsum_tot/norm_tot,' km / ',maxval(proc_to_distmax),' km'
    write(mpl%unit,'(a7,a)') '','Max. interpolation error location (lon/lat): '
-   write(mpl%unit,'(a10,a14,f8.2,a,f8.2,a)') '','Observation:  ',obsop%lonobs(iobsmax(1))*rad2deg, &
+   write(mpl%unit,'(a10,a14,f10.2,a,f10.2,a)') '','Observation:  ',obsop%lonobs(iobsmax(1))*rad2deg, &
  & ' deg. / ' ,obsop%latobs(iobsmax(1))*rad2deg,' deg.'
-   write(mpl%unit,'(a10,a14,f8.2,a,f8.2,a)') '','Interpolation:',ylonmax*rad2deg, &
+   write(mpl%unit,'(a10,a14,f10.2,a,f10.2,a)') '','Interpolation:',ylonmax*rad2deg, &
  & ' deg. / ' ,ylatmax*rad2deg,' deg.'
 else
    call msgerror('all observations are out of the test windows')

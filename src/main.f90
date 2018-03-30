@@ -84,7 +84,7 @@ call nam%check
 ! Parallel setup
 !----------------------------------------------------------------------
 
-write(mpl%unit,'(a,i2,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI tasks and ',mpl%nthread,' OpenMP threads'
+write(mpl%unit,'(a,i4,a,i4,a)') '--- Parallelization with ',mpl%nproc,' MPI tasks and ',mpl%nthread,' OpenMP threads'
 
 !----------------------------------------------------------------------
 ! Initialize random number generator
