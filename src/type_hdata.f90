@@ -116,6 +116,7 @@ end type hdata_type
 
 integer,parameter :: irmax = 10000                 !< Maximum number of random number draws
 real(kind_real),parameter :: Lcoast = 1000.0e3/req !< Length-scale to increase sampling density along coasts
+real(kind_real),parameter :: rcoast = 0.2          !< Minimum value to increase sampling density along coasts
 
 private
 public :: hdata_type
@@ -746,8 +747,10 @@ if (nam%sam_write) then
    if (mpl%main) call hdata%write(nam,geom)
 
    ! Write rh0
-   call geom%fld_com_gl(hdata%rh0,rh0_loc)
-   call model_write(nam,geom,trim(nam%prefix)//'_sampling_rh0.nc','rh0',rh0_loc)
+   if (trim(nam%draw_type)=='random_coast') then
+      call geom%fld_com_gl(hdata%rh0,rh0_loc)
+      call model_write(nam,geom,trim(nam%prefix)//'_sampling_rh0.nc','rh0',rh0_loc)
+   end if
 end if
 
 ! Compute nearest neighbors for local diagnostics output
@@ -838,7 +841,7 @@ if (nam%nc1<maxval(count(geom%mask,dim=1))) then
                   end if
                end do
             end do
-            hdata%rh0(:,1) = (1.0-hdata%rh0(:,1)/float(geom%nl0))
+            hdata%rh0(:,1) = rcoast+(1.0-rcoast)*(1.0-hdata%rh0(:,1)/float(geom%nl0))
          end if
          call rng%initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,dble(hdata%rh0(:,1)),nam%ntry,nam%nrep, &
        & nam%nc1,hdata%c1_to_c0)

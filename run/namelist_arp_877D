@@ -9,14 +9,14 @@ use_metis = .true.,
 /
 
 &driver_param
-method = "cor",
-strategy = "diag_all",
+method = "loc",
+strategy = "common",
 new_hdiag = .true.,
-new_param = .false.,
-check_adjoints = .false.,
+new_param = .true.,
+check_adjoints = .true.,
 check_pos_def = .false.,
 check_sqrt = .false.,
-check_dirac = .false.,
+check_dirac = .true.,
 check_randomization = .false.,
 check_consistency = .false.,
 check_optimality = .false.,
@@ -25,10 +25,10 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 21,
-levs = 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
+nl = 1,
+levs = 35,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
 logpres = .true.,
-nv = 2,
+nv = 1,
 varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
 nts = 1,
@@ -76,7 +76,7 @@ displ_tol = 0.0,
 /
 
 &fit_param
-minim_algo = "fast",
+minim_algo = "hooke",
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 2.0,
@@ -96,7 +96,7 @@ diag_interp = "bilin",
 /
 
 &nicas_param
-lsqrt = .false.,
+lsqrt = .true.,
 rh = 0.0,
 rv = 0.0,
 resol = 8.0,
@@ -104,12 +104,12 @@ nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
 advmode = 1,
-ndir = 12,
-londir = -135.0,-45.0,45.0,135.0,-135.0,-45.0,45.0,135.0,-135.0,-45.0,45.0,135.0,
-latdir = -50.0,-50.0,-50.0,-50.0,32.0,32.0,32.0,32.0,60.0,60.0,60.0,60.0,
-levdir = 35,35,35,35,35,35,35,35,35,35,35,35,
-ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
-itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
+ndir = 20,
+londir = -170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,
+latdir = -60.0,-60.0,-60.0,-60.0,-30.0,-30.0,-30.0,-30.0,0.0,0.0,0.0,0.0,30.0,30.0,30.0,30.0,60.0,60.0,60.0,60.0,
+levdir = 35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,
+ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 /
 
 &obsop_param

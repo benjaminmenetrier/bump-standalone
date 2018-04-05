@@ -1148,6 +1148,9 @@ logical :: init,add_to_front,valid_arc
 logical,allocatable :: done(:),valid(:,:)
 type(linop_type) :: c(mpl%nthread),c_nor(mpl%nthread)
 
+! Allocation
+allocate(net_nnb(geom%nc0))
+
 ! Count neighbors
 net_nnb = 0
 do ic0=1,geom%nc0
@@ -1162,6 +1165,7 @@ do ic0=1,geom%nc0
 end do
 
 ! Allocation
+write(mpl%unit,*) maxval(net_nnb),geom%nc0
 allocate(net_inb(maxval(net_nnb),geom%nc0))
 allocate(net_dnb(maxval(net_nnb),-1:1,geom%nc0,geom%nl0))
 

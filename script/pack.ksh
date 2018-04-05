@@ -20,7 +20,11 @@ cp -f CMakeLists.txt pack
 mkdir pack/data
 links_list=`find data -name '*.ksh'`
 for links in ${links_list} ; do
-  cp --parents $links pack
+  cp --parents ${links} pack
+done
+obs_in_list=`find data -name '*obs_in.dat'`
+for obs_in in ${obs_in_list} ; do
+  cp --parents ${obs_in} pack
 done
 
 # Copy doc
@@ -28,7 +32,7 @@ mkdir pack/doc
 cp -f doc/Doxyfile pack/doc
 cp -f doc/mainpage.h pack/doc
 
-# Copy doc
+# Copy ncl
 mkdir pack/ncl
 mkdir pack/ncl/script
 cp -f ncl/script/*.ncl pack/ncl/script

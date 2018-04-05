@@ -1,0 +1,120 @@
+&general_param
+datadir = "../data/arp/obsop",
+prefix = "arp_obsop",
+model = "arp",
+colorlog = .true.,
+default_seed = .true.,
+load_ensemble = .false.,
+use_metis = .true.,
+/
+
+&driver_param
+method = "cor",
+strategy = "common",
+new_hdiag = .false.,
+new_param = .false.,
+check_adjoints = .false.,
+check_pos_def = .false.,
+check_sqrt = .false.,
+check_dirac = .false.,
+check_randomization = .false.,
+check_consistency = .false.,
+check_optimality = .false.,
+new_lct = .false.,
+new_obsop = .true.,
+/
+
+&model_param
+nl = 1,
+levs = 1,
+logpres = .true.,
+nv = 1,
+varname = "TEMPERATURE",
+addvar2d = "","",
+nts = 1,
+timeslot = 0,
+/
+
+&ens1_param
+ens1_ne = 0,
+ens1_ne_offset = 0,
+ens1_nsub = 1,
+/
+
+&ens2_param
+ens2_ne = 0,
+ens2_ne_offset = 0,
+ens2_nsub = 1,
+/
+
+&sampling_param
+sam_write = .false.,
+sam_read = .true.,
+mask_type = "none",
+mask_th = 0,
+mask_check = .false.,
+draw_type = "random_uniform",
+nc1 = 3000,
+ntry = 3,
+nrep = 2,
+nc3 = 20,
+dc = 100.0e3,
+nl0r = 15,
+/
+
+&diag_param
+ne = 50,
+gau_approx = .false.,
+full_var = .false.,
+local_diag = .false.,
+local_rad = 500.0e3,
+displ_diag = .false.,
+displ_rad = 3000.0e3,
+displ_niter = 10,
+displ_rhflt = 500.0e3,
+displ_tol = 1.0,
+/
+
+&fit_param
+minim_algo = "fast",
+lhomh = .false.,
+lhomv = .false.,
+rvflt = 2.0,
+lct_nscales = 0,
+lct_diag = .false.,
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+diag_rhflt = 3000.0e3,
+diag_interp = "bilin",
+/
+
+&nicas_param
+lsqrt = .false.,
+rh = 0.0,
+rv = 0.0,
+resol = 8.0,
+nicas_interp = "bilin",
+network = .false.,
+mpicom = 2,
+advmode = 1,
+ndir = 20,
+londir = -170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,-170.0,-80.0,10.0,100.0,
+latdir = -60.0,-60.0,-60.0,-60.0,-30.0,-30.0,-30.0,-30.0,0.0,0.0,0.0,0.0,30.0,30.0,30.0,30.0,60.0,60.0,60.0,60.0,
+levdir = 35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,
+ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+/
+
+&obsop_param
+nobs = 45000,
+obsdis = "random",
+obsop_interp = "bilin",
+/
+
