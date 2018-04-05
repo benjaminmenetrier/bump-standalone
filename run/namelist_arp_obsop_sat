@@ -1,6 +1,6 @@
 &general_param
-datadir = "../data/arp/877D",
-prefix = "arp_877D",
+datadir = "../data/arp/obsop_sat",
+prefix = "arp_obsop_sat",
 model = "arp",
 colorlog = .true.,
 default_seed = .true.,
@@ -9,40 +9,40 @@ use_metis = .true.,
 /
 
 &driver_param
-method = "loc",
+method = "cor",
 strategy = "common",
-new_hdiag = .true.,
-new_param = .true.,
-check_adjoints = .true.,
+new_hdiag = .false.,
+new_param = .false.,
+check_adjoints = .false.,
 check_pos_def = .false.,
 check_sqrt = .false.,
-check_dirac = .true.,
+check_dirac = .false.,
 check_randomization = .false.,
 check_consistency = .false.,
 check_optimality = .false.,
 new_lct = .false.,
-new_obsop = .false.,
+new_obsop = .true.,
 /
 
 &model_param
 nl = 1,
-levs = 35,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
+levs = 1,
 logpres = .true.,
 nv = 1,
-varname = "TEMPERATURE","HUMI.SPECIFI",
+varname = "TEMPERATURE",
 addvar2d = "","",
 nts = 1,
-timeslot = 0,6,
+timeslot = 0,
 /
 
 &ens1_param
-ens1_ne = 50,
+ens1_ne = 0,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 10,
+ens2_ne = 0,
 ens2_ne_offset = 0,
 ens2_nsub = 1,
 /
@@ -59,7 +59,7 @@ ntry = 3,
 nrep = 2,
 nc3 = 20,
 dc = 100.0e3,
-nl0r = 7,
+nl0r = 15,
 /
 
 &diag_param
@@ -72,11 +72,11 @@ displ_diag = .false.,
 displ_rad = 3000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,
-displ_tol = 0.0,
+displ_tol = 1.0,
 /
 
 &fit_param
-minim_algo = "hooke",
+minim_algo = "fast",
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 2.0,
@@ -96,7 +96,7 @@ diag_interp = "bilin",
 /
 
 &nicas_param
-lsqrt = .true.,
+lsqrt = .false.,
 rh = 0.0,
 rv = 0.0,
 resol = 8.0,
@@ -114,7 +114,7 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 
 &obsop_param
 nobs = 45000,
-obsdis = 0.0,
+obsdis = "random",
 obsop_interp = "bilin",
 /
 
