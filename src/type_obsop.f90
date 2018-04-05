@@ -228,7 +228,7 @@ else
       ! Release memory
       deallocate(list)
       deallocate(order)
-   case ('local','optimal')
+   case ('local','adjusted')
       ! Source grid-based repartition
       do iobs=1,obsop%nobs
          ! Set observation proc
@@ -241,7 +241,7 @@ else
          end if
       end do
 
-      if (trim(nam%obsdis)=='optimal') then
+      if (trim(nam%obsdis)=='adjusted') then
          ! Allocation
          allocate(nobs_to_move(mpl%nproc))
 
