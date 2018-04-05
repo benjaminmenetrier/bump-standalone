@@ -765,7 +765,7 @@ end select
 if (nam%new_obsop) then
    if (nam%nobs<1) call msgerror('nobs should be positive')
    select case (trim(nam%obsdis))
-   case ('random','local','optimal')
+   case ('random','local','adjusted')
    case default
       call msgerror('wrong obsdis')
    end select
