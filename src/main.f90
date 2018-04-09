@@ -30,22 +30,7 @@ if (mpl%main) call timer%start
 call hnb%nam%read
 
 ! Offline setup
-call hnb%setup_offline
-
-! Execution stats
-if (mpl%main) then
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Execution stats'
-   call timer%display
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-else
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Done ----------------------------------------------------------'
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-end if
-
-! Delete HDIAG NICAS bundle
-call hnb%delete
+call hnb%setup_offline(timer)
 
 ! Finalize MPL
 call mpl_end()

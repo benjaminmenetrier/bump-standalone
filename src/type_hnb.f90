@@ -26,6 +26,7 @@ use type_nam, only: nam_type
 use type_nicas, only: nicas_type
 use type_obsop, only: obsop_type
 use type_rng, only: rng
+use type_timer, only: timer_type
 
 implicit none
 
@@ -43,7 +44,6 @@ contains
    procedure :: setup_online => hnb_setup_online
    procedure :: setup_generic => hnb_setup_generic
    procedure :: apply_nicas => hnb_apply_nicas
-   procedure :: delete => hnb_delete
 end type hnb_type
 
 private
@@ -55,12 +55,13 @@ contains
 ! Subroutine: hnb_setup_offline
 !> Purpose: HDIAG NICAS bundle offline setup
 !----------------------------------------------------------------------
-subroutine hnb_setup_offline(hnb)
+subroutine hnb_setup_offline(hnb,timer)
 
 implicit none
 
 ! Passed variables
-class(hnb_type),intent(inout) :: hnb !< HDIAG NICAS bundle
+class(hnb_type),intent(inout) :: hnb    !< HDIAG NICAS bundle
+type(timer_type),intent(inout) :: timer !< Timer
 
 ! Setup display
 call listing_setup(hnb%nam%colorlog,hnb%nam%logpres)
@@ -97,6 +98,18 @@ end if
 
 ! Generic setup
 call hnb%setup_generic
+
+! Execution stats
+if (mpl%main) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Execution stats'
+   call timer%display
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+else
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Done ----------------------------------------------------------'
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+end if
 
 ! Close listings
 if ((mpl%main.and..not.hnb%nam%colorlog).or..not.mpl%main) close(unit=mpl%unit)
@@ -253,21 +266,5 @@ else
 end if
 
 end subroutine hnb_apply_nicas
-
-!----------------------------------------------------------------------
-! Subroutine: hnb_delete
-!> Purpose: HDIAG NICAS bundle destructor
-!----------------------------------------------------------------------
-subroutine hnb_delete(hnb)
-
-implicit none
-
-! Passed variables
-class(hnb_type),intent(inout) :: hnb !< HDIAG NICAS bundle
-
-! Deallocate
-! TODO
-
-end subroutine hnb_delete
 
 end module type_hnb
