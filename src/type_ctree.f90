@@ -29,7 +29,7 @@ real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
 
 ! C++ interface
 interface
-   function create_ctree_c(n,lon,lat,mask) bind(C,name="create_ctree")
+   function create_ctree_c(n,lon,lat,mask) bind(C,name='create_ctree')
    use iso_c_binding
    implicit none
    type(c_ptr) :: create_ctree_c
@@ -40,14 +40,14 @@ interface
    end function create_ctree_c
 end interface
 interface
-   subroutine delete_ctree_c(ctree) bind(C,name="delete_ctree")
+   subroutine delete_ctree_c(ctree) bind(C,name='delete_ctree')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: ctree
    end subroutine delete_ctree_c
 end interface
 interface
-   subroutine find_nearest_neighbors_c(ctree,lon,lat,nn,nn_index,nn_dist) bind(C,name="find_nearest_neighbors")
+   subroutine find_nearest_neighbors_c(ctree,lon,lat,nn,nn_index,nn_dist) bind(C,name='find_nearest_neighbors')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: ctree

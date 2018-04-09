@@ -565,7 +565,7 @@ character(len=1024) :: filename
 if (trim(nam%datadir)=='') call msgerror('datadir not specified')
 if (trim(nam%prefix)=='') call msgerror('prefix not specified')
 select case (trim(nam%model))
-case ('aro','arp','gem','geos','gfs','ifs','mpas','nemo','oops','wrf')
+case ('aro','arp','gem','geos','gfs','ifs','mpas','nemo','online','wrf')
 case default
    call msgerror('wrong model')
 end select
