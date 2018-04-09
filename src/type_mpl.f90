@@ -20,6 +20,7 @@ implicit none
 
 type mpl_type
    ! MPL parameters
+   integer :: mpi_comm   !< MPI communicator
    integer :: nproc      !< Number of MPI tasks
    integer :: myproc     !< MPI task index
    integer :: ioproc = 1 !< Main task index
@@ -138,12 +139,15 @@ if (.not.init) then
    call mpl%check(info)
 end if
 
+! Copy MPI communicator
+mpl%mpi_comm =mpi_comm_world
+
 ! Get MPI size
-call mpi_comm_size(mpi_comm_world,mpl%nproc,info)
+call mpi_comm_size(mpl%mpi_comm,mpl%nproc,info)
 call mpl%check(info)
 
 ! Get MPI rank
-call mpi_comm_rank(mpi_comm_world,mpl%myproc,info)
+call mpi_comm_rank(mpl%mpi_comm,mpl%myproc,info)
 call mpl%check(info)
 mpl%myproc = mpl%myproc+1
 
@@ -228,7 +232,7 @@ class(mpl_type) :: mpl!< MPL object
 integer :: info
 
 ! Wait
-call mpi_barrier(mpi_comm_world,info)
+call mpi_barrier(mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -252,7 +256,7 @@ integer,intent(in) :: root !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,1,mpi_integer,root-1,mpi_comm_world,info)
+call mpi_bcast(var,1,mpi_integer,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -279,7 +283,7 @@ integer,intent(in) :: root             !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_integer,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpi_integer,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -306,7 +310,7 @@ integer,intent(in) :: root               !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_integer,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpi_integer,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -333,7 +337,7 @@ integer,intent(in) :: root        !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,1,mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,1,mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -360,7 +364,7 @@ integer,intent(in) :: root                     !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -387,7 +391,7 @@ integer,intent(in) :: root                       !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -414,7 +418,7 @@ integer,intent(in) :: root                         !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -441,7 +445,7 @@ integer,intent(in) :: root                           !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -468,7 +472,7 @@ integer,intent(in) :: root                             !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -495,7 +499,7 @@ integer,intent(in) :: root                               !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -522,7 +526,7 @@ integer,intent(in) :: root !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,1,mpi_logical,root-1,mpi_comm_world,info)
+call mpi_bcast(var,1,mpi_logical,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -549,7 +553,7 @@ integer,intent(in) :: root             !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -576,7 +580,7 @@ integer,intent(in) :: root               !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -603,7 +607,7 @@ integer,intent(in) :: root                 !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpi_comm_world,info)
+call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -630,7 +634,7 @@ integer,intent(in) :: root         !< Root task
 integer :: info
 
 ! Broadcast
-call mpi_bcast(var,len(var),mpi_character,root-1,mpi_comm_world,info)
+call mpi_bcast(var,len(var),mpi_character,root-1,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -685,7 +689,7 @@ integer :: info
 integer,dimension(mpi_status_size) :: status
 
 ! Receive
-call mpi_recv(var,1,mpi_integer,src-1,tag,mpi_comm_world,status,info)
+call mpi_recv(var,1,mpi_integer,src-1,tag,mpl%mpi_comm,status,info)
 
 ! Check
 call mpl%check(info)
@@ -712,7 +716,7 @@ integer :: info
 integer,dimension(mpi_status_size) :: status
 
 ! Receive
-call mpi_recv(var,n,mpi_integer,src-1,tag,mpi_comm_world,status,info)
+call mpi_recv(var,n,mpi_integer,src-1,tag,mpl%mpi_comm,status,info)
 
 ! Check
 call mpl%check(info)
@@ -739,7 +743,7 @@ integer :: info
 integer,dimension(mpi_status_size) :: status
 
 ! Receive
-call mpi_recv(var,n,mpl%rtype,src-1,tag,mpi_comm_world,status,info)
+call mpi_recv(var,n,mpl%rtype,src-1,tag,mpl%mpi_comm,status,info)
 
 ! Check
 call mpl%check(info)
@@ -766,7 +770,7 @@ integer :: info
 integer,dimension(mpi_status_size) :: status
 
 ! Receive
-call mpi_recv(var,n,mpi_logical,src-1,tag,mpi_comm_world,status,info)
+call mpi_recv(var,n,mpi_logical,src-1,tag,mpl%mpi_comm,status,info)
 
 ! Check
 call mpl%check(info)
@@ -791,7 +795,7 @@ integer,intent(in) :: tag !< Tag
 integer :: info
 
 ! Send
-call mpi_send(var,1,mpi_integer,dst-1,tag,mpi_comm_world,info)
+call mpi_send(var,1,mpi_integer,dst-1,tag,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -817,7 +821,7 @@ integer,intent(in) :: tag    !< Tag
 integer :: info
 
 ! Send
-call mpi_send(var,n,mpi_integer,dst-1,tag,mpi_comm_world,info)
+call mpi_send(var,n,mpi_integer,dst-1,tag,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -843,7 +847,7 @@ integer,intent(in) :: tag            !< Tag
 integer :: info
 
 ! Send
-call mpi_send(var,n,mpl%rtype,dst-1,tag,mpi_comm_world,info)
+call mpi_send(var,n,mpl%rtype,dst-1,tag,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -869,7 +873,7 @@ integer,intent(in) :: tag    !< Tag
 integer :: info
 
 ! Send
-call mpi_send(var,n,mpi_logical,dst-1,tag,mpi_comm_world,info)
+call mpi_send(var,n,mpi_logical,dst-1,tag,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -894,7 +898,7 @@ integer,intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
 integer :: info
 
 ! Allgather
-call mpi_allgather(sbuf,ns,mpi_integer,rbuf,ns,mpi_integer,mpi_comm_world,info)
+call mpi_allgather(sbuf,ns,mpi_integer,rbuf,ns,mpi_integer,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -919,7 +923,7 @@ real(kind_real),intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
 integer :: info
 
 ! Allgather
-call mpi_allgather(sbuf,ns,mpl%rtype,rbuf,ns,mpl%rtype,mpi_comm_world,info)
+call mpi_allgather(sbuf,ns,mpl%rtype,rbuf,ns,mpl%rtype,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -944,7 +948,7 @@ logical,intent(out) :: rbuf(mpl%myproc*ns) !< Received buffer
 integer :: info
 
 ! Allgather
-call mpi_allgather(sbuf,ns,mpi_logical,rbuf,ns,mpi_logical,mpi_comm_world,info)
+call mpi_allgather(sbuf,ns,mpi_logical,rbuf,ns,mpi_logical,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -974,7 +978,7 @@ integer,intent(in) :: rdispl(mpl%nproc)  !< Receiving displacement
 integer :: info
 
 ! Alltoallv
-call mpi_alltoallv(sbuf,scounts,sdispl,mpl%rtype,rbuf,rcounts,rdispl,mpl%rtype,mpi_comm_world,info)
+call mpi_alltoallv(sbuf,scounts,sdispl,mpl%rtype,rbuf,rcounts,rdispl,mpl%rtype,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -1006,7 +1010,7 @@ else
 end if
 
 ! Allreduce
-call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,mpl%mpi_comm,info)
 var_out = rbuf(1)
 
 ! Check
@@ -1039,7 +1043,7 @@ else
 end if
 
 ! Allreduce
-call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 var_out = rbuf(1)
 
 ! Check
@@ -1074,7 +1078,7 @@ do i=1,size(var_in)
 end do
 
 ! Allreduce
-call mpi_allreduce(sbuf,rbuf,size(var_in),mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(sbuf,rbuf,size(var_in),mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 var_out = rbuf
 
 ! Check
@@ -1107,7 +1111,7 @@ else
 end if
 
 ! Allreduce
-call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_min,mpi_comm_world,info)
+call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_min,mpl%mpi_comm,info)
 var_out = rbuf(1)
 
 ! Check
@@ -1140,7 +1144,7 @@ else
 end if
 
 ! Allreduce
-call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_max,mpi_comm_world,info)
+call mpi_allreduce(sbuf,rbuf,1,mpl%rtype,mpi_max,mpl%mpi_comm,info)
 var_out = rbuf(1)
 
 ! Check
@@ -1170,7 +1174,7 @@ real(kind_real) :: dp_loc(1),dp_out(1)
 dp_loc(1) = sum(fld1*fld2)
 
 ! Allreduce
-call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 dp = dp_out(1)
 
 ! Check
@@ -1206,7 +1210,7 @@ real(kind_real) :: dp_loc(1),dp_out(1)
 dp_loc(1) = sum(fld1*fld2)
 
 ! Allreduce
-call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 dp = dp_out(1)
 
 ! Check
@@ -1242,7 +1246,7 @@ real(kind_real) :: dp_loc(1),dp_out(1)
 dp_loc(1) = sum(fld1*fld2)
 
 ! Allreduce
-call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 dp = dp_out(1)
 
 ! Check
@@ -1278,7 +1282,7 @@ real(kind_real) :: dp_loc(1),dp_out(1)
 dp_loc(1) = sum(fld1*fld2)
 
 ! Allreduce
-call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpi_comm_world,info)
+call mpi_allreduce(dp_loc,dp_out,1,mpl%rtype,mpi_sum,mpl%mpi_comm,info)
 dp = dp_out(1)
 
 ! Check

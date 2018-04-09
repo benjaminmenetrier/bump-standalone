@@ -45,7 +45,7 @@ type(rng_type) :: rng !< Random number generator
 
 ! C++ interface
 interface
-   function rng_create_c(default_seed) bind(C,name="rng_create")
+   function rng_create_c(default_seed) bind(C,name='rng_create')
    use iso_c_binding
    implicit none
    type(c_ptr) :: rng_create_c
@@ -53,14 +53,14 @@ interface
    end function rng_create_c
 end interface
 interface
-   subroutine rng_delete_c(rng) bind(C,name="rng_delete")
+   subroutine rng_delete_c(rng) bind(C,name='rng_delete')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: rng
    end subroutine rng_delete_c
 end interface
 interface
-   subroutine rng_reseed_c(rng,seed) bind(C,name="rng_reseed")
+   subroutine rng_reseed_c(rng,seed) bind(C,name='rng_reseed')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: rng
@@ -68,7 +68,7 @@ interface
    end subroutine rng_reseed_c
 end interface
 interface
-   subroutine rand_integer_c(rng,binf,bsup,ir) bind(C,name="rand_integer")
+   subroutine rand_integer_c(rng,binf,bsup,ir) bind(C,name='rand_integer')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: rng
@@ -78,7 +78,7 @@ interface
    end subroutine rand_integer_c
 end interface
 interface
-   subroutine rand_real_c(rng,binf,bsup,rr) bind(C,name="rand_real")
+   subroutine rand_real_c(rng,binf,bsup,rr) bind(C,name='rand_real')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: rng
@@ -88,7 +88,7 @@ interface
    end subroutine rand_real_c
 end interface
 interface
-   subroutine initialize_sampling_c(rng,n,lon,lat,mask,rh,ntry,nrep,ns,ihor) bind(C,name="initialize_sampling")
+   subroutine initialize_sampling_c(rng,n,lon,lat,mask,rh,ntry,nrep,ns,ihor) bind(C,name='initialize_sampling')
    use iso_c_binding
    implicit none
    type(c_ptr),value :: rng
