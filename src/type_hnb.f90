@@ -55,13 +55,25 @@ contains
 ! Subroutine: hnb_setup_offline
 !> Purpose: HDIAG NICAS bundle offline setup
 !----------------------------------------------------------------------
-subroutine hnb_setup_offline(hnb,timer)
+subroutine hnb_setup_offline(hnb,mpi_comm)
 
 implicit none
 
 ! Passed variables
-class(hnb_type),intent(inout) :: hnb    !< HDIAG NICAS bundle
-type(timer_type),intent(inout) :: timer !< Timer
+class(hnb_type),intent(inout) :: hnb !< HDIAG NICAS bundle
+integer,intent(in) :: mpi_comm       !< MPI communicator
+
+! Local variables
+type(timer_type) :: timer
+
+! Initialize MPL
+call mpl%init(mpi_comm)
+
+! Initialize timer
+if (mpl%main) call timer%start
+
+! Read namelist
+call hnb%nam%read
 
 ! Setup display
 call listing_setup(hnb%nam%colorlog,hnb%nam%logpres)
@@ -120,25 +132,29 @@ end subroutine hnb_setup_offline
 ! Subroutine: hnb_setup_online
 !> Purpose: HDIAG NICAS bundle online setup
 !----------------------------------------------------------------------
-subroutine hnb_setup_online(hnb,nc0a,nl0,nv,nts,ens1_ne,lon,lat,area,vunit,lmask)
+subroutine hnb_setup_online(hnb,nc0a,nl0,nv,nts,ens1_ne,lon,lat,area,vunit,lmask,mpi_comm)
 
 implicit none
 
 ! Passed variables
-class(hnb_type),intent(inout) :: hnb !< HDIAG NICAS bundle
-integer,intent(in) :: nc0a
-integer,intent(in) :: nl0
-integer,intent(in) :: nv
-integer,intent(in) :: nts
-integer,intent(in) :: ens1_ne
-real(kind_real), intent(in) :: lon(nc0a)
-real(kind_real), intent(in) :: lat(nc0a)
-real(kind_real), intent(in) :: area(nc0a)
-real(kind_real), intent(in) :: vunit(nl0)
-logical,intent(in) :: lmask(nc0a,nl0)
+class(hnb_type),intent(inout) :: hnb      !< HDIAG NICAS bundle
+integer,intent(in) :: nc0a                !< Halo A size
+integer,intent(in) :: nl0                 !< Number of levels in subset Sl0
+integer,intent(in) :: nv                  !< Number of variables
+integer,intent(in) :: nts                 !< Number of time slots
+integer,intent(in) :: ens1_ne             !< Ensemble 1 size
+real(kind_real), intent(in) :: lon(nc0a)  !< Longitude
+real(kind_real), intent(in) :: lat(nc0a)  !< Latitude
+real(kind_real), intent(in) :: area(nc0a) !< Area
+real(kind_real), intent(in) :: vunit(nl0) !< Vertical unit
+logical,intent(in) :: lmask(nc0a,nl0)     !< Mask
+integer,intent(in) :: mpi_comm            !< MPI communicator
 
 ! Local variables
 integer :: il,iv
+
+! Initialize MPL
+call mpl%init(mpi_comm)
 
 ! Copy sizes
 hnb%geom%nc0a = nc0a

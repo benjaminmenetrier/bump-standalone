@@ -31,6 +31,7 @@ type mpl_type
    integer :: nthread    !< Number of OpenMP threads
 contains
    procedure :: check => mpl_check
+   procedure :: init => mpl_init
    procedure :: abort => mpl_abort
    procedure :: barrier => mpl_barrier
    procedure :: mpl_bcast_integer
@@ -87,7 +88,6 @@ type(mpl_type) :: mpl
 
 private
 public :: mpl
-public :: mpl_start,mpl_end
 
 contains
 
@@ -113,34 +113,27 @@ if (info/=mpi_success) then
 
    ! Abort MPI
    call mpl%abort(message(1:len))
-endif
+end if
 
 end subroutine mpl_check
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_start
+! Subroutine: mpl_init
 !> Purpose: start MPI
 !----------------------------------------------------------------------
-subroutine mpl_start() bind(c, name='mpl_start_f90')
+subroutine mpl_init(mpl,mpi_comm)
 
 implicit none
 
+! Passed variables
+class(mpl_type) :: mpl         !< MPL object
+integer,intent(in) :: mpi_comm !< MPI communicator
+
 ! Local variables
 integer :: info
-logical :: init
-
-! Check whether MPI has been initialized
-call mpi_initialized(init,info)
-call mpl%check(info)
-
-if (.not.init) then
-   ! Initialize MPI
-   call mpi_init(info)
-   call mpl%check(info)
-end if
 
 ! Copy MPI communicator
-mpl%mpi_comm =mpi_comm_world
+mpl%mpi_comm =mpi_comm
 
 ! Get MPI size
 call mpi_comm_size(mpl%mpi_comm,mpl%nproc,info)
@@ -170,26 +163,7 @@ mpl%tag = 4321
 mpl%nthread = omp_get_max_threads()
 call omp_set_num_threads(mpl%nthread)
 
-end subroutine mpl_start
-
-!----------------------------------------------------------------------
-! Subroutine: mpl_end
-!> Purpose: end MPI
-!----------------------------------------------------------------------
-subroutine mpl_end() bind(c, name='mpl_end_f90')
-
-implicit none
-
-! Local variables
-integer :: info
-
-! Finalize MPI
-call mpi_finalize(info)
-
-! Check
-call mpl%check(info)
-
-end subroutine mpl_end
+end subroutine mpl_init
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_abort
@@ -203,6 +177,9 @@ implicit none
 class(mpl_type) :: mpl                 !< MPL object
 character(len=*),intent(in) :: message !< Message
 
+! Local variables
+integer :: info
+
 ! Flush
 call flush(mpl%unit)
 
@@ -210,7 +187,8 @@ call flush(mpl%unit)
 write(mpl%unit,'(a)') trim(message)
 
 ! Finalize MPI
-call mpl_end()
+call mpi_finalize(info)
+call mpl%check(info)
 
 ! Stop
 stop

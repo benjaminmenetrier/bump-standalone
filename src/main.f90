@@ -10,29 +10,36 @@
 !----------------------------------------------------------------------
 program main
 
+use mpi
 use type_hnb, only: hnb_type
-use type_mpl, only: mpl,mpl_start,mpl_end
-use type_timer, only: timer_type
 
 implicit none
 
 ! Local variables
+integer :: len,info,info_loc
+character(len=mpi_max_error_string) :: message
 type(hnb_type) :: hnb
-type(timer_type) :: timer
 
-! Initialize MPL
-call mpl_start()
-
-! Initialize timer
-if (mpl%main) call timer%start
-
-! Read namelist
-call hnb%nam%read
+! Initialize MPI
+call mpi_init(info)
+if (info/=mpi_success) then
+   call mpi_error_string(info,message,len,info_loc)
+   write(*,'(a)') trim(message)
+   call mpi_finalize(info)
+   if (info/=mpi_success) then
+      call mpi_error_string(info,message,len,info_loc)
+      write(*,'(a)') trim(message)
+   end if
+end if
 
 ! Offline setup
-call hnb%setup_offline(timer)
+call hnb%setup_offline(mpi_comm_world)
 
-! Finalize MPL
-call mpl_end()
+! Finalize MPI
+call mpi_finalize(info)
+if (info/=mpi_success) then
+   call mpi_error_string(info,message,len,info_loc)
+    write(*,'(a)') trim(message)
+end if
 
 end program main
