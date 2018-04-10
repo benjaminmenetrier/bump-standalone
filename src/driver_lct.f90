@@ -32,20 +32,20 @@ contains
 ! Subroutine: run_lct
 !> Purpose: LCT diagnostics
 !----------------------------------------------------------------------
-subroutine run_lct(nam,geom,bpar,ens1)
+subroutine run_lct(nam,geom,bpar,lct,ens1)
 
 implicit none
 
 ! Passed variables
-type(nam_type),target,intent(inout) :: nam                                                 !< Namelist
-type(geom_type),target,intent(in) :: geom                                                  !< Geometry
-type(bpar_type),target,intent(in) :: bpar                                                  !< Block parameters
+type(nam_type),intent(inout) :: nam                                                        !< Namelist
+type(geom_type),intent(in) :: geom                                                         !< Geometry
+type(bpar_type),intent(in) :: bpar                                                         !< Block parameters
+type(lct_type),intent(out) :: lct                                                          !< LCT
 real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
 
 ! Local variables
 type(hdata_type) :: hdata
 type(mom_type) :: mom
-type(lct_type) :: lct
 
 if (nam%new_lct) then
    ! Setup sampling

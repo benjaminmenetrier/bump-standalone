@@ -21,6 +21,7 @@ use tools_kinds,only: kind_real
 use type_bpar, only: bpar_type
 use type_cmat, only: cmat_type
 use type_geom, only: geom_type
+use type_lct, only: lct_type
 use type_mpl, only: mpl
 use type_nam, only: nam_type
 use type_nicas, only: nicas_type
@@ -37,6 +38,7 @@ type hnb_type
   type(bpar_type) :: bpar
   type(cmat_type) :: cmat
   type(nicas_type) :: nicas
+  type(lct_type) :: lct
   type(obsop_type) :: obsop
   real(kind_real),allocatable :: ens1(:,:,:,:,:)
 contains
@@ -91,10 +93,20 @@ call hnb%nam%check
 ! Parallel setup
 write(mpl%unit,'(a,i4,a,i4,a)') '--- Parallelization with ',mpl%nproc,' MPI tasks and ',mpl%nthread,' OpenMP threads'
 
+! Initialize random number generator
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Initialize random number generator'
+call rng%create(hnb%nam)
+
 ! Initialize geometry
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Initialize geometry'
 call model_coord(hnb%nam,hnb%geom)
+
+! Compute grid mesh
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute grid mesh'
+call hnb%geom%compute_grid_mesh(hnb%nam)
 
 ! Load ensemble
 if (hnb%nam%load_ensemble) then
@@ -190,10 +202,20 @@ call hnb%nam%check
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a,i3,a,i2,a)') '--- Parallelization with ',mpl%nproc,' MPI tasks and ',mpl%nthread,' OpenMP threads'
 
+! Initialize random number generator
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Initialize random number generator'
+call rng%create(hnb%nam)
+
 ! Initialize geometry
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Initialize geometry'
 call model_online_coord(hnb%geom,lon,lat,area,vunit,lmask)
+
+! Compute grid mesh
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute grid mesh'
+call hnb%geom%compute_grid_mesh(hnb%nam)
 
 ! Generic setup
 call hnb%setup_generic
@@ -214,18 +236,8 @@ implicit none
 ! Passed variables
 class(hnb_type),intent(inout) :: hnb !< HDIAG NICAS bundle
 
-! Initialize random number generator
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Initialize random number generator'
-call rng%create(hnb%nam)
-
 ! Initialize block parameters
 call hnb%bpar%alloc(hnb%nam,hnb%geom)
-
-! Compute grid mesh
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute grid mesh'
-call hnb%geom%compute_grid_mesh(hnb%nam)
 
 ! Call HDIAG driver
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -249,9 +261,9 @@ end if
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Call LCT driver'
 if (hnb%nam%load_ensemble) then
-   call run_lct(hnb%nam,hnb%geom,hnb%bpar,hnb%ens1)
+   call run_lct(hnb%nam,hnb%geom,hnb%bpar,hnb%lct,hnb%ens1)
 else
-   call run_lct(hnb%nam,hnb%geom,hnb%bpar)
+   call run_lct(hnb%nam,hnb%geom,hnb%bpar,hnb%lct)
 end if
 
 ! Call observation operator driver
