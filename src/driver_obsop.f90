@@ -32,8 +32,8 @@ subroutine run_obsop(nam,geom,obsop)
 implicit none
 
 ! Passed variables
-type(nam_type),target,intent(in) :: nam   !< Namelist
-type(geom_type),target,intent(in) :: geom !< Geometry
+type(nam_type),intent(in) :: nam          !< Namelist
+type(geom_type),intent(in) :: geom        !< Geometry
 type(obsop_type),intent(inout) :: obsop   !< Observation operator data
 
 if (nam%new_obsop) then
