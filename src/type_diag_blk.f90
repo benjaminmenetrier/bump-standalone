@@ -350,6 +350,7 @@ end do
 if (lprt) then
    write(mpl%unit,'(a)') ''
    write(mpl%unit,'(a13,a,f6.1,a)') '','Scaling optimization, cost function decrease:',abs(mse_opt-mse)/mse*100.0,'%'
+   call flush(mpl%unit)
 end if
 
 select case (trim(nam%minim_algo))

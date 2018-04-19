@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_timer
 
-use tools_display, only: msgerror,newunit
+use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use type_mpl, only: mpl
 
@@ -111,7 +111,7 @@ write(pidchar,'(i8)') get_pid
 filename = '/proc/'//trim(adjustl(pidchar))//'/status'
 inquire(file=filename,exist=isfile)
 if (isfile) then
-   lunit = newunit()
+   call mpl%newunit(lunit)
    open(unit=lunit,file=filename,action='read')
    do
       read(lunit,'(a)',iostat=info) line
@@ -167,7 +167,7 @@ write(pidchar,'(i8)') get_pid
 filename = '/proc/'//trim(adjustl(pidchar))//'/io'
 inquire(file=filename,exist=isfile)
 if (isfile) then
-   lunit = newunit()
+   call mpl%newunit(lunit)
    open(unit=lunit,file=filename,action='read')
    do
       read(lunit,'(a)',iostat=info) line
@@ -223,6 +223,7 @@ write(mpl%unit,'(a)') '--- Peak virtual mem. size:      '//timer%VmPeak
 write(mpl%unit,'(a)') '--- Peak resident set size:      '//timer%VmHWM
 write(mpl%unit,'(a)') '--- Read data volume:            '//timer%rchar
 write(mpl%unit,'(a)') '--- Written data volume:         '//timer%wchar
+call flush(mpl%unit)
 
 end subroutine timer_display
 

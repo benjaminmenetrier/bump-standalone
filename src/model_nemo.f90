@@ -15,8 +15,9 @@ use tools_const, only: req,deg2rad,rad2deg
 use tools_display, only: msgerror
 use tools_func, only: sphere_dist
 use tools_kinds,only: kind_real
-use tools_missing, only: msvalr,msr,isanynotmsr
+use tools_missing, only: msvalr,msr,isanynotmsr,isnotmsi
 use tools_nc, only: ncerr,ncfloat
+use tools_qsort, only: qsort
 use type_geom, only: geom_type
 use type_mpl, only: mpl
 use type_nam, only: nam_type
@@ -45,6 +46,8 @@ integer :: il0
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,tmask_id,e1t_id,e2t_id
 integer(kind=1),allocatable :: tmask(:,:,:)
 real(kind=4),allocatable :: lon(:,:),lat(:,:),e1t(:,:,:),e2t(:,:,:)
+real(kind_real),allocatable :: lon_g(:),lat_g(:),area_g(:)
+logical,allocatable :: lmask_g(:,:)
 character(len=1024) :: subr = 'model_nemo_coord'
 
 ! Open file and get dimensions
@@ -53,7 +56,7 @@ call ncerr(subr,nf90_inq_dimid(ncid,'x',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'y',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%nc0 = geom%nlon*geom%nlat
+geom%ng = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'z',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
@@ -64,6 +67,10 @@ allocate(geom%rgmask(geom%nlon,geom%nlat))
 allocate(tmask(geom%nlon,geom%nlat,geom%nl0))
 allocate(e1t(geom%nlon,geom%nlat,geom%nl0))
 allocate(e2t(geom%nlon,geom%nlat,geom%nl0))
+allocate(lon_g(geom%ng))
+allocate(lat_g(geom%ng))
+allocate(area_g(geom%ng))
+allocate(lmask_g(geom%ng,geom%nl0))
 
 ! Initialization
 geom%rgmask = .true.
@@ -88,24 +95,27 @@ lon = lon*real(deg2rad,kind=4)
 lat = lat*real(deg2rad,kind=4)
 
 ! Pack
-call geom%alloc
-geom%lon = pack(real(lon,kind_real),mask=.true.)
-geom%lat = pack(real(lat,kind_real),mask=.true.)
+lon_g = pack(real(lon,kind_real),mask=.true.)
+lat_g = pack(real(lat,kind_real),mask=.true.)
+area_g = pack(real(e1t(:,:,1)*e2t(:,:,1),kind_real),mask=.true.)/req**2
 do il0=1,geom%nl0
-   ! Land/sea mask
-   geom%mask(:,il0) = pack(tmask(:,:,il0)>0,mask=.true.)
+   lmask_g(:,il0) = pack(tmask(:,:,il0)>0,mask=.true.)
 end do
 
-! Compute normalized area
+! Redundant grid
+call geom%find_redundant(lon_g,lat_g)
+
+! Pack
+call geom%alloc
+geom%lon = lon_g(geom%c0_to_g)
+geom%lat = lat_g(geom%c0_to_g)
 do il0=1,geom%nl0
-   geom%area(il0) = sum(e1t(:,:,il0)*e2t(:,:,il0),mask=tmask(:,:,il0)>0.0)/req**2
+   geom%mask(:,il0) = lmask_g(geom%c0_to_g,il0)
+   geom%area(il0) = sum(area_g(geom%c0_to_g),geom%mask(:,il0))/req**2
 end do
 
 ! Vertical unit
 geom%vunit = float(nam%levs(1:geom%nl0))
-
-! Redundant grid
-geom%redgrid = .true.
 
 ! Release memory
 deallocate(lon)
@@ -133,7 +143,7 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 integer :: iv,il0
 integer :: fld_id
 real(kind=8) :: fld_tmp(geom%nlon,geom%nlat),fld_loc(geom%nlon,geom%nlat)
-real(kind_real) :: fld_glb(geom%nc0,geom%nl0)
+real(kind_real) :: fld_g(geom%ng),fld_glb(geom%nc0,geom%nl0)
 character(len=1024) :: subr = 'model_nemo_read'
 
 ! Initialize field
@@ -158,7 +168,8 @@ do iv=1,nam%nv
          case default
             fld_loc = fld_tmp
          end select
-         fld_glb(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
+         fld_g = pack(real(fld_loc,kind_real),mask=.true.)
+         fld_glb(:,il0) = fld_g(geom%c0_to_g)
       end do
 
       if (trim(nam%addvar2d(iv))/='') then
@@ -169,7 +180,8 @@ do iv=1,nam%nv
 
          ! Read data
          call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%timeslot(its)/),(/geom%nlon,geom%nlat,1/)))
-         fld_glb(:,geom%nl0) = pack(real(fld_loc,kind_real),.true.)
+         fld_g = pack(real(fld_loc,kind_real),mask=.true.)
+         fld_glb(:,geom%nl0) = fld_g(geom%c0_to_g)
       end if
    end if
 
@@ -194,9 +206,9 @@ character(len=*),intent(in) :: varname                !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
-integer :: il0,ic0,info
+integer :: il0,ic0,info,ig
 integer :: nlon_id,nlat_id,nlev_id,fld_id,lon_id,lat_id
-real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0)
+real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0),fld_g(geom%ng)
 character(len=1024) :: subr = 'model_nemo_write'
 
 ! Local to global
@@ -226,7 +238,8 @@ if (mpl%main) then
          do ic0=1,geom%nc0
             if (.not.geom%mask(ic0,il0)) call msr(fld_glb(ic0,il0))
          end do
-         fld_loc = unpack(fld_glb(:,il0),geom%rgmask,fld_loc)
+
+         fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
          call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
       end if
    end do
@@ -240,11 +253,18 @@ if (mpl%main) then
       call ncerr(subr,nf90_def_var(ncid,'nav_lat',ncfloat,(/nlon_id,nlat_id/),lat_id))
       call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
       call ncerr(subr,nf90_enddef(ncid))
-      call msr(fld_loc)
-      fld_loc = unpack(geom%lon*rad2deg,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc))
-      fld_loc = unpack(geom%lat*rad2deg,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lat_id,fld_loc))
+
+      do ig=1,geom%ng
+         fld_g(ig) = geom%lon(geom%g_to_c0(ig))
+      end do
+      fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
+      call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc*rad2deg))
+
+      do ig=1,geom%ng
+         fld_g(ig) = geom%lat(geom%g_to_c0(ig))
+      end do
+      fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
+      call ncerr(subr,nf90_put_var(ncid,lat_id,fld_loc*rad2deg))
    end if
 end if
 

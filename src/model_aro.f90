@@ -55,7 +55,7 @@ call ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%nc0 = geom%nlon*geom%nlat
+geom%ng = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'Z',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
@@ -64,7 +64,7 @@ allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
 allocate(geom%rgmask(geom%nlon,geom%nlat))
 allocate(cmask(geom%nlon,geom%nlat))
-allocate(cmask_pack(geom%nc0))
+allocate(cmask_pack(geom%ng))
 allocate(a(geom%nlev+1))
 allocate(b(geom%nlev+1))
 
@@ -90,6 +90,9 @@ call ncerr(subr,nf90_close(ncid))
 ! Convert to radian
 lon = lon*real(deg2rad,kind=8)
 lat = lat*real(deg2rad,kind=8)
+
+! Not redundant grid
+call geom%find_redundant
 
 ! Pack
 call geom%alloc
@@ -119,9 +122,6 @@ if (nam%logpres) then
 else
    geom%vunit = float(nam%levs(1:geom%nl0))
 end if
-
-! Not redundant grid
-geom%redgrid = .false.
 
 ! Release memory
 deallocate(lon)

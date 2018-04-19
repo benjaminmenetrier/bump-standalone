@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_displ
 
-use model_interface, only: model_read
+use model_offline, only: model_read
 use netcdf
 use omp_lib
 use tools_const, only: req,reqkm,rad2deg,deg2rad
@@ -211,16 +211,19 @@ displ%lat_c2a = lat_c2a_ori
 
 ! Compute moments
 write(mpl%unit,'(a7,a)') '','Compute moments'
+call flush(mpl%unit)
 do isub=1,nsub
    if (nsub==1) then
       write(mpl%unit,'(a10,a)',advance='no') '','Full ensemble, member:'
    else
       write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
    end if
+   call flush(mpl%unit)
 
    ! Compute centered moments iteratively
    do ie=1,ne/nsub
       write(mpl%unit,'(i4)',advance='no') ne_offset+ie
+      call flush(mpl%unit)
 
       ! Computation factors
       fac4 = 1.0/float(ie)
@@ -293,14 +296,17 @@ do isub=1,nsub
       end do
    end do
    write(mpl%unit,'(a)') ''
+   call flush(mpl%unit)
 end do
 
 ! Find correlation maximum propagation
 write(mpl%unit,'(a7,a)') '','Find correlation maximum propagation'
+call flush(mpl%unit)
 
 do its=2,nam%nts
    do il0=1,geom%nl0
       write(mpl%unit,'(a10,a,i2,a,i3)') '','Timeslot ',its,' - level ',nam%levs(il0)
+      call flush(mpl%unit)
 
       ! Number of points
       norm = float(count(mask_c2a(:,il0)))
@@ -481,6 +487,7 @@ do its=2,nam%nts
             write(mpl%unit,'(a13,a,i2,a,f10.2,a,f6.2,a,f6.2,a,f7.2,a)') '','Iteration ',iter,': rhflt = ', &
           & displ%rhflt(iter,il0,its)*reqkm,' km, valid points: ',100.0*displ%valid(0,il0,its),'% ~> ', &
           & 100.0*displ%valid(iter,il0,its),'%, average displacement = ',displ%dist(iter,il0,its)*reqkm,' km'
+            call flush(mpl%unit)
 
             ! Update support radius
             if (displ%valid(iter,il0,its)<1.0-nam%displ_tol) then
@@ -520,6 +527,7 @@ do its=2,nam%nts
          write(mpl%unit,'(a10,a22,f10.2,a,f6.2,a,f7.2,a)') '','Raw displacement: rhflt = ', &
        & displ%rhflt(0,il0,its)*reqkm,' km, valid points: ',100.0*displ%valid(0,il0,its),'%, average displacement = ', &
        & displ%dist(0,il0,its)*reqkm,' km'
+         call flush(mpl%unit)
       end if
 
       ! Displacement interpolation

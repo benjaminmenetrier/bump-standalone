@@ -13,7 +13,7 @@ module type_nam
 use iso_c_binding
 use netcdf, only: nf90_put_att,nf90_global
 use omp_lib, only: omp_get_num_procs
-use tools_const, only: req
+use tools_const, only: req,deg2rad
 use tools_display, only: msgerror,msgwarning
 use tools_kinds,only: kind_real
 use tools_missing, only: msi,msr
@@ -141,7 +141,10 @@ type nam_type
    character(len=1024) :: obsdis                    !< Observation distribution parameter
    character(len=1024) :: obsop_interp              !< Observation operator interpolation type
 contains
+   procedure :: init => nam_init
    procedure :: read => nam_read
+   procedure :: bcast => nam_bcast
+   procedure :: setup_online => nam_setup_online
    procedure :: check => nam_check
    procedure :: ncwrite => nam_ncwrite
 end type nam_type
@@ -152,20 +155,146 @@ public :: nam_type
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: nam_read
-!> Purpose: read and check namelist parameters
+! Subroutine: nam_init
+!> Purpose: intialize namelist parameters
 !----------------------------------------------------------------------
-subroutine nam_read(nam)
+subroutine nam_init(nam)
 
 implicit none
 
 ! Passed variable
 class(nam_type),intent(out) :: nam !< Namelist
 
-! Local variables
+! Local variable
 integer :: iv
 
+! general_param default
+nam%datadir = ''
+nam%prefix = ''
+nam%model = ''
+nam%colorlog = .false.
+nam%default_seed = .false.
+nam%load_ensemble = .false.
+nam%use_metis = .false.
+
+! driver_param default
+nam%method = ''
+nam%strategy = ''
+nam%new_hdiag = .false.
+nam%new_param = .false.
+nam%check_adjoints = .false.
+nam%check_pos_def = .false.
+nam%check_sqrt = .false.
+nam%check_dirac = .false.
+nam%check_randomization = .false.
+nam%check_consistency = .false.
+nam%check_optimality = .false.
+nam%new_lct = .false.
+nam%new_obsop = .false.
+
+! model_param default
+call msi(nam%nl)
+call msi(nam%levs)
+nam%logpres = .false.
+call msi(nam%nv)
+do iv=1,nvmax
+   nam%varname = ''
+   nam%addvar2d = ''
+end do
+call msi(nam%nts)
+call msi(nam%timeslot)
+
+! ens1_param default
+call msi(nam%ens1_ne)
+call msi(nam%ens1_ne_offset)
+call msi(nam%ens1_nsub)
+
+! ens2_param default
+call msi(nam%ens2_ne)
+call msi(nam%ens2_ne_offset)
+call msi(nam%ens2_nsub)
+
+! sampling_param default
+nam%sam_write = .false.
+nam%sam_read = .false.
+nam%mask_type = ''
+call msr(nam%mask_th)
+nam%mask_check = .false.
+nam%draw_type = ''
+call msi(nam%nc1)
+call msi(nam%ntry)
+call msi(nam%nrep)
+call msi(nam%nc3)
+call msr(nam%dc)
+call msi(nam%nl0r)
+
+! diag_param default
+call msi(nam%ne)
+nam%gau_approx = .false.
+nam%full_var = .false.
+nam%local_diag = .false.
+call msr(nam%local_rad)
+nam%displ_diag = .false.
+call msr(nam%displ_rad)
+call msi(nam%displ_niter)
+call msr(nam%displ_rhflt)
+call msr(nam%displ_tol)
+
+! fit_param default
+nam%minim_algo = ''
+nam%lhomh = .false.
+nam%lhomv = .false.
+call msr(nam%rvflt)
+call msi(nam%lct_nscales)
+nam%lct_diag = .false.
+
+! output_param default
+call msi(nam%nldwh)
+call msi(nam%il_ldwh)
+call msi(nam%ic_ldwh)
+call msi(nam%nldwv)
+call msr(nam%lon_ldwv)
+call msr(nam%lat_ldwv)
+call msr(nam%diag_rhflt)
+nam%diag_interp = ''
+
+! nicas_param default
+nam%lsqrt = .false.
+call msr(nam%rh)
+call msr(nam%rv)
+call msr(nam%resol)
+nam%nicas_interp = ''
+nam%network = .false.
+call msi(nam%mpicom)
+call msi(nam%advmode)
+call msi(nam%ndir)
+call msr(nam%londir)
+call msr(nam%latdir)
+call msi(nam%levdir)
+call msi(nam%ivdir)
+call msi(nam%itsdir)
+
+! obsop_param default
+call msi(nam%nobs)
+nam%obsdis = ''
+nam%obsop_interp = ''
+
+end subroutine nam_init
+
+!----------------------------------------------------------------------
+! Subroutine: nam_read
+!> Purpose: read namelist parameters
+!----------------------------------------------------------------------
+subroutine nam_read(nam,namelname)
+
+implicit none
+
+! Passed variable
+class(nam_type),intent(inout) :: nam     !< Namelist
+character(len=*),intent(in) :: namelname !< Namelist name
+
 ! Namelist variables
+integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 integer :: nc1,ntry,nrep,nc3,nl0r,ne,displ_niter,lct_nscales,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv
 integer :: mpicom,advmode,ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs
@@ -193,124 +322,13 @@ namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,diag_rhflt,d
 namelist/nicas_param/lsqrt,rh,rv,resol,nicas_interp,network,mpicom,advmode,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
 
-! Default initialization
-
-! general_param default
-datadir = ''
-prefix = ''
-model = ''
-colorlog = .false.
-default_seed = .false.
-load_ensemble = .false.
-use_metis = .false.
-
-! driver_param default
-method = ''
-strategy = ''
-new_hdiag = .false.
-new_param = .false.
-check_adjoints = .false.
-check_pos_def = .false.
-check_sqrt = .false.
-check_dirac = .false.
-check_randomization = .false.
-check_consistency = .false.
-check_optimality = .false.
-new_lct = .false.
-new_obsop = .false.
-
-! model_param default
-call msi(nl)
-call msi(levs)
-logpres = .false.
-call msi(nv)
-do iv=1,nvmax
-   varname = ''
-   addvar2d = ''
-end do
-call msi(nts)
-call msi(timeslot)
-
-! ens1_param default
-call msi(ens1_ne)
-call msi(ens1_ne_offset)
-call msi(ens1_nsub)
-
-! ens2_param default
-call msi(ens2_ne)
-call msi(ens2_ne_offset)
-call msi(ens2_nsub)
-
-! sampling_param default
-sam_write = .false.
-sam_read = .false.
-mask_type = ''
-call msr(mask_th)
-mask_check = .false.
-draw_type = ''
-call msi(nc1)
-call msi(ntry)
-call msi(nrep)
-call msi(nc3)
-call msr(dc)
-call msi(nl0r)
-
-! diag_param default
-call msi(ne)
-gau_approx = .false.
-full_var = .false.
-local_diag = .false.
-call msr(local_rad)
-displ_diag = .false.
-call msr(displ_rad)
-call msi(displ_niter)
-call msr(displ_rhflt)
-call msr(displ_tol)
-
-! fit_param default
-minim_algo = ''
-lhomh = .false.
-lhomv = .false.
-call msr(rvflt)
-call msi(lct_nscales)
-lct_diag = .false.
-
-! output_param default
-call msi(nldwh)
-call msi(il_ldwh)
-call msi(ic_ldwh)
-call msi(nldwv)
-call msr(lon_ldwv)
-call msr(lat_ldwv)
-call msr(diag_rhflt)
-diag_interp = ''
-
-! nicas_param default
-lsqrt = .false.
-call msr(rh)
-call msr(rv)
-call msr(resol)
-nicas_interp = ''
-network = .false.
-call msi(mpicom)
-call msi(advmode)
-call msi(ndir)
-call msr(londir)
-call msr(latdir)
-call msi(levdir)
-call msi(ivdir)
-call msi(itsdir)
-
-! obsop_param default
-call msi(nobs)
-obsdis = ''
-obsop_interp = ''
-
 if (mpl%main) then
-   ! Read namelist and copy into derived type
+   ! Open namelist
+   call mpl%newunit(lunit)
+   open(unit=lunit,file=trim(namelname),status='old',action='read')
 
    ! general_param
-   read(*,nml=general_param)
+   read(lunit,nml=general_param)
    nam%datadir = datadir
    nam%prefix = prefix
    nam%model = model
@@ -320,7 +338,7 @@ if (mpl%main) then
    nam%use_metis = use_metis
 
    ! driver_param
-   read(*,nml=driver_param)
+   read(lunit,nml=driver_param)
    nam%method = method
    nam%strategy = strategy
    nam%new_hdiag = new_hdiag
@@ -336,7 +354,7 @@ if (mpl%main) then
    nam%new_obsop = new_obsop
 
    ! model_param
-   read(*,nml=model_param)
+   read(lunit,nml=model_param)
    nam%nl = nl
    nam%levs = levs
    nam%logpres = logpres
@@ -347,19 +365,19 @@ if (mpl%main) then
    nam%timeslot = timeslot
 
    ! ens1_param
-   read(*,nml=ens1_param)
+   read(lunit,nml=ens1_param)
    nam%ens1_ne = ens1_ne
    nam%ens1_ne_offset = ens1_ne_offset
    nam%ens1_nsub = ens1_nsub
 
    ! ens2_param
-   read(*,nml=ens2_param)
+   read(lunit,nml=ens2_param)
    nam%ens2_ne = ens2_ne
    nam%ens2_ne_offset = ens2_ne_offset
    nam%ens2_nsub = ens2_nsub
 
    ! sampling_param
-   read(*,nml=sampling_param)
+   read(lunit,nml=sampling_param)
    nam%sam_write = sam_write
    nam%sam_read = sam_read
    nam%mask_type = mask_type
@@ -374,7 +392,7 @@ if (mpl%main) then
    nam%nl0r = nl0r
 
    ! diag_param
-   read(*,nml=diag_param)
+   read(lunit,nml=diag_param)
    nam%ne = ne
    nam%gau_approx = gau_approx
    nam%full_var = full_var
@@ -387,7 +405,7 @@ if (mpl%main) then
    nam%displ_tol = displ_tol
 
    ! fit_param
-   read(*,nml=fit_param)
+   read(lunit,nml=fit_param)
    nam%minim_algo = minim_algo
    nam%lhomh = lhomh
    nam%lhomv = lhomv
@@ -396,7 +414,7 @@ if (mpl%main) then
    nam%lct_diag = lct_diag
 
    ! output_param
-   read(*,nml=output_param)
+   read(lunit,nml=output_param)
    nam%nldwh = nldwh
    nam%il_ldwh = il_ldwh
    nam%ic_ldwh = ic_ldwh
@@ -407,7 +425,7 @@ if (mpl%main) then
    nam%diag_interp = diag_interp
 
    ! nicas_param
-   read(*,nml=nicas_param)
+   read(lunit,nml=nicas_param)
    nam%lsqrt = lsqrt
    nam%rh = rh/req
    nam%rv = rv
@@ -424,13 +442,27 @@ if (mpl%main) then
    nam%itsdir = itsdir
 
    ! obsop_param
-   read(*,nml=obsop_param)
+   read(lunit,nml=obsop_param)
    nam%nobs = nobs
    nam%obsdis = obsdis
    nam%obsop_interp = obsop_interp
+
+   ! Close namelist
+   close(unit=lunit)
 end if
 
-! Broadcast parameters
+end subroutine nam_read
+
+!----------------------------------------------------------------------
+! Subroutine: nam_bcast
+!> Purpose: broadcast namelist parameters
+!----------------------------------------------------------------------
+subroutine nam_bcast(nam)
+
+implicit none
+
+! Passed variable
+class(nam_type),intent(inout) :: nam !< Namelist
 
 ! general_param
 call mpl%bcast(nam%datadir,mpl%ioproc)
@@ -541,7 +573,106 @@ call mpl%bcast(nam%nobs,mpl%ioproc)
 call mpl%bcast(nam%obsdis,mpl%ioproc)
 call mpl%bcast(nam%obsop_interp,mpl%ioproc)
 
-end subroutine nam_read
+end subroutine nam_bcast
+
+!----------------------------------------------------------------------
+! Subroutine: nam_setup_online
+!> Purpose: example of hard-coded online setup
+!----------------------------------------------------------------------
+subroutine nam_setup_online(nam,prefix)
+
+implicit none
+
+! Passed variable
+class(nam_type),intent(inout) :: nam  !< Namelist
+character(len=*),intent(in) :: prefix !< Prefix
+
+! general_param default
+nam%prefix = trim(prefix)
+nam%default_seed = .false.
+nam%use_metis = .false.
+
+! driver_param default
+nam%method = 'cor'
+nam%strategy = 'diag_all'
+nam%new_hdiag = .false.
+nam%new_param = .false.
+nam%check_adjoints = .false.
+nam%check_pos_def = .false.
+nam%check_sqrt = .false.
+nam%check_dirac = .false.
+nam%check_randomization = .false.
+nam%check_consistency = .false.
+nam%check_optimality = .false.
+nam%new_lct = .true.
+nam%new_obsop = .false.
+
+! model_param default
+nam%logpres = .false.
+
+! sampling_param default
+nam%sam_write = .false.
+nam%sam_read = .true.
+nam%mask_type = 'none'
+nam%mask_th = 0.0
+nam%mask_check = .true.
+nam%draw_type = 'random_uniform'
+nam%nc1 = 1000
+nam%ntry = 3
+nam%nrep = 2
+nam%nc3 = 100
+nam%dc = 1.0/req
+nam%nl0r = 1
+
+! diag_param default
+nam%ne = 11
+nam%gau_approx = .false.
+nam%local_diag = .true.
+nam%local_rad = 1.0/req
+nam%displ_diag = .false.
+nam%displ_rad = 1.0/req
+nam%displ_niter = 1
+nam%displ_rhflt = 0.0e3
+nam%displ_tol = 0.0
+
+! fit_param default
+nam%minim_algo = 'hooke'
+nam%lhomh = .false.
+nam%lhomv = .false.
+nam%rvflt = 0.0
+nam%lct_nscales = 1
+nam%lct_diag = .true.
+
+! output_param default
+nam%nldwh = 0
+nam%il_ldwh = 0
+nam%ic_ldwh = 0
+nam%nldwv = 0
+nam%lon_ldwv = 0.0
+nam%lat_ldwv = 0.0
+nam%diag_rhflt = 500.0e3/req
+nam%diag_interp = 'bilin'
+
+! nicas_param default
+nam%lsqrt = .false.
+nam%resol = 1.0
+nam%nicas_interp = 'bilin'
+nam%network = .false.
+nam%mpicom = 1
+nam%advmode = 0
+nam%ndir = 0
+nam%londir = 0.0
+nam%latdir = 0.0
+nam%levdir = 1
+nam%ivdir = 1
+nam%itsdir = 1
+
+! obsop_param default
+nam%nobs = 1
+nam%obsdis = 'random'
+nam%obsop_interp = 'bilin'
+
+end subroutine nam_setup_online
 
 !----------------------------------------------------------------------
 ! Subroutine: nam_check

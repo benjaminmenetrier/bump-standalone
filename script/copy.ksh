@@ -9,7 +9,7 @@ if [ $1 == "jedi" ] ; then
 
    # Sync
    mkdir -p ${dst}
-   rsync -rtvu --delete --exclude "main.f90" ${src}/* ${dst}
+   rsync -rtv --delete --exclude "main.f90" ${src}/* ${dst}
 
    # To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt
    echo
@@ -22,6 +22,15 @@ if [ $1 == "jedi" ] ; then
    for file in `ls ${src}/external` ; do
       echo oops/generic/hdiag_nicas/external/${file}
    done
+fi
+
+if [ $1 == "nemovar" ] ; then
+   # NEMOVAR directory for HDIAG_NICAS
+   dst=${HOME}/code/nemovar/UTIL/tools/hdiag_nicas
+
+   # Sync
+   mkdir -p ${dst}
+   rsync -rtv --delete ${src}/* ${dst}
 fi
 
 if [ $1 == "pack" ] ; then

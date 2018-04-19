@@ -68,7 +68,7 @@ void rng::initialize_sampling(int n, double lon[], double lat[], int mask[], dou
     }
 
     // Initialize tree
-    CoverTree<CoverTreePoint> cTree(1.0e10);
+    CoverTree<CoverTreePoint> cTree;
     int is=0;
 
     // Fill the tree

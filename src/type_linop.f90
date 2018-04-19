@@ -502,7 +502,7 @@ do i_src=1,n_src
 end do
 
 ! Create mesh
-call mesh%create(n_src_eff,lon_src(src_eff_to_src),lat_src(src_eff_to_src),.false.)
+call mesh%create(n_src_eff,lon_src(src_eff_to_src),lat_src(src_eff_to_src))
 
 ! Compute cover tree
 allocate(mask_ctree(n_src_eff))
@@ -565,9 +565,9 @@ if (trim(interp_type)=='bilin') then
 elseif (trim(interp_type)=='natural') then
    ! Natural neighbors
    np = nnatmax
-   allocate(area_polygon(mesh%nnr))
+   allocate(area_polygon(mesh%n))
    allocate(area_polygon_new(nnatmax))
-   allocate(natis(mesh%nnr))
+   allocate(natis(mesh%n))
    allocate(natwgt(nnatmax))
 else
    call msgerror('wrong interpolation type')
@@ -579,14 +579,15 @@ allocate(done(n_dst_loc(mpl%myproc)))
 
 if (trim(interp_type)=='natural') then
    ! Compute polygons areas
-   do i_src=1,mesh%nnr
+   do i_src=1,mesh%n
       natis(i_src) = i_src
    end do
-   call mesh%polygon(mesh%nnr,natis,area_polygon)
+   call mesh%polygon(mesh%n,natis,area_polygon)
 end if
 
 ! Compute interpolation
 write(mpl%unit,'(a10,a)',advance='no') '','Compute interpolation: '
+call flush(mpl%unit)
 call prog_init(progint,done)
 n_s = 0
 do i_dst_loc=1,n_dst_loc(mpl%myproc)
@@ -630,14 +631,14 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
                   call meshnew%addnode(lon_dst(i_dst),lat_dst(i_dst))
 
                   ! Find natural neighbors
-                  i_src = meshnew%lend(meshnew%nnr)
+                  i_src = meshnew%lend(meshnew%n)
                   loop = .true.
                   nnat = 0
                   do while (loop)
                      nnat = nnat+1
                      natis(nnat) = abs(meshnew%list(i_src))
                      i_src = meshnew%lptr(i_src)
-                     loop = (i_src/=meshnew%lend(meshnew%nnr))
+                     loop = (i_src/=meshnew%lend(meshnew%n))
                   end do
 
                   if (all(mask_src(natis(1:nnat)))) then
@@ -679,6 +680,7 @@ do i_dst_loc=1,n_dst_loc(mpl%myproc)
    call prog_print(progint,done)
 end do
 write(mpl%unit,'(a)') '100%'
+call flush(mpl%unit)
 
 ! Communication
 call mpl%allgather(1,(/n_s/),proc_to_n_s)
@@ -783,9 +785,11 @@ valid = .true.
 ! Check mask boundaries
 if (mask_check) then
    write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Sublevel ',il0i,': '
+   call flush(mpl%unit)
    call interp_base%interp_check_mask(geom,valid,il0i,col_to_ic0=c1_to_c0)
 else
    write(mpl%unit,'(a10,a,i3)') '','Sublevel ',il0i
+   call flush(mpl%unit)
 end if
 
 if (geom%nl0i>1) then
@@ -803,7 +807,10 @@ if (geom%nl0i>1) then
          if (mask_extra(ic1)) valid(i_s) = .false.
       end if
    end do
-   if (count(mask_extra)>0) write(mpl%unit,'(a10,a,i5)') '','Extrapolated points: ',count(mask_extra)
+   if (count(mask_extra)>0) then
+      write(mpl%unit,'(a10,a,i5)') '','Extrapolated points: ',count(mask_extra)
+      call flush(mpl%unit)
+   end if
 else
    mask_extra = .false.
 end if
@@ -905,6 +912,7 @@ do i_s_loc=1,n_s_loc(mpl%myproc)
 end do
 !$omp end parallel do
 write(mpl%unit,'(a)') '100%'
+call flush(mpl%unit)
 
 ! Communication
 if (mpl%main) then

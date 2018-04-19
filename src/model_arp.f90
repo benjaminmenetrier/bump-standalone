@@ -93,7 +93,10 @@ do ilon=1,geom%nlon
       end if
    end do
 end do
-geom%nc0 = count(geom%rgmask)
+geom%ng = count(geom%rgmask)
+
+! Not redundant grid
+call geom%find_redundant
 
 ! Pack
 call geom%alloc
@@ -111,9 +114,6 @@ if (nam%logpres) then
 else
    geom%vunit = float(nam%levs(1:geom%nl0))
 end if
-
-! Not redundant grid
-geom%redgrid = .false.
 
 ! Release memory
 deallocate(lon)

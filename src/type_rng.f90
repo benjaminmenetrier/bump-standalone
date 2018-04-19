@@ -143,6 +143,7 @@ if (nam%default_seed) then
 else
    write(mpl%unit,'(a7,a)') '','Linear congruential generator initialized'
 end if
+call flush(mpl%unit)
 
 end subroutine rng_create
 

@@ -40,7 +40,7 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: ncid,nc0_id,nlev_id,lon_id,lat_id,pres_id
+integer :: ncid,ng_id,nlev_id,lon_id,lat_id,pres_id
 real(kind=4),allocatable :: lon(:),lat(:),pres(:)
 character(len=1024) :: subr = 'model_mpas_coord'
 
@@ -48,14 +48,14 @@ character(len=1024) :: subr = 'model_mpas_coord'
 call msi(geom%nlon)
 call msi(geom%nlat)
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_nowrite,ncid))
-call ncerr(subr,nf90_inq_dimid(ncid,'nCells',nc0_id))
-call ncerr(subr,nf90_inquire_dimension(ncid,nc0_id,len=geom%nc0))
+call ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
+call ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%ng))
 call ncerr(subr,nf90_inq_dimid(ncid,'nVertLevels',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
-allocate(lon(geom%nc0))
-allocate(lat(geom%nc0))
+allocate(lon(geom%ng))
+allocate(lat(geom%ng))
 allocate(pres(geom%nlev))
 
 ! Read data and close file
@@ -66,6 +66,9 @@ call ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call ncerr(subr,nf90_get_var(ncid,pres_id,pres))
 call ncerr(subr,nf90_close(ncid))
+
+! Not redundant grid
+call geom%find_redundant
 
 ! Pack
 call geom%alloc
@@ -83,9 +86,6 @@ if (nam%logpres) then
 else
    geom%vunit = float(nam%levs(1:geom%nl0))
 end if
-
-! Not redundant grid
-geom%redgrid = .false.
 
 ! Release memory
 deallocate(lon)

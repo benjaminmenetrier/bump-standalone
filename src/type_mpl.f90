@@ -14,7 +14,7 @@ use iso_c_binding
 use mpi
 use omp_lib
 use tools_kinds, only: kind_real
-use tools_missing, only: isnotmsi,isnotmsr
+use tools_missing, only: msi,isnotmsi,isnotmsr
 
 implicit none
 
@@ -30,6 +30,7 @@ type mpl_type
    integer :: tag        !< MPI tag
    integer :: nthread    !< Number of OpenMP threads
 contains
+   procedure :: newunit => mpl_newunit
    procedure :: check => mpl_check
    procedure :: init => mpl_init
    procedure :: abort => mpl_abort
@@ -86,10 +87,44 @@ end type mpl_type
 
 type(mpl_type) :: mpl
 
+! Fortran units
+integer,parameter :: lunit_min=10   !< Minimum unit number
+integer,parameter :: lunit_max=1000 !< Maximum unit number
+
 private
 public :: mpl
 
 contains
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_newunit
+!> Purpose: find a free unit
+!----------------------------------------------------------------------
+subroutine mpl_newunit(mpl,lunit)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl       !< MPL object
+integer,intent(out) :: lunit !< New unit
+
+! Local variables
+integer :: lun
+logical :: lopened
+
+! Initialize
+call msi(lunit)
+
+! Loop over possible units
+do lun=lunit_min,lunit_max
+   inquire(unit=lun,opened=lopened)
+   if (.not.lopened) then
+      lunit=lun
+      exit
+   end if
+end do
+
+end subroutine mpl_newunit
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_check
@@ -130,7 +165,8 @@ class(mpl_type) :: mpl         !< MPL object
 integer,intent(in) :: mpi_comm !< MPI communicator
 
 ! Local variables
-integer :: info
+integer :: info,iproc
+character(len=4) :: myprocchar
 
 ! Copy MPI communicator
 mpl%mpi_comm =mpi_comm
@@ -163,6 +199,22 @@ mpl%tag = 4321
 mpl%nthread = omp_get_max_threads()
 call omp_set_num_threads(mpl%nthread)
 
+! Define unit and open file
+do iproc=1,mpl%nproc
+   ! Deal with each proc sequentially
+   if (iproc==mpl%myproc) then
+      ! Find a free unit
+      call mpl%newunit(mpl%unit)
+
+      ! Open listing file
+      write(myprocchar,'(i4.4)') mpl%myproc-1
+      open(unit=mpl%unit,file='hdiag_nicas.out.'//myprocchar,action='write',status='replace')
+   end if
+
+   ! Wait
+   call mpl%barrier()
+end do
+
 end subroutine mpl_init
 
 !----------------------------------------------------------------------
@@ -180,11 +232,9 @@ character(len=*),intent(in) :: message !< Message
 ! Local variables
 integer :: info
 
-! Flush
-call flush(mpl%unit)
-
 ! Write message
 write(mpl%unit,'(a)') trim(message)
+call flush(mpl%unit)
 
 ! Finalize MPI
 call mpi_finalize(info)

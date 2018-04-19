@@ -15,6 +15,9 @@ class cTree {
         // Destructor
         ~cTree();
 
+        // Find redundant points
+        void find_redundant(int n, double lon[], double lat[], int redundant[]);
+
         // Find nearest neighbors
         void find_nearest_neighbors(double lon, double lat, int nn, int nn_index[], double nn_dist[]) const;
     private:

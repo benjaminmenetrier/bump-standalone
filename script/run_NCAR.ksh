@@ -55,7 +55,7 @@ module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-mpirun ${rootdir}/run/hdiag_nicas < namelist
+mpirun ${rootdir}/run/hdiag_nicas namelist
 EOFNAM
 
 #----------------------------------------------------------------------

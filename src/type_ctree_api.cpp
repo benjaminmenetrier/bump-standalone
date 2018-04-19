@@ -19,6 +19,11 @@ void delete_ctree(CTREE* ctree){
     delete ctree;
 }
 
+// Find redundant points
+void find_redundant(CTREE* ctree, int n, double lon[], double lat[], int redundant[]) {
+    ctree->find_redundant(n, lon, lat, redundant);
+}
+
 // Find nearest neighbors
 void find_nearest_neighbors(const CTREE* ctree, double lon, double lat, int nn, int nn_index[], double nn_dist[]) {
     ctree->find_nearest_neighbors(lon, lat, nn, nn_index, nn_dist);

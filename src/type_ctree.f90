@@ -18,11 +18,13 @@ use tools_qsort, only: qsort
 implicit none
 
 type ctree_type
-    type(c_ptr) :: ptr !< Pointer to the C++ class
+    type(c_ptr) :: ptr           !< Pointer to the C++ class
+    logical :: created = .false. !< Creation flag
 contains
     procedure :: create => ctree_create
+    procedure :: find_redundant => ctree_find_redundant
     procedure :: delete => ctree_delete
-    procedure :: find_nearest_neighbors
+    procedure :: find_nearest_neighbors => ctree_find_nearest_neighbors
 end type ctree_type
 
 real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
@@ -45,6 +47,17 @@ interface
    implicit none
    type(c_ptr),value :: ctree
    end subroutine delete_ctree_c
+end interface
+interface
+   subroutine find_redundant_c(ctree,n,lon,lat,redundant) bind(C,name='find_redundant')
+   use iso_c_binding
+   implicit none
+   type(c_ptr),value :: ctree
+   integer(c_int),value :: n
+   real(c_double) :: lon(*)
+   real(c_double) :: lat(*)
+   integer(c_int) :: redundant(*)
+   end subroutine find_redundant_c
 end interface
 interface
    subroutine find_nearest_neighbors_c(ctree,lon,lat,nn,nn_index,nn_dist) bind(C,name='find_nearest_neighbors')
@@ -73,11 +86,11 @@ subroutine ctree_create(ctree,n,lon,lat,mask)
 implicit none
 
 ! Passed variables
-class(ctree_type) :: ctree           !< Cover tree object
-integer,intent(in) :: n              !< Number of points
-real(kind_real),intent(in) :: lon(n) !< Points longitudes
-real(kind_real),intent(in) :: lat(n) !< Points latitudes
-logical,intent(in) :: mask(n)        !< Mask
+class(ctree_type),intent(inout) :: ctree !< Cover tree object
+integer,intent(in) :: n                  !< Number of points
+real(kind_real),intent(in) :: lon(n)     !< Points longitudes
+real(kind_real),intent(in) :: lat(n)     !< Points latitudes
+logical,intent(in) :: mask(n)            !< Mask
 
 ! Local variable
 integer :: i,imask(n)
@@ -96,6 +109,9 @@ end do
 
 ! Call C++ function
 ctree%ptr = create_ctree_c(n,lon,lat,imask)
+
+! Update flag
+ctree%created = .true.
 
 end subroutine ctree_create
 
@@ -116,10 +132,36 @@ call delete_ctree_c(ctree%ptr)
 end subroutine ctree_delete
 
 !----------------------------------------------------------------------
-! Subroutine: find_nearest_neighbors
-!> Purpose: find nearest neighbors using a cover tree
+! Subroutine: ctree_find_redundant
+!> Purpose: find redundant points
 !----------------------------------------------------------------------
-subroutine find_nearest_neighbors(ctree,lon,lat,nn,nn_index,nn_dist)
+subroutine ctree_find_redundant(ctree,n,lon,lat,redundant)
+
+implicit none
+
+! Passed variables
+class(ctree_type),intent(inout) :: ctree !< Cover tree object
+integer,intent(in) :: n                  !< Number of points
+real(kind_real),intent(in) :: lon(n)     !< Points longitudes
+real(kind_real),intent(in) :: lat(n)     !< Points latitudes
+integer,intent(inout) :: redundant(n)    !< Redundant points
+
+! Call C++ function
+ctree%ptr = create_ctree_c(1,lon(1),lat(1),(/1/))
+
+! Call C++ function
+call find_redundant_c(ctree%ptr,n,lon,lat,redundant)
+
+! Update flag
+ctree%created = .true.
+
+end subroutine ctree_find_redundant
+
+!----------------------------------------------------------------------
+! Subroutine: ctree_find_nearest_neighbors
+!> Purpose: ctree_find nearest neighbors using a cover tree
+!----------------------------------------------------------------------
+subroutine ctree_find_nearest_neighbors(ctree,lon,lat,nn,nn_index,nn_dist)
 
 implicit none
 
@@ -161,6 +203,6 @@ do while (i<nn)
    i = i+nid
 end do
 
-end subroutine find_nearest_neighbors
+end subroutine ctree_find_nearest_neighbors
 
 end module type_ctree

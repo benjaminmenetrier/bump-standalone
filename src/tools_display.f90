@@ -17,59 +17,26 @@ use type_mpl, only: mpl
 
 implicit none
 
-! Fortran I/O
-integer,parameter :: lunit_min=10   !< Minimum unit number
-integer,parameter :: lunit_max=1000 !< Maximum unit number
-
 ! Display colors
-character(len=1024) :: black        !< Black color code
-character(len=1024) :: green        !< Green color code
-character(len=1024) :: peach        !< Peach color code
-character(len=1024) :: aqua         !< Aqua color code
-character(len=1024) :: purple       !< Purple color code
-character(len=1024) :: err          !< Error color code
-character(len=1024) :: wng          !< Warning color code
+character(len=1024) :: black     !< Black color code
+character(len=1024) :: green     !< Green color code
+character(len=1024) :: peach     !< Peach color code
+character(len=1024) :: aqua      !< Aqua color code
+character(len=1024) :: purple    !< Purple color code
+character(len=1024) :: err       !< Error color code
+character(len=1024) :: wng       !< Warning color code
 
 ! Vertical unit
-character(len=1024) :: vunitchar    !< Vertical unit
+character(len=1024) :: vunitchar !< Vertical unit
 
 ! Progression display
-integer :: ddis                     !< Progression display step
+integer :: ddis                  !< Progression display step
 
 private
 public :: black,green,peach,aqua,purple,err,wng,vunitchar,ddis
-public :: newunit,listing_setup,msgerror,msgwarning,prog_init,prog_print
+public :: listing_setup,msgerror,msgwarning,prog_init,prog_print
 
 contains
-
-!----------------------------------------------------------------------
-! Function: newunit
-!> Purpose: find a free unit
-!----------------------------------------------------------------------
-integer function newunit()
-
-implicit none
-
-! Local variables
-integer :: lun
-logical :: lopened
-
-! Initialize
-call msi(newunit)
-
-! Loop over possible units
-do lun=lunit_min,lunit_max
-   inquire(unit=lun,opened=lopened)
-   if (.not.lopened) then
-      newunit=lun
-      exit
-   end if
-end do
-
-! Check
-if (.not.isnotmsi(newunit)) call msgerror('cannot find a free unit')
-
-end function newunit
 
 !----------------------------------------------------------------------
 ! Subroutine: listing_setup
@@ -82,10 +49,6 @@ implicit none
 ! Passed variables
 logical,intent(in) :: colorlog !< Color listing flag
 logical,intent(in) :: logpres  !< Vertical unit flag
-
-! Local variables
-integer :: iproc
-character(len=4) :: myprocchar
 
 ! Setup display colors
 if (colorlog) then
@@ -113,28 +76,6 @@ if (logpres) then
 else
    vunitchar = 'lev.'
 end if
-
-! Define unit and open file
-do iproc=1,mpl%nproc
-   ! Deal with each proc sequentially
-   if (iproc==mpl%myproc) then
-      if (mpl%main.and.colorlog) then
-         ! Terminal display
-         mpl%unit = 6
-      else
-         ! Find a free unit
-         mpl%unit = newunit()
-
-         ! Open listing file
-         write(myprocchar,'(i4.4)') mpl%myproc-1
-         open(unit=mpl%unit,file='hdiag_nicas.out.'//myprocchar,action='write',status='replace')
-      end if
-   end if
-
-   ! Wait
-   call mpl%barrier()
-end do
-
 
 end subroutine listing_setup
 
@@ -167,6 +108,7 @@ character(len=*),intent(in) :: message !< Message
 
 ! Print warning message
 write(mpl%unit,'(a)') trim(wng)//'!!! Warning: '//trim(message)//trim(black)
+call flush(mpl%unit)
 
 end subroutine msgwarning
 
@@ -184,6 +126,7 @@ logical,dimension(:),intent(out),optional :: done !< Progression logical array
 
 ! Print message
 write(mpl%unit,'(i3,a)',advance='no') 0,'%'
+call flush(mpl%unit)
 
 ! Initialization
 progint = ddis
@@ -209,7 +152,10 @@ real(kind_real) :: prog
 ! Print message
 prog = 100.0*float(count(done))/float(size(done))
 if (int(prog)>progint) then
-   if (progint<100) write(mpl%unit,'(i3,a)',advance='no') progint,'% '
+   if (progint<100) then
+      write(mpl%unit,'(i3,a)',advance='no') progint,'% '
+      call flush(mpl%unit)
+   end if
    progint = progint+ddis
 end if
 

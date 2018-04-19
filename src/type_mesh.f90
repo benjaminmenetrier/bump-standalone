@@ -12,7 +12,7 @@ module type_mesh
 
 use omp_lib
 use tools_const, only: req
-use tools_display, only: msgerror,msgwarning,prog_init,prog_print
+use tools_display, only: msgerror,msgwarning
 use tools_func, only: sphere_dist,vector_product
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr
@@ -26,8 +26,6 @@ implicit none
 type mesh_type
    ! Mesh structure
    integer :: n                            !< Number of points
-   integer,allocatable :: redundant(:)     !< Redundant points
-   integer :: nnr                          !< Number of non-redundant points
    integer,allocatable :: order(:)         !< Order of shuffled points
    integer,allocatable :: order_inv(:)     !< Inverse order of shuffled points
    real(kind_real),allocatable :: lon(:)   !< Points longitudes
@@ -72,7 +70,7 @@ contains
 ! Subroutine: mesh_create
 !> Purpose: create mesh
 !----------------------------------------------------------------------
-subroutine mesh_create(mesh,n,lon,lat,lred)
+subroutine mesh_create(mesh,n,lon,lat)
 
 implicit none
 
@@ -81,113 +79,41 @@ class(mesh_type),intent(inout) :: mesh !< Mesh
 integer,intent(in) :: n                !< Mesh size
 real(kind_real),intent(in) :: lon(n)   !< Longitudes
 real(kind_real),intent(in) :: lat(n)   !< Latitudes
-logical,intent(in) :: lred             !< Redundant points check
 
 ! Local variables
-integer :: i,j,k,info,iproc
-integer :: i_s(mpl%nproc),i_e(mpl%nproc),n_loc(mpl%nproc),i_loc,progint
-integer,allocatable :: jtab(:),near(:),next(:),sbuf(:)
+integer :: i,k,info
+integer,allocatable :: jtab(:),near(:),next(:)
 real(kind_real),allocatable :: dist(:)
-logical,allocatable :: done(:)
 
 ! Allocation
 mesh%n = n
-allocate(mesh%redundant(mesh%n))
-call msi(mesh%redundant)
-
-! Look for redundant points
-if (lred) then
-   ! MPI splitting
-   call mpl%split(n,i_s,i_e,n_loc)
-
-   ! Allocation
-   allocate(done(n_loc(mpl%myproc)))
-   allocate(sbuf(n_loc(mpl%myproc)))
-
-   ! Loop over points
-   write(mpl%unit,'(a7,a)',advance='no') '','Look for redundant points: '
-   call prog_init(progint,done)
-   call msi(sbuf)
-   !$omp parallel do schedule(static) private(i_loc,i,j)
-   do i_loc=1,n_loc(mpl%myproc)
-      i = i_s(mpl%myproc)+i_loc-1
-      do j=1,i-1
-         if (.not.(abs(lon(i)-lon(j))>0.0).and..not.(abs(lat(i)-lat(j))>0.0)) then
-            sbuf(i_loc) = j
-            exit
-         end if
-      end do
-      done(i_loc) = .true.
-      call prog_print(progint,done)
-   end do
-   !$omp end parallel do
-   write(mpl%unit,'(a)') '100%'
-
-   ! Communication
-   if (mpl%main) then
-      do iproc=1,mpl%nproc
-         if (n_loc(iproc)>0) then
-            if (iproc==mpl%ioproc) then
-               ! Copy data
-               mesh%redundant(i_s(iproc):i_e(iproc)) = sbuf
-            else
-               ! Receive data on ioproc
-               call mpl%recv(n_loc(iproc),mesh%redundant(i_s(iproc):i_e(iproc)),iproc,mpl%tag)
-            end if
-         end if
-      end do
-   else
-      if (n_loc(mpl%myproc)>0) then
-         ! Send data to ioproc
-         call mpl%send(n_loc(mpl%myproc),sbuf,mpl%ioproc,mpl%tag)
-      end if
-   end if
-   mpl%tag = mpl%tag+1
-
-   ! Broadcast data
-   call mpl%bcast(mesh%redundant,mpl%ioproc)
-
-   ! Check for successive redundant points
-   do i=1,mesh%n
-      if (isnotmsi(mesh%redundant(i))) then
-         do while (isnotmsi(mesh%redundant(mesh%redundant(i))))
-            mesh%redundant(i) = mesh%redundant(mesh%redundant(i))
-         end do
-      end if
-   end do
-end if
-mesh%nnr = count(.not.isnotmsi(mesh%redundant))
 
 ! Allocation
-allocate(mesh%order(mesh%nnr))
+allocate(mesh%order(mesh%n))
 allocate(mesh%order_inv(mesh%n))
-allocate(mesh%lon(mesh%nnr))
-allocate(mesh%lat(mesh%nnr))
-allocate(mesh%list(6*(mesh%nnr-2)))
-allocate(mesh%lptr(6*(mesh%nnr-2)))
-allocate(mesh%lend(mesh%nnr))
-allocate(mesh%x(mesh%nnr))
-allocate(mesh%y(mesh%nnr))
-allocate(mesh%z(mesh%nnr))
-allocate(near(mesh%nnr))
-allocate(next(mesh%nnr))
-allocate(dist(mesh%nnr))
+allocate(mesh%lon(mesh%n))
+allocate(mesh%lat(mesh%n))
+allocate(mesh%list(6*(mesh%n-2)))
+allocate(mesh%lptr(6*(mesh%n-2)))
+allocate(mesh%lend(mesh%n))
+allocate(mesh%x(mesh%n))
+allocate(mesh%y(mesh%n))
+allocate(mesh%z(mesh%n))
+allocate(near(mesh%n))
+allocate(next(mesh%n))
+allocate(dist(mesh%n))
 
 ! Points order
-i = 0
-do j=1,mesh%n
-   if (.not.isnotmsi(mesh%redundant(j))) then
-      i = i+1
-      mesh%order(i) = j
-   end if
+do i=1,mesh%n
+   mesh%order(i) = i
 end do
 
 if (shuffle) then
    ! Shuffle order (more efficient to compute the Delaunay triangulation)
-   allocate(jtab(mesh%nnr))
-   if (mpl%main) call rng%rand_integer(1,mesh%nnr,jtab)
+   allocate(jtab(mesh%n))
+   if (mpl%main) call rng%rand_integer(1,mesh%n,jtab)
    call mpl%bcast(jtab,mpl%ioproc)
-   do i=mesh%nnr,2,-1
+   do i=mesh%n,2,-1
       k = mesh%order(jtab(i))
       mesh%order(jtab(i)) = mesh%order(i)
       mesh%order(i) = k
@@ -196,13 +122,8 @@ end if
 
 ! Restrictive inverse order
 call msi(mesh%order_inv)
-do i=1,mesh%nnr
-   mesh%order_inv(mesh%order(i)) = i
-end do
-
-! Include redundant points in inverse order
 do i=1,mesh%n
-   if (isnotmsi(mesh%redundant(i))) mesh%order_inv(i) = mesh%order_inv(mesh%redundant(i))
+   mesh%order_inv(mesh%order(i)) = i
 end do
 
 ! Transform to cartesian coordinates
@@ -210,7 +131,7 @@ call mesh%trans(lon,lat)
 
 ! Create mesh
 mesh%list = 0
-call trmesh(mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,mesh%lnew,near,next,dist,info)
+call trmesh(mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,mesh%lnew,near,next,dist,info)
 
 end subroutine mesh_create
 
@@ -226,7 +147,6 @@ implicit none
 class(mesh_type),intent(inout) :: mesh !< Mesh
 
 ! Release memory
-if (allocated(mesh%redundant)) deallocate(mesh%redundant)
 if (allocated(mesh%order)) deallocate(mesh%order)
 if (allocated(mesh%order_inv)) deallocate(mesh%order_inv)
 if (allocated(mesh%lon)) deallocate(mesh%lon)
@@ -256,7 +176,6 @@ class(mesh_type),intent(in) :: mesh !< Input mesh
 
 ! Copy sizes
 mesh_copy%n = mesh%n
-mesh_copy%nnr = mesh%nnr
 if (allocated(mesh%ltri)) then
    mesh_copy%nt = mesh%nt
    mesh_copy%na = mesh%na
@@ -266,25 +185,23 @@ end if
 call mesh_copy%dealloc
 
 ! Allocation
-allocate(mesh_copy%redundant(mesh_copy%n))
-allocate(mesh_copy%order(mesh_copy%nnr))
+allocate(mesh_copy%order(mesh_copy%n))
 allocate(mesh_copy%order_inv(mesh_copy%n))
-allocate(mesh_copy%lon(mesh_copy%nnr))
+allocate(mesh_copy%lon(mesh_copy%n))
 allocate(mesh_copy%lat(mesh_copy%n))
-allocate(mesh_copy%x(mesh_copy%nnr))
-allocate(mesh_copy%y(mesh_copy%nnr))
-allocate(mesh_copy%z(mesh_copy%nnr))
-allocate(mesh_copy%list(6*(mesh_copy%nnr-2)))
-allocate(mesh_copy%lptr(6*(mesh_copy%nnr-2)))
-allocate(mesh_copy%lend(mesh_copy%nnr))
+allocate(mesh_copy%x(mesh_copy%n))
+allocate(mesh_copy%y(mesh_copy%n))
+allocate(mesh_copy%z(mesh_copy%n))
+allocate(mesh_copy%list(6*(mesh_copy%n-2)))
+allocate(mesh_copy%lptr(6*(mesh_copy%n-2)))
+allocate(mesh_copy%lend(mesh_copy%n))
 if (allocated(mesh%ltri)) then
    allocate(mesh_copy%ltri(3,mesh_copy%nt))
    allocate(mesh_copy%larc(2,mesh_copy%na))
-   allocate(mesh_copy%bdist(mesh_copy%nnr))
+   allocate(mesh_copy%bdist(mesh_copy%n))
 end if
 
 ! Copy data
-mesh_copy%redundant = mesh%redundant
 mesh_copy%order = mesh%order
 mesh_copy%order_inv = mesh%order_inv
 mesh_copy%lon = mesh%lon
@@ -323,7 +240,7 @@ mesh%lon = lon(mesh%order)
 mesh%lat = lat(mesh%order)
 
 ! Transform to cartesian coordinates
-call trans(mesh%nnr,mesh%lat,mesh%lon,mesh%x,mesh%y,mesh%z)
+call trans(mesh%n,mesh%lat,mesh%lon,mesh%x,mesh%y,mesh%z)
 
 end subroutine mesh_trans
 
@@ -344,10 +261,10 @@ integer,allocatable :: ltri(:,:)
 integer :: ia,it,i,i1,i2
 
 ! Allocation
-allocate(ltri(9,2*(mesh%nnr-2)))
+allocate(ltri(9,2*(mesh%n-2)))
 
 ! Create triangles list
-call trlist(mesh%nnr,mesh%list,mesh%lptr,mesh%lend,9,mesh%nt,ltri,info)
+call trlist(mesh%n,mesh%list,mesh%lptr,mesh%lend,9,mesh%nt,ltri,info)
 
 ! Allocation
 mesh%na = maxval(ltri(7:9,1:mesh%nt))
@@ -391,11 +308,11 @@ implicit none
 class(mesh_type),intent(inout) :: mesh !< Mesh
 
 ! Allocation
-allocate(mesh%bnd(mesh%nnr))
+allocate(mesh%bnd(mesh%n))
 
 ! Find boundary nodes
 call msi(mesh%bnd)
-call bnodes(mesh%nnr,mesh%list,mesh%lptr,mesh%lend,mesh%bnd,mesh%nb,mesh%na,mesh%nt)
+call bnodes(mesh%n,mesh%list,mesh%lptr,mesh%lend,mesh%bnd,mesh%nb,mesh%na,mesh%nt)
 
 end subroutine mesh_bnodes
 
@@ -411,14 +328,14 @@ implicit none
 class(mesh_type),intent(inout) :: mesh !< Mesh
 
 ! Local variables
-integer :: inr
+integer :: i
 integer,allocatable :: larcb(:,:)
 integer :: ia,nab,iab
 real(kind_real) :: dist_12,v1(3),v2(3),vp(3),v(3),vf(3),vt(3),tlat,tlon,trad,dist_t1,dist_t2
 
 ! Allocation
-allocate(larcb(2,3*(mesh%nnr-2)))
-allocate(mesh%bdist(mesh%nnr))
+allocate(larcb(2,3*(mesh%n-2)))
+allocate(mesh%bdist(mesh%n))
 
 if (mesh%nb>0) then
    ! Find boundary arcs
@@ -445,9 +362,9 @@ if (mesh%nb>0) then
       call vector_product(v1,v2,vp)
 
       ! Compute the shortest distance from each point to the boundary arc great-circle
-      do inr=1,mesh%nnr
+      do i=1,mesh%n
          ! Vector
-         v = (/mesh%x(inr),mesh%y(inr),mesh%z(inr)/)
+         v = (/mesh%x(i),mesh%y(i),mesh%z(i)/)
 
          ! Vector products
          call vector_product(v,vp,vf)
@@ -461,13 +378,13 @@ if (mesh%nb>0) then
          call sphere_dist(tlon,tlat,mesh%lon(larcb(2,iab)),mesh%lat(larcb(2,iab)),dist_t2)
          if ((dist_t1<dist_12).and.(dist_t2<dist_12)) then
             ! T is on the arc
-            call sphere_dist(mesh%lon(inr),mesh%lat(inr),tlon,tlat,dist_t1)
-            mesh%bdist(inr) = min(mesh%bdist(inr),dist_t1)
+            call sphere_dist(mesh%lon(i),mesh%lat(i),tlon,tlat,dist_t1)
+            mesh%bdist(i) = min(mesh%bdist(i),dist_t1)
          else
             ! T is not on the arc
-            call sphere_dist(mesh%lon(inr),mesh%lat(inr),mesh%lon(larcb(1,iab)),mesh%lat(larcb(1,iab)),dist_t1)
-            call sphere_dist(mesh%lon(inr),mesh%lat(inr),mesh%lon(larcb(2,iab)),mesh%lat(larcb(2,iab)),dist_t2)
-            mesh%bdist(inr) = min(mesh%bdist(inr),min(dist_t1,dist_t2))
+            call sphere_dist(mesh%lon(i),mesh%lat(i),mesh%lon(larcb(1,iab)),mesh%lat(larcb(1,iab)),dist_t1)
+            call sphere_dist(mesh%lon(i),mesh%lat(i),mesh%lon(larcb(2,iab)),mesh%lat(larcb(2,iab)),dist_t2)
+            mesh%bdist(i) = min(mesh%bdist(i),min(dist_t1,dist_t2))
          end if
       end do
    end do
@@ -488,7 +405,7 @@ implicit none
 
 ! Passed variables
 class(mesh_type),intent(inout) :: mesh         !< Mesh
-real(kind_real),intent(out) :: valid(mesh%nnr) !< Validity flag (1.0 if the vertex is valid, else 0.0)
+real(kind_real),intent(out) :: valid(mesh%n) !< Validity flag (1.0 if the vertex is valid, else 0.0)
 
 ! Local variables
 integer :: it
@@ -566,7 +483,7 @@ call trans(1,lat,lon,p(1),p(2),p(3))
 ! Compute barycentric coordinates
 b = 0.0
 ib = 0
-call trfind(istart,dble(p),mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,b(1),b(2),b(3),ib(1),ib(2),ib(3))
+call trfind(istart,dble(p),mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
 end subroutine barycentric
 
@@ -585,24 +502,22 @@ real(kind_real),intent(in) :: latnew(1) !< Latitude
 
 ! Local variables
 integer :: info
-integer,allocatable :: redundant(:),order(:),order_inv(:),list(:),lptr(:),lend(:)
+integer,allocatable :: order(:),order_inv(:),list(:),lptr(:),lend(:)
 real(kind_real),allocatable :: lon(:),lat(:),x(:),y(:),z(:)
 
 ! Allocation
-allocate(redundant(mesh%n))
-allocate(order(mesh%nnr))
+allocate(order(mesh%n))
 allocate(order_inv(mesh%n))
-allocate(lon(mesh%nnr))
-allocate(lat(mesh%nnr))
-allocate(x(mesh%nnr))
-allocate(y(mesh%nnr))
-allocate(z(mesh%nnr))
-allocate(list(6*(mesh%nnr-2)))
-allocate(lptr(6*(mesh%nnr-2)))
-allocate(lend(mesh%nnr))
+allocate(lon(mesh%n))
+allocate(lat(mesh%n))
+allocate(x(mesh%n))
+allocate(y(mesh%n))
+allocate(z(mesh%n))
+allocate(list(6*(mesh%n-2)))
+allocate(lptr(6*(mesh%n-2)))
+allocate(lend(mesh%n))
 
 ! Copy
-redundant = mesh%redundant
 order = mesh%order
 order_inv = mesh%order_inv
 lon = mesh%lon
@@ -619,42 +534,38 @@ call mesh%dealloc
 
 ! Reallocate
 mesh%n = mesh%n+1
-mesh%nnr = mesh%nnr+1
-allocate(mesh%redundant(mesh%n))
-allocate(mesh%order(mesh%nnr))
+allocate(mesh%order(mesh%n))
 allocate(mesh%order_inv(mesh%n))
-allocate(mesh%lon(mesh%nnr))
-allocate(mesh%lat(mesh%nnr))
-allocate(mesh%x(mesh%nnr))
-allocate(mesh%y(mesh%nnr))
-allocate(mesh%z(mesh%nnr))
-allocate(mesh%list(6*(mesh%nnr-2)))
-allocate(mesh%lptr(6*(mesh%nnr-2)))
-allocate(mesh%lend(mesh%nnr))
+allocate(mesh%lon(mesh%n))
+allocate(mesh%lat(mesh%n))
+allocate(mesh%x(mesh%n))
+allocate(mesh%y(mesh%n))
+allocate(mesh%z(mesh%n))
+allocate(mesh%list(6*(mesh%n-2)))
+allocate(mesh%lptr(6*(mesh%n-2)))
+allocate(mesh%lend(mesh%n))
 
 ! Copy
-mesh%redundant(1:mesh%n-1) = redundant
-mesh%order(1:mesh%nnr-1) = order
+mesh%order(1:mesh%n-1) = order
 mesh%order_inv(1:mesh%n-1) = order_inv
-mesh%lon(1:mesh%nnr-1) = lon
-mesh%lat(1:mesh%nnr-1) = lat
-mesh%x(1:mesh%nnr-1) = x
-mesh%y(1:mesh%nnr-1) = y
-mesh%z(1:mesh%nnr-1) = z
-mesh%list(1:6*(mesh%nnr-3)) = list
-mesh%lptr(1:6*(mesh%nnr-3)) = lptr
-mesh%lend(1:mesh%nnr-1) = lend
+mesh%lon(1:mesh%n-1) = lon
+mesh%lat(1:mesh%n-1) = lat
+mesh%x(1:mesh%n-1) = x
+mesh%y(1:mesh%n-1) = y
+mesh%z(1:mesh%n-1) = z
+mesh%list(1:6*(mesh%n-3)) = list
+mesh%lptr(1:6*(mesh%n-3)) = lptr
+mesh%lend(1:mesh%n-1) = lend
 
 ! Compute new element coordinates
-call trans(1,latnew,lonnew,mesh%x(mesh%nnr:mesh%nnr),mesh%y(mesh%nnr:mesh%nnr),mesh%z(mesh%nnr:mesh%nnr))
+call trans(1,latnew,lonnew,mesh%x(mesh%n:mesh%n),mesh%y(mesh%n:mesh%n),mesh%z(mesh%n:mesh%n))
 
 ! Update mesh
-call msi(mesh%redundant(mesh%nnr))
-mesh%order(mesh%nnr) = mesh%n
-mesh%order_inv(mesh%n) = mesh%nnr
+mesh%order(mesh%n) = mesh%n
+mesh%order_inv(mesh%n) = mesh%n
 mesh%lon(mesh%n) = lonnew(1)
 mesh%lat(mesh%n) = latnew(1)
-call addnod(1,mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,mesh%lnew,info)
+call addnod(1,mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,mesh%lnew,info)
 
 end subroutine addnode
 
@@ -674,9 +585,9 @@ real(kind_real),intent(out) :: area_polygon(np) !< Area
 
 ! Local variables
 integer :: ip,i_src,index_triangle,i_src_last,i_src_new,i_src_stop,vertex_last,vertex_new,nb,info
-integer :: lnew_tmp,lptr_tmp(6*(mesh%nnr-2)),lbtri(6,mesh%nnr),listc(6*(mesh%nnr-2))
+integer :: lnew_tmp,lptr_tmp(6*(mesh%n-2)),lbtri(6,mesh%n),listc(6*(mesh%n-2))
 real(kind_real) :: area_triangle,v1(3),v2(3),v3(3)
-real(kind_real) :: xc(6*(mesh%nnr-2)),yc(6*(mesh%nnr-2)),zc(6*(mesh%nnr-2)),rc(6*(mesh%nnr-2))
+real(kind_real) :: xc(6*(mesh%n-2)),yc(6*(mesh%n-2)),zc(6*(mesh%n-2)),rc(6*(mesh%n-2))
 logical :: loop
 
 ! Copy
@@ -684,7 +595,7 @@ lptr_tmp = mesh%lptr
 lnew_tmp = mesh%lnew
 
 ! Compute Voronoi polygons
-call crlist(mesh%nnr,mesh%nnr,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lend,lptr_tmp,lnew_tmp,lbtri,listc,nb,xc,yc,zc,rc,info)
+call crlist(mesh%n,mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lend,lptr_tmp,lnew_tmp,lbtri,listc,nb,xc,yc,zc,rc,info)
 
 do ip=1,np
    i_src = plist(ip)

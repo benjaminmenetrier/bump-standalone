@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_nicas_blk
 
-use model_interface, only: model_write
+use model_offline, only: model_write
 use netcdf
 use omp_lib
 use tools_const, only: pi,req,reqkm,deg2rad,rad2deg
@@ -308,26 +308,32 @@ integer :: il0i,il1
 
 ! Compute adaptive sampling
 write(mpl%unit,'(a7,a)') '','Compute adaptive sampling'
+call flush(mpl%unit)
 call nicas_blk%compute_sampling(nam,geom,cmat_blk)
 
 ! Compute horizontal interpolation data
 write(mpl%unit,'(a7,a)') '','Compute horizontal interpolation data'
+call flush(mpl%unit)
 call nicas_blk%compute_interp_h(nam,geom)
 
 ! Compute vertical interpolation data
 write(mpl%unit,'(a7,a)') '','Compute vertical interpolation data'
+call flush(mpl%unit)
 call nicas_blk%compute_interp_v(geom)
 
 ! Compute subsampling horizontal interpolation data
 write(mpl%unit,'(a7,a)') '','Compute subsampling horizontal interpolation data'
+call flush(mpl%unit)
 call nicas_blk%compute_interp_s(nam,geom)
 
 ! Compute MPI distribution, halos A-B
 write(mpl%unit,'(a7,a)') '','Compute MPI distribution, halos A-B'
+call flush(mpl%unit)
 call nicas_blk%compute_mpi_ab(geom)
 
 ! Compute convolution data
 write(mpl%unit,'(a7,a)') '','Compute convolution data'
+call flush(mpl%unit)
 if (nam%network) then
    call nicas_blk%compute_convol_network(nam,geom,cmat_blk)
 else
@@ -336,10 +342,12 @@ end if
 
 ! Compute MPI distribution, halo C
 write(mpl%unit,'(a7,a)') '','Compute MPI distribution, halo C'
+call flush(mpl%unit)
 call nicas_blk%compute_mpi_c(nam,geom)
 
 ! Compute normalization
 write(mpl%unit,'(a7,a)') '','Compute normalization'
+call flush(mpl%unit)
 call nicas_blk%compute_normalization(nam,geom)
 
 ! Print results
@@ -366,6 +374,7 @@ do il1=1,nicas_blk%nl1
    write(mpl%unit,'(a10,a,i3,a,i8)') '','s(',il1,')%n_s = ',nicas_blk%s(il1)%n_s
 end do
 write(mpl%unit,'(a10,a,i8)') '','c%n_s =      ',nicas_blk%c%n_s
+call flush(mpl%unit)
 
 end subroutine nicas_blk_compute_parameters
 
@@ -401,6 +410,7 @@ if (trim(nam%strategy)=='specific_multivariate') call rng%reseed
 write(mpl%unit,'(a10,a,a,f10.2,a,f10.2,a)') '','Average support radii (H/V): ', &
  & trim(aqua),sum(cmat_blk%rh0s)/float(geom%nc0*geom%nl0)*reqkm,trim(black)//' km  / ' &
  & //trim(aqua),sum(cmat_blk%rv0s)/float(geom%nc0*geom%nl0),trim(black)//' '//trim(vunitchar)
+call flush(mpl%unit)
 
 ! Basic horizontal mesh defined with the minimum support radius
 rh0smin = huge(1.0)
@@ -421,11 +431,13 @@ else
 end if
 nicas_blk%nc1 = min(nicas_blk%nc1,geom%nc0)
 write(mpl%unit,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: ',nicas_blk%nc1
+call flush(mpl%unit)
 if (nicas_blk%nc1>nc1max) then
    call msgwarning('required nc1 larger than nc1max, resetting to nc1max')
    nicas_blk%nc1 = nc1max
    write(mpl%unit,'(a10,a,f5.2)') '','Effective resolution: ',sqrt(float(nicas_blk%nc1)*sqrt(3.0)*rh0sminavg**2 &
  & /(2.0*maxval(geom%area)))
+   call flush(mpl%unit)
 end if
 mask_c0 = 0
 do ic0=1,geom%nc0
@@ -434,6 +446,7 @@ end do
 
 ! Compute subset
 write(mpl%unit,'(a7,a)') '','Compute horizontal subset C1'
+call flush(mpl%unit)
 allocate(nicas_blk%c1_to_c0(nicas_blk%nc1))
 if (mpl%main) call rng%initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_c0,rh0smin,nam%ntry,nam%nrep, &
  & nicas_blk%nc1,nicas_blk%c1_to_c0)
@@ -449,6 +462,7 @@ end do
 
 ! Vertical sampling
 write(mpl%unit,'(a7,a)',advance='no') '','Compute vertical subset L1: '
+call flush(mpl%unit)
 allocate(nicas_blk%llev(geom%nl0))
 il0_prev = 1
 do il0=1,geom%nl0
@@ -476,11 +490,13 @@ il1 = 0
 do il0=1,geom%nl0
    if (nicas_blk%llev(il0)) then
       write(mpl%unit,'(i3,a)',advance='no') nam%levs(il0),' '
+      call flush(mpl%unit)
       il1 = il1+1
       nicas_blk%l1_to_l0(il1) = il0
    end if
 end do
 write(mpl%unit,'(a)') ''
+call flush(mpl%unit)
 
 ! Find bottom and top for each point of S1
 allocate(nicas_blk%vbot(nicas_blk%nc1))
@@ -524,6 +540,7 @@ allocate(mask_c1(nicas_blk%nc1))
 ! Horizontal subsampling
 do il1=1,nicas_blk%nl1
    write(mpl%unit,'(a7,a,i3,a)') '','Compute horizontal subset C2 (level ',il1,')'
+   call flush(mpl%unit)
 
    ! Compute nc2
    il0 = nicas_blk%l1_to_l0(il1)
@@ -741,10 +758,12 @@ do il1=1,nicas_blk%nl1
       ! Check mask boundaries
       if (nam%mask_check) then
          write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Sublevel ',il1,': '
+         call flush(mpl%unit)
          call stmp%interp_check_mask(geom,valid,nicas_blk%l1_to_l0(il1),row_to_ic0=nicas_blk%c1_to_c0, &
        & col_to_ic0=nicas_blk%c1_to_c0)
       else
          write(mpl%unit,'(a10,a,i3)') '','Sublevel ',il1
+         call flush(mpl%unit)
       end if
 
       ! Renormalization
@@ -1165,7 +1184,6 @@ do ic0=1,geom%nc0
 end do
 
 ! Allocation
-write(mpl%unit,*) maxval(net_nnb),geom%nc0
 allocate(net_inb(maxval(net_nnb),geom%nc0))
 allocate(net_dnb(maxval(net_nnb),-1:1,geom%nc0,geom%nl0))
 
@@ -1244,6 +1262,7 @@ allocate(done(nicas_blk%nsb))
 
 ! Compute weights
 write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
+call flush(mpl%unit)
 call prog_init(progint,done)
 c_n_s = 0
 c_nor_n_s = 0
@@ -1377,6 +1396,7 @@ do isb=1,nicas_blk%nsb
 end do
 !$omp end parallel do
 write(mpl%unit,'(a)') '100%'
+call flush(mpl%unit)
 
 ! Initialize object
 nicas_blk%c%prefix = 'c'
@@ -1447,6 +1467,7 @@ end do
 
 ! Compute cover tree
 write(mpl%unit,'(a10,a)') '','Compute cover tree'
+call flush(mpl%unit)
 allocate(mask_ctree(nicas_blk%nc1))
 mask_ctree = .true.
 call ctree%create(nicas_blk%nc1,dble(geom%lon(nicas_blk%c1_to_c0)),dble(geom%lat(nicas_blk%c1_to_c0)),mask_ctree)
@@ -1466,6 +1487,7 @@ do while (.not.valid)
    force = ms>nicas_blk%nc1
    ms = max(1,min(ms,nicas_blk%nc1))
    write(mpl%unit,'(a10,a,i8,a,f5.1,a)') '','Try with ',ms,' neighbors (',float(ms)/float(nicas_blk%nc1)*100.0,'%)'
+   call flush(mpl%unit)
 
    ! Allocation
    if (allocated(nn_index)) deallocate(nn_index)
@@ -1513,6 +1535,7 @@ allocate(done(nicas_blk%nsb))
 
 ! Compute weights
 write(mpl%unit,'(a10,a)',advance='no') '','Compute weights: '
+call flush(mpl%unit)
 call prog_init(progint,done)
 c_n_s = 0
 c_nor_n_s = 0
@@ -1594,6 +1617,7 @@ do isb=1,nicas_blk%nsb
 end do
 !$omp end parallel do
 write(mpl%unit,'(a)') '100%'
+call flush(mpl%unit)
 
 ! Initialize object
 nicas_blk%c%prefix = 'c'
@@ -1968,6 +1992,7 @@ call msr(nicas_blk%norm)
 do il0=1,geom%nl0
    il0i = min(il0,geom%nl0i)
    write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Level ',nam%levs(il0),': '
+   call flush(mpl%unit)
    call prog_init(progint,done)
 
    !$omp parallel do schedule(static) private(ic0a,ic0,nlr,isc_add,S_add,ih,ic1b,ic1,jv,il1,is,ilr,conv,ic,jlr,isc,jsc), &
@@ -2088,6 +2113,7 @@ do il0=1,geom%nl0
    end do
    !$omp end parallel do
    write(mpl%unit,'(a)') '100%'
+   call flush(mpl%unit)
 end do
 
 ! Release memory
@@ -2126,6 +2152,7 @@ type(com_type) :: com_AD(mpl%nproc)
 type(com_type) :: com_ADinv(mpl%nproc)
 
 write(mpl%unit,'(a7,a)') '','Compute advection'
+call flush(mpl%unit)
 
 ! Allocation
 allocate(dfull(geom%nl0,2:nam%nts))
@@ -2399,6 +2426,7 @@ do its=2,nam%nts
       write(mpl%unit,'(a10,a,i3,a,i2,a,i8)') '','dinv(',il0,',',its,')%n_s = ',nicas_blk%dinv(il0,its)%n_s
    end do
 end do
+call flush(mpl%unit)
 
 end subroutine nicas_blk_compute_adv
 
@@ -3033,6 +3061,7 @@ call mpl%dot_prod(alpha,alpha_save,sum1)
 call mpl%dot_prod(gamma,gamma_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (subsampling): ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Interpolation (vertical)
 
@@ -3049,6 +3078,7 @@ call mpl%dot_prod(gamma,gamma_save,sum1)
 call mpl%dot_prod(delta,delta_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (vertical):    ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Interpolation (horizontal)
 
@@ -3065,6 +3095,7 @@ call mpl%dot_prod(delta,delta_save,sum1)
 call mpl%dot_prod(fld,fld_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (horizontal):  ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Interpolation (total)
 
@@ -3081,6 +3112,7 @@ call mpl%dot_prod(alpha,alpha_save,sum1)
 call mpl%dot_prod(fld,fld_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Interpolation adjoint test (total):       ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Allocation
 allocate(alpha1(nicas_blk%nsc))
@@ -3103,6 +3135,7 @@ call mpl%dot_prod(alpha1,alpha2_save,sum1)
 call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Convolution adjoint test:                 ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Allocation
 deallocate(alpha1)
@@ -3127,6 +3160,7 @@ call mpl%dot_prod(alpha1,alpha2_save,sum1)
 call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Communication AB adjoint test:            ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Allocation
 deallocate(alpha1)
@@ -3151,6 +3185,7 @@ call mpl%dot_prod(alpha1,alpha2_save,sum1)
 call mpl%dot_prod(alpha2,alpha1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Communication AC adjoint test:            ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 ! Allocation
 allocate(fld1(geom%nc0a,geom%nl0))
@@ -3178,6 +3213,7 @@ call mpl%dot_prod(fld1,fld2_save,sum1)
 call mpl%dot_prod(fld2,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test:                       ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 end subroutine nicas_blk_test_adjoint
 
@@ -3265,6 +3301,7 @@ do while (iter<=nitermax)
    ! Exit test
    if (egvmax+egvmin<-tol*egvmax) then
       write(mpl%unit,'(a7,a)') '','NICAS is not positive definite'
+      call flush(mpl%unit)
       exit
    end if
 
@@ -3277,6 +3314,7 @@ end do
 ! Non conclusive test
 if (iter==nitermax+1) write(mpl%unit,'(a7,a,e15.8,a,i4,a,e15.8)') '','NICAS seems to be positive definite: difference ', &
  & egvmax+egvmin,' after ',nitermax,' iterations for a tolerance ',tol
+call flush(mpl%unit)
 
 end subroutine nicas_blk_test_pos_def
 
@@ -3335,6 +3373,7 @@ nam%lsqrt = .not.nam%lsqrt
 
 ! Print difference
 write(mpl%unit,'(a7,a,f6.1,a)') '','NICAS full / square-root error:',sqrt(sum((fld_sqrt-fld)**2)/sum(fld**2))*100.0,'%'
+call flush(mpl%unit)
 
 ! End associate
 end associate
@@ -3397,18 +3436,22 @@ call model_write(nam,geom,filename,trim(bpar%blockname(ib))//'_dirac'//trim(suff
 
 ! Print results
 write(mpl%unit,'(a7,a)') '','Values at dirac points:'
+call flush(mpl%unit)
 do idir=1,nam%ndir
    if (iprocdir(idir)==mpl%myproc) val = fld(ic0adir(idir),il0dir(idir))
    call mpl%bcast(val,iprocdir(idir))
    write(mpl%unit,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir),' / ',nam%latdir(idir),': ',val
+   call flush(mpl%unit)
 end do
 write(mpl%unit,'(a7,a)') '','Min - max: '
+call flush(mpl%unit)
 do il0=1,geom%nl0
    valmin = minval(fld(:,il0),mask=geom%mask(geom%c0a_to_c0,il0))
    valmax = maxval(fld(:,il0),mask=geom%mask(geom%c0a_to_c0,il0))
    call mpl%allreduce_min(valmin,valmin_tot)
    call mpl%allreduce_max(valmax,valmax_tot)
    write(mpl%unit,'(a10,a,i3,a,f10.7,a,f10.7)') '','Level ',nam%levs(il0),': ',valmin_tot,' - ',valmax_tot
+   call flush(mpl%unit)
 end do
 
 if (nam%new_param) then
