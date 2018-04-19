@@ -51,7 +51,7 @@ call ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%nc0 = geom%nlon*geom%nlat
+geom%ng = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'level',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
@@ -88,6 +88,9 @@ do ilon=1,geom%nlon
    lat(ilon,:) = lat(1,:)
 end do
 
+! Not redundant grid
+call geom%find_redundant
+
 ! Pack
 call geom%alloc
 geom%lon = pack(real(lon,kind_real),mask=.true.)
@@ -104,9 +107,6 @@ if (nam%logpres) then
 else
    geom%vunit = float(nam%levs(1:geom%nl0))
 end if
-
-! Not redundant grid
-geom%redgrid = .false.
 
 ! Release memory
 deallocate(lon)

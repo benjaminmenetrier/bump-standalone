@@ -114,6 +114,7 @@ allocate(done(0:avg%nc2a))
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
       write(mpl%unit,'(a10,a,a,a)',advance='no') '','Block ',trim(bpar%blockname(ib)),':'
+      call flush(mpl%unit)
 
       ! Initialization
       call prog_init(progint,done)
@@ -127,6 +128,7 @@ do ib=1,bpar%nb
          call prog_print(progint,done)
       end do
       write(mpl%unit,'(a)') '100%'
+      call flush(mpl%unit)
    end if
 end do
 
@@ -161,6 +163,7 @@ allocate(done(0:avg_2%nc2a))
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
       write(mpl%unit,'(a10,a,a,a)',advance='no') '','Block ',trim(bpar%blockname(ib)),':'
+      call flush(mpl%unit)
 
       ! Initialization
       call prog_init(progint,done)
@@ -185,6 +188,7 @@ do ib=1,bpar%nb
          call prog_print(progint,done)
       end do
       write(mpl%unit,'(a)') '100%'
+      call flush(mpl%unit)
    end if
 end do
 
@@ -261,6 +265,7 @@ end select
 allocate(done(0:avg%nc2a))
 
 write(mpl%unit,'(a10,a,a,a)',advance='no') '','Block ',trim(bpar%blockname(bpar%nb+1)),':'
+call flush(mpl%unit)
 
 ! Initialization
 call prog_init(progint,done)
@@ -355,6 +360,7 @@ do ic2a=0,avg%nc2a
    call prog_print(progint,done)
 end do
 write(mpl%unit,'(a)') '100%'
+call flush(mpl%unit)
 
 end subroutine avg_compute_bwavg
 

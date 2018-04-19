@@ -84,7 +84,7 @@ if (${COMPILER} MATCHES "GNU")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -funroll-all-loops -O3 -fopenmp")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-g -Og -Wextra -Wall -pedantic -fbacktrace -ftrapv -fall-intrinsics -fcheck=all -fimplicit-none -ffpe-trap=invalid,zero,overflow -fopenmp")
    set (CMAKE_CXX_FLAGS_RELEASE "-g -O3 -std=c++11")
-   set (CMAKE_CXX_FLAGS_DEBUG "-g -O0 -std=c++11")
+   set (CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fno-exceptions -fstack-protector -Wl,-z,relro -Wl,-z,now -fvisibility=hidden -W -Wall -Wpointer-arith -Wformat -Wreturn-type -Wsign-compare -Wmultichar -Wformat-nonliteral -Winit-self -Wuninitialized -Wformat-security -std=c++11")
 endif (${COMPILER} MATCHES "GNU")
 #
 # Intel compiler

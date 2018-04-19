@@ -15,6 +15,9 @@ extern "C"
     // Destructor
     void delete_ctree(CTREE* ctree);
 
+    // Find redundant points
+    void find_redundant(CTREE* ctree, int n, double lon[], double lat[], int redundant[]);
+
     // Find nearest neighbors
     void find_nearest_neighbors(const CTREE* ctree, double lon, double lat, int nn, int nn_index[], double nn_dist[]);
 }

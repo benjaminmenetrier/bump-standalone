@@ -10,10 +10,9 @@
 !----------------------------------------------------------------------
 module type_nicas
 
-use driver_hdiag, only: run_hdiag
-use model_interface, only: model_write
+use model_offline, only: model_write
 use netcdf
-use tools_const, only: rad2deg,reqkm
+use tools_const, only: rad2deg,reqkm,pi
 use tools_display, only: msgerror,vunitchar
 use tools_func, only: cholesky
 use tools_kinds, only: kind_real
@@ -43,6 +42,7 @@ contains
    procedure :: read => nicas_read
    procedure :: write => nicas_write
    procedure :: write_mpi_summary => nicas_write_mpi_summary
+   procedure :: run_nicas => nicas_run_nicas
    procedure :: alloc_cv => nicas_alloc_cv
    procedure :: random_cv => nicas_random_cv
    procedure :: apply => nicas_apply
@@ -429,6 +429,209 @@ do ib=1,bpar%nb+1
 end do
 
 end subroutine nicas_write_mpi_summary
+
+!----------------------------------------------------------------------
+! Subroutine: nicas_run_nicas
+!> Purpose: NICAS driver
+!----------------------------------------------------------------------
+subroutine nicas_run_nicas(nicas,nam,geom,bpar,cmat,ens1)
+
+implicit none
+
+! Passed variables
+class(nicas_type),intent(inout) :: nicas                                                   !< NICAS data
+type(nam_type),intent(inout) :: nam                                                        !< Namelist
+type(geom_type),intent(inout) :: geom                                                      !< Geometry
+type(bpar_type),intent(in) :: bpar                                                         !< Block parameters
+type(cmat_type),intent(in) :: cmat                                                         !< C matrix data
+real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
+
+! Local variables
+integer :: ib,ic0,ic0a
+
+if (nam%new_param.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_sqrt.or.nam%check_dirac.or. &
+ & nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Call NICAS driver'
+   call flush(mpl%unit)
+
+   ! Allocation
+   call nicas%alloc(nam,bpar,'nicas')
+end if
+
+if (nam%new_param) then
+   ! Compute NICAS parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Compute NICAS parameters'
+   call flush(mpl%unit)
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib).or.((ib==bpar%nb+1).and.nam%displ_diag)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%unit)
+      end if
+
+      ! NICAS parameters
+      if (bpar%nicas_block(ib)) call nicas%blk(ib)%compute_parameters(nam,geom,cmat%blk(ib))
+
+      ! Advection
+      if ((ib==bpar%nb+1).and.nam%displ_diag) call nicas%blk(ib)%compute_adv(nam,geom,cmat%blk(ib))
+
+      if (bpar%B_block(ib)) then
+         ! Copy weights
+         nicas%blk(ib)%wgt = cmat%blk(ib)%wgt
+         if (bpar%nicas_block(ib)) then
+            allocate(nicas%blk(ib)%coef_ens(geom%nc0a,geom%nl0))
+            do ic0=1,geom%nc0
+               if (geom%c0_to_proc(ic0)==mpl%myproc) then
+                  ic0a = geom%c0_to_c0a(ic0)
+                  nicas%blk(ib)%coef_ens(ic0a,:) = cmat%blk(ib)%coef_ens(ic0,:)
+               end if
+            end do
+         end if
+      end if
+   end do
+
+   ! Write NICAS parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Write NICAS parameters'
+   call flush(mpl%unit)
+   call nicas%write(nam,geom,bpar)
+
+   ! Write NICAS MPI summary
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
+   call flush(mpl%unit)
+   call nicas%write_mpi_summary(nam,geom,bpar)
+elseif (nam%check_adjoints.or.nam%check_pos_def.or.nam%check_sqrt.or.nam%check_dirac.or. &
+ & nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality) then
+   ! Read NICAS parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Read NICAS parameters'
+   call flush(mpl%unit)
+   call nicas%read(nam,geom,bpar)
+end if
+
+if (nam%check_adjoints) then
+   ! Test adjoint
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS adjoint'
+   call flush(mpl%unit)
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%unit)
+         call nicas%blk(ib)%test_adjoint(nam,geom)
+      end if
+   end do
+
+   ! Test localization adjoint
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test localization adjoint'
+   call flush(mpl%unit)
+   if (present(ens1)) then
+      call nicas%test_adjoint(nam,geom,bpar,ens1)
+   else
+      call nicas%test_adjoint(nam,geom,bpar)
+   end if
+end if
+
+if (nam%check_pos_def) then
+   ! Test NICAS positive definiteness
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
+   call flush(mpl%unit)
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%unit)
+         call nicas%blk(ib)%test_pos_def(nam,geom)
+      end if
+   end do
+end if
+
+if (nam%check_sqrt) then
+   ! Test NICAS full/square-root equivalence
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
+   call flush(mpl%unit)
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%unit)
+         call nicas%blk(ib)%test_sqrt(nam,geom,bpar,cmat%blk(ib))
+      end if
+   end do
+
+   ! Test localization full/square-root equivalence
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test localization full/square-root equivalence'
+   call flush(mpl%unit)
+   if (present(ens1)) then
+      call nicas%test_sqrt(nam,geom,bpar,cmat,ens1)
+   else
+      call nicas%test_sqrt(nam,geom,bpar,cmat)
+   end if
+end if
+
+if (nam%check_dirac) then
+   ! Apply NICAS to diracs
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
+   call flush(mpl%unit)
+
+   do ib=1,bpar%nb+1
+      if (bpar%nicas_block(ib)) then
+         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%unit)
+         call nicas%blk(ib)%test_dirac(nam,geom,bpar)
+      end if
+   end do
+
+   ! Apply localization to diracs
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Apply localization to diracs'
+   call flush(mpl%unit)
+   if (present(ens1)) then
+      call nicas%test_dirac(nam,geom,bpar,ens1)
+   else
+      call nicas%test_dirac(nam,geom,bpar)
+   end if
+end if
+
+if (nam%check_randomization) then
+   ! Test NICAS randomization
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test NICAS randomization'
+   call flush(mpl%unit)
+   call nicas%test_randomization(nam,geom,bpar)
+end if
+
+if (nam%check_consistency) then
+   ! Test HDIAG_NICAS consistency
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test HDIAG_NICAS consistency'
+   call flush(mpl%unit)
+   call nicas%test_consistency(nam,geom,bpar,cmat)
+end if
+
+if (nam%check_optimality) then
+   ! Test HDIAG optimality
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test HDIAG optimality'
+   call flush(mpl%unit)
+   call nicas%test_optimality(nam,geom,bpar)
+end if
+
+end subroutine nicas_run_nicas
 
 !----------------------------------------------------------------------
 ! Subroutine: nicas_alloc_cv
@@ -1282,17 +1485,20 @@ call mpl%dot_prod(fld1_loc,fld2_save,sum1)
 call mpl%dot_prod(fld2_loc,fld1_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Localization adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 if (abs(nam%advmode)==1) then
    call mpl%dot_prod(fld1_adv,fld2_save,sum1)
    call mpl%dot_prod(fld2_adv,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+   call flush(mpl%unit)
 end if
 if (present(ens1)) then
    call mpl%dot_prod(fld1_bens,fld2_save,sum1)
    call mpl%dot_prod(fld2_bens,fld1_save,sum2)
    write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Ensemble B adjoint test:   ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+   call flush(mpl%unit)
 end if
 
 end subroutine nicas_test_adjoint
@@ -1410,6 +1616,7 @@ write(mpl%unit,'(a7,a,f6.1,a)') '','Localization full / square-root error : ', &
  & sqrt(sum((fld_loc_sqrt-fld_loc)**2)/sum(fld_loc**2))*100.0,'%'
 if (present(ens1)) write(mpl%unit,'(a7,a,f6.1,a)') '','Ensemble B full / square-root error:  ', &
  & sqrt(sum((fld_bens_sqrt-fld_bens)**2)/sum(fld_bens**2))*100.0,'%'
+call flush(mpl%unit)
 
 end subroutine nicas_test_sqrt
 
@@ -1513,10 +1720,12 @@ character(len=1024) :: filename
 
 ! Define test vectors
 write(mpl%unit,'(a4,a)') '','Define test vectors'
+call flush(mpl%unit)
 call define_test_vectors(nam,geom,ntest,fld_save)
 
 ! Apply localization to test vectors
 write(mpl%unit,'(a4,a)') '','Apply localization to test vectors'
+call flush(mpl%unit)
 fld_ref = fld_save
 do itest=1,ntest
    call nicas%apply_from_sqrt(nam,geom,bpar,fld_ref(:,:,:,:,itest))
@@ -1539,6 +1748,7 @@ end do
 ens1_ne = nam%ens1_ne
 
 write(mpl%unit,'(a4,a)') '','Test randomization for various ensemble sizes:'
+call flush(mpl%unit)
 do ifac=1,nfac
    ! Ensemble size
    nefac(ifac) = max(int(5.0*float(ifac)/float(nfac)*float(ne_rand)),3)
@@ -1577,6 +1787,7 @@ do ifac=1,nfac
    ! Print scores
    write(mpl%unit,'(a7,a,i4,a,e15.8,a,e15.8)') '','Ensemble size ',nefac(ifac),', MSE (exp. / th.): ', &
  & sum(mse(:,ifac))/float(ntest),' / ',sum(mse_th(:,ifac))/float(ntest)
+   call flush(mpl%unit)
 
    ! Release memory
    deallocate(ens1)
@@ -1611,6 +1822,7 @@ type(cmat_type) :: cmat_test
 ! Randomize ensemble
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Randomize ensemble'
+call flush(mpl%unit)
 call nicas%randomize(nam,geom,bpar,ne_rand,ens1)
 
 ! Copy sampling
@@ -1632,7 +1844,7 @@ nam%ens1_ne_offset = 0
 nam%ens1_nsub = 1
 
 ! Call hdiag driver
-call run_hdiag(nam,geom,bpar,cmat_test,ens1)
+call cmat_test%run_hdiag(nam,geom,bpar,ens1)
 
 ! Print scores
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -1650,6 +1862,7 @@ do ib=1,bpar%nb+1
       end do
    end if
 end do
+call flush(mpl%unit)
 
 ! Reset namelist variables
 nam%prefix = prefix
@@ -1685,10 +1898,12 @@ type(nicas_type) :: nicas_test
 
 ! Define test vectors
 write(mpl%unit,'(a4,a)') '','Define test vectors'
+call flush(mpl%unit)
 call define_test_vectors(nam,geom,ntest,fld_save)
 
 ! Apply localization to test vectors
 write(mpl%unit,'(a4,a)') '','Apply localization to test vectors'
+call flush(mpl%unit)
 fld_ref = fld_save
 do itest=1,ntest
    call nicas%apply_from_sqrt(nam,geom,bpar,fld_ref(:,:,:,:,itest))
@@ -1697,6 +1912,7 @@ end do
 ! Randomize ensemble
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Randomize ensemble'
+call flush(mpl%unit)
 call nicas%randomize(nam,geom,bpar,nam%ens1_ne,ens1)
 
 ! Copy sampling
@@ -1716,7 +1932,7 @@ call nicas_test%alloc(nam,bpar,'nicas_test')
 call cmat_save%alloc(nam,geom,bpar,'cmat_save')
 
 ! Call hdiag driver
-call run_hdiag(nam,geom,bpar,cmat_save,ens1)
+call cmat_save%run_hdiag(nam,geom,bpar,ens1)
 
 ! Copy cmat
 cmat_test = cmat_save%copy(nam,geom,bpar)
@@ -1727,6 +1943,7 @@ do ifac=1,nfac
 
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,f4.2,a)') '--- Apply a multiplicative factor ',fac(ifac),' to length-scales'
+   call flush(mpl%unit)
 
    do ib=1,bpar%nb+1
       if (bpar%nicas_block(ib)) then
@@ -1769,6 +1986,7 @@ do ifac=1,nfac
    ! Print scores
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a,f4.2,a,e15.8)') '--- Optimality results for a factor ',fac(ifac),', MSE: ',sum(mse(:,ifac))/float(ntest)
+   call flush(mpl%unit)
 end do
 
 ! Print scores summary
@@ -1777,6 +1995,7 @@ write(mpl%unit,'(a)') '--- Optimality results summary'
 do ifac=1,nfac
    write(mpl%unit,'(a7,a,f4.2,a,e15.8)') '','Factor ',fac(ifac),', MSE: ',sum(mse(:,ifac))/float(ntest)
 end do
+call flush(mpl%unit)
 
 ! Reset namelist variables
 nam%prefix = prefix

@@ -782,13 +782,13 @@ WARN_LOGFILE           =
 
 INPUT                  = mainpage.h \
                          ../src \
-                         ../CLOC_REPORT.dox \
-                         ../ENV_ECMWF.dox \
-                         ../ENV_MF.dox \
-                         ../ENV_NCAR.dox \
-                         ../LICENCE_MF.dox \
-                         ../LICENSE_MF.dox \
-                         ../README.dox
+                         ../doc/CLOC_REPORT.dox \
+                         ../doc/ENV_ECMWF.dox \
+                         ../doc/ENV_MF.dox \
+                         ../doc/ENV_NCAR.dox \
+                         ../doc/LICENCE_MF.dox \
+                         ../doc/LICENSE_MF.dox \
+                         ../doc/README.dox
 
 
 # This tag can be used to specify the character encoding of the source files

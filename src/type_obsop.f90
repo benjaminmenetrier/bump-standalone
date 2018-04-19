@@ -11,7 +11,7 @@
 module type_obsop
 
 use tools_const, only: pi,rad2deg,reqkm
-use tools_display, only: newunit,msgerror
+use tools_display, only: msgerror
 use tools_func, only: sphere_dist
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr
@@ -59,6 +59,8 @@ type obsop_type
    ! Communication data
    type(com_type) :: com                    !< Communication data
 contains
+   procedure :: generate => obsop_generate
+   procedure :: run_obsop => obsop_run_obsop
    procedure :: parameters => obsop_parameters
    procedure :: apply => obsop_apply
    procedure :: apply_ad => obsop_apply_ad
@@ -72,10 +74,10 @@ public :: obsop_type
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: obsop_parameters
-!> Purpose: compute observation operator interpolation parameters
+! Subroutine: obsop_generate
+!> Purpose: generate observations locations
 !----------------------------------------------------------------------
-subroutine obsop_parameters(obsop,nam,geom,local)
+subroutine obsop_generate(obsop,nam,geom)
 
 implicit none
 
@@ -83,7 +85,128 @@ implicit none
 class(obsop_type),intent(inout) :: obsop !< Observation operator data
 type(nam_type),intent(in) :: nam         !< Namelist
 type(geom_type),intent(in) :: geom       !< Geometry
-logical,intent(in),optional :: local     !< Local input data (default = .false.)
+
+! Local variables
+integer :: info,iobs
+real(kind_real) :: lat,lon
+logical :: readobs
+character(len=1024) :: filename
+
+! Define number of observations
+filename = trim(nam%datadir)//'/'//trim(nam%prefix)//'_obs_in.dat'
+inquire(file=trim(filename),exist=readobs)
+if (readobs) then
+   ! Read observation network
+   obsop%nobs = 0
+   open(unit=100,file=trim(filename),status='old')
+   do
+      read(100,*,iostat=info) lat,lon
+      if (info/=0) exit
+      obsop%nobs = obsop%nobs+1
+   end do
+   close(unit=100)
+   obsop%nobs = min(obsop%nobs,nam%nobs)
+   if (obsop%nobs<1) call msgerror('no observation in the file provided')
+else
+   ! Generate random observation network
+   obsop%nobs = nam%nobs
+end if
+
+! Allocation
+allocate(obsop%lonobs(obsop%nobs))
+allocate(obsop%latobs(obsop%nobs))
+
+! Get observation locations
+if (mpl%main) then
+   if (readobs) then
+      ! Read observation network
+      open(unit=100,file=trim(nam%datadir)//'/'//trim(nam%prefix)//'_obs_in.dat',status='old')
+      iobs = 0
+      do while (iobs<obsop%nobs)
+         read(100,*) lat,lon
+         iobs = iobs+1
+         obsop%lonobs(iobs) = lon
+         obsop%latobs(iobs) = lat
+      end do
+      close(unit=100)
+   else
+      ! Generate random observation network
+      if (abs(maxval(geom%area)-4.0*pi)<1.0e-1) then
+         ! Limited-area domain
+         call rng%rand_real(minval(geom%lon),maxval(geom%lon),obsop%lonobs)
+         call rng%rand_real(minval(geom%lat),maxval(geom%lat),obsop%latobs)
+      else
+         ! Global domain
+         call rng%rand_real(-pi,pi,obsop%lonobs)
+         call rng%rand_real(-1.0_kind_real,1.0_kind_real,obsop%latobs)
+         obsop%latobs = 0.5*pi-acos(obsop%latobs)
+      end if
+   end if
+end if
+
+! Broadcast data
+call mpl%bcast(obsop%lonobs,mpl%ioproc)
+call mpl%bcast(obsop%latobs,mpl%ioproc)
+
+! Print results
+write(mpl%unit,'(a7,a,i8)') '','Number of observations: ',obsop%nobs
+call flush(mpl%unit)
+
+end subroutine obsop_generate
+
+!----------------------------------------------------------------------
+! Subroutine: obsop_run_obsop
+!> Purpose: observation operator driver
+!----------------------------------------------------------------------
+subroutine obsop_run_obsop(obsop,nam,geom)
+
+implicit none
+
+! Passed variables
+class(obsop_type),intent(inout) :: obsop !< Observation operator data
+type(nam_type),intent(in) :: nam         !< Namelist
+type(geom_type),intent(in) :: geom       !< Geometry
+
+if (nam%new_obsop) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Call observation operator driver'
+   call flush(mpl%unit)
+
+   ! Compute observation operator parameters
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Compute observation operator parameters'
+   call flush(mpl%unit)
+   call obsop%parameters(nam,geom)
+
+   if (nam%check_adjoints) then
+      ! Test adjoints
+      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+      write(mpl%unit,'(a)') '--- Test observation operator adjoint'
+      call flush(mpl%unit)
+      call obsop%test_adjoint(geom)
+   end if
+
+   ! Test precision
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- Test observation operator precision'
+   call flush(mpl%unit)
+   call obsop%test_accuracy(geom)
+end if
+
+end subroutine obsop_run_obsop
+
+!----------------------------------------------------------------------
+! Subroutine: obsop_parameters
+!> Purpose: compute observation operator interpolation parameters
+!----------------------------------------------------------------------
+subroutine obsop_parameters(obsop,nam,geom)
+
+implicit none
+
+! Passed variables
+class(obsop_type),intent(inout) :: obsop !< Observation operator data
+type(nam_type),intent(in) :: nam         !< Namelist
+type(geom_type),intent(in) :: geom       !< Geometry
 
 ! Local variables
 integer :: offset,iobs,jobs,iobsa,iproc,nobsa,i_s,ic0,ic0b,i,ic0a,nc0a,nc0b,delta,nres,ind(1),lunit
@@ -91,21 +214,48 @@ integer :: imin(1),imax(1),nmoves,imoves
 integer,allocatable :: nop(:),iop(:),srcproc(:,:),srcic0(:,:),order(:),nobs_to_move(:),nobs_to_move_tmp(:),obs_moved(:,:)
 integer,allocatable :: c0_to_c0a(:),c0a_to_c0(:),c0b_to_c0(:),c0a_to_c0b(:)
 real(kind_real) :: N_max,C_max
-real(kind_real),allocatable :: lonobs(:),latobs(:),list(:)
-logical :: llocal
+real(kind_real),allocatable :: proc_to_lonobs(:),proc_to_latobs(:),lonobs(:),latobs(:),list(:)
+logical :: global
 logical,allocatable :: maskobs(:),lcheck_nc0b(:)
 type(com_type) :: com(mpl%nproc)
-
-! Default: global input data
-llocal = .false.
-if (present(local)) llocal = local
 
 ! Allocation
 allocate(obsop%proc_to_nobsa(mpl%nproc))
 
-if (llocal) then
+! Find out if obs are global or local
+call mpl%allgather(1,(/obsop%nobs/),obsop%proc_to_nobsa)
+global = all(obsop%proc_to_nobsa==obsop%proc_to_nobsa(mpl%ioproc))
+if (global) then
+   ! Allocation
+   allocate(proc_to_lonobs(mpl%nproc))
+   allocate(proc_to_latobs(mpl%nproc))
+
+   iobs = 1
+   do while (global.and.(iobs<=obsop%nobs))
+      ! Gather
+      call mpl%allgather(1,(/obsop%lonobs(iobs)/),proc_to_lonobs)
+      call mpl%allgather(1,(/obsop%latobs(iobs)/),proc_to_latobs)
+
+      ! Check
+      global = all(.not.abs(proc_to_lonobs-proc_to_lonobs(mpl%ioproc))<0.0) &
+             & .and.all(.not.abs(proc_to_latobs-proc_to_latobs(mpl%ioproc))<0.0)
+
+      ! Update
+      iobs = iobs+1
+   end do
+end if
+
+if (global) then
+   ! Allocation
+   allocate(lonobs(obsop%nobs))
+   allocate(latobs(obsop%nobs))
+
+   ! Copy coordinates
+   lonobs = obsop%lonobs
+   latobs = obsop%latobs
+else
    ! Get global number of observations
-   call mpl%allgather(1,(/obsop%nobsa/),obsop%proc_to_nobsa)
+   obsop%nobsa = obsop%nobs
    obsop%nobs = sum(obsop%proc_to_nobsa)
 
    ! Allocation
@@ -143,14 +293,6 @@ if (llocal) then
    ! Broadcast data
    call mpl%bcast(lonobs,mpl%ioproc)
    call mpl%bcast(latobs,mpl%ioproc)
-else
-   ! Allocation
-   allocate(lonobs(obsop%nobs))
-   allocate(latobs(obsop%nobs))
-
-   ! Copy coordinates
-   lonobs = obsop%lonobs
-   latobs = obsop%latobs
 end if
 
 ! Allocation
@@ -163,6 +305,7 @@ allocate(obsop%obs_to_obsa(obsop%nobs))
 ! Compute interpolation
 obsop%hfull%prefix = 'o'
 write(mpl%unit,'(a7,a)') '','Single level:'
+call flush(mpl%unit)
 maskobs = .true.
 call obsop%hfull%interp(geom%mesh,geom%ctree,geom%nc0,any(geom%mask,dim=2),obsop%nobs,lonobs,latobs,maskobs,nam%obsop_interp)
 
@@ -190,16 +333,7 @@ do i_s=1,obsop%hfull%n_s
    srcic0(iop(iobs),iobs) = ic0
 end do
 
-if (llocal) then
-   ! Fill obs_to_proc
-   iobs = 0
-   do iproc=1,mpl%nproc
-      do iobsa=1,obsop%proc_to_nobsa(iproc)
-         iobs = iobs+1
-         obsop%obs_to_proc(iobs) = iproc
-      end do
-   end do
-else
+if (global) then
    ! Generate observation distribution on processors
    select case (trim(nam%obsdis))
    case('random')
@@ -315,10 +449,19 @@ else
       ! Number of observations per proc
       obsop%proc_to_nobsa(iproc) = obsop%proc_to_nobsa(iproc)+1
    end do
-end if
 
-! Define nobsa
-obsop%nobsa = obsop%proc_to_nobsa(mpl%myproc)
+   ! Define nobsa
+   obsop%nobsa = obsop%proc_to_nobsa(mpl%myproc)
+else
+   ! Fill obs_to_proc
+   iobs = 0
+   do iproc=1,mpl%nproc
+      do iobsa=1,obsop%proc_to_nobsa(iproc)
+         iobs = iobs+1
+         obsop%obs_to_proc(iobs) = iproc
+      end do
+   end do
+end if
 
 ! Allocation
 allocate(obsop%obsa_to_obs(obsop%nobsa))
@@ -540,9 +683,10 @@ else
  & obsop%com%nred,' / ',obsop%com%next,' / ',obsop%com%nhalo
 end if
 if (mpl%main) write(mpl%unit,'(a7,a,f10.2,a,f10.2)') '','Scores (N_max / C_max):',N_max,' / ',C_max
+call flush(mpl%unit)
 
 if (mpl%main) then
-   lunit = newunit()
+   call mpl%newunit(lunit)
 
    ! Write observations
    open(unit=lunit,file=trim(nam%datadir)//'/'//trim(nam%prefix)//'_obs_out.dat',status='replace')
@@ -553,7 +697,7 @@ if (mpl%main) then
 
    ! Write scores
    if (mpl%nproc>1) then
-      lunit = newunit()
+      call mpl%newunit(lunit)
       open(unit=lunit,file=trim(nam%datadir)//'/'//trim(nam%prefix)//'_obs_scores_'//trim(nam%obsdis)//'.dat',status='replace')
       write(lunit,*) N_max,C_max
       close(unit=lunit)
@@ -661,6 +805,7 @@ call mpl%dot_prod(fld,fld_save,sum1)
 call mpl%dot_prod(yobs,yobs_save,sum2)
 write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Observation operator adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
+call flush(mpl%unit)
 
 end subroutine obsop_test_adjoint
 
@@ -753,6 +898,7 @@ if (norm_tot>0.0) then
  & ' deg. / ' ,obsop%latobs(iobsmax(1))*rad2deg,' deg.'
    write(mpl%unit,'(a10,a14,f10.2,a,f10.2,a)') '','Interpolation:',ylonmax*rad2deg, &
  & ' deg. / ' ,ylatmax*rad2deg,' deg.'
+   call flush(mpl%unit)
 else
    call msgerror('all observations are out of the test windows')
 end if

@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_mom
 
-use model_interface, only: model_read
+use model_offline, only: model_read
 use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
@@ -159,10 +159,12 @@ do isub=1,nsub
    else
       write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
    end if
+   call flush(mpl%unit)
 
    ! Compute centered moments iteratively
    do ie=1,ne/nsub
       write(mpl%unit,'(i4)',advance='no') ne_offset+ie
+      call flush(mpl%unit)
 
       ! Computation factors
       fac1 = 2.0/float(ie)
@@ -317,6 +319,7 @@ do isub=1,nsub
       deallocate(mask_unpack)
    end do
    write(mpl%unit,'(a)') ''
+   call flush(mpl%unit)
 
    ! Normalize statistics
    do ib=1,bpar%nb

@@ -113,8 +113,11 @@ call minim%cost(minim%x,minim%f_min)
 ! Test
 if (minim%f_min<minim%f_guess) then
    minim%x = minim%x*minim%norm
-   if (lprt) write(mpl%unit,'(a13,a,f6.1,a)') '','Minimizer '//trim(minim%algo)//', cost function decrease:', &
- & abs(minim%f_min-minim%f_guess)/minim%f_guess*100.0,'%'
+   if (lprt) then
+      write(mpl%unit,'(a13,a,f6.1,a)') '','Minimizer '//trim(minim%algo)//', cost function decrease:', &
+    & abs(minim%f_min-minim%f_guess)/minim%f_guess*100.0,'%'
+      call flush(mpl%unit)
+   end if
 else
    minim%x = minim%guess
    if (lprt) call msgwarning('Minimizer '//trim(minim%algo)//' failed')
@@ -220,17 +223,22 @@ real(kind_real),intent(in) :: x(minim%nx) !< Control vector
 real(kind_real),intent(out) :: f          !< Cost function value
 
 ! Local variables
-integer :: ix,ncomptot
+integer :: ix
 real(kind_real) :: fit(minim%nc3,minim%nl0)
-real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),xx
+real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),xx,coef(minim%nscales)
 
 ! Renormalize
 xtmp = x*minim%norm
 
 ! Compute function
-ncomptot = sum(minim%ncomp)
+if (minim%nscales==1) then
+   coef = 1.0
+else
+   coef(1:minim%nscales-1) = xtmp(sum(minim%ncomp)+1:sum(minim%ncomp)+minim%nscales-1)
+   coef(minim%nscales) = 1.0-sum(coef(1:minim%nscales-1))
+end if
 call fit_lct(minim%nc3,minim%nl0,minim%dx,minim%dy,minim%dz,minim%dmask,minim%nscales,minim%ncomp, &
- & xtmp(1:ncomptot),xtmp(ncomptot+1:ncomptot+minim%nscales),fit)
+ & xtmp(1:sum(minim%ncomp)),coef,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)

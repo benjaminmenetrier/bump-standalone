@@ -50,7 +50,7 @@ module load cray-netcdf
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-aprun -N ${ntasks_per_node} -n ${ntasks} -d $OMP_NUM_THREADS -j 1 ${rootdir}/run/hdiag_nicas < namelist
+aprun -N ${ntasks_per_node} -n ${ntasks} -d $OMP_NUM_THREADS -j 1 ${rootdir}/run/hdiag_nicas namelist
 
 EOFNAM
 #----------------------------------------------------------------------

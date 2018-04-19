@@ -51,7 +51,7 @@ call ncerr(subr,nf90_inq_dimid(ncid,'lon',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'lat',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%nc0 = geom%nlon*geom%nlat
+geom%ng = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'lev',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
@@ -103,7 +103,7 @@ else
 end if
 
 ! Not redundant grid
-geom%redgrid = .false.
+call geom%find_redundant
 
 ! Release memory
 deallocate(lon)

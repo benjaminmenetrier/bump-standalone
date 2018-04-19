@@ -52,7 +52,7 @@ cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-srun --mpi=pmi2 ${rootdir}/run/hdiag_nicas < namelist
+srun --mpi=pmi2 ${rootdir}/run/hdiag_nicas namelist
 EOFNAM
 
 #----------------------------------------------------------------------

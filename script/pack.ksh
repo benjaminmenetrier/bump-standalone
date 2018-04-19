@@ -10,10 +10,8 @@ cd ..
 rm -fr pack
 mkdir pack
 
-# Copy LICENCE.dox, LICENSE.dox, README.dox, CHANGE_LOG.dox and .gitignore
-cp -f *.dox .gitignore pack
-
-# Copy CMakeLists.txt
+# Copy files in the main folder
+cp -f .gitignore pack
 cp -f CMakeLists.txt pack
 
 # Copy data
@@ -29,6 +27,7 @@ done
 
 # Copy doc
 mkdir pack/doc
+cp -f doc/*.dox pack/doc
 cp -f doc/Doxyfile pack/doc
 cp -f doc/mainpage.h pack/doc
 
