@@ -3,7 +3,7 @@
 # Korn shell script: pack
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 # Make a temporary directory
 cd ..
@@ -13,6 +13,8 @@ mkdir pack
 # Copy files in the main folder
 cp -f .gitignore pack
 cp -f CMakeLists.txt pack
+cp -f LICENSE pack
+cp -f README.md pack
 
 # Copy data
 mkdir pack/data
@@ -59,9 +61,9 @@ cp -f test/truth_*.nc pack/test
 # Rename and pack everything
 find pack -type f -name '*~' -delete
 today=`date +%Y%m%d`
-rm -fr hdiag_nicas
-mv pack hdiag_nicas
-tar -cvzf hdiag_nicas_${today}.tar.gz hdiag_nicas
+rm -fr bump
+mv pack bump
+tar -cvzf bump_${today}.tar.gz bump
 
 # Clean
-rm -fr hdiag_nicas
+rm -fr bump

@@ -3,7 +3,7 @@
 # Korn shell script: ifs/links.ksh
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 # ----------------------------------------------------------------------
 
 # Link members (requested from MARS using a full Gaussian grid, and converted into NetCDF with grib_to_netcdf)

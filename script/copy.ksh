@@ -1,11 +1,16 @@
 #!/bin/ksh
-
-# HDIAG_NICAS source
-src=${HOME}/code/hdiag_nicas/src
+#----------------------------------------------------------------------
+# Korn shell script: copy
+# Author: Benjamin Menetrier
+# Licensing: this code is distributed under the CeCILL-C license
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+#----------------------------------------------------------------------
+# BUMP source
+src=${HOME}/code/bump/src
 
 if [ $1 == "jedi" ] ; then
-   # JEDI directory for HDIAG_NICAS
-   dst=${HOME}/code/jedi-bundle/oops/src/oops/generic/hdiag_nicas
+   # JEDI directory for BUMP
+   dst=${HOME}/code/jedi-bundle/oops/src/oops/generic/bump
 
    # Sync
    mkdir -p ${dst}
@@ -16,17 +21,17 @@ if [ $1 == "jedi" ] ; then
    echo "To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt:"
    for file in `ls ${src}` ; do
       if [ "${file}" != "main.f90" ]&&[ "${file}" != "external" ] ; then
-         echo oops/generic/hdiag_nicas/${file}
+         echo oops/generic/bump/${file}
       fi
    done
    for file in `ls ${src}/external` ; do
-      echo oops/generic/hdiag_nicas/external/${file}
+      echo oops/generic/bump/external/${file}
    done
 fi
 
 if [ $1 == "nemovar" ] ; then
-   # NEMOVAR directory for HDIAG_NICAS
-   dst=${HOME}/code/nemovar/UTIL/tools/hdiag_nicas
+   # NEMOVAR directory for BUMP
+   dst=${HOME}/code/nemovar/EXTERNAL/bump
 
    # Sync
    mkdir -p ${dst}
@@ -34,16 +39,16 @@ if [ $1 == "nemovar" ] ; then
 fi
 
 if [ $1 == "pack" ] ; then
-   # OOPS directory for HDIAG_NICAS
-   dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/hdiag_nicas
+   # OOPS directory for BUMP
+   dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/bump
 
    # Sync
    lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.f90 -X yomhook.f90 -e -R $src $dst;quit"
 fi
 
 if [ $1 == "sc" ] ; then
-   # Directory for HDIAG_NICAS
-   dst=/home/gmap/mrpa/menetrie/code/hdiag_nicas/src
+   # Directory for BUMP
+   dst=/home/gmap/mrpa/menetrie/code/bump/src
 
    # Sync
    lftp ftp://menetrie@$2 -e "mirror -e -R $src $dst;quit"

@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module model_wrf
 
@@ -23,7 +23,7 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_wrf_coord,model_wrf_read,model_wrf_write
+public :: model_wrf_coord,model_wrf_read
 
 contains
 
@@ -41,6 +41,7 @@ type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
+integer :: il0,ilon,ilat,ic0
 real(kind=4) :: dx,dy
 real(kind=4),allocatable :: lon(:,:),lat(:,:),pres(:)
 character(len=1024) :: subr = 'model_wrf_coord'
@@ -51,18 +52,14 @@ call ncerr(subr,nf90_inq_dimid(ncid,'west_east',nlon_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inq_dimid(ncid,'south_north',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%ng = geom%nlon*geom%nlat
+geom%nmg = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'bottom_top',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
 allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
-allocate(geom%rgmask(geom%nlon,geom%nlat))
 allocate(pres(geom%nlev))
-
-! Initialization
-geom%rgmask = .true.
 
 ! Read data and close file
 call ncerr(subr,nf90_inq_varid(ncid,'XLONG',lon_id))
@@ -75,7 +72,7 @@ call ncerr(subr,nf90_get_att(ncid,nf90_global,'DX',dx))
 call ncerr(subr,nf90_get_att(ncid,nf90_global,'DY',dy))
 call ncerr(subr,nf90_close(ncid))
 
-! Conversion to radian
+! Convert to radian
 lon = lon*real(deg2rad,kind=4)
 lat = lat*real(deg2rad,kind=4)
 
@@ -84,20 +81,32 @@ call geom%find_redundant
 
 ! Pack
 call geom%alloc
-geom%lon = pack(real(lon,kind_real),mask=.true.)
-geom%lat = pack(real(lat,kind_real),mask=.true.)
-geom%mask = .true.
+ic0 = 0
+do ilon=1,geom%nlon
+   do ilat=1,geom%nlat
+      ic0 = ic0+1
+      geom%c0_to_lon(ic0) = ilon
+      geom%c0_to_lat(ic0) = ilat
+      geom%lon(ic0) = real(lon(ilon,ilat),kind_real)
+      geom%lat(ic0) = real(lat(ilon,ilat),kind_real)
+      geom%mask(ic0,:) = .true.
+   end do
+end do
 
 ! Compute normalized area
-geom%area = float(geom%nlon*geom%nlat)*dx*dy/req**2
+do il0=1,geom%nl0
+   geom%area(il0) = real(count(geom%mask(:,il0)),kind_real)*dx*dy/req**2
+end do
 
 ! Vertical unit
-if (nam%logpres) then
-   geom%vunit(1:nam%nl) = log(pres(nam%levs(1:nam%nl)))
-   if (geom%nl0>nam%nl) geom%vunit(geom%nl0) = log(ps)
-else
-   geom%vunit = float(nam%levs(1:geom%nl0))
-end if
+do ic0=1,geom%nc0
+   if (nam%logpres) then
+      geom%vunit(ic0,1:nam%nl) = log(pres(nam%levs(1:nam%nl)))
+      if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(ps)
+   else
+      geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
+   end if
+end do
 
 ! Release memory
 deallocate(lon)
@@ -110,147 +119,84 @@ end subroutine model_wrf_coord
 ! Subroutine: model_wrf_read
 !> Purpose: read WRF field
 !----------------------------------------------------------------------
-subroutine model_wrf_read(nam,geom,ncid,its,fld)
+subroutine model_wrf_read(nam,geom,filename,its,fld)
 
 implicit none
 
 ! Passed variables
 type(nam_type),intent(in) :: nam                              !< Namelist
 type(geom_type),intent(in) :: geom                            !< Geometry
-integer,intent(in) :: ncid                                    !< NetCDF file ID
+character(len=*),intent(in) :: filename                       !< File name
 integer,intent(in) :: its                                     !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0
-integer :: fld_id
-real(kind=4),allocatable :: fld_loc(:,:)
-real(kind_real) :: fld_glb(geom%nc0,geom%nl0)
+integer :: iv,il0,ic0a,ic0,ilon,ilat,iproc
+integer :: ncid,fld_id
+real(kind=4) :: fld_tmp,fld_tmp2
 character(len=1024) :: subr = 'model_wrf_read'
 
 ! Initialize field
 call msr(fld)
 
-do iv=1,nam%nv
-   if (mpl%main) then
-      ! 3d variable
+do iproc=1,mpl%nproc
+   if (mpl%myproc==iproc) then
+      ! Open file
+      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
-      ! Allocation
-      select case (trim(nam%varname(iv)))
-      case ('U')
-         allocate(fld_loc(geom%nlon+1,geom%nlat))
-      case ('V')
-         allocate(fld_loc(geom%nlon,geom%nlat+1))
-      case default
-         allocate(fld_loc(geom%nlon,geom%nlat))
-      end select
+      do iv=1,nam%nv
+         ! 3d variable
 
-      ! Get variable id
-      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+         ! Get variable id
+         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
-      ! 3d variable
-      do il0=1,nam%nl
-         select case (trim(nam%varname(iv)))
-         case ('U')
-            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),nam%timeslot(its)/),(/geom%nlon+1,geom%nlat,1,1/)))
-            fld_glb(:,il0) = pack(real(0.5*(fld_loc(1:geom%nlon,:)+fld_loc(2:geom%nlon+1,:)),kind_real),mask=.true.)
-         case ('V')
-            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),nam%timeslot(its)/),(/geom%nlon,geom%nlat+1,1,1/)))
-            fld_glb(:,il0) = pack(real(0.5*(fld_loc(:,1:geom%nlat)+fld_loc(:,2:geom%nlat+1)),kind_real),mask=.true.)
-         case default
-            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%levs(il0),nam%timeslot(its)/),(/geom%nlon,geom%nlat,1,1/)))
-            fld_glb(:,il0) = pack(real(fld_loc,kind_real),mask=.true.)
-         end select
+         ! 3d variable
+         do il0=1,nam%nl
+            do ic0a=1,geom%nc0a
+               ic0 = geom%c0a_to_c0(ic0a)
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               select case (trim(nam%varname(iv)))
+               case ('U')
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon+1,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  fld(ic0a,il0,iv) = real(0.5*(fld_tmp+fld_tmp2),kind_real)
+               case ('V')
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,ilat+1,nam%levs(il0),nam%timeslot(its)/)))
+                  fld(ic0a,il0,iv) = real(0.5*(fld_tmp+fld_tmp2),kind_real)
+               case default
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
+               end select
+            end do
+         end do
+
+         if (trim(nam%addvar2d(iv))/='') then
+            ! 2d variable
+
+            ! Get id
+            call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+
+            ! Read data
+            do ic0a=1,geom%nc0a
+               ic0 = geom%c0a_to_c0(ic0a)
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%timeslot(its)/)))
+               fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
+            end do
+         end if
       end do
 
-      if (trim(nam%addvar2d(iv))/='') then
-         ! 2d variable
-
-         ! Get id
-         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%timeslot(its)/),(/geom%nlon,geom%nlat,1/)))
-         fld_glb(:,geom%nl0) = pack(real(fld_loc,kind_real),.true.)
-      end if
-
-      ! Release memory
-      deallocate(fld_loc)
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
    end if
 
-   ! Split over processors
-   call geom%fld_com_gl(fld_glb,fld(:,:,iv))
+   ! Wait
+   call mpl%barrier
 end do
 
 end subroutine model_wrf_read
-
-!----------------------------------------------------------------------
-! Subroutine: model_wrf_write
-!> Purpose: write WRF field
-!----------------------------------------------------------------------
-subroutine model_wrf_write(geom,ncid,varname,fld)
-
-implicit none
-
-! Passed variables
-type(geom_type),intent(in) :: geom                    !< Geometry
-integer,intent(in) :: ncid                            !< NetCDF file ID
-character(len=*),intent(in) :: varname                !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
-
-! Local variables
-integer :: il0,info
-integer :: nlon_id,nlat_id,nlev_id,fld_id,lon_id,lat_id
-real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0)
-character(len=1024) :: subr = 'model_wrf_write'
-
-! Local to global
-call geom%fld_com_lg(fld,fld_glb)
-
-if (mpl%main) then
-   ! Get variable id
-   info = nf90_inq_varid(ncid,trim(varname),fld_id)
-
-   ! Define dimensions and variable if necessary
-   if (info/=nf90_noerr) then
-      call ncerr(subr,nf90_redef(ncid))
-      info = nf90_inq_dimid(ncid,'west_east',nlon_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'west_east',geom%nlon,nlon_id))
-      info = nf90_inq_dimid(ncid,'south_north',nlat_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'south_north',geom%nlat,nlat_id))
-      info = nf90_inq_dimid(ncid,'bottom_top',nlev_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'bottom_top',geom%nl0,nlev_id))
-      call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
-      call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_enddef(ncid))
-   end if
-
-   ! Write data
-   do il0=1,geom%nl0
-      if (isanynotmsr(fld_glb(:,il0))) then
-         call msr(fld_loc)
-         fld_loc = unpack(fld_glb(:,il0),geom%rgmask,fld_loc)
-         call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
-      end if
-   end do
-
-   ! Write coordinates
-   info = nf90_inq_varid(ncid,'XLONG',lon_id)
-   if (info/=nf90_noerr) then
-      call ncerr(subr,nf90_redef(ncid))
-      call ncerr(subr,nf90_def_var(ncid,'XLONG',ncfloat,(/nlon_id,nlat_id/),lon_id))
-      call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_def_var(ncid,'XLAT',ncfloat,(/nlon_id,nlat_id/),lat_id))
-      call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_enddef(ncid))
-      call msr(fld_loc)
-      fld_loc = unpack(geom%lon*rad2deg,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc))
-      fld_loc = unpack(geom%lat*rad2deg,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lat_id,fld_loc))
-   end if
-end if
-
-end subroutine model_wrf_write
 
 end module model_wrf

@@ -6,13 +6,13 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_mpl
 
 use iso_c_binding
 use mpi
-use omp_lib
+!$ use omp_lib
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,isnotmsi,isnotmsr
 
@@ -65,18 +65,28 @@ contains
    procedure :: mpl_send_real_array_1d
    procedure :: mpl_send_logical_array_1d
    generic :: send => mpl_send_integer,mpl_send_integer_array_1d,mpl_send_real_array_1d,mpl_send_logical_array_1d
+   procedure :: mpl_gatherv_real
+   generic :: gatherv => mpl_gatherv_real
+   procedure :: mpl_scatterv_real
+   generic :: scatterv => mpl_scatterv_real
    procedure :: mpl_allgather_integer
    procedure :: mpl_allgather_real
    procedure :: mpl_allgather_logical
    generic :: allgather => mpl_allgather_integer,mpl_allgather_real,mpl_allgather_logical
+   procedure :: mpl_allgatherv_real
+   generic :: allgatherv => mpl_allgatherv_real
    procedure :: mpl_alltoallv_real
    generic :: alltoallv => mpl_alltoallv_real
    procedure :: mpl_allreduce_sum_integer
    procedure :: mpl_allreduce_sum_real
    procedure :: mpl_allreduce_sum_real_array_1d
    generic :: allreduce_sum => mpl_allreduce_sum_integer,mpl_allreduce_sum_real,mpl_allreduce_sum_real_array_1d
-   procedure :: allreduce_min => mpl_allreduce_min_real
-   procedure :: allreduce_max => mpl_allreduce_max_real
+   procedure :: mpl_allreduce_min_real
+   procedure :: mpl_allreduce_min_real_array_1d
+   generic :: allreduce_min => mpl_allreduce_min_real,mpl_allreduce_min_real_array_1d
+   procedure :: mpl_allreduce_max_real
+   procedure :: mpl_allreduce_max_real_array_1d
+   generic :: allreduce_max => mpl_allreduce_max_real,mpl_allreduce_max_real_array_1d
    procedure :: mpl_dot_prod_1d
    procedure :: mpl_dot_prod_2d
    procedure :: mpl_dot_prod_3d
@@ -109,7 +119,7 @@ class(mpl_type) :: mpl       !< MPL object
 integer,intent(out) :: lunit !< New unit
 
 ! Local variables
-integer :: lun
+integer :: lun,dum
 logical :: lopened
 
 ! Initialize
@@ -123,6 +133,9 @@ do lun=lunit_min,lunit_max
       exit
    end if
 end do
+
+! To avoid compilation warnings
+dum = mpl%ioproc
 
 end subroutine mpl_newunit
 
@@ -156,13 +169,14 @@ end subroutine mpl_check
 ! Subroutine: mpl_init
 !> Purpose: start MPI
 !----------------------------------------------------------------------
-subroutine mpl_init(mpl,mpi_comm)
+subroutine mpl_init(mpl,mpi_comm,listing)
 
 implicit none
 
 ! Passed variables
-class(mpl_type) :: mpl         !< MPL object
-integer,intent(in) :: mpi_comm !< MPI communicator
+class(mpl_type) :: mpl                 !< MPL object
+integer,intent(in) :: mpi_comm         !< MPI communicator
+integer,intent(in),optional :: listing !< Main listing unit
 
 ! Local variables
 integer :: info,iproc
@@ -201,14 +215,19 @@ call omp_set_num_threads(mpl%nthread)
 
 ! Define unit and open file
 do iproc=1,mpl%nproc
-   ! Deal with each proc sequentially
-   if (iproc==mpl%myproc) then
-      ! Find a free unit
-      call mpl%newunit(mpl%unit)
+   if (mpl%main.and.present(listing)) then
+      ! Specific listing unit
+      mpl%unit = listing
+   else
+      ! Deal with each proc sequentially
+      if (iproc==mpl%myproc) then
+         ! Find a free unit
+         call mpl%newunit(mpl%unit)
 
-      ! Open listing file
-      write(myprocchar,'(i4.4)') mpl%myproc-1
-      open(unit=mpl%unit,file='hdiag_nicas.out.'//myprocchar,action='write',status='replace')
+         ! Open listing file
+         write(myprocchar,'(i4.4)') mpl%myproc-1
+         open(unit=mpl%unit,file='bump.out.'//myprocchar,action='write',status='replace')
+      end if
    end if
 
    ! Wait
@@ -276,15 +295,22 @@ subroutine mpl_bcast_integer(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpl_type) :: mpl     !< MPL object
-integer,intent(in) :: var  !< Integer
-integer,intent(in) :: root !< Root task
+class(mpl_type) :: mpl              !< MPL object
+integer,intent(in) :: var           !< Integer
+integer,intent(in),optional :: root !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,1,mpi_integer,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,1,mpi_integer,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -305,13 +331,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                 !< MPL object
 integer,dimension(:),intent(in) :: var !< Integer array, 1d
-integer,intent(in) :: root             !< Root task
+integer,intent(in),optional :: root    !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_integer,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpi_integer,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -332,13 +365,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                   !< MPL object
 integer,dimension(:,:),intent(in) :: var !< Integer array, 2d
-integer,intent(in) :: root               !< Root task
+integer,intent(in),optional :: root      !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_integer,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpi_integer,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -357,15 +397,22 @@ subroutine mpl_bcast_real(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpl_type) :: mpl            !< MPL object
-real(kind_real),intent(in) :: var !< Real
-integer,intent(in) :: root        !< Root task
+class(mpl_type) :: mpl              !< MPL object
+real(kind_real),intent(in) :: var   !< Real
+integer,intent(in),optional :: root !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,1,mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,1,mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -386,13 +433,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                         !< MPL object
 real(kind_real),dimension(:),intent(in) :: var !< Real array, 1d
-integer,intent(in) :: root                     !< Root task
+integer,intent(in),optional :: root            !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -413,13 +467,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                           !< MPL object
 real(kind_real),dimension(:,:),intent(in) :: var !< Real array, 2d
-integer,intent(in) :: root                       !< Root task
+integer,intent(in),optional :: root              !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -440,13 +501,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                             !< MPL object
 real(kind_real),dimension(:,:,:),intent(in) :: var !< Real array, 3d
-integer,intent(in) :: root                         !< Root task
+integer,intent(in),optional :: root                !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -467,13 +535,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                               !< MPL object
 real(kind_real),dimension(:,:,:,:),intent(in) :: var !< Real array, 4d
-integer,intent(in) :: root                           !< Root task
+integer,intent(in),optional :: root                  !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -494,13 +569,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                                 !< MPL object
 real(kind_real),dimension(:,:,:,:,:),intent(in) :: var !< Real array, 5d
-integer,intent(in) :: root                             !< Root task
+integer,intent(in),optional :: root                    !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -521,13 +603,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                                   !< MPL object
 real(kind_real),dimension(:,:,:,:,:,:),intent(in) :: var !< Real array, 6d
-integer,intent(in) :: root                               !< Root task
+integer,intent(in),optional :: root                      !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpl%rtype,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpl%rtype,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -546,15 +635,22 @@ subroutine mpl_bcast_logical(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpl_type) :: mpl     !< MPL object
-logical,intent(in) :: var  !< Logical
-integer,intent(in) :: root !< Root task
+class(mpl_type) :: mpl              !< MPL object
+logical,intent(in) :: var           !< Logical
+integer,intent(in),optional :: root !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,1,mpi_logical,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,1,mpi_logical,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -575,13 +671,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                 !< MPL object
 logical,dimension(:),intent(in) :: var !< Logical array, 1d
-integer,intent(in) :: root             !< Root task
+integer,intent(in),optional :: root    !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpi_logical,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -602,13 +705,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                   !< MPL object
 logical,dimension(:,:),intent(in) :: var !< Logical array, 1d
-integer,intent(in) :: root               !< Root task
+integer,intent(in),optional :: root      !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpi_logical,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -629,13 +739,20 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                     !< MPL object
 logical,dimension(:,:,:),intent(in) :: var !< Logical array, 1d
-integer,intent(in) :: root                 !< Root task
+integer,intent(in),optional :: root        !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,size(var),mpi_logical,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,size(var),mpi_logical,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -654,15 +771,22 @@ subroutine mpl_bcast_string(mpl,var,root)
 implicit none
 
 ! Passed variables
-class(mpl_type) :: mpl             !< MPL object
-character(len=*),intent(in) :: var !< String
-integer,intent(in) :: root         !< Root task
+class(mpl_type) :: mpl              !< MPL object
+character(len=*),intent(in) :: var  !< String
+integer,intent(in),optional :: root !< Root task
 
 ! Local variable
-integer :: info
+integer :: info,mpi_root
+
+! Find root
+if (present(root)) then
+   mpi_root = root-1
+else
+   mpi_root = mpl%ioproc-1
+end if
 
 ! Broadcast
-call mpi_bcast(var,len(var),mpi_character,root-1,mpl%mpi_comm,info)
+call mpi_bcast(var,len(var),mpi_character,mpi_root,mpl%mpi_comm,info)
 
 ! Check
 call mpl%check(info)
@@ -683,14 +807,18 @@ implicit none
 ! Passed variables
 class(mpl_type) :: mpl                          !< MPL object
 character(len=*),dimension(:),intent(in) :: var !< Logical array, 1d
-integer,intent(in) :: root                      !< Root task
+integer,intent(in),optional :: root             !< Root task
 
 ! Local variable
 integer :: i
 
 ! Broadcast one string at a time
 do i=1,size(var)
-   call mpl%bcast(var(i),root)
+   if (present(root)) then
+      call mpl%bcast(var(i),root)
+   else
+      call mpl%bcast(var(i))
+   end if
 end do
 
 ! Wait
@@ -909,6 +1037,78 @@ call mpl%check(info)
 end subroutine mpl_send_logical_array_1d
 
 !----------------------------------------------------------------------
+! Subroutine: mpl_gatherv_real
+!> Purpose: gatherv for a real array
+!----------------------------------------------------------------------
+subroutine mpl_gatherv_real(mpl,ns,sbuf,rcounts,nr,rbuf)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                   !< MPL object
+integer,intent(in) :: ns                 !< Sent buffer size
+real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
+integer,intent(in) :: rcounts(mpl%nproc) !< Received counts
+integer,intent(in) :: nr                 !< Received buffer size
+real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
+
+! Local variable
+integer :: info,displ(mpl%nproc),iproc
+
+! Check
+if (sum(rcounts)/=nr) call mpl%abort('inconsistency in mpl_gatherv_real')
+
+! Define displacement
+displ(1) = 0
+do iproc=2,mpl%nproc
+   displ(iproc) = displ(iproc-1)+rcounts(iproc-1)
+end do
+
+! Gatherv
+call mpi_gatherv(sbuf,ns,mpl%rtype,rbuf,rcounts,displ,mpl%rtype,mpl%ioproc-1,mpl%mpi_comm,info)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_gatherv_real
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_scatterv_real
+!> Purpose: scatterv for a real array
+!----------------------------------------------------------------------
+subroutine mpl_scatterv_real(mpl,scounts,ns,sbuf,nr,rbuf)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                   !< MPL object
+integer,intent(in) :: scounts(mpl%nproc) !< Sent counts
+integer,intent(in) :: ns                 !< Sent buffer size
+real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
+integer,intent(in) :: nr                 !< Received buffer size
+real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
+
+! Local variable
+integer :: info,displ(mpl%nproc),iproc
+
+! Check
+if (sum(scounts)/=ns) call mpl%abort('inconsistency in mpl_scatterv_real')
+
+! Define displacement
+displ(1) = 0
+do iproc=2,mpl%nproc
+   displ(iproc) = displ(iproc-1)+scounts(iproc-1)
+end do
+
+! Scatterv
+call mpi_scatterv(sbuf,scounts,displ,mpl%rtype,rbuf,nr,mpl%rtype,mpl%ioproc-1,mpl%mpi_comm,info)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_scatterv_real
+
+!----------------------------------------------------------------------
 ! Subroutine: mpl_allgather_integer
 !> Purpose: allgather for a integer array
 !----------------------------------------------------------------------
@@ -982,6 +1182,43 @@ call mpi_allgather(sbuf,ns,mpi_logical,rbuf,ns,mpi_logical,mpl%mpi_comm,info)
 call mpl%check(info)
 
 end subroutine mpl_allgather_logical
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_allgatherv_real
+!> Purpose: allgatherv for a real array
+!----------------------------------------------------------------------
+subroutine mpl_allgatherv_real(mpl,ns,sbuf,rcounts,nr,rbuf)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                   !< MPL object
+integer,intent(in) :: ns                 !< Sent buffer size
+real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
+integer,intent(in) :: rcounts(mpl%nproc) !< Received counts
+integer,intent(in) :: nr                 !< Received buffer size
+real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
+
+! Local variable
+integer :: info,displ(mpl%nproc),iproc
+
+! Check
+if (sum(rcounts)/=nr) call mpl%abort('inconsistency in mpl_allgatherv_real')
+
+! Define displacement
+displ(1) = 0
+do iproc=2,mpl%nproc
+   displ(iproc) = displ(iproc-1)+rcounts(iproc-1)
+end do
+
+! Allgatherv
+call mpi_allgatherv(sbuf,ns,mpl%rtype,rbuf,rcounts,displ,mpl%rtype,mpl%mpi_comm,info)
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allgatherv_real
+
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_alltoallv_real
@@ -1148,6 +1385,41 @@ call mpl%check(info)
 end subroutine mpl_allreduce_min_real
 
 !----------------------------------------------------------------------
+! Subroutine: mpl_allreduce_min_real_array_1d
+!> Purpose: allreduce min for a real array, 1d
+!----------------------------------------------------------------------
+subroutine mpl_allreduce_min_real_array_1d(mpl,var_in,var_out)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                    !< MPL object
+real(kind_real),intent(in) :: var_in(:)   !< Input real
+real(kind_real),intent(out) :: var_out(:) !< Output real
+
+! Local variable
+integer :: i,info
+real(kind_real) :: sbuf(size(var_in)),rbuf(size(var_in))
+
+! Check for missing values
+do i=1,size(var_in)
+   if (isnotmsr(var_in(i))) then
+      sbuf(i) = var_in(i)
+   else
+      sbuf(i) = 0.0
+   end if
+end do
+
+! Allreduce
+call mpi_allreduce(sbuf,rbuf,size(var_in),mpl%rtype,mpi_min,mpl%mpi_comm,info)
+var_out = rbuf
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allreduce_min_real_array_1d
+
+!----------------------------------------------------------------------
 ! Subroutine: mpl_allreduce_max_real
 !> Purpose: allreduce max for a real number
 !----------------------------------------------------------------------
@@ -1181,6 +1453,41 @@ call mpl%check(info)
 end subroutine mpl_allreduce_max_real
 
 !----------------------------------------------------------------------
+! Subroutine: mpl_allreduce_max_real_array_1d
+!> Purpose: allreduce max for a real array, 1d
+!----------------------------------------------------------------------
+subroutine mpl_allreduce_max_real_array_1d(mpl,var_in,var_out)
+
+implicit none
+
+! Passed variables
+class(mpl_type) :: mpl                    !< MPL object
+real(kind_real),intent(in) :: var_in(:)   !< Input real
+real(kind_real),intent(out) :: var_out(:) !< Output real
+
+! Local variable
+integer :: i,info
+real(kind_real) :: sbuf(size(var_in)),rbuf(size(var_in))
+
+! Check for missing values
+do i=1,size(var_in)
+   if (isnotmsr(var_in(i))) then
+      sbuf(i) = var_in(i)
+   else
+      sbuf(i) = 0.0
+   end if
+end do
+
+! Allreduce
+call mpi_allreduce(sbuf,rbuf,size(var_in),mpl%rtype,mpi_max,mpl%mpi_comm,info)
+var_out = rbuf
+
+! Check
+call mpl%check(info)
+
+end subroutine mpl_allreduce_max_real_array_1d
+
+!----------------------------------------------------------------------
 ! Subroutine: mpl_dot_prod_1d
 !> Purpose: global dot product over local fields, 1d
 !----------------------------------------------------------------------
@@ -1209,7 +1516,7 @@ dp = dp_out(1)
 call mpl%check(info)
 
 ! Broadcast
-call mpl%bcast(dp,mpl%ioproc)
+call mpl%bcast(dp)
 
 ! Check
 call mpl%check(info)
@@ -1245,7 +1552,7 @@ dp = dp_out(1)
 call mpl%check(info)
 
 ! Broadcast
-call mpl%bcast(dp,mpl%ioproc)
+call mpl%bcast(dp)
 
 ! Check
 call mpl%check(info)
@@ -1281,7 +1588,7 @@ dp = dp_out(1)
 call mpl%check(info)
 
 ! Broadcast
-call mpl%bcast(dp,mpl%ioproc)
+call mpl%bcast(dp)
 
 ! Check
 call mpl%check(info)
@@ -1317,7 +1624,7 @@ dp = dp_out(1)
 call mpl%check(info)
 
 ! Broadcast
-call mpl%bcast(dp,mpl%ioproc)
+call mpl%bcast(dp)
 
 ! Check
 call mpl%check(info)

@@ -2,27 +2,41 @@
 // Documentation file: mainpage
 // Author: Benjamin Menetrier
 // Licensing: this code is distributed under the CeCILL-C license
-// Copyright © 2017 METEO-FRANCE
+// Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 //----------------------------------------------------------------------
 /*!
-\mainpage hdiag_nicas
+\mainpage BUMP
 
-Welcome to the documentation for the software HDIAG_NICAS.
+Welcome to the documentation for the software BUMP.
 
 Contact: benjamin.menetrier@meteo.fr
 
-To download the code: <a target="_blank" href="https://github.com/benjaminmenetrier/hdiag_nicas">GitHub repository</a>
+To download the code: <a target="_blank" href="https://github.com/benjaminmenetrier/BUMP">GitHub repository</a>
 
 \section Introduction Introduction
-The software <b>HDIAG_NICAS</b> aims at diagnosing the localization and the hybridization coefficients
-for an ensemble of forecasts, and at computing coefficients for a localization method based on a Normalized Interpolated Convolution on an Adaptive Subgrid.
+The software <b>BUMP</b> (B matrix on an Unstructured Package) aims at estimating and applying background error covariance-related operators, defined on an unstructured mesh.
 
-Already available input models are: <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article121&lang=en">ARPEGE</a>, <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article120&lang=en">AROME</a>, <a target="_blank" href="https://en.wikipedia.org/wiki/Global_Environmental_Multiscale_Model">GEM</a>, <a target="_blank" href="https://gmao.gsfc.nasa.gov/GEOS">GEOS</a>, <a target="_blank" href="https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/global-forcast-system-gfs">GFS</a>, <a target="_blank" href="http://www.ecmwf.int/en/research/modelling-and-prediction">IFS</a>, <a target="_blank" href="https://mpas-dev.github.io">MPAS</a>, <a target="_blank" href="http://www.nemo-ocean.eu">NEMO</a> and <a target="_blank" href="http://www.wrf-model.org">WRF</a>.
-
-Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/hdiag_nicas/CLOC_REPORT.html">CLOC report</a>.
-
-\section license License
 The code is distributed under the CeCILL-C license (in English: <a target="_blank" href="LICENSE_MF.html">LICENSE</a> or in French: <a target="_blank" href="LICENCE_MF.html">LICENCE</a>).
+
+Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/BUMP/CLOC_REPORT.html">CLOC report</a>.
+
+\section Offline_online Offline or online usage
+
+This package can be used as standalone code, with NetCDF inputs, for the following models:
+  - <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article121&lang=en">ARPEGE</a>
+  - <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article120&lang=en">AROME</a>
+  - <a target="_blank" href="https://en.wikipedia.org/wiki/Global_Environmental_Multiscale_Model">GEM</a>
+  - <a target="_blank" href="https://gmao.gsfc.nasa.gov/GEOS">GEOS</a>
+  - <a target="_blank" href="https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/global-forcast-system-gfs">GFS</a>
+  - <a target="_blank" href="http://www.ecmwf.int/en/research/modelling-and-prediction">IFS</a>
+  - <a target="_blank" href="https://mpas-dev.github.io">MPAS</a>
+  - <a target="_blank" href="http://www.nemo-ocean.eu">NEMO</a>
+  - <a target="_blank" href="http://www.wrf-model.org">WRF</a>
+
+It can also be used "online" within an other code, using dedicated interfaces. Existing interfaces are:
+  - a generic interface
+  - a specific interface for the system OOPS
+  - a specific interface for the system NEMOVAR
 
 \section Folders Folders organization
 The main directory $MAINDIR contains the CMakeLists.txt file and several folders:
@@ -36,12 +50,12 @@ The main directory $MAINDIR contains the CMakeLists.txt file and several folders
 
 \section Compilation Compilation and dependencies
 The compilation of sources uses cmake (<a target="_blank" href="https://cmake.org">https://cmake.org</a>). Compilation options (compiler, build type, NetCDF inclue and library paths) have to be specified in four environment variables:
- - <b>HDIAG_NICAS_COMPILER</b>: GNU, Intel or Cray
- - <b>HDIAG_NICAS_BUILD</b>: DEBUG or RELEASE
- - <b>HDIAG_NICAS_NETCDF_INCLUDE</b>: C NetCDF include path
- - <b>HDIAG_NICAS_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
- - <b>HDIAG_NICAS_NETCDF_LIBPATH</b>: C NetCDF library path
- - <b>HDIAG_NICAS_NETCDFF_LIBPATH</b>: Fotran NetCDF library path
+ - <b>BUMP_COMPILER</b>: GNU, Intel or Cray
+ - <b>BUMP_BUILD</b>: DEBUG or RELEASE
+ - <b>BUMP_NETCDF_INCLUDE</b>: C NetCDF include path
+ - <b>BUMP_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
+ - <b>BUMP_NETCDF_LIBPATH</b>: C NetCDF library path
+ - <b>BUMP_NETCDFF_LIBPATH</b>: Fotran NetCDF library path
 
 Some examples are given for several supercomputer:
  - at <a target="_blank" href="ENV_ECMWF.html">ECMWF (Cray compiler)</a>
@@ -54,14 +68,13 @@ Then, to compile in a directory $BUILDDIR, with $N processors (if available):
     cmake $MAINDIR/CMakeLists.txt
     make -j$N
 
-An executable file $MAINDIR/run/hdiag_nicas should be created if compilation is successful.
+An executable file $MAINDIR/run/bump should be created if compilation is successful.
 
 Input and output files use the NetCDF format. The NetCDF library can be downloaded at: <a target="_blank" href="http://www.unidata.ucar.edu/software/netcdf">http://www.unidata.ucar.edu/software/netcdf</a>
 
 \section code Code structure
 The source code is organized in modules with several groups indicated by a prefix:
   - main.f90: main program
-  - driver_[...]: drivers
   - model_[...]: model related routines, to get the coordinates, read and write fields
   - tools_[...]: useful tools for the whole code
   - type_[...]: derived types
@@ -96,7 +109,7 @@ To run the code on a single node, you have to edit a namelist located in the $MA
  
     cd $MAINDIR/run
     export OMP_NUM_THREADS=$NTHREAD
-    mpirun --npernode $NTASK hdiag_nicas namelist_$SUFFIX
+    mpirun -n $NTASK bump namelist_$SUFFIX
 
 where $NTHREAD is the number of OpenMP threads and $NTASK is the number of MPI tasks that are desired.
 
@@ -114,14 +127,13 @@ A simple test script is available in $MAINDIR/script:
 It uses data stored in $MAINDIR/test and calls the NetCDF tools ncdump.
 
 \section model Adding a new model
-To add a model $MODEL in hdiag_nicas, you need to write a new module containing three routines:
+To add a model $MODEL in bump, you need to write a new module containing three routines:
  - model_$MODEL_coord to get model coordinates
  - model_$MODEL_read to read a model field
- - model_$MODEL_write to write a model field
 
-You need also to add three calls to model_$MODEL_coord, model_$MODEL_read and model_$MODEL_write in routines model_coord, model_read and model_write, respectively, which are contained in the module model_interface.
+You need also to add three calls to model_$MODEL_coord and model_$MODEL_read in routines model_coord and model_read respectively, which are contained in the module model_interface.
 
-Finally, you need to add a case for the namelist check in the routine namread, contained in the module module_namelist.
+Finally, you need to add a case for the namelist check in the routine nam_check, contained in type_nam.f90.
 
 For models with a regular grid, you can start from AROME, ARPEGE, IFS, GEM, GEOS, GFS, NEMO and WRF routines. For models with an unstructured grid, you can start from MPAS routines.
 */

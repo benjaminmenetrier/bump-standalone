@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------
 // CoverTreePoint
-// Modified by Benjamin Menetrier for hdiag_nicas
+// Modified by Benjamin Menetrier for BUMP
 //----------------------------------------------------------------------
 #include "Cover_Tree_Point.h"
 #include <iostream>

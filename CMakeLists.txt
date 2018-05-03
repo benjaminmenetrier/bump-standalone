@@ -1,23 +1,23 @@
 #----------------------------------------------------------------------
-# CMake project file for hdiag_nicas
+# CMake project file for BUMP
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 #
 # Set Fortran/C/C++ compiler (GNU / Intel or Cray):
-set (COMPILER "$ENV{HDIAG_NICAS_COMPILER}")
+set (COMPILER "$ENV{BUMP_COMPILER}")
 #
 # Set build type (DEBUG or RELEASE):
-set (BUILD_TYPE "$ENV{HDIAG_NICAS_BUILD}")
+set (BUILD_TYPE "$ENV{BUMP_BUILD}")
 #
 # Set NetCDF include directory
-set (EXTERN_NETCDF_INCLUDE $ENV{HDIAG_NICAS_NETCDF_INCLUDE})
-set (EXTERN_NETCDFF_INCLUDE $ENV{HDIAG_NICAS_NETCDFF_INCLUDE})
+set (EXTERN_NETCDF_INCLUDE $ENV{BUMP_NETCDF_INCLUDE})
+set (EXTERN_NETCDFF_INCLUDE $ENV{BUMP_NETCDFF_INCLUDE})
 #
 # Set NetCDF lib directory
-set (EXTERN_NETCDF_LIBPATH $ENV{HDIAG_NICAS_NETCDF_LIBPATH})
-set (EXTERN_NETCDFF_LIBPATH $ENV{HDIAG_NICAS_NETCDFF_LIBPATH})
+set (EXTERN_NETCDF_LIBPATH $ENV{BUMP_NETCDF_LIBPATH})
+set (EXTERN_NETCDFF_LIBPATH $ENV{BUMP_NETCDFF_LIBPATH})
 #
 #----------------------------------------------------------------------
 # Check
@@ -63,17 +63,17 @@ endif (${COMPILER} MATCHES "Cray")
 #----------------------------------------------------------------------
 #
 cmake_minimum_required (VERSION 2.6)
-project (hdiag_nicas Fortran C CXX)
-file (GLOB HDIAG_NICAS_SRC
+project (bump Fortran C CXX)
+file (GLOB BUMP_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.f90"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.f90"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.cpp"
 )
-add_executable (hdiag_nicas ${HDIAG_NICAS_SRC})
+add_executable (bump ${BUMP_SRC})
 include_directories (${EXTERN_NETCDFF_INCLUDE} ${EXTERN_NETCDF_INCLUDE})
-target_link_libraries(hdiag_nicas netcdf netcdff)
+target_link_libraries(bump netcdf netcdff)
 #
 #----------------------------------------------------------------------
 # Define compiler flags
@@ -105,7 +105,7 @@ endif (${COMPILER} MATCHES "Cray")
 #
 # Set linker flags
 set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp -lstdc++")
-set_target_properties (hdiag_nicas PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties (bump PROPERTIES LINKER_LANGUAGE Fortran)
 set (CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS})
 #
 # Set build type

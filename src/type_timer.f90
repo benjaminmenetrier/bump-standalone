@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_timer
 
@@ -75,9 +75,11 @@ call system_clock(count=timer%system_clock_end)
 call cpu_time(timer%cpu_time_end)
 timer%cpu = timer%cpu_time_end-timer%cpu_time_start
 if (timer%system_clock_end<timer%system_clock_start) then
-  timer%elapsed = float(timer%system_clock_end-timer%system_clock_start+timer%count_max)/float(timer%count_rate)
+  timer%elapsed = real(timer%system_clock_end-timer%system_clock_start+timer%count_max,kind_real) &
+                & /real(timer%count_rate,kind_real)
 else
-  timer%elapsed = float(timer%system_clock_end-timer%system_clock_start)/float(timer%count_rate)
+  timer%elapsed = real(timer%system_clock_end-timer%system_clock_start,kind_real) &
+                & /real(timer%count_rate,kind_real)
 end if
 
 end subroutine timer_end

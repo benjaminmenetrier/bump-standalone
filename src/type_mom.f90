@@ -6,17 +6,17 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_mom
 
-use model_offline, only: model_read
-use omp_lib
+!$ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
 use type_bpar, only: bpar_type
 use type_com, only: com_type
+use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_linop, only: linop_type
 use type_mom_blk, only: mom_blk_type
@@ -112,49 +112,30 @@ end subroutine mom_alloc
 ! Subroutine: mom_compute
 !> Purpose: compute centered moments (iterative formulae)
 !----------------------------------------------------------------------
-subroutine mom_compute(mom,nam,geom,bpar,hdata,filename,ens1)
+subroutine mom_compute(mom,nam,geom,bpar,hdata,ens)
 
 implicit none
 
 ! Passed variables
-class(mom_type),intent(inout) :: mom                                                       !< Moments
-type(nam_type),intent(in) :: nam                                                           !< Namelist
-type(geom_type),intent(in) :: geom                                                         !< Geometry
-type(bpar_type),intent(in) :: bpar                                                         !< Block parameters
-type(hdata_type),intent(in) :: hdata                                                       !< HDIAG data
-character(len=*),intent(in) :: filename                                                    !< File name
-real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
+class(mom_type),intent(inout) :: mom !< Moments
+type(nam_type),intent(in) :: nam     !< Namelist
+type(geom_type),intent(in) :: geom   !< Geometry
+type(bpar_type),intent(in) :: bpar   !< Block parameters
+type(hdata_type),intent(in) :: hdata !< HDIAG data
+type(ens_type), intent(in) :: ens    !< Ensemble
 
 ! Local variables
-integer :: ne,ne_offset,nsub,ie,jc0,ic0c,jc0c,ic0,jl0r,jl0,il0,isub,jsub,jc3,ic1,ic1a,ib,jv,iv,jts,its
+integer :: ie,ie_sub,jc0,ic0c,jc0c,ic0,jl0r,jl0,il0,isub,jc3,ic1,ic1a,ib,jv,iv,jts,its
 real(kind_real) :: fac1,fac2,fac3,fac4,fac5,fac6
-real(kind_real),allocatable :: fld(:,:,:,:),fld_ext(:,:,:,:),fld_1(:,:,:,:),fld_2(:,:,:,:)
+real(kind_real),allocatable :: fld_ext(:,:,:,:),fld_1(:,:,:,:),fld_2(:,:,:,:)
 logical,allocatable :: mask_unpack(:,:)
 
-! Setup
-select case (trim(filename))
-case ('ens1')
-   ne = nam%ens1_ne
-   ne_offset = nam%ens1_ne_offset
-   nsub = nam%ens1_nsub
-case ('ens2')
-   ne = nam%ens2_ne
-   ne_offset = nam%ens2_ne_offset
-   nsub = nam%ens2_nsub
-case default
-   call msi(ne)
-   call msi(ne_offset)
-   call msi(nsub)
-   call msgerror('wrong filename in ens_read')
-end select
-
 ! Allocation
-call mom%alloc(nam,geom,bpar,hdata,ne,nsub)
-allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+call mom%alloc(nam,geom,bpar,hdata,ens%ne,ens%nsub)
 
 ! Loop on sub-ensembles
-do isub=1,nsub
-   if (nsub==1) then
+do isub=1,ens%nsub
+   if (ens%nsub==1) then
       write(mpl%unit,'(a10,a)',advance='no') '','Full ensemble, member:'
    else
       write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
@@ -162,30 +143,20 @@ do isub=1,nsub
    call flush(mpl%unit)
 
    ! Compute centered moments iteratively
-   do ie=1,ne/nsub
-      write(mpl%unit,'(i4)',advance='no') ne_offset+ie
+   do ie_sub=1,ens%ne/ens%nsub
+      write(mpl%unit,'(i4)',advance='no') ie_sub
       call flush(mpl%unit)
 
-      ! Computation factors
-      fac1 = 2.0/float(ie)
-      fac2 = 1.0/float(ie**2)
-      fac3 = float((ie-1)*(ie**2-3*ie+3))/float(ie**3)
-      fac4 = 1.0/float(ie)
-      fac5 = float((ie-1)*(ie-2))/float(ie**2)
-      fac6 = float(ie-1)/float(ie)
+      ! Full ensemble index
+      ie = ie_sub+(isub-1)*ens%ne/ens%nsub
 
-      if (present(ens1)) then
-         ! Copy field
-         fld = ens1(:,:,:,:,ie+(isub-1)*nsub)
-      else
-         ! Load field
-         if (nsub==1) then
-            jsub = 0
-         else
-            jsub = isub
-         end if
-         call model_read(nam,geom,filename,ne_offset+ie,jsub,fld)
-      end if
+      ! Computation factors
+      fac1 = 2.0/real(ie_sub,kind_real)
+      fac2 = 1.0/real(ie_sub**2,kind_real)
+      fac3 = real((ie_sub-1)*(ie_sub**2-3*ie_sub+3),kind_real)/real(ie_sub**3,kind_real)
+      fac4 = 1.0/real(ie_sub,kind_real)
+      fac5 = real((ie_sub-1)*(ie_sub-2),kind_real)/real(ie_sub**2,kind_real)
+      fac6 = real(ie_sub-1,kind_real)/real(ie_sub,kind_real)
 
       ! Allocation
       allocate(fld_ext(hdata%nc0c,geom%nl0,nam%nv,nam%nts))
@@ -200,7 +171,7 @@ do isub=1,nsub
          jts = bpar%b_to_ts2(ib)
 
          ! Halo extension
-         if ((iv==jv).and.(its==jts)) call hdata%com_AC%ext(geom%nl0,fld(:,:,iv,its),fld_ext(:,:,iv,its))
+         if ((iv==jv).and.(its==jts)) call hdata%com_AC%ext(geom%nl0,ens%fld(:,:,iv,its,ie),fld_ext(:,:,iv,its))
       end do
 
       do ib=1,bpar%nb
@@ -263,7 +234,7 @@ do isub=1,nsub
                fld_2(:,:,:,il0) = fld_2(:,:,:,il0) - mom%blk(ib)%m1_2(:,:,:,il0,isub)
 
                ! Update high-order moments
-               if (ie>1) then
+               if (ie_sub>1) then
                   if (.not.nam%gau_approx) then
                        ! Fourth-order moment
                         mom%blk(ib)%m22(:,:,:,il0,isub) = mom%blk(ib)%m22(:,:,:,il0,isub) &
@@ -295,7 +266,7 @@ do isub=1,nsub
 
                   ! Full variance
                   if (nam%full_var) mom%blk(ib)%m2full(:,il0,isub) = mom%blk(ib)%m2full(:,il0,isub) &
-                                                               & +fac6*(fld(:,il0,iv,its)-mom%blk(ib)%m1full(:,il0,isub))**2
+                                  & +fac6*(ens%fld(:,il0,iv,its,ie)-mom%blk(ib)%m1full(:,il0,isub))**2
                end if
 
                ! Update means
@@ -304,7 +275,7 @@ do isub=1,nsub
 
                ! Full mean
                if (nam%full_var) mom%blk(ib)%m1full(:,il0,isub) = mom%blk(ib)%m1full(:,il0,isub) &
-                                                            & +fac4*(fld(:,il0,iv,its)-mom%blk(ib)%m1full(:,il0,isub))
+                               & +fac4*(ens%fld(:,il0,iv,its,ie)-mom%blk(ib)%m1full(:,il0,isub))
             end do
             !$omp end parallel do
 
@@ -326,15 +297,15 @@ do isub=1,nsub
       if (bpar%diag_block(ib)) then
          !$omp parallel do schedule(static) private(il0)
          do il0=1,geom%nl0
-            mom%blk(ib)%m2_1(:,:,:,il0,isub) = mom%blk(ib)%m2_1(:,:,:,il0,isub)/float(ne/nsub-1)
-            mom%blk(ib)%m2_2(:,:,:,il0,isub) = mom%blk(ib)%m2_2(:,:,:,il0,isub)/float(ne/nsub-1)
-            mom%blk(ib)%m11(:,:,:,il0,isub) = mom%blk(ib)%m11(:,:,:,il0,isub)/float(ne/nsub-1)
+            mom%blk(ib)%m2_1(:,:,:,il0,isub) = mom%blk(ib)%m2_1(:,:,:,il0,isub)/real(mom%ne/mom%nsub-1,kind_real)
+            mom%blk(ib)%m2_2(:,:,:,il0,isub) = mom%blk(ib)%m2_2(:,:,:,il0,isub)/real(mom%ne/mom%nsub-1,kind_real)
+            mom%blk(ib)%m11(:,:,:,il0,isub) = mom%blk(ib)%m11(:,:,:,il0,isub)/real(mom%ne/mom%nsub-1,kind_real)
             if (.not.nam%gau_approx) then
-               mom%blk(ib)%m12(:,:,:,il0,isub) = mom%blk(ib)%m12(:,:,:,il0,isub)/float(ne/nsub)
-               mom%blk(ib)%m21(:,:,:,il0,isub) = mom%blk(ib)%m21(:,:,:,il0,isub)/float(ne/nsub)
-               mom%blk(ib)%m22(:,:,:,il0,isub) = mom%blk(ib)%m22(:,:,:,il0,isub)/float(ne/nsub)
+               mom%blk(ib)%m12(:,:,:,il0,isub) = mom%blk(ib)%m12(:,:,:,il0,isub)/real(mom%ne/mom%nsub,kind_real)
+               mom%blk(ib)%m21(:,:,:,il0,isub) = mom%blk(ib)%m21(:,:,:,il0,isub)/real(mom%ne/mom%nsub,kind_real)
+               mom%blk(ib)%m22(:,:,:,il0,isub) = mom%blk(ib)%m22(:,:,:,il0,isub)/real(mom%ne/mom%nsub,kind_real)
             end if
-            if (nam%full_var) mom%blk(ib)%m2full(:,il0,isub) = mom%blk(ib)%m2full(:,il0,isub)/float(ne/nsub-1)
+            if (nam%full_var) mom%blk(ib)%m2full(:,il0,isub) = mom%blk(ib)%m2full(:,il0,isub)/real(mom%ne/mom%nsub-1,kind_real)
          end do
          !$omp end parallel do
       end if

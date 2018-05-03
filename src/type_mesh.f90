@@ -6,23 +6,23 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_mesh
 
-use omp_lib
+!$ use omp_lib
 use tools_const, only: req
 use tools_display, only: msgerror,msgwarning
 use tools_func, only: sphere_dist,vector_product
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr
-use tools_stripack, only: addnod,areas,bnodes,crlist,scoord,trans,trfind,trlist,trmesh
+use tools_stripack, only: addnod,areas,bnodes,crlist,inside,scoord,trans,trfind,trlist,trmesh
 use type_mpl, only: mpl
 use type_rng, only: rng
 
 implicit none
 
-! Linear operator derived type
+! Mesh derived type
 type mesh_type
    ! Mesh structure
    integer :: n                            !< Number of points
@@ -55,14 +55,16 @@ contains
    procedure :: bnodes => mesh_bnodes
    procedure :: barcs => mesh_barcs
    procedure :: check => mesh_check
+   procedure :: inside => mesh_inside
    procedure :: barycentric
    procedure :: addnode
    procedure :: polygon
 end type mesh_type
 
 logical,parameter :: shuffle = .true. !< Shuffle mesh order (more efficient to compute the Delaunay triangulation)
+
 private
-public :: mesh_type,mesh_check
+public :: mesh_type
 
 contains
 
@@ -112,7 +114,7 @@ if (shuffle) then
    ! Shuffle order (more efficient to compute the Delaunay triangulation)
    allocate(jtab(mesh%n))
    if (mpl%main) call rng%rand_integer(1,mesh%n,jtab)
-   call mpl%bcast(jtab,mpl%ioproc)
+   call mpl%bcast(jtab)
    do i=mesh%n,2,-1
       k = mesh%order(jtab(i))
       mesh%order(jtab(i)) = mesh%order(i)
@@ -404,7 +406,7 @@ subroutine mesh_check(mesh,valid)
 implicit none
 
 ! Passed variables
-class(mesh_type),intent(inout) :: mesh         !< Mesh
+class(mesh_type),intent(inout) :: mesh       !< Mesh
 real(kind_real),intent(out) :: valid(mesh%n) !< Validity flag (1.0 if the vertex is valid, else 0.0)
 
 ! Local variables
@@ -459,6 +461,37 @@ end do
 end subroutine mesh_check
 
 !----------------------------------------------------------------------
+! Subroutine: mesh_inside
+!> Purpose: find whether a point is inside the mesh
+!----------------------------------------------------------------------
+subroutine mesh_inside(mesh,lon,lat,inside_mesh)
+
+implicit none
+
+! Passed variables
+class(mesh_type),intent(in) :: mesh  !< Mesh
+real(kind_real),intent(in) :: lon(1) !< Longitude
+real(kind_real),intent(in) :: lat(1) !< Latitude
+logical,intent(out) :: inside_mesh   !< True if the point is inside the mesh
+
+! Local variables
+integer :: info
+real(kind_real) :: p(3)
+
+if (mesh%nb>0) then
+   ! Transform to cartesian coordinates
+   call trans(1,lat,lon,p(1),p(2),p(3))
+
+   ! Find answer
+   inside_mesh = inside(p,mesh%n,mesh%x,mesh%y,mesh%z,mesh%nb,mesh%bnd,info)
+else
+   ! No boundary
+   inside_mesh = .true.
+end if
+
+end subroutine mesh_inside
+
+!----------------------------------------------------------------------
 ! Subroutine: barycentric
 !> Purpose: compute barycentric coordinates
 !----------------------------------------------------------------------
@@ -483,7 +516,7 @@ call trans(1,lat,lon,p(1),p(2),p(3))
 ! Compute barycentric coordinates
 b = 0.0
 ib = 0
-call trfind(istart,dble(p),mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,b(1),b(2),b(3),ib(1),ib(2),ib(3))
+call trfind(istart,p,mesh%n,mesh%x,mesh%y,mesh%z,mesh%list,mesh%lptr,mesh%lend,b(1),b(2),b(3),ib(1),ib(2),ib(3))
 
 end subroutine barycentric
 

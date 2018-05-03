@@ -1,12 +1,10 @@
-Copyright © 2017 METEO-FRANCE.
+Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 
 e-mail: benjamin.menetrier@meteo.fr
 
-The HDIAG_NICAS software is a computer program whose purpose is to 
-estimate localization functions and hybridization coefficients for 
-covariance models used in ensemble-variational data assimilation systems,
-and to prepare coefficients to apply normalized interpolated convolution
-from adaptive subgrids.
+The BUMP (B matrix on an Unstructured Mesh Package) software is a 
+computer program whose purpose is to estimate and apply background error
+covariance-related operators, defined on an unstructured mesh.
 
 This software is governed by the CeCILL-C license under French law and
 abiding by the rules of distribution of free software.  You can  use, 

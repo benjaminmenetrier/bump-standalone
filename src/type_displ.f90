@@ -6,13 +6,12 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_displ
 
-use model_offline, only: model_read
 use netcdf
-use omp_lib
+!$ use omp_lib
 use tools_const, only: req,reqkm,rad2deg,deg2rad
 use tools_display, only: msgerror,prog_init,prog_print
 use tools_func, only: lonlatmod,sphere_dist,reduce_arc,vector_product
@@ -22,6 +21,7 @@ use tools_nc, only: ncfloat,ncerr
 use tools_qsort, only: qsort
 use tools_stripack, only: trans,scoord
 use type_com, only: com_type
+use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_linop, only: linop_type
 use type_mesh, only: mesh_type
@@ -132,23 +132,23 @@ end subroutine displ_dealloc
 ! Subroutine: displ_compute
 !> Purpose: compute correlation maximum displacement
 !----------------------------------------------------------------------
-subroutine displ_compute(displ,nam,geom,hdata,ens1)
+subroutine displ_compute(displ,nam,geom,hdata,ens)
 
 implicit none
 
 ! Passed variables
-class(displ_type),intent(inout) :: displ                                                   !< Displacement data
-type(nam_type),intent(in) :: nam                                                           !< Namelist
-type(geom_type),intent(in) :: geom                                                         !< Geometry
-type(hdata_type),intent(inout) :: hdata                                                    !< HDIAG data
-real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
+class(displ_type),intent(inout) :: displ !< Displacement data
+type(nam_type),intent(in) :: nam         !< Namelist
+type(geom_type),intent(in) :: geom       !< Geometry
+type(hdata_type),intent(inout) :: hdata  !< HDIAG data
+type(ens_type), intent(in) :: ens        !< Ensemble
 
 ! Local variables
-integer :: ne,ne_offset,nsub,ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,jsub,iv,its,ie,iter,ic0a,jc0d
+integer :: ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d
 integer,allocatable :: order(:)
 real(kind_real) :: fac4,fac6,m11_avg,m2m2_avg,fld_1,fld_2,drhflt,dum,distsum,norm
 real(kind_real) :: norm_tot,distsum_tot
-real(kind_real),allocatable :: fld(:,:,:,:),fld_ext(:,:,:,:)
+real(kind_real),allocatable :: fld_ext(:,:,:,:)
 real(kind_real),allocatable :: m1_1(:,:,:,:,:,:),m2_1(:,:,:,:,:,:)
 real(kind_real),allocatable :: m1_2(:,:,:,:,:,:),m2_2(:,:,:,:,:,:)
 real(kind_real),allocatable :: m11(:,:,:,:,:,:)
@@ -166,20 +166,14 @@ logical :: dichotomy,convergence
 logical :: mask_c2a(hdata%nc2a,geom%nl0),mask_c2(hdata%nc2,geom%nl0)
 type(mesh_type) :: mesh
 
-! Setup
-ne = nam%ens1_ne
-ne_offset = nam%ens1_ne_offset
-nsub = nam%ens1_nsub
-
 ! Allocation
 call displ%alloc(nam,geom,hdata)
 allocate(fld_ext(hdata%nc0d,geom%nl0,nam%nv,2:nam%nts))
-allocate(m1_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
-allocate(m2_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
-allocate(m1_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
-allocate(m2_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
-allocate(m11(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,nsub))
-allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+allocate(m1_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
+allocate(m2_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
+allocate(m1_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
+allocate(m2_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
+allocate(m11(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
 
 ! Initialization
 m1_1 = 0.0
@@ -212,8 +206,8 @@ displ%lat_c2a = lat_c2a_ori
 ! Compute moments
 write(mpl%unit,'(a7,a)') '','Compute moments'
 call flush(mpl%unit)
-do isub=1,nsub
-   if (nsub==1) then
+do isub=1,ens%nsub
+   if (ens%nsub==1) then
       write(mpl%unit,'(a10,a)',advance='no') '','Full ensemble, member:'
    else
       write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
@@ -221,31 +215,21 @@ do isub=1,nsub
    call flush(mpl%unit)
 
    ! Compute centered moments iteratively
-   do ie=1,ne/nsub
-      write(mpl%unit,'(i4)',advance='no') ne_offset+ie
+   do ie_sub=1,ens%ne/ens%nsub
+      write(mpl%unit,'(i4)',advance='no') ie_sub
       call flush(mpl%unit)
 
-      ! Computation factors
-      fac4 = 1.0/float(ie)
-      fac6 = float(ie-1)/float(ie)
+      ! Full ensemble index
+      ie = ie_sub+(isub-1)*ens%ne/ens%nsub
 
-      if (present(ens1)) then
-         ! Copy field
-         fld = ens1(:,:,:,:,ie+(isub-1)*nsub)
-      else
-         ! Load field
-         if (nsub==1) then
-            jsub = 0
-         else
-            jsub = isub
-         end if
-         call model_read(nam,geom,'ens1',ne_offset+ie,jsub,fld)
-      end if
+      ! Computation factors
+      fac4 = 1.0/real(ie_sub,kind_real)
+      fac6 = real(ie_sub-1,kind_real)/real(ie_sub,kind_real)
 
       do its=2,nam%nts
          do iv=1,nam%nv
             ! Halo extension
-            call hdata%com_AD%ext(geom%nl0,fld(:,:,iv,its),fld_ext(:,:,iv,its))
+            call hdata%com_AD%ext(geom%nl0,ens%fld(:,:,iv,its,ie),fld_ext(:,:,iv,its))
          end do
       end do
 
@@ -266,7 +250,7 @@ do isub=1,nsub
                            jc0d = hdata%c0_to_c0d(jc0)
 
                            ! Copy points
-                           fld_1 = fld(ic0a,il0,iv,1)
+                           fld_1 = ens%fld(ic0a,il0,iv,1,ie)
                            fld_2 = fld_ext(jc0d,il0,iv,its)
 
                            ! Remove means
@@ -274,7 +258,7 @@ do isub=1,nsub
                            fld_2 = fld_2 - m1_2(jc1,ic2a,il0,iv,its,isub)
 
                            ! Update high-order moments
-                           if (ie>1) then
+                           if (ie_sub>1) then
                               ! Covariance
                               m11(jc1,ic2a,il0,iv,its,isub) = m11(jc1,ic2a,il0,iv,its,isub)+fac6*fld_1*fld_2
 
@@ -309,7 +293,7 @@ do its=2,nam%nts
       call flush(mpl%unit)
 
       ! Number of points
-      norm = float(count(mask_c2a(:,il0)))
+      norm = real(count(mask_c2a(:,il0)),kind_real)
       call mpl%allreduce_sum(norm,norm_tot)
 
       !$omp parallel do schedule(static) private(ic2a,ic2,jc1,jc0,iv,m11_avg,m2m2_avg) firstprivate(cor,cor_avg,order)
@@ -329,8 +313,8 @@ do its=2,nam%nts
                   ! Compute correlation for each variable
                   do iv=1,nam%nv
                      ! Correlation
-                     m11_avg = sum(m11(jc1,ic2a,il0,iv,its,:))/float(nsub)
-                     m2m2_avg = sum(m2_1(jc1,ic2a,il0,iv,its,:))*sum(m2_2(jc1,ic2a,il0,iv,its,:))/float(nsub**2)
+                     m11_avg = sum(m11(jc1,ic2a,il0,iv,its,:))/real(ens%nsub,kind_real)
+                     m2m2_avg = sum(m2_1(jc1,ic2a,il0,iv,its,:))*sum(m2_2(jc1,ic2a,il0,iv,its,:))/real(ens%nsub**2,kind_real)
                      if (m2m2_avg>0.0) then
                         cor(iv) = m11_avg/sqrt(m2m2_avg)
                      else
@@ -340,7 +324,7 @@ do its=2,nam%nts
 
                   ! Average correlations
                   if (isanynotmsr(cor)) then
-                     cor_avg(jc1) = sum(cor,mask=isnotmsr(cor))/float(count(isnotmsr(cor)))
+                     cor_avg(jc1) = sum(cor,mask=isnotmsr(cor))/real(count(isnotmsr(cor)),kind_real)
                   else
                      call msgerror('average correlation contains missing values only')
                   end if
@@ -381,14 +365,11 @@ do its=2,nam%nts
 
       ! Check raw mesh
       mesh = hdata%mesh%copy()
-      call hdata%diag_com_lg(1,lon_c2a,lon_c2)
-      call hdata%diag_com_lg(1,lat_c2a,lat_c2)
-      if (mpl%main) then
-         call mesh%trans(lon_c2,lat_c2)
-         call mesh%check(valid_c2)
-         displ%valid(0,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/float(count((mask_c2(:,il0))))
-      end if
-      call mpl%bcast(displ%valid(0,il0,its),mpl%ioproc)
+      call mpl%gatherv(hdata%nc2a,lon_c2a,hdata%proc_to_nc2a,hdata%nc2,lon_c2)
+      call mpl%gatherv(hdata%nc2a,lat_c2a,hdata%proc_to_nc2a,hdata%nc2,lat_c2)
+      call mesh%trans(lon_c2,lat_c2)
+      call mesh%check(valid_c2)
+      displ%valid(0,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
       displ%rhflt(0,il0,its) = 0.0
 
       ! Average distance
@@ -463,14 +444,12 @@ do its=2,nam%nts
 
             ! Check mesh
             mesh = hdata%mesh%copy()
-            call hdata%diag_com_lg(1,lon_c2a,lon_c2)
-            call hdata%diag_com_lg(1,lat_c2a,lat_c2)
-            if (mpl%main) then
-               call mesh%trans(lon_c2,lat_c2)
-               call mesh%check(valid_c2)
-               displ%valid(iter,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/float(count((mask_c2(:,il0))))
-            end if
-            call mpl%bcast(displ%valid(iter,il0,its),mpl%ioproc)
+            call mpl%gatherv(hdata%nc2a,lon_c2a,hdata%proc_to_nc2a,hdata%nc2,lon_c2)
+            call mpl%gatherv(hdata%nc2a,lat_c2a,hdata%proc_to_nc2a,hdata%nc2,lat_c2)
+            call mesh%trans(lon_c2,lat_c2)
+            call mesh%check(valid_c2)
+            displ%valid(iter,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
+            call mpl%bcast(displ%valid(iter,il0,its))
 
             ! Compute distances
             do ic2a=1,hdata%nc2a
@@ -579,11 +558,7 @@ character(len=*),intent(in) :: filename !< File name
 ! Local variables
 integer :: ncid,nc2_id,nl0_id,nts_id,displ_niter_id,vunit_id,valid_id,dist_id,rhflt_id
 integer :: lon_c2_id,lat_c2_id,lon_c2_raw_id,lat_c2_raw_id,dist_c2_raw_id,lon_c2_flt_id,lat_c2_flt_id,dist_c2_flt_id
-integer :: its
-real(kind_real) :: lon_c2(hdata%nc2,geom%nl0),lat_c2(hdata%nc2,geom%nl0)
-real(kind_real) :: lon_c2_raw(hdata%nc2,geom%nl0,2:nam%nts),lon_c2_flt(hdata%nc2,geom%nl0,2:nam%nts)
-real(kind_real) :: lat_c2_raw(hdata%nc2,geom%nl0,2:nam%nts),lat_c2_flt(hdata%nc2,geom%nl0,2:nam%nts)
-real(kind_real) :: dist_c2_raw(hdata%nc2,geom%nl0,2:nam%nts),dist_c2_flt(hdata%nc2,geom%nl0,2:nam%nts)
+integer :: iproc,its,il0,ic2a,ic2
 character(len=1024) :: subr = 'displ_write'
 
 if (mpl%main) then
@@ -599,8 +574,8 @@ if (mpl%main) then
    call ncerr(subr,nf90_def_dim(ncid,'nts',nam%nts-1,nts_id))
    call ncerr(subr,nf90_def_dim(ncid,'niter',nam%displ_niter+1,displ_niter_id))
 
-   ! Define arrays
-   call ncerr(subr,nf90_def_var(ncid,'vunit',ncfloat,(/nl0_id/),vunit_id))
+   ! Define variables
+   call ncerr(subr,nf90_def_var(ncid,'vunit',ncfloat,(/nc2_id,nl0_id/),vunit_id))
    call ncerr(subr,nf90_def_var(ncid,'valid',ncfloat,(/displ_niter_id,nl0_id,nts_id/),valid_id))
    call ncerr(subr,nf90_put_att(ncid,valid_id,'_FillValue',msvalr))
    call ncerr(subr,nf90_def_var(ncid,'dist',ncfloat,(/displ_niter_id,nl0_id,nts_id/),dist_id))
@@ -627,39 +602,62 @@ if (mpl%main) then
    ! End definition mode
    call ncerr(subr,nf90_enddef(ncid))
 
-   ! Write arrays
-   call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit))
+   ! Write global variables
+   call ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit(hdata%c2_to_c0,:)))
    call ncerr(subr,nf90_put_var(ncid,valid_id,displ%valid))
    call ncerr(subr,nf90_put_var(ncid,dist_id,displ%dist*reqkm))
    call ncerr(subr,nf90_put_var(ncid,rhflt_id,displ%rhflt*reqkm))
+
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
 end if
 
-! Local to global
-call hdata%diag_com_lg(geom%nl0,displ%lon_c2a,lon_c2)
-call hdata%diag_com_lg(geom%nl0,displ%lat_c2a,lat_c2)
-do its=2,nam%nts
-   call hdata%diag_com_lg(geom%nl0,displ%lon_c2a_raw(:,:,its),lon_c2_raw(:,:,its))
-   call hdata%diag_com_lg(geom%nl0,displ%lat_c2a_raw(:,:,its),lat_c2_raw(:,:,its))
-   call hdata%diag_com_lg(geom%nl0,displ%dist_c2a_raw(:,:,its),dist_c2_raw(:,:,its))
-   call hdata%diag_com_lg(geom%nl0,displ%lon_c2a_flt(:,:,its),lon_c2_flt(:,:,its))
-   call hdata%diag_com_lg(geom%nl0,displ%lat_c2a_flt(:,:,its),lat_c2_flt(:,:,its))
-   call hdata%diag_com_lg(geom%nl0,displ%dist_c2a_flt(:,:,its),dist_c2_flt(:,:,its))
+do iproc=1,mpl%nproc
+   if (mpl%myproc==iproc) then
+      ! Open file
+      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_write,ncid))
+
+      ! Get variable id
+      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2',lon_c2_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2',lat_c2_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2_raw',lon_c2_raw_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2_raw',lat_c2_raw_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'dist_c2_raw',dist_c2_raw_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2_flt',lon_c2_flt_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2_flt',lat_c2_flt_id))
+      call ncerr(subr,nf90_inq_varid(ncid,'dist_c2_flt',dist_c2_flt_id))
+
+      ! Write variable
+      do il0=1,geom%nl0
+         do ic2a=1,hdata%nc2a
+            ic2 = hdata%c2a_to_c2(ic2a)
+            call ncerr(subr,nf90_put_var(ncid,lon_c2_id,displ%lon_c2a(ic2a,il0)*rad2deg))
+            call ncerr(subr,nf90_put_var(ncid,lat_c2_id,displ%lat_c2a(ic2a,il0)*rad2deg))
+         end do
+      end do
+      do its=2,nam%nts
+         do il0=1,geom%nl0
+            do ic2a=1,hdata%nc2a
+               ic2 = hdata%c2a_to_c2(ic2a)
+               call ncerr(subr,nf90_put_var(ncid,lon_c2_raw_id,displ%lon_c2a_raw(ic2a,il0,its)*rad2deg))
+               call ncerr(subr,nf90_put_var(ncid,lat_c2_raw_id,displ%lat_c2a_raw(ic2a,il0,its)*rad2deg))
+               call ncerr(subr,nf90_put_var(ncid,dist_c2_raw_id,displ%dist_c2a_raw(ic2a,il0,its)*reqkm))
+               call ncerr(subr,nf90_put_var(ncid,lon_c2_flt_id,displ%lon_c2a_flt(ic2,il0,its)*rad2deg))
+               call ncerr(subr,nf90_put_var(ncid,lat_c2_flt_id,displ%lat_c2a_flt(ic2,il0,its)*rad2deg))
+               call ncerr(subr,nf90_put_var(ncid,dist_c2_flt_id,displ%dist_c2a_flt(ic2,il0,its)*reqkm))
+            end do
+         end do
+      end do
+
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
+   end if
+
+   ! Wait
+   call mpl%barrier
 end do
 
-! Write local arrays
-if (mpl%main) then
-   call ncerr(subr,nf90_put_var(ncid,lon_c2_id,lon_c2*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lat_c2_id,lat_c2*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lon_c2_raw_id,lon_c2_raw*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lat_c2_raw_id,lat_c2_raw*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,dist_c2_raw_id,dist_c2_raw*reqkm))
-   call ncerr(subr,nf90_put_var(ncid,lon_c2_flt_id,lon_c2_flt*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,lat_c2_flt_id,lat_c2_flt*rad2deg))
-   call ncerr(subr,nf90_put_var(ncid,dist_c2_flt_id,dist_c2_flt*reqkm))
-end if
 
-! Close file
-if (mpl%main) call ncerr(subr,nf90_close(ncid))
 
 end subroutine displ_write
 

@@ -19,7 +19,7 @@
  * Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Modified by Benjamin Menetrier for hdiag_nicas
+ * Modified by Benjamin Menetrier for BUMP
  */
 
 

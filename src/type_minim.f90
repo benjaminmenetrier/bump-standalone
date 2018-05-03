@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_minim
 
@@ -88,6 +88,10 @@ logical,intent(in) :: lprt               !< Print key
 ! Local variables
 integer :: ix
 real(kind_real) :: guess(minim%nx)
+
+! Check
+if (minim%nx<=0) call msgerror('nx should be positive to minimize')
+if (minim%ny<=0) call msgerror('nx should be positive to minimize')
 
 ! Initialization
 do ix=1,minim%nx

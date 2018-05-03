@@ -6,11 +6,10 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_diag
 
-use model_offline, only: model_write
 use netcdf
 use tools_const, only: reqkm
 use tools_display, only: vunitchar,msgerror,msgwarning,prog_init,prog_print,aqua,peach,purple,black
@@ -22,6 +21,7 @@ use type_bpar, only: bpar_type
 use type_diag_blk, only: diag_blk_type
 use type_geom, only: geom_type
 use type_hdata, only: hdata_type
+use type_io, only: io
 use type_mpl, only: mpl
 use type_nam, only: nam_type
 
@@ -107,7 +107,7 @@ type(hdata_type),intent(in) :: hdata   !< HDIAG data
 integer :: ib,i,ic2,il0,il0i,iproc,ic2a,ildw
 real(kind_real) :: fld_c2a(hdata%nc2a,geom%nl0),fld_c2b(hdata%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
 character(len=7) :: lonchar,latchar
-character(len=1024) :: filename,filename_gridded
+character(len=1024) :: filename
 
 if (mpl%main) then
    filename = trim(nam%prefix)//'_diag.nc'
@@ -122,7 +122,6 @@ if (nam%local_diag) then
    do ib=1,bpar%nb+1
       if (bpar%fit_block(ib)) then
          filename = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)//'.nc'
-         filename_gridded = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)//'_gridded.nc'
          do i=1,2
             ! Copy data
             do ic2a=1,hdata%nc2a
@@ -142,11 +141,9 @@ if (nam%local_diag) then
 
             ! Write fields
             if (i==1) then
-               call geom%fld_write(nam,filename,trim(bpar%blockname(ib))//'_fit_rh',fld_c0a)
-               call model_write(nam,geom,filename_gridded,trim(bpar%blockname(ib))//'_fit_rh',fld_c0a)
+               call io%fld_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rh',fld_c0a)
             elseif (i==2) then
-               call geom%fld_write(nam,filename,trim(bpar%blockname(ib))//'_fit_rv',fld_c0a)
-               call model_write(nam,geom,filename_gridded,trim(bpar%blockname(ib))//'_fit_rv',fld_c0a)
+               call io%fld_write(nam,geom,filename,trim(bpar%blockname(ib))//'_fit_rv',fld_c0a)
             end if
          end do
       end if
@@ -195,11 +192,9 @@ character(len=*),intent(in) :: prefix  !< Diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,il0
-logical,allocatable :: done(:)
 
 ! Allocation
 call diag%alloc(nam,geom,bpar,hdata,prefix)
-allocate(done(0:diag%nc2a))
 
 do ib=1,bpar%nb+1
    if (bpar%diag_block(ib)) then
@@ -267,7 +262,7 @@ do ib=1,bpar%nb+1
          diag%blk(ic2a,ib)%raw = avg%blk(ic2a,ib)%cor
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar,hdata)
 
          ! Update
          done(ic2a) = .true.
@@ -342,7 +337,7 @@ do ib=1,bpar%nb+1
          call diag%blk(ic2a,ib)%normalization(geom,bpar)
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar,hdata)
 
          ! Update
          done(ic2a) = .true.
@@ -416,7 +411,7 @@ do ib=1,bpar%nb+1
          call diag%blk(ic2a,ib)%normalization(geom,bpar)
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(nam,geom,bpar,hdata)
 
          ! Update
          done(ic2a) = .true.
@@ -497,8 +492,8 @@ do ib=1,bpar%nb+1
 
          ! Fitting
          if (bpar%fit_block(ib)) then
-            call diag%blk(ic2a,ib)%fitting(nam,geom,bpar)
-            call diag_lr%blk(ic2a,ib)%fitting(nam,geom,bpar)
+            call diag%blk(ic2a,ib)%fitting(nam,geom,bpar,hdata)
+            call diag_lr%blk(ic2a,ib)%fitting(nam,geom,bpar,hdata)
          end if
 
          ! Update

@@ -84,21 +84,8 @@ lct_nscales = 0,
 lct_diag = .false.,
 /
 
-&output_param
-nldwh = 0,
-il_ldwh = 0,
-ic_ldwh = 0,
-nldwv = 0,
-lon_ldwv = 0.0,
-lat_ldwv = 0.0,
-diag_rhflt = 3000.0e3,
-diag_interp = "bilin",
-/
-
 &nicas_param
 lsqrt = .false.,
-rh = 0.0,
-rv = 0.0,
 resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
@@ -116,5 +103,19 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 nobs = 45000,
 obsdis = "random",
 obsop_interp = "bilin",
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+diag_rhflt = 3000.0e3,
+diag_interp = "bilin",
+grid_output = .true.,
+grid_resol = 200.0e3,
+grid_interp = "bilin",
 /
 

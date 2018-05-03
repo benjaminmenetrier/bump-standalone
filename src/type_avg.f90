@@ -6,11 +6,11 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_avg
 
-use omp_lib
+!$ use omp_lib
 use tools_display, only: prog_init,prog_print,peach,black
 use tools_func, only: add,divide
 use tools_kinds, only: kind_real

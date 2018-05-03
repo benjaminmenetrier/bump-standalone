@@ -6,18 +6,19 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_lct
 
-use model_offline, only: model_write
 use tools_const, only: req,reqkm,pi
 use tools_display, only: prog_init,prog_print,msgerror,msgwarning
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_bpar, only: bpar_type
+use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_hdata, only: hdata_type
+use type_io, only: io
 use type_lct_blk, only: lct_blk_type
 use type_mom, only: mom_type
 use type_mpl, only: mpl
@@ -91,96 +92,86 @@ end subroutine lct_alloc
 ! Subroutine: lct_run_lct
 !> Purpose: LCT driver
 !----------------------------------------------------------------------
-subroutine lct_run_lct(lct,nam,geom,bpar,ens1)
+subroutine lct_run_lct(lct,nam,geom,bpar,ens)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct                                                       !< LCT
-type(nam_type),intent(inout) :: nam                                                        !< Namelist
-type(geom_type),intent(in) :: geom                                                         !< Geometry
-type(bpar_type),intent(in) :: bpar                                                         !< Block parameters
-real(kind_real),intent(in),optional :: ens1(geom%nc0a,geom%nl0,nam%nv,nam%nts,nam%ens1_ne) !< Ensemble 1
+class(lct_type),intent(inout) :: lct !< LCT
+type(nam_type),intent(inout) :: nam  !< Namelist
+type(geom_type),intent(in) :: geom   !< Geometry
+type(bpar_type),intent(in) :: bpar   !< Block parameters
+type(ens_type),intent(in) :: ens     !< Ensemble
 
 ! Local variables
 type(hdata_type) :: hdata
 type(mom_type) :: mom
 
-if (nam%new_lct) then
+! Setup sampling
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
+call flush(mpl%unit)
+
+! Set artificially small local radius
+nam%local_rad = 1.0e-12
+
+! Setup sampling
+call hdata%setup_sampling(nam,geom)
+
+! Compute MPI distribution, halo A
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
+call flush(mpl%unit)
+call hdata%compute_mpi_a(nam,geom)
+
+! Compute MPI distribution, halos A-B
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
+call flush(mpl%unit)
+call hdata%compute_mpi_ab(geom)
+
+! Compute MPI distribution, halo C
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute MPI distribution, halo C'
+call flush(mpl%unit)
+call hdata%compute_mpi_c(nam,geom)
+
+! Compute sample moments
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute sample moments'
+call flush(mpl%unit)
+call mom%compute(nam,geom,bpar,hdata,ens)
+
+! Compute LCT
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute LCT'
+call flush(mpl%unit)
+call lct%compute(nam,geom,bpar,hdata,mom)
+
+! Filter LCT
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Filter LCT'
+call flush(mpl%unit)
+call lct%filter(nam,geom,bpar,hdata)
+
+! LCT RMSE
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- LCT RMSE'
+call flush(mpl%unit)
+call lct%rmse(nam,geom,bpar,hdata)
+
+! Write LCT
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Write LCT'
+call flush(mpl%unit)
+call lct%write(nam,geom,bpar,hdata)
+
+if (write_cor) then
+   ! Write correlation and LCT fit
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Call LCT driver'
+   write(mpl%unit,'(a)') '--- Write correlation and LCT fit'
    call flush(mpl%unit)
-
-   ! Setup sampling
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
-   call flush(mpl%unit)
-
-   ! Set artificially small local radius
-   nam%local_rad = 1.0e-12
-
-   ! Setup sampling
-   call hdata%setup_sampling(nam,geom)
-
-   ! Compute MPI distribution, halo A
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
-   call flush(mpl%unit)
-   call hdata%compute_mpi_a(nam,geom)
-
-   ! Compute MPI distribution, halos A-B
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
-   call flush(mpl%unit)
-   call hdata%compute_mpi_ab(geom)
-
-   ! Compute MPI distribution, halo C
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halo C'
-   call flush(mpl%unit)
-   call hdata%compute_mpi_c(nam,geom)
-
-   ! Compute sample moments
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute sample moments'
-   call flush(mpl%unit)
-   if (present(ens1)) then
-      call mom%compute(nam,geom,bpar,hdata,'ens1',ens1)
-   else
-      call mom%compute(nam,geom,bpar,hdata,'ens1')
-   end if
-
-   ! Compute LCT
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute LCT'
-   call flush(mpl%unit)
-   call lct%compute(nam,geom,bpar,hdata,mom)
-
-   ! Filter LCT
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Filter LCT'
-   call flush(mpl%unit)
-   call lct%filter(nam,geom,bpar,hdata)
-
-   ! LCT RMSE
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- LCT RMSE'
-   call flush(mpl%unit)
-   call lct%rmse(nam,geom,bpar,hdata)
-
-   ! Write LCT
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Write LCT'
-   call flush(mpl%unit)
-   call lct%write(nam,geom,bpar,hdata)
-
-   if (write_cor) then
-      ! Write correlation and LCT fit
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a)') '--- Write correlation and LCT fit'
-      call flush(mpl%unit)
-      call lct%write_cor(nam,geom,bpar,hdata)
-   end if
+   call lct%write_cor(nam,geom,bpar,hdata)
 end if
 
 end subroutine lct_run_lct
@@ -455,19 +446,19 @@ do ib=1,bpar%nb
          end do
       end do
 
-      ! Write gridded LCT
-      write(mpl%unit,'(a10,a)') '','Write gridded LCT'
+      ! Write LCT
+      write(mpl%unit,'(a10,a)') '','Write LCT'
       call flush(mpl%unit)
       filename = trim(nam%prefix)//'_lct.nc'
       iv = bpar%b_to_v2(ib)
       write(iscaleschar,'(i1)') iscales
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_D11_'//iscaleschar,fld(:,:,1)/req**2)
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_D11_'//iscaleschar,fld)
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_D22_'//iscaleschar,fld(:,:,2)/req**2)
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_D33_'//iscaleschar,fld(:,:,3))
-      if (lct%ncomp(iscales)==4) call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_Hc12_'//iscaleschar,fld(:,:,4))
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_coef_'//iscaleschar,fld(:,:,lct%ncomp(iscales)+1))
-      call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_Lh_'//iscaleschar,fld(:,:,lct%ncomp(iscales)+2)*reqkm)
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_D11_'//iscaleschar,fld(:,:,1)/req**2)
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_D11_'//iscaleschar,fld)
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_D22_'//iscaleschar,fld(:,:,2)/req**2)
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_D33_'//iscaleschar,fld(:,:,3))
+      if (lct%ncomp(iscales)==4) call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_Hc12_'//iscaleschar,fld(:,:,4))
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_coef_'//iscaleschar,fld(:,:,lct%ncomp(iscales)+1))
+      call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_Lh_'//iscaleschar,fld(:,:,lct%ncomp(iscales)+2)*reqkm)
 
       ! Copy to LCT
       lct%blk(ib)%Dcoef(:,:,iscales) = fld(:,:,lct%ncomp(iscales)+1)
@@ -600,20 +591,18 @@ do ib=1,bpar%nb
    end do
 
    ! Global to local
-   call geom%fld_com_gl(fld_glb(:,:,1),fld(:,:,1))
-   call geom%fld_com_gl(fld_glb(:,:,2),fld(:,:,2))
+   do il0=1,geom%nl0
+      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_glb(:,il0,1),geom%nc0a,fld(:,il0,1))
+      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_glb(:,il0,2),geom%nc0a,fld(:,il0,2))
+   end do
 
    ! Write LCT diagnostics
    write(mpl%unit,'(a10,a)') '','Write LCT diagnostics'
    call flush(mpl%unit)
    filename = trim(nam%prefix)//'_lct.nc'
    iv = bpar%b_to_v2(ib)
-   call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_raw',fld(:,:,1))
-   call geom%fld_write(nam,filename,trim(nam%varname(iv))//'_fit',fld(:,:,2))
-   filename = trim(nam%prefix)//'_lct_gridded.nc'
-   iv = bpar%b_to_v2(ib)
-   call model_write(nam,geom,filename,trim(nam%varname(iv))//'_raw',fld(:,:,1))
-   call model_write(nam,geom,filename,trim(nam%varname(iv))//'_fit',fld(:,:,2))
+   call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_raw',fld(:,:,1))
+   call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_fit',fld(:,:,2))
 
    ! Release memory
    if (mpl%main) deallocate(rbuf)
