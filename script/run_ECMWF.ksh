@@ -3,7 +3,7 @@
 # Korn shell script: pbs
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 
 # Parallel setup
@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/home/ms/fr/sozi/code/hdiag_nicas
+rootdir=/home/ms/fr/sozi/code/bump
 
 # Define data directory
 datadir=${rootdir}/test
@@ -29,12 +29,12 @@ datadir=${rootdir}/test
 workdir=${rootdir}/work
 rm -fr ${workdir}
 mkdir ${workdir}
-cp -f ${rootdir}/run/hdiag_nicas ${workdir}
+cp -f ${rootdir}/run/bump ${workdir}
 cp -f ${rootdir}/run/namelist_test ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
-cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
+cat<<EOFNAM >${workdir}/job_bump.ksh
 #!/bin/ksh
 #PBS -q np
 #PBS -l walltime=00:30:00
@@ -50,10 +50,10 @@ module load cray-netcdf
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-aprun -N ${ntasks_per_node} -n ${ntasks} -d $OMP_NUM_THREADS -j 1 ${rootdir}/run/hdiag_nicas namelist
+aprun -N ${ntasks_per_node} -n ${ntasks} -d $OMP_NUM_THREADS -j 1 ${rootdir}/run/bump namelist
 
 EOFNAM
 #----------------------------------------------------------------------
 
 # Execute
-qsub ${workdir}/job_hdiag_nicas.ksh
+qsub ${workdir}/job_bump.ksh

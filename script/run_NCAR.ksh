@@ -3,7 +3,7 @@
 # Korn shell script: pbs
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 
 # Parallel setup
@@ -20,7 +20,7 @@ echo "   Number of threads:        "${nthreads}
 echo "   Number of cpus per nodes: "${ncpus_per_node}
 
 # Define root directory
-rootdir=/glade/u/home/menetrie/code/hdiag_nicas
+rootdir=/glade/u/home/menetrie/code/bump
 
 # Define model and xp
 model=arp
@@ -33,12 +33,12 @@ datadir=${rootdir}/data/${model}/${xp}
 workdir=${rootdir}/${model}_${xp}
 rm -fr ${workdir}
 mkdir ${workdir}
-cp -f ${rootdir}/run/hdiag_nicas ${workdir}
+cp -f ${rootdir}/run/bump ${workdir}
 cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
-cat<<EOFNAM >${workdir}/job_hdiag_nicas.ksh
+cat<<EOFNAM >${workdir}/job_bump.ksh
 #!/bin/ksh
 #set -ex
 #PBS -q regular
@@ -55,10 +55,10 @@ module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}
-mpirun ${rootdir}/run/hdiag_nicas namelist
+mpirun ${rootdir}/run/bump namelist
 EOFNAM
 
 #----------------------------------------------------------------------
 
 # Execute
-qsub ${workdir}/job_hdiag_nicas.ksh
+qsub ${workdir}/job_bump.ksh

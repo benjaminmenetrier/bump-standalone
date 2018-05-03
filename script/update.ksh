@@ -3,7 +3,7 @@
 # Korn shell script: update
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 # Clean temporary files
 echo '--- Clean temporary files'
@@ -35,7 +35,7 @@ cd ../..
 mkdir -p build
 cd build
 rm -fr CMakeCache.txt CMakeFiles cmake_install.cmake Makefile *.mod
-export HDIAG_NICAS_BUILD=DEBUG
+export BUMP_BUILD=DEBUG
 cmake ..
 make -j4
 
@@ -47,14 +47,14 @@ cd ../script
 # Recompute truth
 echo '--- Recompute truth'
 cd ../run
-export OMP_NUM_THREADS=1;./hdiag_nicas namelist_truth
+export OMP_NUM_THREADS=1;./bump namelist_truth
 
 # Pack everything
 echo '--- Pack everything'
 cd ../script
 ./pack.ksh
 mkdir -p ../versions
-mv -f ../hdiag_nicas_*.tar.gz ../versions
+mv -f ../bump_*.tar.gz ../versions
 
 # Execute test
 echo '--- Execute test'
@@ -75,7 +75,7 @@ doxygen Doxyfile
 # Copy doc directory on ftp
 echo '--- Copy doc directory on ftp'
 cd ..
-lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc/html hdiag_nicas;quit"
+lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc/html bump;quit"
 cd script
 
 # Git commands

@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyrimght © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module model_nemo
 
@@ -25,7 +25,7 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_nemo_coord,model_nemo_read,model_nemo_write
+public :: model_nemo_coord,model_nemo_read
 
 contains
 
@@ -42,8 +42,9 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: il0
+integer :: il0,img,ilat,ilon,ic0
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,tmask_id,e1t_id,e2t_id
+integer,allocatable :: g_to_lon(:),g_to_lat(:)
 integer(kind=1),allocatable :: tmask(:,:,:)
 real(kind=4),allocatable :: lon(:,:),lat(:,:),e1t(:,:,:),e2t(:,:,:)
 real(kind_real),allocatable :: lon_g(:),lat_g(:),area_g(:)
@@ -56,24 +57,22 @@ call ncerr(subr,nf90_inq_dimid(ncid,'x',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'y',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%ng = geom%nlon*geom%nlat
+geom%nmg = geom%nlon*geom%nlat
 call ncerr(subr,nf90_inq_dimid(ncid,'z',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
 allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
-allocate(geom%rgmask(geom%nlon,geom%nlat))
 allocate(tmask(geom%nlon,geom%nlat,geom%nl0))
 allocate(e1t(geom%nlon,geom%nlat,geom%nl0))
 allocate(e2t(geom%nlon,geom%nlat,geom%nl0))
-allocate(lon_g(geom%ng))
-allocate(lat_g(geom%ng))
-allocate(area_g(geom%ng))
-allocate(lmask_g(geom%ng,geom%nl0))
-
-! Initialization
-geom%rgmask = .true.
+allocate(g_to_lon(geom%nmg))
+allocate(g_to_lat(geom%nmg))
+allocate(lon_g(geom%nmg))
+allocate(lat_g(geom%nmg))
+allocate(area_g(geom%nmg))
+allocate(lmask_g(geom%nmg,geom%nl0))
 
 ! Read data and close file
 call ncerr(subr,nf90_inq_varid(ncid,'nav_lon',lon_id))
@@ -94,28 +93,38 @@ call ncerr(subr,nf90_close(ncid))
 lon = lon*real(deg2rad,kind=4)
 lat = lat*real(deg2rad,kind=4)
 
-! Pack
-lon_g = pack(real(lon,kind_real),mask=.true.)
-lat_g = pack(real(lat,kind_real),mask=.true.)
-area_g = pack(real(e1t(:,:,1)*e2t(:,:,1),kind_real),mask=.true.)/req**2
-do il0=1,geom%nl0
-   lmask_g(:,il0) = pack(tmask(:,:,il0)>0,mask=.true.)
-end do
-
 ! Redundant grid
+img = 0
+do ilon=1,geom%nlon
+   do ilat=1,geom%nlat
+      img = img+1
+      g_to_lon(img) = ilon
+      g_to_lat(img) = ilat
+      lon_g(img) = real(lon(ilon,ilat),kind_real)
+      lat_g(img) = real(lat(ilon,ilat),kind_real)
+      area_g(img) = real(e1t(ilon,ilat,1)*e2t(ilon,ilat,1),kind_real)/req**2
+      do il0=1,geom%nl0
+        lmask_g(img,il0) = (tmask(ilon,ilat,il0)>0)
+      end do
+   end do
+end do
 call geom%find_redundant(lon_g,lat_g)
 
 ! Pack
 call geom%alloc
-geom%lon = lon_g(geom%c0_to_g)
-geom%lat = lat_g(geom%c0_to_g)
+geom%c0_to_lon = g_to_lon(geom%c0_to_mg)
+geom%c0_to_lat = g_to_lat(geom%c0_to_mg)
+geom%lon = lon_g(geom%c0_to_mg)
+geom%lat = lat_g(geom%c0_to_mg)
 do il0=1,geom%nl0
-   geom%mask(:,il0) = lmask_g(geom%c0_to_g,il0)
-   geom%area(il0) = sum(area_g(geom%c0_to_g),geom%mask(:,il0))/req**2
+   geom%mask(:,il0) = lmask_g(geom%c0_to_mg,il0)
+   geom%area(il0) = sum(area_g(geom%c0_to_mg),geom%mask(:,il0))/req**2
 end do
 
 ! Vertical unit
-geom%vunit = float(nam%levs(1:geom%nl0))
+do ic0=1,geom%nc0
+   geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
+end do
 
 ! Release memory
 deallocate(lon)
@@ -128,146 +137,91 @@ end subroutine model_nemo_coord
 ! Subroutine: model_nemo_read
 !> Purpose: read NEMO field
 !----------------------------------------------------------------------
-subroutine model_nemo_read(nam,geom,ncid,its,fld)
+subroutine model_nemo_read(nam,geom,filename,its,fld)
 
 implicit none
 
 ! Passed variables
 type(nam_type),intent(in) :: nam                              !< Namelist
 type(geom_type),intent(in) :: geom                            !< Geometry
-integer,intent(in) :: ncid                                    !< NetCDF file ID
+character(len=*),intent(in) :: filename                       !< File name
 integer,intent(in) :: its                                     !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0
-integer :: fld_id
-real(kind=8) :: fld_tmp(geom%nlon,geom%nlat),fld_loc(geom%nlon,geom%nlat)
-real(kind_real) :: fld_g(geom%ng),fld_glb(geom%nc0,geom%nl0)
+integer :: iproc,iv,il0,ic0a,ic0,ilon,ilat
+integer :: ncid,fld_id
+real(kind=8) :: fld_tmp,fld_tmp2
 character(len=1024) :: subr = 'model_nemo_read'
 
 ! Initialize field
 call msr(fld)
 
-do iv=1,nam%nv
-   if (mpl%main) then
-      ! 3d variable
+do iproc=1,mpl%nproc
+   if (mpl%myproc==iproc) then
+      ! Open file
+      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
 
-      ! Get variable id
-      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+      do iv=1,nam%nv
+         ! 3d variable
 
-      do il0=1,nam%nl
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/1,1,nam%levs(il0),nam%timeslot(its)/),(/geom%nlon,geom%nlat,1,1/)))
-         select case (trim(nam%varname(iv)))
-         case ('un')
-            fld_loc(:,1) = 0.5*(fld_tmp(geom%nlon,:)+fld_tmp(:,1))
-            fld_loc(2:geom%nlon,:) = 0.5*(fld_tmp(1:geom%nlon-1,:)+fld_tmp(2:geom%nlon,:))
-         case ('vn')
-            fld_loc(:,1) = 0.5*(fld_tmp(:,geom%nlat)+fld_tmp(:,1))
-            fld_loc(:,2:geom%nlat) = 0.5*(fld_tmp(:,1:geom%nlat-1)+fld_tmp(:,2:geom%nlat))
-         case default
-            fld_loc = fld_tmp
-         end select
-         fld_g = pack(real(fld_loc,kind_real),mask=.true.)
-         fld_glb(:,il0) = fld_g(geom%c0_to_g)
+         ! Get variable id
+         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+
+         do il0=1,nam%nl
+            do ic0a=1,geom%nc0a
+               ic0 = geom%c0a_to_c0(ic0a)
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               select case (trim(nam%varname(iv)))
+               case ('un')
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  if (ilon==1) then
+                     call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/geom%nlon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  else
+                     call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon-1,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  end if
+                  fld(ic0a,il0,iv) = 0.5*real(fld_tmp+fld_tmp,kind_real)
+               case ('vn')
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  if (ilat==1) then
+                     call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,geom%nlat,nam%levs(il0),nam%timeslot(its)/)))
+                  else
+                     call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,ilat-1,nam%levs(il0),nam%timeslot(its)/)))
+                  end if
+                  fld(ic0a,il0,iv) = 0.5*real(fld_tmp+fld_tmp,kind_real)
+               case default
+                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
+               end select
+            end do
+         end do
+
+         if (trim(nam%addvar2d(iv))/='') then
+            ! 2d variable
+
+            ! Get id
+            call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+
+            ! Read data
+            do ic0a=1,geom%nc0a
+               ic0 = geom%c0a_to_c0(ic0a)
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%timeslot(its)/)))
+               fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
+            end do
+         end if
       end do
 
-      if (trim(nam%addvar2d(iv))/='') then
-         ! 2d variable
-
-         ! Get id
-         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-         ! Read data
-         call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/1,1,nam%timeslot(its)/),(/geom%nlon,geom%nlat,1/)))
-         fld_g = pack(real(fld_loc,kind_real),mask=.true.)
-         fld_glb(:,geom%nl0) = fld_g(geom%c0_to_g)
-      end if
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
    end if
 
-   ! Split over processors
-   call geom%fld_com_gl(fld_glb,fld(:,:,iv))
+   ! Wait
+   call mpl%barrier
 end do
 
 end subroutine model_nemo_read
-
-!----------------------------------------------------------------------
-! Subroutine: model_nemo_write
-!> Purpose: write NEMO field
-!----------------------------------------------------------------------
-subroutine model_nemo_write(geom,ncid,varname,fld)
-
-implicit none
-
-! Passed variables
-type(geom_type),intent(in) :: geom                    !< Geometry
-integer,intent(in) :: ncid                            !< NetCDF file ID
-character(len=*),intent(in) :: varname                !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
-
-! Local variables
-integer :: il0,ic0,info,ig
-integer :: nlon_id,nlat_id,nlev_id,fld_id,lon_id,lat_id
-real(kind_real) :: fld_loc(geom%nlon,geom%nlat),fld_glb(geom%nc0,geom%nl0),fld_g(geom%ng)
-character(len=1024) :: subr = 'model_nemo_write'
-
-! Local to global
-call geom%fld_com_lg(fld,fld_glb)
-
-if (mpl%main) then
-   ! Get variable id
-   info = nf90_inq_varid(ncid,trim(varname),fld_id)
-
-   ! Define dimensions and variable if necessary
-   if (info/=nf90_noerr) then
-      call ncerr(subr,nf90_redef(ncid))
-      info = nf90_inq_dimid(ncid,'x',nlon_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'x',geom%nlon,nlon_id))
-      info = nf90_inq_dimid(ncid,'y',nlat_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'y',geom%nlat,nlat_id))
-      info = nf90_inq_dimid(ncid,'z',nlev_id)
-      if (info/=nf90_noerr) call ncerr(subr,nf90_def_dim(ncid,'z',geom%nl0,nlev_id))
-      call ncerr(subr,nf90_def_var(ncid,trim(varname),ncfloat,(/nlon_id,nlat_id,nlev_id/),fld_id))
-      call ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_enddef(ncid))
-   end if
-
-   ! Write data
-   do il0=1,geom%nl0
-      if (isanynotmsr(fld_glb(:,il0))) then
-         do ic0=1,geom%nc0
-            if (.not.geom%mask(ic0,il0)) call msr(fld_glb(ic0,il0))
-         end do
-
-         fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
-         call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc,(/1,1,il0/),(/geom%nlon,geom%nlat,1/)))
-      end if
-   end do
-
-   ! Write coordinates
-   info = nf90_inq_varid(ncid,'nav_lon',lon_id)
-   if (info/=nf90_noerr) then
-      call ncerr(subr,nf90_redef(ncid))
-      call ncerr(subr,nf90_def_var(ncid,'nav_lon',ncfloat,(/nlon_id,nlat_id/),lon_id))
-      call ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_def_var(ncid,'nav_lat',ncfloat,(/nlon_id,nlat_id/),lat_id))
-      call ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',msvalr))
-      call ncerr(subr,nf90_enddef(ncid))
-
-      do ig=1,geom%ng
-         fld_g(ig) = geom%lon(geom%g_to_c0(ig))
-      end do
-      fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lon_id,fld_loc*rad2deg))
-
-      do ig=1,geom%ng
-         fld_g(ig) = geom%lat(geom%g_to_c0(ig))
-      end do
-      fld_loc = unpack(fld_g,geom%rgmask,fld_loc)
-      call ncerr(subr,nf90_put_var(ncid,lat_id,fld_loc*rad2deg))
-   end if
-end if
-
-end subroutine model_nemo_write
 
 end module model_nemo

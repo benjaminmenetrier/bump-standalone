@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_obsop
 
@@ -47,7 +47,6 @@ type obsop_type
    ! Required data to apply an observation operator
 
    ! Number of points
-   integer :: nc0a                          !< Halo A size
    integer :: nc0b                          !< Halo B size
 
    ! Number of observations
@@ -60,6 +59,7 @@ type obsop_type
    type(com_type) :: com                    !< Communication data
 contains
    procedure :: generate => obsop_generate
+   procedure :: from => obsop_from
    procedure :: run_obsop => obsop_run_obsop
    procedure :: parameters => obsop_parameters
    procedure :: apply => obsop_apply
@@ -145,14 +145,41 @@ if (mpl%main) then
 end if
 
 ! Broadcast data
-call mpl%bcast(obsop%lonobs,mpl%ioproc)
-call mpl%bcast(obsop%latobs,mpl%ioproc)
+call mpl%bcast(obsop%lonobs)
+call mpl%bcast(obsop%latobs)
 
 ! Print results
 write(mpl%unit,'(a7,a,i8)') '','Number of observations: ',obsop%nobs
 call flush(mpl%unit)
 
 end subroutine obsop_generate
+
+!----------------------------------------------------------------------
+! Subroutine: obsop_from
+!> Purpose: copy observation operator data
+!----------------------------------------------------------------------
+subroutine obsop_from(obsop,nobs,lonobs,latobs)
+
+implicit none
+
+! Passed variables
+class(obsop_type),intent(inout) :: obsop   !< Observation operator data
+integer,intent(in) :: nobs                 !< Number of observations
+real(kind_real),intent(in) :: lonobs(nobs) !< Observations longitudes
+real(kind_real),intent(in) :: latobs(nobs) !< Observations latitudes
+
+! Get size
+obsop%nobs = nobs
+
+! Allocation
+allocate(obsop%lonobs(obsop%nobs))
+allocate(obsop%latobs(obsop%nobs))
+
+! Copy
+obsop%lonobs = lonobs
+obsop%latobs = latobs
+
+end subroutine obsop_from
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_run_obsop
@@ -167,31 +194,25 @@ class(obsop_type),intent(inout) :: obsop !< Observation operator data
 type(nam_type),intent(in) :: nam         !< Namelist
 type(geom_type),intent(in) :: geom       !< Geometry
 
-if (nam%new_obsop) then
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Call observation operator driver'
-   call flush(mpl%unit)
+! Compute observation operator parameters
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Compute observation operator parameters'
+call flush(mpl%unit)
+call obsop%parameters(nam,geom)
 
-   ! Compute observation operator parameters
+if (nam%check_adjoints) then
+   ! Test adjoints
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute observation operator parameters'
+   write(mpl%unit,'(a)') '--- Test observation operator adjoint'
    call flush(mpl%unit)
-   call obsop%parameters(nam,geom)
-
-   if (nam%check_adjoints) then
-      ! Test adjoints
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a)') '--- Test observation operator adjoint'
-      call flush(mpl%unit)
-      call obsop%test_adjoint(geom)
-   end if
-
-   ! Test precision
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test observation operator precision'
-   call flush(mpl%unit)
-   call obsop%test_accuracy(geom)
+   call obsop%test_adjoint(geom)
 end if
+
+! Test precision
+write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+write(mpl%unit,'(a)') '--- Test observation operator precision'
+call flush(mpl%unit)
+call obsop%test_accuracy(geom)
 
 end subroutine obsop_run_obsop
 
@@ -291,8 +312,8 @@ else
    mpl%tag = mpl%tag+2
 
    ! Broadcast data
-   call mpl%bcast(lonobs,mpl%ioproc)
-   call mpl%bcast(latobs,mpl%ioproc)
+   call mpl%bcast(lonobs)
+   call mpl%bcast(latobs)
 end if
 
 ! Allocation
@@ -343,7 +364,7 @@ if (global) then
 
       ! Random repartition
       if (mpl%main) call rng%rand_real(0.0_kind_real,1.0_kind_real,list)
-      call mpl%bcast(list,mpl%ioproc)
+      call mpl%bcast(list)
       call qsort(obsop%nobs,list,order)
       nobsa = obsop%nobs/mpl%nproc
       if (nobsa*mpl%nproc<obsop%nobs) nobsa = nobsa+1
@@ -397,7 +418,7 @@ if (global) then
             nobs_to_move(iproc) = delta
             nres = nres-delta
          end do
-         nobs_to_move = int(float(obsop%proc_to_nobsa-nobs_to_move))
+         nobs_to_move = int(real(obsop%proc_to_nobsa-nobs_to_move,kind_real))
          if (sum(nobs_to_move)>0) then
             ind = maxloc(nobs_to_move)
          elseif (sum(nobs_to_move)<0) then
@@ -507,7 +528,6 @@ do iobs=1,obsop%nobs
       end do
    end if
 end do
-obsop%nc0a = count(geom%c0_to_proc==mpl%myproc)
 obsop%nc0b = count(lcheck_nc0b)
 
 ! Define halo points
@@ -597,7 +617,7 @@ if (mpl%main) then
       ! Communicate dimensions
       if (iproc==mpl%ioproc) then
          ! Copy dimensions
-         nc0a = obsop%nc0a
+         nc0a = geom%nc0a
          nc0b = obsop%nc0b
       else
          ! Receive dimensions on ioproc
@@ -645,7 +665,7 @@ if (mpl%main) then
    deallocate(c0_to_c0a)
 else
    ! Send dimensions to ioproc
-   call mpl%send(obsop%nc0a,mpl%ioproc,mpl%tag)
+   call mpl%send(geom%nc0a,mpl%ioproc,mpl%tag)
    call mpl%send(obsop%nc0b,mpl%ioproc,mpl%tag+1)
 
    ! Send data to ioproc
@@ -657,12 +677,12 @@ call obsop%com%setup(com,'com')
 
 ! Compute scores
 if (mpl%main) then
-   N_max = float(maxval(obsop%proc_to_nobsa))/(float(obsop%nobs)/float(mpl%nproc))
+   N_max = real(maxval(obsop%proc_to_nobsa),kind_real)/(real(obsop%nobs,kind_real)/real(mpl%nproc,kind_real))
    C_max = 0.0
    do iproc=1,mpl%nproc
       C_max = max(C_max,real(com(iproc)%nhalo,kind_real))
    end do
-   C_max = C_max/(3.0*float(obsop%nobs)/float(mpl%nproc))
+   C_max = C_max/(3.0*real(obsop%nobs,kind_real)/real(mpl%nproc,kind_real))
 end if
 
 ! Print results
@@ -670,8 +690,8 @@ write(mpl%unit,'(a7,a)') '','Number of observations per MPI task:'
 do iproc=1,mpl%nproc
    write(mpl%unit,'(a10,a,i3,a,i8)') '','Task ',iproc,': ',obsop%proc_to_nobsa(iproc)
 end do
-write(mpl%unit,'(a7,a,f5.1,a)') '','Observation repartition imbalance: ', &
- & 100.0*float(maxval(obsop%proc_to_nobsa)-minval(obsop%proc_to_nobsa))/(float(sum(obsop%proc_to_nobsa))/float(mpl%nproc)),' %'
+write(mpl%unit,'(a7,a,f5.1,a)') '','Observation repartition imbalance: ',100.0*real(maxval(obsop%proc_to_nobsa) &
+ & -minval(obsop%proc_to_nobsa),kind_real)/(real(sum(obsop%proc_to_nobsa),kind_real)/real(mpl%nproc,kind_real)),' %'
 write(mpl%unit,'(a7,a)') '','Number of grid points, halo size and number of received values per MPI task:'
 if (mpl%main) then
    do iproc=1,mpl%nproc
@@ -722,7 +742,7 @@ implicit none
 ! Passed variables
 class(obsop_type),intent(in) :: obsop                    !< Observation operator data
 type(geom_type),intent(in) :: geom                       !< Geometry
-real(kind_real),intent(in) :: fld(obsop%nc0a,geom%nl0)   !< Field
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)    !< Field
 real(kind_real),intent(out) :: obs(obsop%nobsa,geom%nl0) !< Observations columns
 
 ! Local variables
@@ -755,7 +775,7 @@ implicit none
 class(obsop_type),intent(in) :: obsop                   !< Observation operator data
 type(geom_type),intent(in) :: geom                      !< Geometry
 real(kind_real),intent(in) :: obs(obsop%nobsa,geom%nl0) !< Observations columns
-real(kind_real),intent(out) :: fld(obsop%nc0a,geom%nl0) !< Field
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
 
 ! Local variables
 integer :: il0
@@ -858,7 +878,7 @@ do iobsa=1,obsop%nobsa
       dist(iobsa) = dist(iobsa)*reqkm
    end if
 end do
-norm = float(count(isnotmsr(dist)))
+norm = real(count(isnotmsr(dist)),kind_real)
 if (norm>0) then
    distmin = minval(dist,mask=isnotmsr(dist))
    distmax = maxval(dist,mask=isnotmsr(dist))

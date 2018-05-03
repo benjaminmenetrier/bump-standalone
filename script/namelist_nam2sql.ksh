@@ -3,7 +3,7 @@
 # Korn shell script: namelist_sql2nam
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 # Function to save a namelist
 save_namelist() {
@@ -73,6 +73,9 @@ save_namelist() {
                   value=`echo ${line} | cut -d"=" -f 2 | cut -c 2-`
                   value=${value%','}
                   value=`echo ${value} | sed -e "s/'/\\\\\"/g"`
+                  if [[ ${value} == "" ]] ; then
+                     value="NULL"
+                  fi
                   if [ -z  "${newrecord}" ] ; then
                      keys=${keys}","${key}
                      values=${values}",'"${value}"'"

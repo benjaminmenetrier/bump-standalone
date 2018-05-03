@@ -18,7 +18,7 @@ implicit none
 real(kind_real),parameter :: rth = 1.0e-12 !< Reproducibility threshold
 
 private
-public :: addnod,areas,bnodes,crlist,scoord,trans,trfind,trlist,trmesh
+public :: addnod,areas,bnodes,crlist,inside,scoord,trans,trfind,trlist,trmesh
 
 contains
 

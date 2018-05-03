@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------
 // fgetpid_
 // A. C. Lorenz (U.K. Met-Office)
-// Modified by Benjamin Menetrier for hdiag_nicas
+// Modified by Benjamin Menetrier for BUMP
 //----------------------------------------------------------------------
 #include <unistd.h>
 

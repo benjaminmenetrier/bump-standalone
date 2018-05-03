@@ -6,12 +6,12 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_com
 
 use netcdf
-use omp_lib
+!$ use omp_lib
 use tools_display, only: msgerror
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr

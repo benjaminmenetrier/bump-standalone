@@ -3,35 +3,32 @@
 # Korn shell script: test
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
 # NetCDF files
 nc_files='
 cmat_common
 diag
-dirac_gridded
 dirac
-local_diag_cor_gridded
 local_diag_cor
-local_diag_cov_gridded
 local_diag_cov
-local_diag_loc_gridded
 local_diag_loc
+local_diag_ncor
 nicas_2_0001-0001_common
 nicas_2_0001-0001_common_summary
-sampling
-sampling_001'
+sampling_001
+sampling'
 
 # Check in DEBUG mode
-if [[ $HDIAG_NICAS_BUILD != "DEBUG" ]] ; then
-   echo -e "[31mHDIAG_NICAS_BUILD should be set to DEBUG for reproducibility tests[m"
+if [[ $BUMP_BUILD != "DEBUG" ]] ; then
+   echo -e "[31mBUMP_BUILD should be set to DEBUG for reproducibility tests[m"
    exit
 fi
 
 if [[ ! -e "../test/test_dirac.nc" ]] ; then
    # Execute
    cd ../run
-   export OMP_NUM_THREADS=1;./hdiag_nicas namelist_test
+   export OMP_NUM_THREADS=1;./bump namelist_test
    if [[ -e "../test/test_dirac.nc" ]] ; then
       echo -e "[32mExecution successful[m"
    else

@@ -3,7 +3,7 @@
 # Korn shell script: aro/5840/links_sc.ksh
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2017 METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 # ----------------------------------------------------------------------
 
 # Link members (converted into NetCDF using EPyGrAM)

@@ -6,13 +6,12 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_hdata
 
-use model_offline, only: model_write
 use netcdf
-use omp_lib
+!$ use omp_lib
 use tools_const, only: pi,req,deg2rad,rad2deg
 use tools_display, only: prog_init,prog_print,msgerror,msgwarning,black,green,peach
 use tools_func, only: gc99,sphere_dist,vector_product,vector_triple_product
@@ -20,11 +19,12 @@ use tools_icos, only: closest_icos,build_icos
 use tools_kinds, only: kind_real
 use tools_missing, only: msvali,msvalr,msi,msr,isnotmsi,isnotmsr,isanynotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
-use tools_qsort, only: qsort
+use tools_qsort, only: reorder_vec,qsort
 use tools_stripack, only: trans
 use type_com, only: com_type
 use type_ctree, only: ctree_type
 use type_geom, only: geom_type
+use type_io, only: io
 use type_linop, only: linop_type
 use type_mesh, only: mesh_type
 use type_mpl, only: mpl
@@ -111,7 +111,6 @@ contains
    procedure :: compute_mpi_d => hdata_compute_mpi_d
    procedure :: compute_mpi_c => hdata_compute_mpi_c
    procedure :: diag_filter => hdata_diag_filter
-   procedure :: diag_com_lg => hdata_diag_com_lg
 end type hdata_type
 
 integer,parameter :: irmax = 10000                 !< Maximum number of random number draws
@@ -507,7 +506,7 @@ end do
 ! Write variables
 call ncerr(subr,nf90_put_var(ncid,lon_id,lon))
 call ncerr(subr,nf90_put_var(ncid,lat_id,lat))
-call ncerr(subr,nf90_put_var(ncid,smax_id,float(count(hdata%c1c3l0_log,dim=1))))
+call ncerr(subr,nf90_put_var(ncid,smax_id,real(count(hdata%c1c3l0_log,dim=1),kind_real)))
 call ncerr(subr,nf90_put_var(ncid,c1_to_c0_id,hdata%c1_to_c0))
 call ncerr(subr,nf90_put_var(ncid,c1l0_log_id,c1l0_logint))
 call ncerr(subr,nf90_put_var(ncid,c1c3_to_c0_id,hdata%c1c3_to_c0))
@@ -603,9 +602,10 @@ type(geom_type),intent(in) :: geom       !< Geometry
 ! Local variables
 integer :: info,ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,nc1_eff,nc2_eff
 integer :: mask_ind(nam%nc1)
-integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:)
+integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:),c2_to_proc(:)
 real(kind_real) :: rh0(geom%nc0),nn_dist(1),rh0_loc(geom%nc0a,geom%nl0)
 real(kind_real),allocatable :: nn_c1_dist(:)
+character(len=1024) :: filename
 type(ctree_type) :: ctree
 type(linop_type) :: hbase
 
@@ -657,12 +657,18 @@ if (nam%local_diag.or.nam%displ_diag) then
       write(mpl%unit,'(a7,a)') '','Define subsampling'
       call flush(mpl%unit)
       if (mpl%main) then
+         ! Initialize sampling
          mask_ind = 1
          rh0 = 1.0
-         call rng%initialize_sampling(nam%nc1,dble(geom%lon(hdata%c1_to_c0)),dble(geom%lat(hdata%c1_to_c0)),mask_ind, &
+         call rng%initialize_sampling(nam%nc1,geom%lon(hdata%c1_to_c0),geom%lat(hdata%c1_to_c0),mask_ind, &
        & rh0,nam%ntry,nam%nrep,hdata%nc2,hdata%c2_to_c1)
+
+         ! Reorder sampling
+         allocate(c2_to_proc(hdata%nc2))
+         c2_to_proc = geom%c0_to_proc(hdata%c1_to_c0(hdata%c2_to_c1))
+         call reorder_vec(hdata%nc2,c2_to_proc,hdata%c2_to_c1)
       end if
-      call mpl%bcast(hdata%c2_to_c1,mpl%ioproc)
+      call mpl%bcast(hdata%c2_to_c1)
       hdata%c2_to_c0 = hdata%c1_to_c0(hdata%c2_to_c1)
    end if
 
@@ -768,8 +774,11 @@ if (nam%sam_write) then
 
    ! Write rh0
    if (trim(nam%draw_type)=='random_coast') then
-      call geom%fld_com_gl(hdata%rh0,rh0_loc)
-      call model_write(nam,geom,trim(nam%prefix)//'_sampling_rh0.nc','rh0',rh0_loc)
+      do il0=1,geom%nl0
+         call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,hdata%rh0(:,il0),geom%nc0a,rh0_loc(:,il0))
+      end do
+      filename = trim(nam%prefix)//'_sampling_rh0.nc'
+      call io%fld_write(nam,geom,filename,'rh0',rh0_loc)
    end if
 end if
 
@@ -795,11 +804,11 @@ do il0=1,geom%nl0
       if (count(hdata%c1c3l0_log(:,jc3,il0))>=nam%nc1/2) then
          ! Sucessful sampling
          write(mpl%unit,'(a,i3,a)',advance='no') trim(green), &
-       & int(100.0*float(count(hdata%c1c3l0_log(:,jc3,il0)))/float(nam%nc1)),trim(black)
+       & int(100.0*real(count(hdata%c1c3l0_log(:,jc3,il0)),kind_real)/real(nam%nc1,kind_real)),trim(black)
       else
          ! Insufficient sampling
          write(mpl%unit,'(a,i3,a)',advance='no') trim(peach), &
-       & int(100.0*float(count(hdata%c1c3l0_log(:,jc3,il0)))/float(nam%nc1)),trim(black)
+       & int(100.0*real(count(hdata%c1c3l0_log(:,jc3,il0)),kind_real)/real(nam%nc1,kind_real)),trim(black)
       end if
       if (jc3<nam%nc3) write(mpl%unit,'(a)',advance='no') '-'
    end do
@@ -825,6 +834,7 @@ type(geom_type),intent(in) :: geom       !< Geometry
 ! Local variables
 integer :: ic0,ic1,il0,fac,np,ip
 integer :: mask_ind_col(geom%nc0),nn_index(1)
+integer :: c1_to_proc(nam%nc1)
 real(kind_real) :: nn_dist(1)
 real(kind_real),allocatable :: lon(:),lat(:)
 character(len=5) :: ic1char
@@ -864,9 +874,11 @@ if (nam%nc1<maxval(count(geom%mask,dim=1))) then
                   end if
                end do
             end do
-            hdata%rh0(:,1) = rcoast+(1.0-rcoast)*(1.0-hdata%rh0(:,1)/float(geom%nl0))
+            hdata%rh0(:,1) = rcoast+(1.0-rcoast)*(1.0-hdata%rh0(:,1)/real(geom%nl0,kind_real))
          end if
-         call rng%initialize_sampling(geom%nc0,dble(geom%lon),dble(geom%lat),mask_ind_col,dble(hdata%rh0(:,1)),nam%ntry,nam%nrep, &
+
+         ! Initialize sampling
+         call rng%initialize_sampling(geom%nc0,geom%lon,geom%lat,mask_ind_col,hdata%rh0(:,1),nam%ntry,nam%nrep, &
        & nam%nc1,hdata%c1_to_c0)
       case ('icosahedron')
          ! Compute icosahedron size
@@ -907,8 +919,12 @@ if (nam%nc1<maxval(count(geom%mask,dim=1))) then
          deallocate(lon)
          deallocate(lat)
       end select
+
+      ! Reorder sampling
+      c1_to_proc = geom%c0_to_proc(hdata%c1_to_c0)
+      call reorder_vec(nam%nc1,c1_to_proc,hdata%c1_to_c0)
    end if
-   call mpl%bcast(hdata%c1_to_c0,mpl%ioproc)
+   call mpl%bcast(hdata%c1_to_c0)
 else
    ic1 = 0
    do ic0=1,geom%nc0
@@ -971,7 +987,7 @@ if (nam%nc3>1) then
    do while ((.not.all(isnotmsi(hdata%c1c3_to_c0))).and.(nvc0>1).and.(ir<=irmaxloc))
       ! Try a random point
       if (mpl%main) call rng%rand_integer(1,nvc0,i)
-      call mpl%bcast(i,mpl%ioproc)
+      call mpl%bcast(i)
       ir = ir+1
       jc0 = vic0(i)
 
@@ -994,7 +1010,7 @@ if (nam%nc3>1) then
             call sphere_dist(geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),d)
 
             ! Find the class (dichotomy method)
-            if ((d>0.0).and.(d<(float(nam%nc3)-0.5)*nam%dc)) then
+            if ((d>0.0).and.(d<(real(nam%nc3,kind_real)-0.5)*nam%dc)) then
                jc3 = 1
                icinf = 1
                icsup = nam%nc3
@@ -1004,12 +1020,12 @@ if (nam%nc3>1) then
                   ictest = (icsup+icinf)/2
 
                   ! Update
-                  if (d<(float(ictest)-0.5)*nam%dc) icsup = ictest
-                  if (d>(float(ictest)-0.5)*nam%dc) icinf = ictest
+                  if (d<(real(ictest,kind_real)-0.5)*nam%dc) icsup = ictest
+                  if (d>(real(ictest,kind_real)-0.5)*nam%dc) icinf = ictest
 
                   ! Exit test
                   if (icsup==icinf+1) then
-                     if (abs((float(icinf)-0.5)*nam%dc-d)<abs((float(icsup)-0.5)*nam%dc-d)) then
+                     if (abs((real(icinf,kind_real)-0.5)*nam%dc-d)<abs((real(icsup,kind_real)-0.5)*nam%dc-d)) then
                         jc3 = icinf
                      else
                         jc3 = icsup
@@ -1093,7 +1109,7 @@ do ic1_loc=1,nc1_loc(mpl%myproc)
    ! Check location validity
    if (isnotmsi(hdata%c1_to_c0(ic1))) then
       ! Find neighbors
-      call geom%ctree%find_nearest_neighbors(dble(geom%lon(hdata%c1_to_c0(ic1))),dble(geom%lat(hdata%c1_to_c0(ic1))), &
+      call geom%ctree%find_nearest_neighbors(geom%lon(hdata%c1_to_c0(ic1)),geom%lat(hdata%c1_to_c0(ic1)), &
     & nam%nc3,nn_index,nn_dist)
 
       ! Copy neighbor index
@@ -1246,8 +1262,8 @@ end if
 mpl%tag = mpl%tag+2
 
 ! Broadcast data
-call mpl%bcast(hdata%c1c3_to_c0,mpl%ioproc)
-call mpl%bcast(hdata%c1c3l0_log,mpl%ioproc)
+call mpl%bcast(hdata%c1c3_to_c0)
+call mpl%bcast(hdata%c1c3l0_log)
 
 end subroutine hdata_compute_sampling_lct
 
@@ -1979,14 +1995,11 @@ real(kind_real),intent(inout) :: diag(hdata%nc2a) !< Filtered diagnostic
 ! Local variables
 integer :: ic2a,ic2,ic1,jc2,nc2eff
 integer,allocatable :: order(:)
-real(kind_real) :: diag_tmp(hdata%nc2),distnorm,norm,wgt
+real(kind_real) :: diag_glb(hdata%nc2),distnorm,norm,wgt
 real(kind_real),allocatable :: diag_eff(:),diag_eff_dist(:)
 
 ! Local to global
-call hdata%diag_com_lg(1,diag,diag_tmp)
-
-! Broadcast
-call mpl%bcast(diag_tmp,mpl%ioproc)
+call mpl%allgatherv(hdata%nc2a,diag,hdata%proc_to_nc2a,hdata%nc2,diag_glb)
 
 !$omp parallel do schedule(static) private(ic2a,ic2,ic1,nc2eff,jc2,distnorm,norm,wgt) firstprivate(diag_eff,diag_eff_dist,order)
 do ic2a=1,hdata%nc2a
@@ -2002,9 +2015,9 @@ do ic2a=1,hdata%nc2a
       jc2 = 1
       do while (isnotmsi(hdata%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))).and.(hdata%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<r))
          ! Check the point validity
-         if (isnotmsr(diag_tmp(hdata%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))))) then
+         if (isnotmsr(diag_glb(hdata%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))))) then
             nc2eff = nc2eff+1
-            diag_eff(nc2eff) = diag_tmp(hdata%nn_c2_index(jc2,ic2,min(il0,geom%nl0i)))
+            diag_eff(nc2eff) = diag_glb(hdata%nn_c2_index(jc2,ic2,min(il0,geom%nl0i)))
             diag_eff_dist(nc2eff) = hdata%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))
          end if
          jc2 = jc2+1
@@ -2016,7 +2029,7 @@ do ic2a=1,hdata%nc2a
          select case (trim(filter_type))
          case ('average')
             ! Compute average
-            diag(ic2a) = sum(diag_eff(1:nc2eff))/float(nc2eff)
+            diag(ic2a) = sum(diag_eff(1:nc2eff))/real(nc2eff,kind_real)
          case ('fill')
             ! Fill with closest non-missing value
             call msr(diag(ic2a))
@@ -2062,73 +2075,5 @@ end do
 !$omp end parallel do
 
 end subroutine hdata_diag_filter
-
-!----------------------------------------------------------------------
-! Subroutine: hdata_diag_com_lg
-!> Purpose: communicate diagnostic from local to global distribution
-!----------------------------------------------------------------------
-subroutine hdata_diag_com_lg(hdata,nl,diag_loc,diag_glb)
-
-implicit none
-
-! Passed variables
-class(hdata_type),intent(in) :: hdata                 !< HDIAG data
-integer,intent(in) :: nl                              !< Number of levels
-real(kind_real),intent(in) :: diag_loc(hdata%nc2a,nl) !< Diagnostic (local)
-real(kind_real),intent(out) :: diag_glb(hdata%nc2,nl) !< Diagnostic (global)
-
-! Local variables
-integer :: ic2,ic2a,iproc,jproc
-real(kind_real),allocatable :: sbuf(:),rbuf(:),diag_tmp(:,:)
-logical,allocatable :: mask_unpack(:,:)
-
-! Allocation
-allocate(sbuf(hdata%nc2a*nl))
-
-! Prepare buffer
-sbuf = pack(diag_loc,mask=.true.)
-
-! Communication
-if (mpl%main) then
-   do iproc=1,mpl%nproc
-      ! Allocation
-      allocate(diag_tmp(hdata%proc_to_nc2a(iproc),nl))
-      allocate(mask_unpack(hdata%proc_to_nc2a(iproc),nl))
-      allocate(rbuf(hdata%proc_to_nc2a(iproc)*nl))
-
-      if (iproc==mpl%ioproc) then
-         ! Copy data
-         rbuf = sbuf
-      else
-         ! Receive data from iproc
-         call mpl%recv(hdata%proc_to_nc2a(iproc)*nl,rbuf,iproc,mpl%tag)
-      end if
-
-      ! Copy from buffer
-      mask_unpack = .true.
-      diag_tmp = unpack(rbuf,mask_unpack,diag_tmp)
-      do ic2=1,hdata%nc2
-         jproc = hdata%c2_to_proc(ic2)
-         if (jproc==iproc) then
-            ic2a = hdata%c2_to_c2a(ic2)
-            diag_glb(ic2,:) = diag_tmp(ic2a,:)
-         end if
-      end do
-
-      ! Release memory
-      deallocate(diag_tmp)
-      deallocate(mask_unpack)
-      deallocate(rbuf)
-   end do
-else
-   ! Sending data to iproc
-   call mpl%send(hdata%nc2a*nl,sbuf,mpl%ioproc,mpl%tag)
-
-   ! Setting at missing value
-   call msr(diag_glb)
-end if
-mpl%tag = mpl%tag+1
-
-end subroutine hdata_diag_com_lg
 
 end module type_hdata

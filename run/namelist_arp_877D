@@ -11,8 +11,8 @@ use_metis = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-new_hdiag = .true.,
-new_param = .true.,
+new_hdiag = .false.,
+new_param = .false.,
 check_adjoints = .true.,
 check_pos_def = .false.,
 check_sqrt = .false.,
@@ -31,7 +31,7 @@ logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
-nts = 1,
+nts = 2,
 timeslot = 0,6,
 /
 
@@ -68,7 +68,7 @@ gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
 local_rad = 500.0e3,
-displ_diag = .false.,
+displ_diag = .true.,
 displ_rad = 3000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,
@@ -84,21 +84,8 @@ lct_nscales = 0,
 lct_diag = .false.,
 /
 
-&output_param
-nldwh = 0,
-il_ldwh = 0,
-ic_ldwh = 0,
-nldwv = 0,
-lon_ldwv = 0.0,
-lat_ldwv = 0.0,
-diag_rhflt = 3000.0e3,
-diag_interp = "bilin",
-/
-
 &nicas_param
 lsqrt = .true.,
-rh = 0.0,
-rv = 0.0,
 resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
@@ -116,5 +103,19 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 nobs = 45000,
 obsdis = 0.0,
 obsop_interp = "bilin",
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+diag_rhflt = 3000.0e3,
+diag_interp = "bilin",
+grid_output = .true.,
+grid_resol = 200.0e3,
+grid_interp = "bilin",
 /
 

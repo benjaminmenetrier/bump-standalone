@@ -6,7 +6,7 @@
 !> <br>
 !> Licensing: this code is distributed under the CeCILL-C license
 !> <br>
-!> Copyright © 2017 METEO-FRANCE
+!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module tools_display
 
@@ -42,13 +42,14 @@ contains
 ! Subroutine: listing_setup
 !> Purpose: setup listing
 !----------------------------------------------------------------------
-subroutine listing_setup(colorlog,logpres)
+subroutine listing_setup(model,colorlog,logpres)
 
 implicit none
 
 ! Passed variables
-logical,intent(in) :: colorlog !< Color listing flag
-logical,intent(in) :: logpres  !< Vertical unit flag
+character(len=*),intent(in) :: model !< Model
+logical,intent(in) :: colorlog       !< Color listing flag
+logical,intent(in) :: logpres        !< Vertical unit flag
 
 ! Setup display colors
 if (colorlog) then
@@ -71,10 +72,14 @@ end if
 ddis = 5
 
 ! Vertical unit
-if (logpres) then
-   vunitchar = 'log(Pa)'
+if (trim(model)=='online') then
+   vunitchar = 'vert. unit'
 else
-   vunitchar = 'lev.'
+   if (logpres) then
+      vunitchar = 'log(Pa)'
+   else
+      vunitchar = 'lev.'
+   end if
 end if
 
 end subroutine listing_setup
@@ -150,7 +155,7 @@ logical,dimension(:),intent(in) :: done !< Progression logical array
 real(kind_real) :: prog
 
 ! Print message
-prog = 100.0*float(count(done))/float(size(done))
+prog = 100.0*real(count(done),kind_real)/real(size(done),kind_real)
 if (int(prog)>progint) then
    if (progint<100) then
       write(mpl%unit,'(i3,a)',advance='no') progint,'% '
