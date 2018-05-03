@@ -270,7 +270,7 @@ write(mpl%unit,'(a7,a)') '','Output grid:'
 write(mpl%unit,'(a10,a,f7.2,a,f5.2,a)') '','Effective resolution: ',0.5*(dlon+dlat)*reqkm,' km (', &
  & 0.5*(dlon+dlat)*rad2deg,' deg.)'
 write(mpl%unit,'(a10,a,i4,a,i4)') '',      'Size (nlon x nlat):   ',io%nlon,' x ',io%nlat
-write(mpl%unit,'(a10,a,i4,a,i4)') '',      'Final size (nog)  :   ',io%nog
+write(mpl%unit,'(a10,a,i8)') '',      'Final size (nog)  :   ',io%nog
 
 ! Allocation
 allocate(io%og_to_lon(io%nog))
