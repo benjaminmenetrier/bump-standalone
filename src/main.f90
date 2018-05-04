@@ -50,12 +50,6 @@ else
    end if
 end if
 
-! Note to users
-if (myproc==0) then
-   write(output_unit,'(a)') 'To check the listing: tail -f bump.out.0000'
-   call flush(output_unit)
-end if
-
 ! Offline setup
 call bump%setup_offline(mpi_comm_world,arg)
 

@@ -83,7 +83,7 @@ do ilevs=0,nlevs-1
 
       tmp = varname(iv) + "_raw"
       if (isfilevar(data,tmp)) then
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
          output = "../fig/" + prefix + "_lct_" + varname(iv) + "_raw_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
@@ -100,7 +100,7 @@ do ilevs=0,nlevs-1
 
       tmp = varname(iv) + "_fit"
       if (isfilevar(data,tmp)) then
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
          output = "../fig/" + prefix + "_lct_" + varname(iv) + "_fit_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
@@ -116,11 +116,11 @@ do ilevs=0,nlevs-1
       end if
 
       do iscales=1,lct_nscales
-         tmp = varname(iv) + "_H12_" + iscales
+         tmp = varname(iv) + "_D12_" + iscales
          if (isfilevar(data,tmp)) then
-            var = data->$tmp$(:,ilevs_plot(ilevs))
+            var = data->$tmp$(ilevs_plot(ilevs),:)
 
-            output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H12_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+            output = "../fig/" + prefix + "_lct_" + varname(iv) + "_D12_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
             wks = gsn_open_wks("epsi",output)
             gsn_define_colormap(wks,"BlWhRe")
 
@@ -140,10 +140,10 @@ do ilevs=0,nlevs-1
       delete(res@cnLevelSpacingF)
 
       do iscales=1,lct_nscales
-         tmp = varname(iv) + "_H11_" + iscales
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         tmp = varname(iv) + "_D11_" + iscales
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
-         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H11_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_D11_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
          gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
@@ -155,10 +155,10 @@ do ilevs=0,nlevs-1
          delete(wks)
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
 
-         tmp = varname(iv) + "_H22_" + iscales
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         tmp = varname(iv) + "_D22_" + iscales
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
-         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H22_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_D22_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
          gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
@@ -170,10 +170,10 @@ do ilevs=0,nlevs-1
          delete(wks)
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
 
-         tmp = varname(iv) + "_H33_" + iscales
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         tmp = varname(iv) + "_D33_" + iscales
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
-         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_H33_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+         output = "../fig/" + prefix + "_lct_" + varname(iv) + "_D33_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
          gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
@@ -186,7 +186,7 @@ do ilevs=0,nlevs-1
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
 
          tmp = varname(iv) + "_coef_" + iscales
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
          output = "../fig/" + prefix + "_lct_" + varname(iv) + "_coef_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)
@@ -201,7 +201,7 @@ do ilevs=0,nlevs-1
          system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
 
          tmp = varname(iv) + "_Lh_" + iscales
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
          output = "../fig/" + prefix + "_lct_" + varname(iv) + "_Lh_" + iscales + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)

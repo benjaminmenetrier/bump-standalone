@@ -20,10 +20,10 @@ doc/html
 ncl/fig
 
 # Executable
-run/hdiag_nicas
+run/bump
 
 # Listings
-run/hdiag_nicas.out.*
+run/*.out.*
 
 # Test
 test/*.log
