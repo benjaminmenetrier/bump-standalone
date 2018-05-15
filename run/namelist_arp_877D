@@ -101,7 +101,7 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 
 &obsop_param
 nobs = 45000,
-obsdis = 0.0,
+obsdis = "random",
 obsop_interp = "bilin",
 /
 
