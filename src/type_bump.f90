@@ -571,6 +571,9 @@ implicit none
 ! Passed variables
 class(bump_type),intent(inout) :: bump !< BUMP
 
+! Reset seed
+if (bump%nam%default_seed) call rng%reseed
+
 ! Check inconsistencies
 if (bump%nam%new_hdiag.and.(.not.allocated(bump%ens1%fld))) call msgerror('new_hdiag requires ensemble 1')
 if (bump%nam%new_hdiag.and.(trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens') &

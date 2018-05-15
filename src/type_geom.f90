@@ -396,14 +396,6 @@ do il0=1,geom%nl0
    geom%mask(:,il0) = lmask_mg(geom%c0_to_mg,il0)
 end do
 
-! Print summary
-write(mpl%unit,'(a7,a)') '','Distribution summary:'
-do iproc=1,mpl%nproc
-   write(mpl%unit,'(a10,a,i3,a,i8,a)') '','Proc #',iproc,': ',geom%proc_to_nc0a(iproc),' grid-points'
-end do
-write(mpl%unit,'(a10,a,i8,a)') '','Total: ',geom%nc0,' grid-points'
-call flush(mpl%unit)
-
 end subroutine geom_setup_online
 
 !----------------------------------------------------------------------
@@ -466,7 +458,7 @@ class(geom_type),intent(inout) :: geom !< Geometry
 type(nam_type),intent(in) :: nam       !< Namelist
 
 ! Local variables
-integer :: ic0,il0,jc3
+integer :: ic0,il0,jc3,iproc
 logical :: same_mask,ctree_mask(geom%nc0)
 
 ! Set longitude and latitude bounds
@@ -523,13 +515,18 @@ do jc3=1,nam%nc3
 end do
 
 ! Print summary
-write(mpl%unit,'(a10,a,f5.1,a,f5.1)') '','Min. / max. longitudes:',minval(geom%lon)*rad2deg,' / ',maxval(geom%lon)*rad2deg
-write(mpl%unit,'(a10,a,f5.1,a,f5.1)') '','Min. / max. latitudes: ',minval(geom%lat)*rad2deg,' / ',maxval(geom%lat)*rad2deg
+write(mpl%unit,'(a10,a,f7.1,a,f7.1)') '','Min. / max. longitudes:',minval(geom%lon)*rad2deg,' / ',maxval(geom%lon)*rad2deg
+write(mpl%unit,'(a10,a,f7.1,a,f7.1)') '','Min. / max. latitudes: ',minval(geom%lat)*rad2deg,' / ',maxval(geom%lat)*rad2deg
 write(mpl%unit,'(a10,a)') '','Averaged area / vunit / mask size:'
 do il0=1,geom%nl0
-   write(mpl%unit,'(a10,a,i3,a,e9.2,a,f9.1,a,i8,a)') '','Level ',nam%levs(il0),' ~> ',geom%area(il0)*reqkm**2,' km^2 / ', &
+   write(mpl%unit,'(a13,a,i3,a,e9.2,a,f9.1,a,i8,a)') '','Level ',nam%levs(il0),' ~> ',geom%area(il0)*reqkm**2,' km^2 / ', &
  & sum(geom%vunit(:,il0)),' '//trim(vunitchar)//' / ',count(geom%mask(:,il0)),' points'
 end do
+write(mpl%unit,'(a7,a)') '','Distribution summary:'
+do iproc=1,mpl%nproc
+   write(mpl%unit,'(a10,a,i3,a,i8,a)') '','Proc #',iproc,': ',geom%proc_to_nc0a(iproc),' grid-points'
+end do
+call flush(mpl%unit)
 
 end subroutine geom_init
 

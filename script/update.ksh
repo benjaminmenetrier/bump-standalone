@@ -58,6 +58,8 @@ mv -f ../bump_*.tar.gz ../versions
 
 # Execute test
 echo '--- Execute test'
+cd ../test
+rm -f test*
 cd ../script
 ./test.ksh
 

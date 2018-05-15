@@ -2,7 +2,7 @@
 datadir = "../test",
 prefix = "truth",
 model = "gem",
-colorlog = .true.,
+colorlog = .false.,
 default_seed = .true.,
 load_ensemble = .false.,
 use_metis = .true.,

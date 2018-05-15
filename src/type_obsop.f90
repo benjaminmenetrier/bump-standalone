@@ -258,12 +258,17 @@ if (global) then
       call mpl%allgather(1,(/obsop%latobs(iobs)/),proc_to_latobs)
 
       ! Check
-      global = all(.not.abs(proc_to_lonobs-proc_to_lonobs(mpl%ioproc))<0.0) &
-             & .and.all(.not.abs(proc_to_latobs-proc_to_latobs(mpl%ioproc))<0.0)
+      global = all(.not.abs(proc_to_lonobs-proc_to_lonobs(mpl%ioproc))>0.0) &
+             & .and.all(.not.abs(proc_to_latobs-proc_to_latobs(mpl%ioproc))>0.0)
 
       ! Update
       iobs = iobs+1
    end do
+end if
+if (global) then
+   write(mpl%unit,'(a7,a)') '','Observations are provided globally'
+else
+   write(mpl%unit,'(a7,a)') '','Observations are provided locally'
 end if
 
 if (global) then
@@ -314,6 +319,16 @@ else
    ! Broadcast data
    call mpl%bcast(lonobs)
    call mpl%bcast(latobs)
+
+   ! Reallocation
+   deallocate(obsop%lonobs)
+   deallocate(obsop%latobs)
+   allocate(obsop%lonobs(obsop%nobs))
+   allocate(obsop%latobs(obsop%nobs))
+
+   ! Copy
+   obsop%lonobs = lonobs
+   obsop%latobs = latobs
 end if
 
 ! Allocation

@@ -15,12 +15,14 @@ use mpi
 use tools_const, only: rad2deg,req
 use tools_kinds, only: kind_real
 use type_bump, only: bump_type
+use type_mpl, only: mpl
 use type_rng, only: rng
 
 implicit none
 
 ! Parameter
 logical :: online_test = .true.
+logical :: split_obs = .true.
 
 ! Local variables
 integer :: len,info,info_loc,myproc,narg
@@ -108,7 +110,11 @@ if (online_test) then
       allocate(rv(nmga,nl0,nv,nts))
    end if
    if (lobs) then
-      nobs = bump%obsop%nobs
+      if (split_obs) then
+         nobs = bump%obsop%nobsa
+      else
+         nobs = bump%obsop%nobs
+      end if
       allocate(lonobs(nobs))
       allocate(latobs(nobs))
    end if
@@ -126,8 +132,13 @@ if (online_test) then
       rv = bump%rv
    end if
    if (lobs) then
-      lonobs = bump%obsop%lonobs*rad2deg
-      latobs = bump%obsop%latobs*rad2deg
+      if (split_obs) then
+         lonobs = bump%obsop%lonobs(bump%obsop%obsa_to_obs)*rad2deg
+         latobs = bump%obsop%latobs(bump%obsop%obsa_to_obs)*rad2deg
+      else
+         lonobs = bump%obsop%lonobs*rad2deg
+         latobs = bump%obsop%latobs*rad2deg
+      end if
    end if
 
    ! Run online setup
@@ -169,6 +180,9 @@ if (online_test) then
    else
       call bump_test%setup_online(mpi_comm_world,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask)
    end if
+
+   ! Move files to datadir
+   if (mpl%main) call system('mv '//trim(bump_test%nam%prefix)//'_* '//trim(bump%nam%datadir))
 end if
 
 ! Finalize MPI
