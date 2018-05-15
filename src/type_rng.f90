@@ -104,8 +104,7 @@ interface
    end subroutine initialize_sampling_c
 end interface
 
-! Default seed
-integer(kind=8),parameter :: seed = 14051987
+integer(kind=8),parameter :: seed = 14051987 !< Default seed
 
 private
 public :: rng

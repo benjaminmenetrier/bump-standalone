@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_obsop
 
-use tools_const, only: pi,rad2deg,reqkm
+use tools_const, only: pi,deg2rad,rad2deg,reqkm
 use tools_display, only: msgerror
 use tools_func, only: sphere_dist
 use tools_kinds, only: kind_real
@@ -165,8 +165,8 @@ implicit none
 ! Passed variables
 class(obsop_type),intent(inout) :: obsop   !< Observation operator data
 integer,intent(in) :: nobs                 !< Number of observations
-real(kind_real),intent(in) :: lonobs(nobs) !< Observations longitudes
-real(kind_real),intent(in) :: latobs(nobs) !< Observations latitudes
+real(kind_real),intent(in) :: lonobs(nobs) !< Observations longitudes (in degrees)
+real(kind_real),intent(in) :: latobs(nobs) !< Observations latitudes (in degrees)
 
 ! Get size
 obsop%nobs = nobs
@@ -176,8 +176,8 @@ allocate(obsop%lonobs(obsop%nobs))
 allocate(obsop%latobs(obsop%nobs))
 
 ! Copy
-obsop%lonobs = lonobs
-obsop%latobs = latobs
+obsop%lonobs = lonobs*deg2rad
+obsop%latobs = latobs*deg2rad
 
 end subroutine obsop_from
 

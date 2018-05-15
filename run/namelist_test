@@ -21,7 +21,7 @@ check_randomization = .false.,
 check_consistency = .false.,
 check_optimality = .false.,
 new_lct = .false.,
-new_obsop = .false.,
+new_obsop = .true.,
 /
 
 &model_param
@@ -101,7 +101,7 @@ itsdir = 1,
 
 &obsop_param
 nobs = 100,
-obsdis = 1.0,
+obsdis = "random",
 obsop_interp = "bilin",
 /
 
