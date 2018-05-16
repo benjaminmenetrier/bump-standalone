@@ -74,7 +74,7 @@ Input and output files use the NetCDF format. The NetCDF library can be download
 
 \section code Code structure
 The source code is organized in modules with several groups indicated by a prefix:
-  - main.f90: main program
+  - main.F90: main program
   - model_[...]: model related routines, to get the coordinates, read and write fields
   - tools_[...]: useful tools for the whole code
   - type_[...]: derived types
