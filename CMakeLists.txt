@@ -40,22 +40,16 @@ endif (NOT ${BUILD_TYPE} MATCHES DEBUG AND NOT ${BUILD_TYPE} MATCHES RELEASE)
 # GNU compiler
 if (${COMPILER} MATCHES "GNU")
    set (CMAKE_Fortran_COMPILER mpifort)
-   set (CMAKE_C_COMPILER mpicc)
-   set (CMAKE_CXX_COMPILER mpicxx)
 endif (${COMPILER} MATCHES "GNU")
 #
 # Intel compiler
 if (${COMPILER} MATCHES "Intel")
    set (CMAKE_Fortran_COMPILER mpiifort)
-   set (CMAKE_C_COMPILER mpiicc)
-   set (CMAKE_C++_COMPILER mpiicpc)
 endif (${COMPILER} MATCHES "Intel")
 #
 # Cray compiler
 if (${COMPILER} MATCHES "Cray")
    set (CMAKE_Fortran_COMPILER ftn)
-   set (CMAKE_C_COMPILER cc)
-   set (CMAKE_C++_COMPILER CC)
 endif (${COMPILER} MATCHES "Cray")
 #
 #----------------------------------------------------------------------
@@ -63,13 +57,10 @@ endif (${COMPILER} MATCHES "Cray")
 #----------------------------------------------------------------------
 #
 cmake_minimum_required (VERSION 2.6)
-project (bump Fortran C CXX)
+project (bump Fortran)
 file (GLOB BUMP_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.f90"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.f90"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.F90"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.F90"
 )
 add_executable (bump ${BUMP_SRC})
 include_directories (${EXTERN_NETCDFF_INCLUDE} ${EXTERN_NETCDF_INCLUDE})
@@ -82,29 +73,23 @@ target_link_libraries(bump netcdf netcdff)
 # GNU compiler
 if (${COMPILER} MATCHES "GNU")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -funroll-all-loops -O3 -fopenmp")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -Og -Wextra -Wall -pedantic -fbacktrace -ftrapv -fall-intrinsics -fcheck=all -fimplicit-none -ffpe-trap=invalid,zero,overflow -fopenmp")
-   set (CMAKE_CXX_FLAGS_RELEASE "-g -O3 -std=c++11")
-   set (CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fno-exceptions -fstack-protector -Wl,-z,relro -Wl,-z,now -fvisibility=hidden -W -Wall -Wpointer-arith -Wformat -Wreturn-type -Wsign-compare -Wmultichar -Wformat-nonliteral -Winit-self -Wuninitialized -Wformat-security -std=c++11")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -Og -Wextra -Wall -pedantic -fbacktrace -ftrapv -fall-intrinsics -fcheck=all -fimplicit-none -ffpe-trap=invalid,zero,underflow,overflow,denormal -fopenmp")
 endif (${COMPILER} MATCHES "GNU")
 #
 # Intel compiler
 if (${COMPILER} MATCHES "Intel")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -O3 -xAVX -openmp")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-g -O0 -traceback -fpe0 -check all,noarg_temp_created -openmp")
-   set (CMAKE_CXX_FLAGS_RELEASE "-g -O3 -xAVX -std=c++11")
-   set (CMAKE_CXX_FLAGS_DEBUG "-g -O0 -std=c++11")
 endif (${COMPILER} MATCHES "Intel")
 #
 # Cray compiler
 if (${COMPILER} MATCHES "Cray")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -O3")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-g -O0 -R b -K trap=fp")
-   set (CMAKE_CXX_FLAGS_RELEASE "-g -O3 -hstd=c++11")
-   set (CMAKE_CXX_FLAGS_DEBUG "-g -O0 -hstd=c++11")
 endif (${COMPILER} MATCHES "Cray")
 #
 # Set linker flags
-set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp -lstdc++")
+set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp")
 set_target_properties (bump PROPERTIES LINKER_LANGUAGE Fortran)
 set (CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS})
 #

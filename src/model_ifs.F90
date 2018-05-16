@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Module: module_mpas.f90
-!> Purpose: MPAS model routines
+! Module: module_ifs
+!> Purpose: IFS model routines
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,13 +8,13 @@
 !> <br>
 !> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
-module model_mpas
+module model_ifs
 
 use netcdf
-use tools_const, only: pi,ps
+use tools_const, only: pi,deg2rad,rad2deg,ps
 use tools_display, only: msgerror
 use tools_kinds,only: kind_real
-use tools_missing, only: msi,msr,isanynotmsr
+use tools_missing, only: msr,isanynotmsr,isallnotmsr
 use tools_nc, only: ncerr,ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl
@@ -23,15 +23,15 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_mpas_coord,model_mpas_read
+public :: model_ifs_coord,model_ifs_read
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: model_mpas_coord
-!> Purpose: get MPAS coordinates
+! Subroutine: model_ifs_coord
+!> Purpose: get IFS coordinates
 !----------------------------------------------------------------------
-subroutine model_mpas_coord(nam,geom)
+subroutine model_ifs_coord(nam,geom)
 
 implicit none
 
@@ -40,42 +40,55 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: ncid,ng_id,nlev_id,lon_id,lat_id,pres_id
-integer :: ic0
+integer :: ilon,ilat,ic0
+integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
 real(kind=4),allocatable :: lon(:),lat(:),pres(:)
-character(len=1024) :: subr = 'model_mpas_coord'
+character(len=1024) :: subr = 'model_ifs_coord'
 
 ! Open file and get dimensions
-call msi(geom%nlon)
-call msi(geom%nlat)
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_nowrite,ncid))
-call ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
-call ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%nmg))
-call ncerr(subr,nf90_inq_dimid(ncid,'nVertLevels',nlev_id))
+call ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
+call ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
+call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
+call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
+geom%nmg = geom%nlon*geom%nlat
+call ncerr(subr,nf90_inq_dimid(ncid,'level',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
-allocate(lon(geom%nmg))
-allocate(lat(geom%nmg))
+allocate(lon(geom%nlon))
+allocate(lat(geom%nlat))
 allocate(pres(geom%nlev))
 
 ! Read data and close file
-call ncerr(subr,nf90_inq_varid(ncid,'lonCell',lon_id))
-call ncerr(subr,nf90_inq_varid(ncid,'latCell',lat_id))
-call ncerr(subr,nf90_inq_varid(ncid,'pressure_base',pres_id))
+call ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
+call ncerr(subr,nf90_inq_varid(ncid,'latitude',lat_id))
+call ncerr(subr,nf90_inq_varid(ncid,'pf',pres_id))
 call ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call ncerr(subr,nf90_get_var(ncid,pres_id,pres))
 call ncerr(subr,nf90_close(ncid))
+
+! Convert to radian
+lon = lon*real(deg2rad,kind=4)
+lat = lat*real(deg2rad,kind=4)
 
 ! Not redundant grid
 call geom%find_redundant
 
 ! Pack
 call geom%alloc
-geom%lon = real(lon,kind_real)
-geom%lat = real(lat,kind_real)
-geom%mask = .true.
+ic0 = 0
+do ilon=1,geom%nlon
+   do ilat=1,geom%nlat
+      ic0 = ic0+1
+      geom%c0_to_lon(ic0) = ilon
+      geom%c0_to_lat(ic0) = ilat
+      geom%lon(ic0) = real(lon(ilon),kind_real)
+      geom%lat(ic0) = real(lat(ilat),kind_real)
+      geom%mask(ic0,:) = .true.
+   end do
+end do
 
 ! Compute normalized area
 geom%area = 4.0*pi
@@ -93,15 +106,14 @@ end do
 ! Release memory
 deallocate(lon)
 deallocate(lat)
-deallocate(pres)
 
-end subroutine model_mpas_coord
+end subroutine model_ifs_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_mpas_read
-!> Purpose: read MPAS field
+! Subroutine: model_ifs_read
+!> Purpose: read IFS field
 !----------------------------------------------------------------------
-subroutine model_mpas_read(nam,geom,filename,its,fld)
+subroutine model_ifs_read(nam,geom,filename,its,fld)
 
 implicit none
 
@@ -113,10 +125,10 @@ integer,intent(in) :: its                                     !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0,ic0a,ic0,iproc
+integer :: iv,il0,ic0a,ic0,ilon,ilat,iproc
 integer :: ncid,fld_id
 real(kind=4) :: fld_tmp
-character(len=1024) :: subr = 'model_mpas_read'
+character(len=1024) :: subr = 'model_ifs_read'
 
 ! Initialize field
 call msr(fld)
@@ -136,7 +148,9 @@ do iproc=1,mpl%nproc
          do il0=1,nam%nl
             do ic0a=1,geom%nc0a
                ic0 = geom%c0a_to_c0(ic0a)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/nam%levs(il0),ic0,nam%timeslot(its)/)))
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
                fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
             end do
          end do
@@ -150,7 +164,9 @@ do iproc=1,mpl%nproc
             ! Read data
             do ic0a=1,geom%nc0a
                ic0 = geom%c0a_to_c0(ic0a)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ic0,nam%timeslot(its)/)))
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%timeslot(its)/)))
                fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
             end do
          end if
@@ -164,6 +180,6 @@ do iproc=1,mpl%nproc
    call mpl%barrier
 end do
 
-end subroutine model_mpas_read
+end subroutine model_ifs_read
 
-end module model_mpas
+end module model_ifs

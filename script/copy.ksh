@@ -14,13 +14,13 @@ if [ $1 == "jedi" ] ; then
 
    # Sync
    mkdir -p ${dst}
-   rsync -rtv --delete --exclude "main.f90" ${src}/* ${dst}
+   rsync -rtv --delete --exclude "main.F90" ${src}/* ${dst}
 
    # To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt
    echo
    echo "To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt:"
    for file in `ls ${src}` ; do
-      if [ "${file}" != "main.f90" ]&&[ "${file}" != "external" ] ; then
+      if [ "${file}" != "main.F90" ]&&[ "${file}" != "external" ] ; then
          echo oops/generic/bump/${file}
       fi
    done

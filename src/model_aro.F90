@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Module: module_wrf.f90
-!> Purpose: WRF model routines
+! Module: module_aro
+!> Purpose: AROME model routines
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,7 +8,7 @@
 !> <br>
 !> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
-module model_wrf
+module model_aro
 
 use netcdf
 use tools_const, only: deg2rad,rad2deg,req,ps
@@ -23,15 +23,17 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_wrf_coord,model_wrf_read
+public :: model_aro_coord,model_aro_read
+
+character(len=1024) :: zone = 'C+I' !< Computation zone ('C', 'C+I' or 'C+I+E')
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: model_wrf_coord
-!> Purpose: get WRF coordinates
+! Subroutine: model_aro_coord
+!> Purpose: load AROME coordinates
 !----------------------------------------------------------------------
-subroutine model_wrf_coord(nam,geom)
+subroutine model_aro_coord(nam,geom)
 
 implicit none
 
@@ -40,41 +42,50 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
-integer :: il0,ilon,ilat,ic0
-real(kind=4) :: dx,dy
-real(kind=4),allocatable :: lon(:,:),lat(:,:),pres(:)
-character(len=1024) :: subr = 'model_wrf_coord'
+integer :: ncid,nlon_id,nlat_id,nlev_id,pp_id,lon_id,lat_id,cmask_id,a_id,b_id
+integer :: il0,ic0,ilon,ilat
+real(kind_real) :: dx,dy
+real(kind=8),allocatable :: lon(:,:),lat(:,:),cmask(:,:),a(:),b(:)
+logical,allocatable :: cmask_pack(:)
+character(len=1024) :: subr = 'model_aro_coord'
 
 ! Open file and get dimensions
 call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_nowrite,ncid))
-call ncerr(subr,nf90_inq_dimid(ncid,'west_east',nlon_id))
+call ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
+call ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
-call ncerr(subr,nf90_inq_dimid(ncid,'south_north',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
 geom%nmg = geom%nlon*geom%nlat
-call ncerr(subr,nf90_inq_dimid(ncid,'bottom_top',nlev_id))
+call ncerr(subr,nf90_inq_dimid(ncid,'Z',nlev_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
 allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
-allocate(pres(geom%nlev))
+allocate(cmask(geom%nlon,geom%nlat))
+allocate(cmask_pack(geom%nmg))
+allocate(a(geom%nlev+1))
+allocate(b(geom%nlev+1))
 
 ! Read data and close file
-call ncerr(subr,nf90_inq_varid(ncid,'XLONG',lon_id))
-call ncerr(subr,nf90_inq_varid(ncid,'XLAT',lat_id))
-call ncerr(subr,nf90_inq_varid(ncid,'PB',pres_id))
-call ncerr(subr,nf90_get_var(ncid,lon_id,lon,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
-call ncerr(subr,nf90_get_var(ncid,lat_id,lat,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
-call ncerr(subr,nf90_get_var(ncid,pres_id,pres))
-call ncerr(subr,nf90_get_att(ncid,nf90_global,'DX',dx))
-call ncerr(subr,nf90_get_att(ncid,nf90_global,'DY',dy))
+call ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
+call ncerr(subr,nf90_inq_varid(ncid,'latitude',lat_id))
+call ncerr(subr,nf90_inq_varid(ncid,'cmask',cmask_id))
+call ncerr(subr,nf90_inq_varid(ncid,'hybrid_coef_A',a_id))
+call ncerr(subr,nf90_inq_varid(ncid,'hybrid_coef_B',b_id))
+call ncerr(subr,nf90_inq_varid(ncid,'Projection_parameters',pp_id))
+call ncerr(subr,nf90_get_var(ncid,lon_id,lon))
+call ncerr(subr,nf90_get_var(ncid,lat_id,lat))
+call ncerr(subr,nf90_get_var(ncid,cmask_id,cmask))
+call ncerr(subr,nf90_get_var(ncid,a_id,a))
+call ncerr(subr,nf90_get_var(ncid,b_id,b))
+call ncerr(subr,nf90_get_att(ncid,pp_id,'x_resolution',dx))
+call ncerr(subr,nf90_get_att(ncid,pp_id,'y_resolution',dy))
 call ncerr(subr,nf90_close(ncid))
 
 ! Convert to radian
-lon = lon*real(deg2rad,kind=4)
-lat = lat*real(deg2rad,kind=4)
+lon = lon*real(deg2rad,kind=8)
+lat = lat*real(deg2rad,kind=8)
 
 ! Not redundant grid
 call geom%find_redundant
@@ -89,7 +100,16 @@ do ilon=1,geom%nlon
       geom%c0_to_lat(ic0) = ilat
       geom%lon(ic0) = real(lon(ilon,ilat),kind_real)
       geom%lat(ic0) = real(lat(ilon,ilat),kind_real)
-      geom%mask(ic0,:) = .true.
+      select case (trim(zone))
+      case ('C')
+         geom%mask(ic0,:) = (cmask(ilon,ilat)>0.75)
+      case ('C+I')
+         geom%mask(ic0,:) = (cmask(ilon,ilat)>0.25)
+      case ('C+I+E')
+         geom%mask(ic0,:) = .true.
+      case default
+         call msgerror('wrong AROME zone')
+      end select
    end do
 end do
 
@@ -101,7 +121,8 @@ end do
 ! Vertical unit
 do ic0=1,geom%nc0
    if (nam%logpres) then
-      geom%vunit(ic0,1:nam%nl) = log(pres(nam%levs(1:nam%nl)))
+      geom%vunit(ic0,1:nam%nl) = log(0.5*(a(nam%levs(1:nam%nl))+a(nam%levs(1:nam%nl)+1)) &
+                           & +0.5*(b(nam%levs(1:nam%nl))+b(nam%levs(1:nam%nl)+1))*ps)
       if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(ps)
    else
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
@@ -111,15 +132,17 @@ end do
 ! Release memory
 deallocate(lon)
 deallocate(lat)
-deallocate(pres)
+deallocate(cmask)
+deallocate(a)
+deallocate(b)
 
-end subroutine model_wrf_coord
+end subroutine model_aro_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_wrf_read
-!> Purpose: read WRF field
+! Subroutine: model_aro_read
+!> Purpose: read AROME field
 !----------------------------------------------------------------------
-subroutine model_wrf_read(nam,geom,filename,its,fld)
+subroutine model_aro_read(nam,geom,filename,fld)
 
 implicit none
 
@@ -127,14 +150,14 @@ implicit none
 type(nam_type),intent(in) :: nam                              !< Namelist
 type(geom_type),intent(in) :: geom                            !< Geometry
 character(len=*),intent(in) :: filename                       !< File name
-integer,intent(in) :: its                                     !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0,ic0a,ic0,ilon,ilat,iproc
+integer :: iproc,iv,il0,ic0a,ic0,ilon,ilat
 integer :: ncid,fld_id
-real(kind=4) :: fld_tmp,fld_tmp2
-character(len=1024) :: subr = 'model_wrf_read'
+real(kind_real) :: fld_loc
+character(len=3) :: ilchar
+character(len=1024) :: subr = 'model_aro_read'
 
 ! Initialize field
 call msr(fld)
@@ -146,29 +169,18 @@ do iproc=1,mpl%nproc
 
       do iv=1,nam%nv
          ! 3d variable
-
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
-
-         ! 3d variable
          do il0=1,nam%nl
+            ! Get id
+            write(ilchar,'(i3.3)') nam%levs(il0)
+            call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(nam%varname(iv)),fld_id))
+
+            ! Read data
             do ic0a=1,geom%nc0a
                ic0 = geom%c0a_to_c0(ic0a)
                ilon = geom%c0_to_lon(ic0)
                ilat = geom%c0_to_lat(ic0)
-               select case (trim(nam%varname(iv)))
-               case ('U')
-                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
-                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon+1,ilat,nam%levs(il0),nam%timeslot(its)/)))
-                  fld(ic0a,il0,iv) = real(0.5*(fld_tmp+fld_tmp2),kind_real)
-               case ('V')
-                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
-                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,ilat+1,nam%levs(il0),nam%timeslot(its)/)))
-                  fld(ic0a,il0,iv) = real(0.5*(fld_tmp+fld_tmp2),kind_real)
-               case default
-                  call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%levs(il0),nam%timeslot(its)/)))
-                  fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
-               end select
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
+               fld(ic0a,il0,iv) = real(fld_loc,kind_real)
             end do
          end do
 
@@ -183,9 +195,12 @@ do iproc=1,mpl%nproc
                ic0 = geom%c0a_to_c0(ic0a)
                ilon = geom%c0_to_lon(ic0)
                ilat = geom%c0_to_lat(ic0)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ilon,ilat,nam%timeslot(its)/)))
-               fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
+               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
+               fld(ic0a,geom%nl0,iv) = real(fld_loc,kind_real)
             end do
+
+            ! Variable change for surface pressure
+            if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld(:,geom%nl0,iv) = exp(fld(:,geom%nl0,iv))
          end if
       end do
 
@@ -197,6 +212,6 @@ do iproc=1,mpl%nproc
    call mpl%barrier
 end do
 
-end subroutine model_wrf_read
+end subroutine model_aro_read
 
-end module model_wrf
+end module model_aro
