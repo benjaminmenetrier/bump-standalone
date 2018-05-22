@@ -95,6 +95,7 @@ contains
 end type geom_type
 
 real(kind_real),parameter :: rth = 1.0e-12_kind_real !< Reproducibility threshold
+integer :: nredmax = 10                              !< Maximum number of similar redundant points
 
 private
 public :: geom_type
@@ -412,7 +413,8 @@ real(kind_real),intent(in),optional :: lon(geom%nmg) !< Longitudes
 real(kind_real),intent(in),optional :: lat(geom%nmg) !< Latitudes
 
 ! Local variables
-integer :: img,ic0
+integer :: img,ic0,ired,nn_index(nredmax)
+real(kind_real) :: nn_dist(nredmax)
 type(kdtree_type) :: kdtree
 
 ! Allocation
@@ -420,7 +422,37 @@ allocate(geom%redundant(geom%nmg))
 call msi(geom%redundant)
 
 ! Look for redundant points
-if (present(lon).and.present(lat)) call kdtree%find_redundant(geom%nmg,lon,lat,geom%redundant)
+if (present(lon).and.present(lat)) then
+   write(mpl%unit,'(a7,a)') '','Look for redundant points in the model grid'
+
+   ! Create KD-tree
+   call kdtree%create(geom%nmg,lon,lat)
+
+   ! Find redundant points
+   do img=1,geom%nmg
+      ! Find nearest neighbors
+      call kdtree%find_nearest_neighbors(lon(img),lat(img),nredmax,nn_index,nn_dist)
+
+      ! Count redundant points
+      do ired=1,nredmax
+         if ((nn_dist(ired)>rth).or.(nn_index(ired)>=ired)) nn_index(ired) = geom%nmg+1
+      end do
+
+      if (any(nn_index<=geom%nmg)) then
+         ! Redundant point
+         geom%redundant(img) = minval(nn_index)
+      end if
+   end do
+
+   ! Check for successive redundant points
+   do img=1,geom%nmg
+      if (isnotmsi(geom%redundant(img))) then
+         do while (isnotmsi(geom%redundant(geom%redundant(img))))
+            geom%redundant(img) = geom%redundant(geom%redundant(img))
+         end do
+      end if
+   end do
+end if
 geom%nc0 = count(.not.isnotmsi(geom%redundant))
 write(mpl%unit,'(a7,a,i8)') '','Model grid size:         ',geom%nmg
 write(mpl%unit,'(a7,a,i8)') '','Subset Sc0 size:         ',geom%nc0
