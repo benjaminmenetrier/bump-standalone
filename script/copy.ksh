@@ -43,7 +43,7 @@ if [ $1 == "pack" ] ; then
    dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/bump
 
    # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.f90 -X yomhook.f90 -e -R $src $dst;quit"
+   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.F90 -X yomhook.F90 -e -R $src $dst;quit"
 fi
 
 if [ $1 == "sc" ] ; then
