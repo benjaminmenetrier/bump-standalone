@@ -100,7 +100,7 @@ itsdir = 1,
 /
 
 &obsop_param
-nobs = 100,
+nobs = 1,
 obsdis = "random",
 obsop_interp = "bilin",
 /

@@ -70,6 +70,8 @@ Then, to compile in a directory $BUILDDIR, with $N processors (if available):
 
 An executable file $MAINDIR/run/bump should be created if compilation is successful.
 
+WARNING: for the Intel compiler, it seems that version intel/17.[...].[...] is required.
+
 Input and output files use the NetCDF format. The NetCDF library can be downloaded at: <a target="_blank" href="http://www.unidata.ucar.edu/software/netcdf">http://www.unidata.ucar.edu/software/netcdf</a>
 
 \section code Code structure

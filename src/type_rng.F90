@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 module type_rng
 
-use iso_fortran_env
+use iso_fortran_env, only: int64
 use tools_display, only: msgerror
 use tools_func, only: sphere_dist
 use tools_kinds, only: kind_real

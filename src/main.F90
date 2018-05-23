@@ -10,7 +10,7 @@
 !----------------------------------------------------------------------
 program main
 
-use, intrinsic :: iso_fortran_env, only : output_unit
+use iso_fortran_env, only : output_unit
 use mpi
 use tools_const, only: rad2deg,req
 use tools_kinds, only: kind_real
@@ -21,8 +21,8 @@ use type_rng, only: rng
 implicit none
 
 ! Parameter
-logical :: online_test = .false.
-logical :: split_obs = .false.
+logical :: online_test = .true.
+logical :: split_obs = .true.
 
 ! Local variables
 integer :: len,info,info_loc,myproc,narg
@@ -133,8 +133,10 @@ if (online_test) then
    end if
    if (lobs) then
       if (split_obs) then
-         lonobs = bump%obsop%lonobs(bump%obsop%obsa_to_obs)*rad2deg
-         latobs = bump%obsop%latobs(bump%obsop%obsa_to_obs)*rad2deg
+         if (nobs>0) then
+            lonobs = bump%obsop%lonobs(bump%obsop%obsa_to_obs)*rad2deg
+            latobs = bump%obsop%latobs(bump%obsop%obsa_to_obs)*rad2deg
+         end if
       else
          lonobs = bump%obsop%lonobs*rad2deg
          latobs = bump%obsop%latobs*rad2deg

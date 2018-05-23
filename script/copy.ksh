@@ -8,17 +8,17 @@
 # BUMP source
 src=${HOME}/code/bump/src
 
-if [ $1 == "jedi" ] ; then
-   # JEDI directory for BUMP
-   dst=${HOME}/code/jedi-bundle/oops/src/oops/generic/bump
+if [ $1 == "ufo" ] ; then
+   # Directory for BUMP
+   dst=${HOME}/code/ufo-bundle/oops/src/oops/generic/bump
 
    # Sync
    mkdir -p ${dst}
    rsync -rtv --delete --exclude "main.F90" ${src}/* ${dst}
 
-   # To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt
+   # To copy in ~/code/ufo-bundle/oops/src/CMakeLists.txt
    echo
-   echo "To copy in ~/code/jedi-bundle/oops/src/CMakeLists.txt:"
+   echo "To copy in ~/code/ufo-bundle/oops/src/CMakeLists.txt:"
    for file in `ls ${src}` ; do
       if [ "${file}" != "main.F90" ]&&[ "${file}" != "external" ] ; then
          echo oops/generic/bump/${file}
@@ -30,7 +30,7 @@ if [ $1 == "jedi" ] ; then
 fi
 
 if [ $1 == "nemovar" ] ; then
-   # NEMOVAR directory for BUMP
+   # Directory for BUMP
    dst=${HOME}/code/nemovar/EXTERNAL/bump
 
    # Sync
@@ -39,7 +39,7 @@ if [ $1 == "nemovar" ] ; then
 fi
 
 if [ $1 == "pack" ] ; then
-   # OOPS directory for BUMP
+   # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/bump
 
    # Sync
