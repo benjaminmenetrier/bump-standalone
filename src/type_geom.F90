@@ -225,9 +225,11 @@ else
 end if
 mpl%tag = mpl%tag+3+2*geom%nl0
 
-! Convert to radians
-lon_mg = lon_mg*deg2rad
-lat_mg = lat_mg*deg2rad
+if (mpl%main) then
+   ! Convert to radians
+   lon_mg = lon_mg*deg2rad
+   lat_mg = lat_mg*deg2rad
+end if
 
 ! Broadcast data
 call mpl%bcast(lon_mg)
@@ -435,7 +437,7 @@ if (present(lon).and.present(lat)) then
 
       ! Count redundant points
       do ired=1,nredmax
-         if ((nn_dist(ired)>rth).or.(nn_index(ired)>=ired)) nn_index(ired) = geom%nmg+1
+         if ((nn_dist(ired)>rth).or.(nn_index(ired)>=img)) nn_index(ired) = geom%nmg+1
       end do
 
       if (any(nn_index<=geom%nmg)) then
@@ -550,7 +552,7 @@ write(mpl%unit,'(a10,a,f7.1,a,f7.1)') '','Min. / max. longitudes:',minval(geom%l
 write(mpl%unit,'(a10,a,f7.1,a,f7.1)') '','Min. / max. latitudes: ',minval(geom%lat)*rad2deg,' / ',maxval(geom%lat)*rad2deg
 write(mpl%unit,'(a10,a)') '','Averaged area / vunit / mask size:'
 do il0=1,geom%nl0
-   write(mpl%unit,'(a13,a,i3,a,e9.2,a,f9.1,a,i8,a)') '','Level ',nam%levs(il0),' ~> ',geom%area(il0)*reqkm**2,' km^2 / ', &
+   write(mpl%unit,'(a13,a,i3,a,e9.2,a,f12.1,a,i8,a)') '','Level ',nam%levs(il0),' ~> ',geom%area(il0)*reqkm**2,' km^2 / ', &
  & sum(geom%vunit(:,il0)),' '//trim(vunitchar)//' / ',count(geom%mask(:,il0)),' points'
 end do
 write(mpl%unit,'(a7,a)') '','Distribution summary:'
