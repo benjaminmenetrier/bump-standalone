@@ -21,8 +21,8 @@ use type_rng, only: rng
 implicit none
 
 ! Parameter
-logical :: online_test = .true.
-logical :: split_obs = .true.
+logical :: online_test = .false.
+logical :: split_obs = .false.
 
 ! Local variables
 integer :: len,info,info_loc,myproc,narg
