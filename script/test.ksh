@@ -144,5 +144,5 @@ done
 # Clean
 rm -f *.out
 if $newexec; then
-   rm -f test_*.nc
+   rm -f test_*
 fi
