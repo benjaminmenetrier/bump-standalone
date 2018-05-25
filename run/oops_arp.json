@@ -1,5 +1,5 @@
 {
-   "prefix" : "bump_87BL",
+   "prefix" : "bump_${XPID}",
    "default_seed" : 1,
    "method" : "loc",
    "strategy" : "common",
@@ -29,7 +29,8 @@
    "ne" : _NBE_LOC_,
    "gau_approx" : 0,
    "full_var" : 0,
-   "local_diag" : 0,
+   "local_diag" : 1,
+   "local_rad" : 500.0e3,
    "displ_diag" : 0,
    "minim_algo" : "hooke",
    "lhomh" : 0,

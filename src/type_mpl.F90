@@ -246,7 +246,7 @@ do iproc=1,mpl%nproc
 
    ! Wait
    call mpi_barrier(mpl%mpi_comm,info)
- 
+
    ! Check
    call mpl%check(info)
 end do

@@ -3,7 +3,7 @@
 Code report obtained with <a target="_blank" href="https://github.com/AlDanial/cloc">CLOC</a>:
 <br><br>Internal code<br><table>
 <tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
-<tr><td align="center">Fortran 90</td><td align="center">52</td><td align="center">4511</td><td align="center">7089</td><td align="center">16077</td><td align="center">44 \%</td></tr>
+<tr><td align="center">Fortran 90</td><td align="center">52</td><td align="center">4511</td><td align="center">7088</td><td align="center">16186</td><td align="center">43 \%</td></tr>
 </table><br>External code<br><table>
 <tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
 <tr><td align="center">Fortran 90</td><td align="center">4</td><td align="center">632</td><td align="center">2805</td><td align="center">2734</td><td align="center">102 \%</td></tr>
