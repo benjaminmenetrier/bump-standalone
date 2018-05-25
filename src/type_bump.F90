@@ -507,7 +507,10 @@ write(mpl%unit,'(a)') '--- Run drivers'
 call flush(mpl%unit)
 call bump%run_drivers
 
-if (.not.mpl%main) then
+if (mpl%main) then
+   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
+   write(mpl%unit,'(a)') '--- BUMP done'
+else
    ! Close listings
    write(mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(mpl%unit,'(a)') '--- Close listings'

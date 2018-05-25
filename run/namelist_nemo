@@ -25,7 +25,7 @@ new_obsop = .false.,
 /
 
 &model_param
-nl = 1,
+nl = 3,
 levs = 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
 logpres = .false.,
 nv = 1,
@@ -59,7 +59,7 @@ ntry = 3,
 nrep = 2,
 nc3 = 250,
 dc = 75.0e3,
-nl0r = 1,
+nl0r = 3,
 /
 
 &diag_param
