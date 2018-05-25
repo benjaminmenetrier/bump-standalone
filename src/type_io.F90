@@ -616,6 +616,9 @@ if (mpl%main) then
    ! Allocation
    allocate(fld_grid(io%nlon,io%nlat,geom%nl0))
 
+   ! Initialization
+   call msr(fld_grid)
+
    do iproc=1,mpl%nproc
       ! Allocation
       allocate(oga_to_og(io%proc_to_noga(iproc)))
