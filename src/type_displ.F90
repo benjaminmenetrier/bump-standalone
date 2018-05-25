@@ -364,12 +364,15 @@ do its=2,nam%nts
       end do
 
       ! Check raw mesh
-      mesh = hdata%mesh%copy()
       call mpl%gatherv(hdata%nc2a,lon_c2a,hdata%proc_to_nc2a,hdata%nc2,lon_c2)
       call mpl%gatherv(hdata%nc2a,lat_c2a,hdata%proc_to_nc2a,hdata%nc2,lat_c2)
-      call mesh%trans(lon_c2,lat_c2)
-      call mesh%check(valid_c2)
-      displ%valid(0,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
+      if (mpl%main) then
+         mesh = hdata%mesh%copy()
+         call mesh%trans(lon_c2,lat_c2)
+         call mesh%check(valid_c2)
+         displ%valid(0,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
+      end if
+      call mpl%bcast(displ%valid(0,il0,its))
       displ%rhflt(0,il0,its) = 0.0
 
       ! Average distance
@@ -443,12 +446,14 @@ do its=2,nam%nts
             end do
 
             ! Check mesh
-            mesh = hdata%mesh%copy()
             call mpl%gatherv(hdata%nc2a,lon_c2a,hdata%proc_to_nc2a,hdata%nc2,lon_c2)
             call mpl%gatherv(hdata%nc2a,lat_c2a,hdata%proc_to_nc2a,hdata%nc2,lat_c2)
-            call mesh%trans(lon_c2,lat_c2)
-            call mesh%check(valid_c2)
-            displ%valid(iter,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
+            if (mpl%main) then
+               mesh = hdata%mesh%copy()
+               call mesh%trans(lon_c2,lat_c2)
+               call mesh%check(valid_c2)
+               displ%valid(iter,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
+            end if
             call mpl%bcast(displ%valid(iter,il0,its))
 
             ! Compute distances
@@ -559,8 +564,38 @@ character(len=*),intent(in) :: filename !< File name
 ! Local variables
 integer :: ncid,nc2_id,nl0_id,nts_id,displ_niter_id,vunit_id,valid_id,dist_id,rhflt_id
 integer :: lon_c2_id,lat_c2_id,lon_c2_raw_id,lat_c2_raw_id,dist_c2_raw_id,lon_c2_flt_id,lat_c2_flt_id,dist_c2_flt_id
-integer :: iproc,its,il0,ic2a,ic2
+integer :: iproc,its,il0,ic2a,ic2,i
+integer,allocatable :: c2a_to_c2(:)
+real(kind_real),allocatable :: sbuf(:),rbuf(:)
 character(len=1024) :: subr = 'displ_write'
+
+! Allocation
+allocate(sbuf(hdata%nc2a*geom%nl0*(2+(nam%nts-1)*6)))
+
+! Prepare buffer
+i = 1
+do il0=1,geom%nl0
+   do ic2a=1,hdata%nc2a
+      sbuf(i) = displ%lon_c2a(ic2a,il0)*rad2deg
+      i = i+1
+      sbuf(i) = displ%lat_c2a(ic2a,il0)*rad2deg
+      i = i+1
+      do its=2,nam%nts
+         sbuf(i) = displ%lon_c2a_raw(ic2a,il0,its)*rad2deg
+         i = i+1
+         sbuf(i) = displ%lat_c2a_raw(ic2a,il0,its)*rad2deg
+         i = i+1
+         sbuf(i) = displ%dist_c2a_raw(ic2a,il0,its)*reqkm
+         i = i+1
+         sbuf(i) = displ%lon_c2a_flt(ic2a,il0,its)*rad2deg
+         i = i+1
+         sbuf(i) = displ%lat_c2a_flt(ic2a,il0,its)*rad2deg
+         i = i+1
+         sbuf(i) = displ%dist_c2a_flt(ic2a,il0,its)*reqkm
+         i = i+1
+      end do
+   end do
+end do
 
 if (mpl%main) then
    ! Create file
@@ -609,54 +644,63 @@ if (mpl%main) then
    call ncerr(subr,nf90_put_var(ncid,dist_id,displ%dist*reqkm))
    call ncerr(subr,nf90_put_var(ncid,rhflt_id,displ%rhflt*reqkm))
 
-   ! Close file
-   call ncerr(subr,nf90_close(ncid))
-end if
+   do iproc=1,mpl%nproc
+      ! Allocation
+      allocate(c2a_to_c2(hdata%proc_to_nc2a(iproc)))
+      allocate(rbuf(hdata%proc_to_nc2a(iproc)*geom%nl0*(2+(nam%nts-1)*6)))
 
-do iproc=1,mpl%nproc
-   if (mpl%myproc==iproc) then
-      ! Open file
-      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_write,ncid))
+      if (iproc==mpl%ioproc) then
+         ! Copy buffer
+         c2a_to_c2 = hdata%c2a_to_c2
+         rbuf = sbuf
+      else
+         ! Receive data on ioproc
+         call mpl%recv(hdata%proc_to_nc2a(iproc),c2a_to_c2,iproc,mpl%tag)
+         call mpl%recv(hdata%proc_to_nc2a(iproc)*geom%nl0*(2+(nam%nts-1)*6),rbuf,iproc,mpl%tag+1)
+      end if
 
-      ! Get variable id
-      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2',lon_c2_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2',lat_c2_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2_raw',lon_c2_raw_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2_raw',lat_c2_raw_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'dist_c2_raw',dist_c2_raw_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'lon_c2_flt',lon_c2_flt_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'lat_c2_flt',lat_c2_flt_id))
-      call ncerr(subr,nf90_inq_varid(ncid,'dist_c2_flt',dist_c2_flt_id))
-
-      ! Write variable
+      ! Write data
+      i = 1
       do il0=1,geom%nl0
          do ic2a=1,hdata%nc2a
-            ic2 = hdata%c2a_to_c2(ic2a)
-            call ncerr(subr,nf90_put_var(ncid,lon_c2_id,displ%lon_c2a(ic2a,il0)*rad2deg,(/ic2,il0/)))
-            call ncerr(subr,nf90_put_var(ncid,lat_c2_id,displ%lat_c2a(ic2a,il0)*rad2deg,(/ic2,il0/)))
-         end do
-      end do
-      do its=2,nam%nts
-         do il0=1,geom%nl0
-            do ic2a=1,hdata%nc2a
-               ic2 = hdata%c2a_to_c2(ic2a)
-               call ncerr(subr,nf90_put_var(ncid,lon_c2_raw_id,displ%lon_c2a_raw(ic2a,il0,its)*rad2deg,(/ic2,il0,its-1/)))
-               call ncerr(subr,nf90_put_var(ncid,lat_c2_raw_id,displ%lat_c2a_raw(ic2a,il0,its)*rad2deg,(/ic2,il0,its-1/)))
-               call ncerr(subr,nf90_put_var(ncid,dist_c2_raw_id,displ%dist_c2a_raw(ic2a,il0,its)*reqkm,(/ic2,il0,its-1/)))
-               call ncerr(subr,nf90_put_var(ncid,lon_c2_flt_id,displ%lon_c2a_flt(ic2a,il0,its)*rad2deg,(/ic2,il0,its-1/)))
-               call ncerr(subr,nf90_put_var(ncid,lat_c2_flt_id,displ%lat_c2a_flt(ic2a,il0,its)*rad2deg,(/ic2,il0,its-1/)))
-               call ncerr(subr,nf90_put_var(ncid,dist_c2_flt_id,displ%dist_c2a_flt(ic2a,il0,its)*reqkm,(/ic2,il0,its-1/)))
+            ic2 = c2a_to_c2(ic2a)
+            call ncerr(subr,nf90_put_var(ncid,lon_c2_id,rbuf(i),(/ic2,il0/)))
+            i = i+1
+            call ncerr(subr,nf90_put_var(ncid,lat_c2_id,rbuf(i),(/ic2,il0/)))
+            i = i+1
+            do its=2,nam%nts
+               call ncerr(subr,nf90_put_var(ncid,lon_c2_raw_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
+               call ncerr(subr,nf90_put_var(ncid,lat_c2_raw_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
+               call ncerr(subr,nf90_put_var(ncid,dist_c2_raw_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
+               call ncerr(subr,nf90_put_var(ncid,lon_c2_flt_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
+               call ncerr(subr,nf90_put_var(ncid,lat_c2_flt_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
+               call ncerr(subr,nf90_put_var(ncid,dist_c2_flt_id,rbuf(i),(/ic2,il0,its-1/)))
+               i = i+1
             end do
          end do
       end do
 
-      ! Close file
-      call ncerr(subr,nf90_close(ncid))
-   end if
+      ! Release memory
+      deallocate(c2a_to_c2)
+      deallocate(rbuf)
+   end do
 
-   ! Wait
-   call mpl%barrier
-end do
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
+else
+   ! Send data to ioproc
+   call mpl%send(hdata%nc2a,hdata%c2a_to_c2,mpl%ioproc,mpl%tag)
+   call mpl%send(hdata%nc2a*geom%nl0*(2+(nam%nts-1)*6),sbuf,mpl%ioproc,mpl%tag+1)
+end if
+mpl%tag = mpl%tag+2
+
+! Release memory
+deallocate(sbuf)
 
 end subroutine displ_write
 

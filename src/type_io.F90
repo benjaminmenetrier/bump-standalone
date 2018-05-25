@@ -53,7 +53,7 @@ contains
    procedure :: grid_write => io_grid_write
 end type io_type
 
-logical,parameter :: split_io = .true. !< Split I/O (each task read and write its own file)
+logical,parameter :: split_io = .false. !< Split I/O (each task read and write its own file)
 
 private
 public :: io_type
@@ -138,9 +138,11 @@ character(len=*),intent(in) :: varname                !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
-integer :: ic0a,ic0,il0,info,iproc
+integer :: ic0a,ic0,il0,i,info,iproc
 integer :: ncid,nc0a_id,nc0_id,nl0_id,fld_id,lon_id,lat_id
+integer,allocatable :: c0a_to_c0(:)
 real(kind_real) :: fld_loc(geom%nc0a,geom%nl0)
+real(kind_real),allocatable :: sbuf(:),rbuf(:)
 character(len=1024) :: filename_proc
 character(len=1024) :: subr = 'fld_write'
 
@@ -190,7 +192,7 @@ if (split_io.and.(mpl%nproc>1)) then
    end if
 
    ! Write data
-   call ncerr(subr,nf90_put_var(ncid,fld_id,fld))
+   call ncerr(subr,nf90_put_var(ncid,fld_id,fld_loc))
 
    ! Write coordinates
    info = nf90_inq_varid(ncid,'lon',lon_id)
@@ -210,6 +212,18 @@ if (split_io.and.(mpl%nproc>1)) then
    ! Close file
    call ncerr(subr,nf90_close(ncid))
 else
+   ! Allocation
+   allocate(sbuf(geom%nc0a*geom%nl0))
+
+   ! Prepare buffer
+   i = 1
+   do il0=1,geom%nl0
+      do ic0a=1,geom%nc0a
+         sbuf(i) = fld_loc(ic0a,il0)
+         i = i+1
+      end do
+   end do
+
    if (mpl%main) then
       ! Check if the file exists
       info = nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
@@ -257,39 +271,47 @@ else
          call ncerr(subr,nf90_put_var(ncid,lat_id,geom%lat*rad2deg))
       end if
 
-      ! Close file
-      call ncerr(subr,nf90_close(ncid))
-   end if
+      do iproc=1,mpl%nproc
+         ! Allocation
+         allocate(c0a_to_c0(geom%proc_to_nc0a(iproc)))
+         allocate(rbuf(geom%proc_to_nc0a(iproc)*geom%nl0))
 
-   ! Wait
-   call mpl%barrier
-
-   do iproc=1,mpl%nproc
-      ! Write data from proc iproc
-      if (iproc==mpl%myproc) then
-         ! Open file
-         call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
-
-         ! Get variable id
-         info = nf90_inq_varid(ncid,trim(varname),fld_id)
+         if (iproc==mpl%ioproc) then
+            ! Copy buffer
+            c0a_to_c0 = geom%c0a_to_c0
+            rbuf = sbuf
+         else
+            ! Receive data on ioproc
+            call mpl%recv(geom%proc_to_nc0a(iproc),c0a_to_c0,iproc,mpl%tag)
+            call mpl%recv(geom%proc_to_nc0a(iproc)*geom%nl0,rbuf,iproc,mpl%tag+1)
+         end if
 
          ! Write data
+         i = 1
          do il0=1,geom%nl0
-            if (isanynotmsr(fld(:,il0))) then
-               do ic0a=1,geom%nc0a
-                  ic0 = geom%c0a_to_c0(ic0a)
-                  call ncerr(subr,nf90_put_var(ncid,fld_id,fld(ic0a,il0),(/ic0,il0/)))
-               end do
-            end if
+            do ic0a=1,geom%proc_to_nc0a(iproc)
+               ic0 = c0a_to_c0(ic0a)
+               call ncerr(subr,nf90_put_var(ncid,fld_id,rbuf(i),(/ic0,il0/)))
+               i = i+1
+            end do               
          end do
 
-         ! Close file
-         call ncerr(subr,nf90_close(ncid))
-      end if
+         ! Release memory
+         deallocate(c0a_to_c0)
+         deallocate(rbuf)
+      end do
 
-      ! Wait
-      call mpl%barrier
-   end do
+      ! Close file
+      call ncerr(subr,nf90_close(ncid))
+   else
+      ! Send data to ioproc
+      call mpl%send(geom%nc0a,geom%c0a_to_c0,mpl%ioproc,mpl%tag)
+      call mpl%send(geom%nc0a*geom%nl0,sbuf,mpl%ioproc,mpl%tag+1)
+   end if
+   mpl%tag = mpl%tag+2
+
+   ! Release memory
+   deallocate(sbuf)
 end if
 
 ! Regridded field output
@@ -588,28 +610,37 @@ character(len=*),intent(in) :: varname                !< Variable name
 real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
-integer :: ic0a,ic0,il0,info,ilon,ilat,iog,ioga,iproc
+integer :: il0,info,ilon,ilat,iog,ioga,i,iproc
 integer :: ncid,nlon_id,nlat_id,nlev_id,fld_id,lon_id,lat_id,lev_id
-real(kind_real) :: fld_c0a(geom%nc0a,geom%nl0),fld_c0b(io%nc0b,geom%nl0)
+integer,allocatable :: oga_to_og(:)
+real(kind_real) :: fld_c0b(io%nc0b,geom%nl0)
 real(kind_real) :: fld_oga(io%noga,geom%nl0)
+real(kind_real),allocatable :: sbuf(:),rbuf(:)
 character(len=1024) :: subr = 'io_grid_write'
+
+! Halo extension and interpolation
+call io%com_AB%ext(geom%nl0,fld,fld_c0b)
+do il0=1,geom%nl0
+   call io%og%apply(fld_c0b(:,il0),fld_oga(:,il0),mssrc=.true.)
+end do
 
 ! Apply mask
 do il0=1,geom%nl0
-   do ic0a=1,geom%nc0a
-      ic0 = geom%c0a_to_c0(ic0a)
-      if (geom%mask(ic0,il0)) then
-         fld_c0a(ic0a,il0) = fld(ic0a,il0)
-      else
-         call msr(fld_c0a(ic0a,il0))
-      end if
+   do ioga=1,io%noga
+      if (.not.io%mask(ioga,il0)) call msr(fld_oga(ioga,il0))
    end do
 end do
 
-! Halo extension and interpolation
-call io%com_AB%ext(geom%nl0,fld_c0a,fld_c0b)
+! Allocation
+allocate(sbuf(io%noga*geom%nl0))
+
+! Prepare buffer
+i = 1
 do il0=1,geom%nl0
-   call io%og%apply(fld_c0b(:,il0),fld_oga(:,il0),mssrc=.true.)
+   do ioga=1,io%noga
+      sbuf(i) = fld_oga(ioga,il0)
+      i = i+1
+   end do
 end do
 
 if (mpl%main) then
@@ -667,45 +698,49 @@ if (mpl%main) then
       end do
    end if
 
-   ! Close file
-   call ncerr(subr,nf90_close(ncid))
-end if
+   do iproc=1,mpl%nproc
+      ! Allocation
+      allocate(oga_to_og(io%proc_to_noga(iproc)))
+      allocate(rbuf(io%proc_to_noga(iproc)*geom%nl0))
 
-! Wait
-call mpl%barrier
-
-do iproc=1,mpl%nproc
-   ! Write data from proc iproc
-   if (iproc==mpl%myproc) then
-      ! Open file
-      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
-
-      ! Get variable id
-      info = nf90_inq_varid(ncid,trim(varname),fld_id)
+      if (iproc==mpl%ioproc) then
+         ! Copy buffer
+         oga_to_og = io%oga_to_og
+         rbuf = sbuf
+      else
+         ! Receive data on ioproc
+         call mpl%recv(io%proc_to_noga(iproc),oga_to_og,iproc,mpl%tag)
+         call mpl%recv(io%proc_to_noga(iproc)*geom%nl0,rbuf,iproc,mpl%tag+1)
+      end if
 
       ! Write data
+      i = 1
       do il0=1,geom%nl0
-         if (isanynotmsr(fld_oga(:,il0))) then
-            do ioga=1,io%noga
-               iog = io%oga_to_og(ioga)
-               ilon = io%og_to_lon(iog)
-               ilat = io%og_to_lat(iog)
-               if (io%mask(ioga,il0)) then
-                  call ncerr(subr,nf90_put_var(ncid,fld_id,fld_oga(ioga,il0),(/ilon,ilat,il0/)))
-               else
-                  call ncerr(subr,nf90_put_var(ncid,fld_id,msvalr,(/ilon,ilat,il0/)))
-               end if
-            end do
-         end if
+         do ioga=1,io%proc_to_noga(iproc)
+            iog = oga_to_og(ioga)
+            ilon = io%og_to_lon(iog)
+            ilat = io%og_to_lat(iog)
+            call ncerr(subr,nf90_put_var(ncid,fld_id,rbuf(i),(/ilon,ilat,il0/)))
+            i = i+1
+         end do               
       end do
 
-      ! Close file
-      call ncerr(subr,nf90_close(ncid))
-   end if
+      ! Release memory
+      deallocate(oga_to_og)
+      deallocate(rbuf)
+   end do
 
-   ! Wait
-   call mpl%barrier
-end do
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
+else
+   ! Send data to ioproc
+   call mpl%send(io%noga,io%oga_to_og,mpl%ioproc,mpl%tag)
+   call mpl%send(io%noga*geom%nl0,sbuf,mpl%ioproc,mpl%tag+1)
+end if
+mpl%tag = mpl%tag+2
+
+! Release memory
+deallocate(sbuf)
 
 end subroutine io_grid_write
 
