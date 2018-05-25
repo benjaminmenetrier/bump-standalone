@@ -48,7 +48,7 @@ character(len=1024) :: subr = 'model_mpas_coord'
 ! Open file and get dimensions
 call msi(geom%nlon)
 call msi(geom%nlat)
-call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_nowrite,ncid))
+call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
 call ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%nmg))
 call ncerr(subr,nf90_inq_dimid(ncid,'nVertLevels',nlev_id))
@@ -122,46 +122,41 @@ character(len=1024) :: subr = 'model_mpas_read'
 call msr(fld)
 
 do iproc=1,mpl%nproc
-   if (mpl%myproc==iproc) then
-      ! Open file
-      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+   ! Open file
+   call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_share,ncid))
 
-      do iv=1,nam%nv
-         ! 3d variable
+   do iv=1,nam%nv
+      ! 3d variable
 
-         ! Get variable id
-         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+      ! Get variable id
+      call ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
-         ! 3d variable
-         do il0=1,nam%nl
-            do ic0a=1,geom%nc0a
-               ic0 = geom%c0a_to_c0(ic0a)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/nam%levs(il0),ic0,nam%timeslot(its)/)))
-               fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
-            end do
+      ! 3d variable
+      do il0=1,nam%nl
+         do ic0a=1,geom%nc0a
+            ic0 = geom%c0a_to_c0(ic0a)
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/nam%levs(il0),ic0,nam%timeslot(its)/)))
+            fld(ic0a,il0,iv) = real(fld_tmp,kind_real)
          end do
-
-         if (trim(nam%addvar2d(iv))/='') then
-            ! 2d variable
-
-            ! Get id
-            call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-            ! Read data
-            do ic0a=1,geom%nc0a
-               ic0 = geom%c0a_to_c0(ic0a)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ic0,nam%timeslot(its)/)))
-               fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
-            end do
-         end if
       end do
 
-      ! Close file
-      call ncerr(subr,nf90_close(ncid))
-   end if
+      if (trim(nam%addvar2d(iv))/='') then
+         ! 2d variable
 
-   ! Wait
-   call mpl%barrier
+         ! Get id
+         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+
+         ! Read data
+         do ic0a=1,geom%nc0a
+            ic0 = geom%c0a_to_c0(ic0a)
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp,(/ic0,nam%timeslot(its)/)))
+            fld(ic0a,geom%nl0,iv) = real(fld_tmp,kind_real)
+         end do
+      end if
+   end do
+
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
 end do
 
 end subroutine model_mpas_read

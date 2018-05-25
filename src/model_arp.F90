@@ -47,7 +47,7 @@ real(kind=8),allocatable :: lon(:,:),lat(:,:),a(:),b(:)
 character(len=1024) :: subr = 'model_arp_coord'
 
 ! Open file and get dimensions
-call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_nowrite,ncid))
+call ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
 call ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
 call ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
 call ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
@@ -145,53 +145,48 @@ character(len=1024) :: subr = 'model_arp_read'
 call msr(fld)
 
 do iproc=1,mpl%nproc
-   if (mpl%myproc==iproc) then
-      ! Open file
-      call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+   ! Open file
+   call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_share,ncid))
 
-      do iv=1,nam%nv
-         ! 3d variable
-         do il0=1,nam%nl
-            ! Get id
-            write(ilchar,'(i3.3)') nam%levs(il0)
-            call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(nam%varname(iv)),fld_id))
+   do iv=1,nam%nv
+      ! 3d variable
+      do il0=1,nam%nl
+         ! Get id
+         write(ilchar,'(i3.3)') nam%levs(il0)
+         call ncerr(subr,nf90_inq_varid(ncid,'S'//ilchar//trim(nam%varname(iv)),fld_id))
 
-            ! Read data
-            do ic0a=1,geom%nc0a
-               ic0 = geom%c0a_to_c0(ic0a)
-               ilon = geom%c0_to_lon(ic0)
-               ilat = geom%c0_to_lat(ic0)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
-               fld(ic0a,il0,iv) = real(fld_loc,kind_real)
-            end do
-        end do
+         ! Read data
+         do ic0a=1,geom%nc0a
+            ic0 = geom%c0a_to_c0(ic0a)
+            ilon = geom%c0_to_lon(ic0)
+            ilat = geom%c0_to_lat(ic0)
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
+            fld(ic0a,il0,iv) = real(fld_loc,kind_real)
+         end do
+     end do
 
-         if (trim(nam%addvar2d(iv))/='') then
-            ! 2d variable
+      if (trim(nam%addvar2d(iv))/='') then
+         ! 2d variable
 
-            ! Get id
-            call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
+         ! Get id
+         call ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
 
-            ! Read data
-            do ic0a=1,geom%nc0a
-               ic0 = geom%c0a_to_c0(ic0a)
-               ilon = geom%c0_to_lon(ic0)
-               ilat = geom%c0_to_lat(ic0)
-               call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
-               fld(ic0a,geom%nl0,iv) = real(fld_loc,kind_real)
-            end do
+         ! Read data
+         do ic0a=1,geom%nc0a
+            ic0 = geom%c0a_to_c0(ic0a)
+            ilon = geom%c0_to_lon(ic0)
+            ilat = geom%c0_to_lat(ic0)
+            call ncerr(subr,nf90_get_var(ncid,fld_id,fld_loc,(/ilon,ilat/)))
+            fld(ic0a,geom%nl0,iv) = real(fld_loc,kind_real)
+         end do
 
-            ! Variable change for surface pressure
-            if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld(:,geom%nl0,iv) = exp(fld(:,geom%nl0,iv))
-         end if
-      end do
+         ! Variable change for surface pressure
+         if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld(:,geom%nl0,iv) = exp(fld(:,geom%nl0,iv))
+      end if
+   end do
 
-      ! Close file
-      call ncerr(subr,nf90_close(ncid))
-   end if
-
-   ! Wait
-   call mpl%barrier
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
 end do
 
 end subroutine model_arp_read

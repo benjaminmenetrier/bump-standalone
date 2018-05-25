@@ -539,7 +539,6 @@ write(mpl%unit,'(a)') '---------------------------------------------------------
 write(mpl%unit,'(a)') '--- You are running bump ------------------------------------------'
 write(mpl%unit,'(a)') '--- Author: Benjamin Menetrier ------------------------------------'
 write(mpl%unit,'(a)') '--- Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE -----------'
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 call flush(mpl%unit)
 
 ! Check namelist parameters
