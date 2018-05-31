@@ -18,7 +18,7 @@ The software <b>BUMP</b> (B matrix on an Unstructured Package) aims at estimatin
 
 The code is distributed under the CeCILL-C license (in English: <a target="_blank" href="LICENSE_MF.html">LICENSE</a> or in French: <a target="_blank" href="LICENCE_MF.html">LICENCE</a>).
 
-Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/BUMP/CLOC_REPORT.html">CLOC report</a>.
+Code size and characterics can be found in the <a target="_blank" href="http://benjaminmenetrier.free.fr/bump/CLOC_REPORT.html">CLOC report</a>.
 
 \section Offline_online Offline or online usage
 
