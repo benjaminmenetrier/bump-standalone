@@ -85,7 +85,7 @@ lct_diag = .false.,
 /
 
 &nicas_param
-lsqrt = .true.,
+lsqrt = .false.,
 resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,

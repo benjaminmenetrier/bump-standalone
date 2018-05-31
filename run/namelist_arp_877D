@@ -5,7 +5,7 @@ model = "arp",
 colorlog = .true.,
 default_seed = .true.,
 load_ensemble = .false.,
-use_metis = .true.,
+use_metis = .false.,
 /
 
 &driver_param
@@ -68,7 +68,7 @@ gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
 local_rad = 500.0e3,
-displ_diag = .true.,
+displ_diag = .false.,
 displ_rad = 3000.0e3,
 displ_niter = 10,
 displ_rhflt = 500.0e3,
@@ -85,7 +85,7 @@ lct_diag = .false.,
 /
 
 &nicas_param
-lsqrt = .true.,
+lsqrt = .false.,
 resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,

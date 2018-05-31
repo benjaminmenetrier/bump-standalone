@@ -46,6 +46,7 @@ contains
    procedure :: apply_ad => linop_apply_ad
    procedure :: apply_sym => linop_apply_sym
    procedure :: add_op => linop_add_op
+   procedure :: gather => linop_gather
    procedure :: linop_interp_from_lat_lon
    procedure :: linop_interp_from_mesh_kdtree
    procedure :: linop_interp_grid
@@ -211,7 +212,6 @@ end if
 
 end subroutine linop_reorder
 
-
 !----------------------------------------------------------------------
 ! Subroutine: linop_read
 !> Purpose: read linear operator from a NetCDF file
@@ -324,7 +324,7 @@ end subroutine linop_write
 ! Subroutine: linop_apply
 !> Purpose: apply linear operator
 !----------------------------------------------------------------------
-subroutine linop_apply(linop,fld_src,fld_dst,ivec,mssrc)
+subroutine linop_apply(linop,fld_src,fld_dst,ivec,mssrc,msdst)
 
 implicit none
 
@@ -334,10 +334,12 @@ real(kind_real),intent(in) :: fld_src(linop%n_src)  !< Source vector
 real(kind_real),intent(out) :: fld_dst(linop%n_dst) !< Destination vector
 integer,intent(in),optional :: ivec                 !< Index of the vector of linear operators with similar row and col
 logical,intent(in),optional :: mssrc                !< Check for missing source
+logical,intent(in),optional :: msdst                !< Check for missing destination
 
 ! Local variables
 integer :: i_s,i_dst
-logical :: missing(linop%n_dst),lmssrc,valid
+logical :: lmssrc,lmsdst,valid
+logical,allocatable :: missing(:)
 
 if (check_data) then
    ! Check linear operation
@@ -359,9 +361,14 @@ end if
 
 ! Initialization
 fld_dst = 0.0
-missing = .true.
 lmssrc = .false.
 if (present(mssrc)) lmssrc = mssrc
+lmsdst = .true.
+if (present(msdst)) lmsdst = msdst
+if (lmsdst) then
+   allocate(missing(linop%n_dst))
+   missing = .true.
+end if
 
 ! Apply weights
 do i_s=1,linop%n_s
@@ -381,14 +388,16 @@ do i_s=1,linop%n_s
       end if
 
       ! Check for missing destination
-      missing(linop%row(i_s)) = .false.
+      if (lmsdst) missing(linop%row(i_s)) = .false.
    end if
 end do
 
-! Missing destination values
-do i_dst=1,linop%n_dst
-   if (missing(i_dst)) call msr(fld_dst(i_dst))
-end do
+if (lmsdst) then
+   ! Missing destination values
+   do i_dst=1,linop%n_dst
+      if (missing(i_dst)) call msr(fld_dst(i_dst))
+   end do
+end if
 
 if (check_data) then
    ! Check output
@@ -494,15 +503,18 @@ do i_s=1,linop%n_s
 !$ ithread = omp_get_thread_num()+1
    if (present(ivec)) then
       fld_arr(linop%row(i_s),ithread) = fld_arr(linop%row(i_s),ithread)+linop%Svec(i_s,ivec)*fld(linop%col(i_s))
-      fld_arr(linop%col(i_s),ithread) = fld_arr(linop%col(i_s),ithread)+linop%Svec(i_s,ivec)*fld(linop%row(i_s))
+      if (linop%col(i_s)/=linop%row(i_s)) fld_arr(linop%col(i_s),ithread) = fld_arr(linop%col(i_s),ithread) &
+                                                                          & +linop%Svec(i_s,ivec)*fld(linop%row(i_s))
    else
       fld_arr(linop%row(i_s),ithread) = fld_arr(linop%row(i_s),ithread)+linop%S(i_s)*fld(linop%col(i_s))
-      fld_arr(linop%col(i_s),ithread) = fld_arr(linop%col(i_s),ithread)+linop%S(i_s)*fld(linop%row(i_s))
+      if (linop%col(i_s)/=linop%row(i_s)) fld_arr(linop%col(i_s),ithread) = fld_arr(linop%col(i_s),ithread) &
+                                                                          & +linop%S(i_s)*fld(linop%row(i_s))
    end if
 end do
 !$omp end parallel do
 
 ! Sum over threads
+fld = 0.0
 do ithread=1,mpl%nthread
    fld = fld+fld_arr(:,ithread)
 end do
@@ -558,6 +570,39 @@ linop%col(n_s) = col
 linop%S(n_s) = S
 
 end subroutine linop_add_op
+
+!----------------------------------------------------------------------
+! Subroutine: linop_gather
+!> Purpose: gather data from OpenMP threads
+!----------------------------------------------------------------------
+subroutine linop_gather(linop,n_s_arr,linop_arr)
+
+implicit none
+
+! Passed variables
+class(linop_type),intent(inout) :: linop              !< Linear operator
+integer,intent(in) :: n_s_arr(mpl%nthread)            !< Number of operations
+type(linop_type),intent(in) :: linop_arr(mpl%nthread) !< Linear operator array
+
+! Local variables
+integer :: ithread,offset
+
+! Total number of operations
+linop%n_s = sum(n_s_arr)
+
+! Allocation
+call linop%alloc
+
+! Gather data
+offset = 0
+do ithread=1,mpl%nthread
+   linop%row(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%row(1:n_s_arr(ithread))
+   linop%col(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%col(1:n_s_arr(ithread))
+   linop%S(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%S(1:n_s_arr(ithread))
+   offset = offset+n_s_arr(ithread)
+end do
+
+end subroutine linop_gather
 
 !----------------------------------------------------------------------
 ! Subroutine: linop_interp_from_lat_lon

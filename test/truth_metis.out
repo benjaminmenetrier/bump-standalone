@@ -1,0 +1,7 @@
+------------------------------------------------------------------------------
+***  I detected an error in your input file  ***
+
+In the first line of the file, you specified that the graph contained
+14828 edges. However, I only found 14827 edges in the file.
+Please specify the correct number of edges in the first line of the file.
+------------------------------------------------------------------------------

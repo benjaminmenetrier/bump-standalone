@@ -355,7 +355,7 @@ type(hdata_type),intent(inout) :: hdata !< HDIAG data
 
 ! Local variables
 integer :: ib,iv,il0,il0i,ic1a,ic1,icomp,ic0a,ic0,iscales,offset
-real(kind_real) :: det,Lavg,Lavg_tot,norm,norm_tot
+real(kind_real) :: det,diag_prod,Lavg,Lavg_tot,norm,norm_tot
 real(kind_real),allocatable :: fld_c1a(:,:,:),fld_c1b(:,:),fld(:,:,:)
 logical :: mask_c1a(hdata%nc1a,geom%nl0)
 character(len=1) :: iscaleschar
@@ -394,18 +394,23 @@ do ib=1,bpar%nb
             ic1 = hdata%c1a_to_c1(ic1a)
             if (mask_c1a(ic1a,il0)) then
                ! Compute H determinant
+               diag_prod = lct%blk(ib)%H(offset+1,ic1a,il0)*lct%blk(ib)%H(offset+2,ic1a,il0)
                if (lct%ncomp(iscales)==3) then
-                  det = lct%blk(ib)%H(offset+1,ic1a,il0)*lct%blk(ib)%H(offset+2,ic1a,il0)
+                  det = diag_prod
                else
-                  det = lct%blk(ib)%H(offset+1,ic1a,il0)*lct%blk(ib)%H(offset+2,ic1a,il0)-lct%blk(ib)%H(offset+4,ic1a,il0)**2
+                  det = diag_prod-sqrt(diag_prod)*lct%blk(ib)%H(offset+4,ic1a,il0)**2
                end if
 
                if (det>0.0) then
                   ! Invert LCT
                   fld_c1a(ic1a,il0,1) = lct%blk(ib)%H(offset+2,ic1a,il0)/det
                   fld_c1a(ic1a,il0,2) = lct%blk(ib)%H(offset+1,ic1a,il0)/det
-                  fld_c1a(ic1a,il0,3) = 1.0/lct%blk(ib)%H(offset+3,ic1a,il0)
-                  if (lct%ncomp(iscales)==4) fld_c1a(ic1a,il0,4) = -lct%blk(ib)%H(offset+4,ic1a,il0)/det
+                  if (bpar%nl0r(ib)==1) then
+                     fld_c1a(ic1a,il0,3) = 0.0
+                  else
+                     fld_c1a(ic1a,il0,3) = 1.0/lct%blk(ib)%H(offset+3,ic1a,il0)
+                  end if
+                  if (lct%ncomp(iscales)==4) fld_c1a(ic1a,il0,4) = -sqrt(diag_prod)*lct%blk(ib)%H(offset+4,ic1a,il0)/det
 
                   ! Copy coefficient
                   fld_c1a(ic1a,il0,lct%ncomp(iscales)+1) = lct%blk(ib)%coef(iscales,ic1a,il0)
@@ -472,11 +477,15 @@ do ib=1,bpar%nb
       call io%fld_write(nam,geom,filename,trim(nam%varname(iv))//'_Lh_'//iscaleschar,fld(:,:,lct%ncomp(iscales)+2)*reqkm)
 
       ! Copy to LCT
-      lct%blk(ib)%Dcoef(:,:,iscales) = fld(:,:,lct%ncomp(iscales)+1)
       lct%blk(ib)%D11(:,:,iscales) = fld(:,:,1)
       lct%blk(ib)%D22(:,:,iscales) = fld(:,:,2)
       lct%blk(ib)%D33(:,:,iscales) = fld(:,:,3)
-      if (lct%ncomp(iscales)==4) lct%blk(ib)%D12(:,:,iscales) = fld(:,:,4)
+      if (lct%ncomp(iscales)==4) then
+         lct%blk(ib)%D12(:,:,iscales) = fld(:,:,4)
+      else
+         lct%blk(ib)%D12(:,:,iscales) = 0.0
+      end if
+      lct%blk(ib)%Dcoef(:,:,iscales) = fld(:,:,lct%ncomp(iscales)+1)
 
       ! Update offset
       offset = offset+lct%ncomp(iscales)
