@@ -100,7 +100,7 @@ itsdir = 1,
 /
 
 &obsop_param
-nobs = 100,
+nobs = 1,
 obsdis = "random",
 obsop_interp = "bilin",
 /
@@ -115,7 +115,7 @@ lat_ldwv = 0.0,
 diag_rhflt = 500.0e3,
 diag_interp = "natural",
 grid_output = .true.,
-grid_resol = 200.0e3,
+grid_resol = 100.0e3,
 grid_interp = "bilin",
 /
 

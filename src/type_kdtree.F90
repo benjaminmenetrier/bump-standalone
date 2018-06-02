@@ -182,7 +182,7 @@ end subroutine kdtree_find_nearest_neighbors
 ! Subroutine: kdtree_count_nearest_neighbors
 !> Purpose: count nearest neighbors using a KD-tree
 !----------------------------------------------------------------------
-subroutine kdtree_count_nearest_neighbors(kdtree,lon,lat,r,nn)
+subroutine kdtree_count_nearest_neighbors(kdtree,lon,lat,sr,nn)
 
 implicit none
 
@@ -190,17 +190,20 @@ implicit none
 class(kdtree_type),intent(in) :: kdtree !< KD-tree object
 real(kind_real),intent(in) :: lon(1)    !< Point longitude
 real(kind_real),intent(in) :: lat(1)    !< Point latitude
-real(kind_real),intent(in) :: r         !< Ball radius
+real(kind_real),intent(in) :: sr        !< Spherical radius
 integer,intent(out) :: nn               !< Number of nearest neighbors found
 
 ! Local variables
-real(kind_real) :: qv(3)
+real(kind_real) :: qv(3),brsq
 
 ! Transform to cartesian coordinates
 call trans(1,lat,lon,qv(1),qv(2),qv(3))
 
+! Convert spherical radius to squared ball radius
+brsq = (1.0-cos(sr))**2+sin(sr)**2
+
 ! Count nearest neighbors
-nn = kdtree2_r_count(kdtree%tp,qv,r**2)
+nn = kdtree2_r_count(kdtree%tp,qv,brsq)
 
 end subroutine kdtree_count_nearest_neighbors
 
