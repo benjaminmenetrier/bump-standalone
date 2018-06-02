@@ -55,7 +55,7 @@ contains
    procedure :: interp_missing => linop_interp_missing
 end type linop_type
 
-logical,parameter :: check_data = .false.             !< Activate data check for all linear operations
+logical,parameter :: check_data = .true.             !< Activate data check for all linear operations
 integer,parameter :: nnatmax = 40                     !< Maximum number of natural neighbors
 real(kind_real),parameter :: S_inf = 1.0e-2_kind_real !< Minimum interpolation coefficient
 
@@ -356,7 +356,6 @@ if (check_data) then
    ! Check input
    if (any(fld_src>huge(1.0))) call msgerror('Overflowing number in fld_src for linear operation '//trim(linop%prefix))
    if (any(isnan(fld_src))) call msgerror('NaN in fld_src for linear operation '//trim(linop%prefix))
-   if (any(.not.isnotmsr(fld_src))) call msgerror('Missing value in fld_src for linear operation '//trim(linop%prefix))
 end if
 
 ! Initialization
@@ -438,7 +437,6 @@ if (check_data) then
    ! Check input
    if (any(fld_dst>huge(1.0))) call msgerror('Overflowing number in fld_dst for adjoint linear operation '//trim(linop%prefix))
    if (any(isnan(fld_dst))) call msgerror('NaN in fld_dst for adjoint linear operation '//trim(linop%prefix))
-   if (any(.not.isnotmsr(fld_dst))) call msgerror('Missing value in fld_dst for adjoint linear operation '//trim(linop%prefix))
 end if
 
 ! Initialization
@@ -492,7 +490,6 @@ if (check_data) then
    ! Check input
    if (any(fld>huge(1.0))) call msgerror('Overflowing number in fld for symmetric linear operation '//trim(linop%prefix))
    if (any(isnan(fld))) call msgerror('NaN in fld for symmetric linear operation '//trim(linop%prefix))
-   if (any(.not.isnotmsr(fld))) call msgerror('Missing value in fld for symmetric linear operation '//trim(linop%prefix))
 end if
 
 ! Apply weights
@@ -902,14 +899,14 @@ character(len=*),intent(in) :: interp_type    !< Interpolation type
 type(linop_type),intent(inout) :: interp_base !< Linear operator (base interpolation)
 
 ! Local variables
-integer :: ic0,ic1,i_s
+integer :: ic0,ic1,jc0,jc1,i_s
 real(kind_real) :: renorm(geom%nc0)
 logical :: test_c0(geom%nc0)
 logical,allocatable :: mask_extra(:),valid(:)
 
 if (.not.allocated(interp_base%row)) then
    ! Compute base interpolation
-   call interp_base%interp(nc1,geom%lon(c1_to_c0),geom%lat(c1_to_c0), any(geom%mask(c1_to_c0,:),dim=2), &
+   call interp_base%interp(nc1,geom%lon(c1_to_c0),geom%lat(c1_to_c0),any(geom%mask(c1_to_c0,:),dim=2), &
  & geom%nc0,geom%lon,geom%lat,any(geom%mask,dim=2),interp_type)
 end if
 
@@ -917,17 +914,19 @@ end if
 allocate(valid(interp_base%n_s))
 allocate(mask_extra(nc1))
 
-! Initialization
-valid = .true.
+! Check mask
+do i_s=1,interp_base%n_s
+   ic0 = interp_base%row(i_s)
+   jc1 = interp_base%col(i_s)
+   jc0 = c1_to_c0(jc1)
+   valid(i_s) = geom%mask(ic0,il0i).and.geom%mask(jc0,il0i)
+end do
 
 ! Check mask boundaries
 if (mask_check) then
    write(mpl%unit,'(a10,a,i3,a)',advance='no') '','Sublevel ',il0i,': '
    call flush(mpl%unit)
    call interp_base%interp_check_mask(geom,valid,il0i,col_to_ic0=c1_to_c0)
-else
-   write(mpl%unit,'(a10,a,i3)') '','Sublevel ',il0i
-   call flush(mpl%unit)
 end if
 
 if (geom%nl0i>1) then
@@ -981,7 +980,7 @@ call interp_base%dealloc
 call linop%interp_missing(geom%nc0,geom%lon,geom%lat,geom%mask(:,il0i),interp_type)
 
 ! Check interpolation
-test_c0 = geom%mask(:,min(il0i,geom%nl0i))
+test_c0 = geom%mask(:,il0i)
 do i_s=1,linop%n_s
    test_c0(linop%row(i_s)) = .false.
 end do
@@ -1112,6 +1111,8 @@ do i_s=1,linop%n_s
 end do
 
 if (count(missing)>0) then
+   write(mpl%unit,'(a10,a,i6,a)') '','Deal with ',count(missing),' missing interpolation points'
+
    ! Allocate temporary interpolation
    if (trim(interp_type)=='bilin') then
       interp_tmp%n_s = linop%n_s+3*count(missing)

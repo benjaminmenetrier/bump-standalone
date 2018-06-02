@@ -32,7 +32,7 @@ module tools_kdtree2
   ! Return fixed number of nearest neighbors around arbitrary vector
   !
   public :: kdtree2_r_count
-  ! Count points within a fixed ball of arb vector 
+  ! Count points within a fixed ball of arb vector
   !----------------------------------------------------------------
 
   integer, parameter :: bucket_size = 12
@@ -535,7 +535,7 @@ contains
     sr%nfound = 0
     sr%centeridx = -1
     sr%correltime = 0
-    sr%overflow = .false. 
+    sr%overflow = .false.
 
     sr%results => results
 
@@ -549,7 +549,7 @@ contains
        sr%Data => tp%the_data
     endif
 
-    call validate_query_storage(nn) 
+    call validate_query_storage(nn)
     sr%pq = pq_create(results)
 
     call search(tp%root)
@@ -562,7 +562,7 @@ contains
   end subroutine kdtree2_n_nearest
 
   function kdtree2_r_count(tp,qv,r2) result(nfound)
-    ! Count the number of neighbors within square distance 'r2'. 
+    ! Count the number of neighbors within square distance 'r2'.
     type (kdtree2), pointer   :: tp
     real(kind_real), target, intent (In) :: qv(:)
     real(kind_real), intent(in)          :: r2
@@ -578,7 +578,7 @@ contains
     sr%nfound = 0
     sr%centeridx = -1
     sr%correltime = 0
-    
+
     nullify(sr%results) ! for some reason, FTN 95 chokes on '=> null()'
 
     sr%nalloc = 0            ! we do not allocate any storage but that's OK
