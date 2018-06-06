@@ -1311,7 +1311,7 @@ end do
 
 ! Find largest possible radius
 call mpl%allreduce_max(maxval(cmat_blk%rh0),rh0max)
-rh0max = rh0max*sqrt_fac
+rh0max = rh0max*sqrt_fac*margin
 
 if (nam%lsqrt) then
    ! Copy
