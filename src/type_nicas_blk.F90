@@ -575,7 +575,7 @@ end do
 allocate(nicas_blk%nc2(nicas_blk%nl1))
 allocate(nicas_blk%mask_c2(nicas_blk%nc1,nicas_blk%nl1))
 allocate(rh0s_glb(geom%nc0))
-allocate(rh1s(nicas_blk%nc1))
+if (mpl%main) allocate(rh1s(nicas_blk%nc1))
 allocate(mask_c1(nicas_blk%nc1))
 
 ! Horizontal subsampling
@@ -597,9 +597,11 @@ do il1=1,nicas_blk%nl1
 
       ! Compute subset
       call mpl%gatherv(geom%nc0a,cmat_blk%rh0s(:,il0),geom%proc_to_nc0a,geom%nc0,rh0s_glb)
-      rh1s = rh0s_glb(nicas_blk%c1_to_c0)
-      if (mpl%main) call rng%initialize_sampling(nicas_blk%nc1,geom%lon(nicas_blk%c1_to_c0), &
-    & geom%lat(nicas_blk%c1_to_c0),mask_c1,rh1s,nam%ntry,nam%nrep,nicas_blk%nc2(il1),c2_to_c1)
+      if (mpl%main) then
+         rh1s = rh0s_glb(nicas_blk%c1_to_c0)
+         call rng%initialize_sampling(nicas_blk%nc1,geom%lon(nicas_blk%c1_to_c0), &
+       & geom%lat(nicas_blk%c1_to_c0),mask_c1,rh1s,nam%ntry,nam%nrep,nicas_blk%nc2(il1),c2_to_c1)
+      end if
       call mpl%bcast(c2_to_c1)
 
       ! Fill C2 mask

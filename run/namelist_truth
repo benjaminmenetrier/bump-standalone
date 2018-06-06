@@ -5,7 +5,7 @@ model = "gem",
 colorlog = .false.,
 default_seed = .true.,
 load_ensemble = .false.,
-use_metis = .true.,
+use_metis = .false.,
 /
 
 &driver_param
@@ -89,7 +89,7 @@ lsqrt = .false.,
 resol = 4.0,
 nicas_interp = "bilin",
 network = .false.,
-mpicom = 2,
+mpicom = 1,
 advmode = 0,
 ndir = 1,
 londir = -85.0,

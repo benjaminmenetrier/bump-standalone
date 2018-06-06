@@ -5,7 +5,7 @@ model = "nemo",
 colorlog = .true.,
 default_seed = .false.,
 load_ensemble = .true.,
-use_metis = .true.,
+use_metis = .false.,
 /
 
 &driver_param
@@ -81,7 +81,7 @@ lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
 lct_nscales = 1,
-lct_diag = .true.,
+lct_diag = .false.,
 /
 
 &nicas_param

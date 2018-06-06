@@ -997,7 +997,7 @@ integer,intent(in) :: ns                 !< Sent buffer size
 real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
 integer,intent(in) :: rcounts(mpl%nproc) !< Received counts
 integer,intent(in) :: nr                 !< Received buffer size
-real(kind_real),intent(out) :: rbuf(:)   !< Received buffer
+real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
 
 ! Local variable
 integer :: info,displ(mpl%nproc),iproc
@@ -1031,7 +1031,7 @@ implicit none
 class(mpl_type) :: mpl                   !< MPL object
 integer,intent(in) :: scounts(mpl%nproc) !< Sent counts
 integer,intent(in) :: ns                 !< Sent buffer size
-real(kind_real),intent(in) :: sbuf(:)    !< Sent buffer
+real(kind_real),intent(in) :: sbuf(ns)   !< Sent buffer
 integer,intent(in) :: nr                 !< Received buffer size
 real(kind_real),intent(out) :: rbuf(nr)  !< Received buffer
 

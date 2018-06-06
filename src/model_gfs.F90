@@ -133,13 +133,12 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
 real(kind=4),allocatable :: fld_tmp(:,:,:)
-real(kind_real),allocatable :: fld_c0(:)
+real(kind_real) :: fld_c0(geom%nc0)
 character(len=1024) :: subr = 'model_gfs_read'
 
 if (mpl%main) then
    ! Allocation
    allocate(fld_tmp(geom%nlon,geom%nlat,geom%nl0))
-   allocate(fld_c0(geom%nc0))
 
    ! Open file
    call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
@@ -187,7 +186,6 @@ if (mpl%main) then
 
    ! Release memory
    deallocate(fld_tmp)
-   deallocate(fld_c0)
 end if
 
 end subroutine model_gfs_read

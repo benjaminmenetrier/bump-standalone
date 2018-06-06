@@ -81,7 +81,7 @@ lhomh = .false.,
 lhomv = .false.,
 rvflt = 2.0,
 lct_nscales = 0,
-lct_diag = .false.,
+lct_diag = .true.,
 /
 
 &nicas_param
