@@ -1,7 +1,11 @@
 // This is the CLOC_REPORT.dox file, which can be viewed by browsing the doxygen-generated documentation.
-/*! page CLOC_REPORT CLOC_REPORT
+/*! \page CLOC_REPORT CLOC_REPORT
 Code report obtained with <a target="_blank" href="https://github.com/AlDanial/cloc">CLOC</a>:
 <br><br>Internal code<br><table>
+<tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
+<tr><td align="center">Fortran 90</td><td align="center">52</td><td align="center">4586</td><td align="center">7157</td><td align="center">16473</td><td align="center">43 \%</td></tr>
 </table><br>External code<br><table>
+<tr><th>language</th><th>files</th><th>blank</th><th>comment</th><th>code</th><th>comment/code ratio</th></tr>
+<tr><td align="center">Fortran 90</td><td align="center">4</td><td align="center">649</td><td align="center">2827</td><td align="center">2808</td><td align="center">100 \%</td></tr>
 </table>
 */

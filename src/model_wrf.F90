@@ -135,13 +135,12 @@ integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
 real(kind=4) :: fld_tmp2
 real(kind=4),allocatable :: fld_tmp(:,:,:)
-real(kind_real),allocatable :: fld_c0(:)
+real(kind_real) :: fld_c0(geom%nc0)
 character(len=1024) :: subr = 'model_wrf_read'
 
 if (mpl%main) then
    ! Allocation
    allocate(fld_tmp(geom%nlon,geom%nlat,geom%nl0))
-   allocate(fld_c0(geom%nc0))
 
    ! Open file
    call ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
@@ -199,6 +198,14 @@ do iv=1,nam%nv
       call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_c0,geom%nc0a,fld(:,il0,iv))
    end do
 end do
+
+if (mpl%main) then
+   ! Close file
+   call ncerr(subr,nf90_close(ncid))
+
+   ! Release memory
+   deallocate(fld_tmp)
+end if
 
 end subroutine model_wrf_read
 
