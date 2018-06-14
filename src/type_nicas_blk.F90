@@ -224,7 +224,7 @@ if (allocated(nicas_blk%vbot)) deallocate(nicas_blk%vbot)
 if (allocated(nicas_blk%vtop)) deallocate(nicas_blk%vtop)
 if (allocated(nicas_blk%nc2)) deallocate(nicas_blk%nc2)
 if (allocated(nicas_blk%hfull)) then
-   do il0=1,geom%nl0
+   do il0=1,geom%nl0i
       call nicas_blk%hfull(il0)%dealloc
    end do
    deallocate(nicas_blk%hfull)
@@ -280,7 +280,7 @@ if (allocated(nicas_blk%sa_to_sc)) deallocate(nicas_blk%sa_to_sc)
 if (allocated(nicas_blk%sb_to_sc)) deallocate(nicas_blk%sb_to_sc)
 call nicas_blk%c%dealloc
 if (allocated(nicas_blk%h)) then
-   do il0=1,geom%nl0
+   do il0=1,geom%nl0i
       call nicas_blk%h(il0)%dealloc
    end do
    deallocate(nicas_blk%h)
@@ -288,7 +288,7 @@ end if
 call nicas_blk%v%dealloc
 if (allocated(nicas_blk%s)) then
    do il1=1,nicas_blk%nl1
-      call nicas_blk%s(il1)%dealloc
+     call nicas_blk%s(il1)%dealloc
    end do
    deallocate(nicas_blk%s)
 end if
