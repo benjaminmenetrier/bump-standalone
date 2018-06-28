@@ -85,7 +85,7 @@ lct_diag = .true.,
 /
 
 &nicas_param
-lsqrt = .false.,
+lsqrt = .true.,
 resol = 8.0,
 nicas_interp = "bilin",
 network = .false.,
@@ -114,6 +114,8 @@ lon_ldwv = 0.0,
 lat_ldwv = 0.0,
 diag_rhflt = 500.0e3,
 diag_interp = "bilin",
+field_io = .true.,
+split_io = .false.,
 grid_output = .true.,
 grid_resol = 200.0e3,
 grid_interp = "bilin",

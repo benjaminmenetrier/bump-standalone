@@ -48,8 +48,8 @@ ens2_nsub = NULL,
 /
 
 &sampling_param
-sam_write = .true.,
-sam_read = .false.,
+sam_write = .false.,
+sam_read = .true.,
 mask_type = "none",
 mask_th = 0,
 mask_check = .false.,
@@ -85,7 +85,7 @@ lct_diag = .true.,
 /
 
 &nicas_param
-lsqrt = .false.,
+lsqrt = .true.,
 resol = 10.0,
 nicas_interp = "bilin",
 network = .false.,
@@ -114,6 +114,8 @@ lon_ldwv = NULL,
 lat_ldwv = NULL,
 diag_rhflt = 0.0,
 diag_interp = "bilin",
+field_io = .true.,
+split_io = .false.,
 grid_output = .false.,
 grid_resol = NULL,
 grid_interp = NULL,
