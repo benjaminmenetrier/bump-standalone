@@ -15,8 +15,6 @@ use mpi
 use tools_const, only: rad2deg,req
 use tools_kinds, only: kind_real
 use type_bump, only: bump_type
-use type_mpl, only: mpl
-use type_rng, only: rng
 
 implicit none
 
@@ -39,9 +37,9 @@ type(bump_type) :: bump,bump_test
 call mpi_init(info)
 if (info/=mpi_success) then
    call mpi_error_string(info,message,len,info_loc)
-   write(output_unit,'(a)') trim(message)
-   call mpi_finalize(info)
-   stop
+   write(output_unit,'(a)') '!!! Error:',trim(message)
+   call flush(output_unit)
+   call mpi_abort(mpi_comm_world,1,info)
 end if
 call mpi_comm_rank(mpi_comm_world,myproc,info)
 
@@ -70,14 +68,14 @@ call bump%setup_offline(mpi_comm_world,namelname)
 if (online_test) then
    ! Initialize, read and broadcast namelist
    call bump_test%nam%init
-   call bump_test%nam%read(namelname)
-   call bump_test%nam%bcast
+   call bump_test%nam%read(bump_test%mpl,namelname)
+   call bump_test%nam%bcast(bump_test%mpl)
 
    ! Modify prefix
    bump_test%nam%prefix = trim(bump_test%nam%prefix)//'_online'
 
    ! Reset seed
-   if (bump_test%nam%default_seed) call rng%reseed
+   if (bump_test%nam%default_seed) call bump_test%rng%reseed(bump_test%mpl)
 
    ! Copy offline dimensions
    nmga = bump%geom%nc0a
@@ -184,7 +182,7 @@ if (online_test) then
    end if
 
    ! Move files to datadir
-   if (mpl%main) call system('mv '//trim(bump_test%nam%prefix)//'_* '//trim(bump%nam%datadir))
+   if (bump_test%mpl%main) call system('mv '//trim(bump_test%nam%prefix)//'_* '//trim(bump%nam%datadir))
 end if
 
 ! Finalize MPI

@@ -14,8 +14,8 @@ local_diag_cor
 local_diag_cov
 local_diag_loc
 local_diag_ncor
-nicas-1_0001-0001_common
-nicas-1_0001-0001_common_summary
+nicas-2-sqrt_0001-0001_common
+nicas-2-sqrt_0001-0001_common_summary
 sampling_001
 sampling'
 
@@ -145,4 +145,5 @@ done
 rm -f *.out
 if $newexec; then
    rm -f test_*
+   rm -f truth_obs_out.dat
 fi
