@@ -47,8 +47,9 @@ type minim_type
    logical :: lhomh                           !< Vertically homogenous horizontal support radius key
    logical :: lhomv                           !< Vertically homogenous vertical support radius key
    integer,allocatable :: l0rl0_to_l0(:,:)    !< Reduced level to level
-   real(kind_real),allocatable :: distvr(:,:) !< Vertical distance
    real(kind_real),allocatable :: disth(:)    !< Horizontal distance
+   real(kind_real),allocatable :: distvr(:,:) !< Vertical distance
+   logical :: vlap                            !< Vertical envelope
 
    ! Specific data (LCT)
    integer :: nscales                         !< Number of LCT scales
@@ -192,7 +193,7 @@ else
 end if
 
 ! Compute function
-call fit_diag(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distvr,fit_rh,fit_rv,fit)
+call fit_diag(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distvr,fit_rh,fit_rv,minim%vlap,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)

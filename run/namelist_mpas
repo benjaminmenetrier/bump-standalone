@@ -32,7 +32,7 @@ nv = 1,
 varname = "theta","qv","uReconstructZonal","uReconstructMeridional",
 addvar2d = "","",
 nts = 1,
-timeslot = 1,
+timeslot = 0,
 /
 
 &ens1_param
@@ -77,6 +77,7 @@ displ_tol = 0.01,
 
 &fit_param
 minim_algo = "hooke",
+vlap = .false.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
@@ -91,6 +92,9 @@ nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
 advmode = 0,
+forced_radii = .false.,
+rh = 0.0,
+rv = 0.0,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
