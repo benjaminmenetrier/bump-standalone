@@ -44,6 +44,7 @@ type diag_blk_type
    real(kind_real),allocatable :: fit(:,:,:)      !< Fit
    real(kind_real),allocatable :: fit_rh(:)       !< Fit support radius
    real(kind_real),allocatable :: fit_rv(:)       !< Fit support radius
+   real(kind_real),allocatable :: distvr(:,:)     !< Reduced vertical distance
 contains
    procedure :: alloc => diag_blk_alloc
    procedure :: dealloc => diag_blk_dealloc
@@ -97,11 +98,13 @@ if (trim(nam%minim_algo)/='none') then
    allocate(diag_blk%fit(nam%nc3,bpar%nl0r(ib),geom%nl0))
    allocate(diag_blk%fit_rh(geom%nl0))
    allocate(diag_blk%fit_rv(geom%nl0))
+   allocate(diag_blk%distvr(nam%nl0r,geom%nl0))
 
    ! Initialization
    call msr(diag_blk%fit)
    call msr(diag_blk%fit_rh)
    call msr(diag_blk%fit_rv)
+   call msr(diag_blk%distvr)
 end if
 
 end subroutine diag_blk_alloc
@@ -123,6 +126,7 @@ if (allocated(diag_blk%raw_coef_ens)) deallocate(diag_blk%raw_coef_ens)
 if (allocated(diag_blk%fit)) deallocate(diag_blk%fit)
 if (allocated(diag_blk%fit_rh)) deallocate(diag_blk%fit_rh)
 if (allocated(diag_blk%fit_rv)) deallocate(diag_blk%fit_rv)
+if (allocated(diag_blk%distvr)) deallocate(diag_blk%distvr)
 
 end subroutine diag_blk_dealloc
 
@@ -285,7 +289,7 @@ type(bpar_type),intent(in) :: bpar             !< Block parameters
 type(hdata_type),intent(in) :: hdata           !< HDIAG data
 ! Local variables
 integer :: ic2,ic0,il0,jl0r,jl0,offset,isc
-real(kind_real) :: vunit(geom%nl0),distvr(nam%nl0r,geom%nl0),rawv(nam%nl0r)
+real(kind_real) :: vunit(geom%nl0),rawv(nam%nl0r)
 real(kind_real) :: alpha,alpha_opt,mse,mse_opt
 real(kind_real) :: fit_rh(geom%nl0),fit_rv(geom%nl0),fit(nam%nc3,nam%nl0r,geom%nl0)
 type(minim_type) :: minim
@@ -311,11 +315,11 @@ else
 end if
 
 ! Reduced vertical distance
-call msr(distvr)
+call msr(diag_blk%distvr)
 do il0=1,geom%nl0
    do jl0r=1,nam%nl0r
       jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
-      distvr(jl0r,il0) = abs(vunit(il0)-vunit(jl0))
+      diag_blk%distvr(jl0r,il0) = abs(vunit(il0)-vunit(jl0))
    end do
 end do
 
@@ -329,7 +333,7 @@ do il0=1,geom%nl0
 
    ! Vertical fast fit
    rawv = diag_blk%raw(1,:,il0)
-   call fast_fit(mpl,nam%nl0r,jl0r,distvr(:,il0),rawv,diag_blk%fit_rv(il0))
+   call fast_fit(mpl,nam%nl0r,jl0r,diag_blk%distvr(:,il0),rawv,diag_blk%fit_rv(il0))
 end do
 
 if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
@@ -343,7 +347,7 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
    if (nam%lhomv) diag_blk%fit_rv = sum(diag_blk%fit_rv,mask=isnotmsr(diag_blk%fit_rv)) &
  & /real(count(isnotmsr(diag_blk%fit_rv)),kind_real)
 
-      ! Scaling optimization (brute-force)
+   ! Scaling optimization (brute-force)
    if (all(isnotmsr(diag_blk%fit_rh)).and.all(isnotmsr(diag_blk%fit_rv))) then
       mse_opt = huge(1.0)
       alpha_opt = 1.0
@@ -356,7 +360,8 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
          fit_rv = alpha*diag_blk%fit_rv
 
          ! Define fit
-         call fit_diag(mpl,nam%nc3,nam%nl0r,geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,distvr,fit_rh,fit_rv,fit)
+         call fit_diag(mpl,nam%nc3,nam%nl0r,geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distvr,fit_rh,fit_rv, &
+       & nam%vlap(bpar%b_to_v1(ib)),fit)
 
          ! MSE
          mse = sum((fit-diag_blk%raw)**2,mask=isnotmsr(diag_blk%raw))
@@ -429,7 +434,8 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
       minim%lhomv = nam%lhomv
       minim%l0rl0_to_l0 = bpar%l0rl0b_to_l0(:,:,ib)
       minim%disth = geom%disth
-      minim%distvr = distvr
+      minim%distvr = diag_blk%distvr
+      minim%vlap = nam%vlap(bpar%b_to_v1(ib))
 
       ! Compute fit
       minim%cost_function = 'fit_diag'
@@ -459,10 +465,6 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
          offset = offset+geom%nl0
       end if
    end select
-
-   ! Rebuild fit
-   call fit_diag(mpl,nam%nc3,nam%nl0r,geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,distvr,diag_blk%fit_rh,diag_blk%fit_rv, &
- & diag_blk%fit)
 end if
 
 ! End associate

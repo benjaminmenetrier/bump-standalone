@@ -1,5 +1,5 @@
 &general_param
-datadir = "../data/wrf/tq_10",
+datadir = "../data/wrf",
 prefix = "wrf",
 model = "wrf",
 colorlog = .true.,
@@ -32,17 +32,17 @@ nv = 2,
 varname = "T","QVAPOR",
 addvar2d = "","",
 nts = 1,
-timeslot = 1,
+timeslot = 0,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 9,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 10,
+ens2_ne = 0,
 ens2_ne_offset = 0,
 ens2_nsub = 1,
 /
@@ -63,7 +63,7 @@ nl0r = 7,
 /
 
 &diag_param
-ne = 10,
+ne = 9,
 gau_approx = .false.,
 full_var = .false.,
 local_diag = .false.,
@@ -77,6 +77,7 @@ displ_tol = 0.01,
 
 &fit_param
 minim_algo = "hooke",
+vlap = .false.,
 lhomh = .false.,
 lhomv = .false.,
 rvflt = 0.0,
@@ -91,6 +92,9 @@ nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
 advmode = 0,
+forced_radii = .false.,
+rh = 0.0,
+rv = 0.0,
 ndir = 12,
 londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
 latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,

@@ -22,7 +22,7 @@ integer,parameter :: M = 0                            !< Number of implicit itte
 real(kind_real),parameter :: eta = 1.0e-9_kind_real   !< Small parameter for the Cholesky decomposition
 
 private
-public :: lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide,fit_diag,gc99,fit_lct,cholesky
+public :: lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide,fit_diag,gc99,gc99lap,fit_lct,cholesky
 
 contains
 
@@ -228,7 +228,7 @@ end subroutine divide
 ! Subroutine: fit_diag
 !> Purpose: diagnostic fit
 !----------------------------------------------------------------------
-subroutine fit_diag(mpl,nc3,nl0r,nl0,l0rl0_to_l0,disth,distvr,rh,rv,fit)
+subroutine fit_diag(mpl,nc3,nl0r,nl0,l0rl0_to_l0,disth,distvr,rh,rv,vlap,fit)
 
 implicit none
 
@@ -242,6 +242,7 @@ real(kind_real),intent(in) :: disth(nc3)         !< Horizontal distance
 real(kind_real),intent(in) :: distvr(nl0r,nl0)   !< Vertical distance
 real(kind_real),intent(in) :: rh(nl0)            !< Horizontal support radius
 real(kind_real),intent(in) :: rv(nl0)            !< Vertical support radius
+logical,intent(in) :: vlap                       !< Vertical envelope with a normalized laplacian
 real(kind_real),intent(out) :: fit(nc3,nl0r,nl0) !< Fit
 
 ! Local variables
@@ -308,6 +309,7 @@ do il0=1,nl0
                   distnorm = distnorm+0.5*huge(1.0)
                end if
                disttest = dist(jc3,jl0r)+sqrt(distnorm)
+
                if (disttest<1.0) then
                   ! Point is inside the support
                   if (disttest<dist(kc3,kl0r)) then
@@ -345,6 +347,12 @@ do il0=1,nl0
          ! Gaspari-Cohn (1999) function
          distnorm = dist(jc3,jl0r)
          if (distnorm<1.0) fit(jc3,jl0r,il0) = gc99(mpl,distnorm)
+
+         if (vlap) then
+            ! Vertical envelope with a normalized Laplacian of the Gaspari-Cohn (1999) function
+            distnorm = dist(1,jl0r)
+            if (distnorm<1.0) fit(jc3,jl0r,il0) = fit(jc3,jl0r,il0)*gc99lap(mpl,distnorm)
+         end if
       end do
    end do
 
@@ -373,27 +381,47 @@ real(kind_real) :: gc99
 ! Distance check bound
 if (distnorm<0.0) call mpl%abort('negative normalized distance')
 
-if (.true.) then
-   ! Gaspari and Cohn (1999) function
-   if (distnorm<0.5) then
-      gc99 = 1.0-8.0*distnorm**5+8.0*distnorm**4+5.0*distnorm**3-20.0/3.0*distnorm**2
-   else if (distnorm<1.0) then
-      gc99 = 8.0/3.0*distnorm**5-8.0*distnorm**4+5.0*distnorm**3+20.0/3.0*distnorm**2-10.0*distnorm+4.0-1.0/(3.0*distnorm)
-   else
-      gc99 = 0.0
-   end if
+! Gaspari and Cohn (1999) function
+if (distnorm<0.5) then
+   gc99 = -8.0*distnorm**5+8.0*distnorm**4+5.0*distnorm**3-20.0/3.0*distnorm**2+1.0
+else if (distnorm<1.0) then
+   gc99 = 8.0/3.0*distnorm**5-8.0*distnorm**4+5.0*distnorm**3+20.0/3.0*distnorm**2-10.0*distnorm+4.0-1.0/(3.0*distnorm)
 else
-   ! Gaussian equivalent
-   if (distnorm<1.0) then
-      gc99 = exp(-0.5*(3.53*distnorm)**2)
-   else
-      gc99 = 0.0
-   end if
+   gc99 = 0.0
 end if
 
 return
 
 end function gc99
+
+!----------------------------------------------------------------------
+! Function: gc99lap
+!> Purpose: normalized Laplacian of the Gaspari and Cohn (1999) function, with the support radius as a parameter
+!----------------------------------------------------------------------
+function gc99lap(mpl,distnorm)
+
+! Passed variables
+type(mpl_type),intent(in) :: mpl       !< MPI data
+real(kind_real),intent(in) :: distnorm !< Normalized distance
+
+! Returned variable
+real(kind_real) :: gc99lap
+
+! Distance check bound
+if (distnorm<0.0) call mpl%abort('negative normalized distance')
+
+! Gaspari and Cohn (1999) function
+if (distnorm<0.5) then
+   gc99lap = 12.0*distnorm**3-36.0/5.0*distnorm**2-9.0/4.0*distnorm+1.0
+else if (distnorm<1.0) then
+   gc99lap = -4.0*distnorm**3+36.0/5.0*distnorm**2-9.0/4.0*distnorm-1.0+1.0/(20.0*distnorm**3)
+else
+   gc99lap = 0.0
+end if
+
+return
+
+end function gc99lap
 
 !----------------------------------------------------------------------
 ! Subroutine: fit_lct
