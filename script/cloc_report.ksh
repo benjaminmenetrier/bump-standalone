@@ -11,14 +11,14 @@ cloc --exclude-dir=external --quiet --csv --out=cloc.csv src
 cloc --quiet --csv --out=cloc_external.csv src/external
 
 # Write doxygen-compatible report
-printf "// This is the CLOC_REPORT.dox file, which can be viewed by browsing the doxygen-generated documentation.\n/*! \page CLOC_REPORT CLOC_REPORT\nCode report obtained with <a target=\"_blank\" href=\"https://github.com/AlDanial/cloc\">CLOC</a>:\n" > doc/CLOC_REPORT.dox
+printf "// This is the CLOC_REPORT.dox file, which can be viewed by browsing the doxygen-generated documentation.\n/*! \\\page CLOC_REPORT CLOC_REPORT\nCode report obtained with <a target=\"_blank\" href=\"https://github.com/AlDanial/cloc\">CLOC</a>:\n" > doc/CLOC_REPORT.dox
 OLDIFS=$IFS
 IFS=,
 printf "<br><br>Internal code<br><table>\n" >> doc/CLOC_REPORT.dox
 i=0
 while read files language blank comment code dum ; do
    printf "<tr>" >> doc/CLOC_REPORT.dox
-   if [ $i == 0 ] ; then
+   if test $i == 0 ; then
       printf "<th>"$language"</th>" >> doc/CLOC_REPORT.dox
       printf "<th>"$files"</th>" >> doc/CLOC_REPORT.dox
       printf "<th>"$blank"</th>" >> doc/CLOC_REPORT.dox
@@ -41,7 +41,7 @@ printf "</table><br>External code<br><table>\n" >> doc/CLOC_REPORT.dox
 i=0
 while read files language blank comment code dum ; do
    printf "<tr>" >> doc/CLOC_REPORT.dox
-   if [ $i == 0 ] ; then
+   if test $i == 0 ; then
       printf "<th>"$language"</th>" >> doc/CLOC_REPORT.dox
       printf "<th>"$files"</th>" >> doc/CLOC_REPORT.dox
       printf "<th>"$blank"</th>" >> doc/CLOC_REPORT.dox

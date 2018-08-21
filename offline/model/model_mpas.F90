@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Module: module_geos
-!> Purpose: GEOS model routines
+! Module: module_mpas
+!> Purpose: MPAS model routines
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,12 +8,12 @@
 !> <br>
 !> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
-module model_geos
+module model_mpas
 
 use netcdf
-use tools_const, only: deg2rad,rad2deg,pi,ps
-use tools_kinds, only: kind_real
-use tools_missing, only: msr,isanynotmsr
+use tools_const, only: pi,ps
+use tools_kinds,only: kind_real
+use tools_missing, only: msi,msr,isanynotmsr
 use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
@@ -22,15 +22,15 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_geos_coord,model_geos_read
+public :: model_mpas_coord,model_mpas_read
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: model_geos_coord
-!> Purpose: get GEOS coordinates
+! Subroutine: model_mpas_coord
+!> Purpose: get MPAS coordinates
 !----------------------------------------------------------------------
-subroutine model_geos_coord(mpl,nam,geom)
+subroutine model_mpas_coord(mpl,nam,geom)
 
 implicit none
 
@@ -40,55 +40,42 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: ilon,ilat,ic0
-integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
-real(kind=8),allocatable :: lon(:),lat(:),pres(:)
-character(len=1024) :: subr = 'model_geos_coord'
+integer :: ncid,ng_id,nlev_id,lon_id,lat_id,pres_id
+integer :: ic0
+real(kind=4),allocatable :: lon(:),lat(:),pres(:)
+character(len=1024) :: subr = 'model_mpas_coord'
 
 ! Open file and get dimensions
+call msi(geom%nlon)
+call msi(geom%nlat)
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lon',nlon_id))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lat',nlat_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
-geom%nmg = geom%nlon*geom%nlat
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lev',nlev_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
+call mpl%ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%nmg))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nVertLevels',nlev_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
-allocate(lon(geom%nlon))
-allocate(lat(geom%nlat))
+allocate(lon(geom%nmg))
+allocate(lat(geom%nmg))
 allocate(pres(geom%nlev))
 
 ! Read data and close file
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'PL',pres_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'lonCell',lon_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'latCell',lat_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'pressure_base',pres_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call mpl%ncerr(subr,nf90_get_var(ncid,pres_id,pres))
 call mpl%ncerr(subr,nf90_close(ncid))
-
-! Convert to radian
-lon = lon*deg2rad
-lat = lat*deg2rad
 
 ! Not redundant grid
 call geom%find_redundant(mpl)
 
 ! Pack
 call geom%alloc
-ic0 = 0
-do ilon=1,geom%nlon
-   do ilat=1,geom%nlat
-      ic0 = ic0+1
-      geom%c0_to_lon(ic0) = ilon
-      geom%c0_to_lat(ic0) = ilat
-      geom%lon(ic0) = real(lon(ilon),kind_real)
-      geom%lat(ic0) = real(lat(ilat),kind_real)
-      geom%mask(ic0,:) = .true.
-   end do
-end do
+geom%lon = lon
+geom%lat = lat
+geom%mask = .true.
 
 ! Compute normalized area
 geom%area = 4.0*pi
@@ -108,13 +95,13 @@ deallocate(lon)
 deallocate(lat)
 deallocate(pres)
 
-end subroutine model_geos_coord
+end subroutine model_mpas_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_geos_read
-!> Purpose: read GEOS field
+! Subroutine: model_mpas_read
+!> Purpose: read MPAS field
 !----------------------------------------------------------------------
-subroutine model_geos_read(mpl,nam,geom,filename,its,fld)
+subroutine model_mpas_read(mpl,nam,geom,filename,its,fld)
 
 implicit none
 
@@ -127,15 +114,15 @@ integer,intent(in) :: its                                     !< Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0,ic0,ilon,ilat
+integer :: iv,il0,img,ic0
 integer :: ncid,fld_id
-real(kind=4),allocatable :: fld_tmp(:,:,:)
 real(kind_real) :: fld_c0(geom%nc0)
-character(len=1024) :: subr = 'model_geos_read'
+real(kind_real),allocatable :: fld_tmp(:,:)
+character(len=1024) :: subr = 'model_mpas_read'
 
 if (mpl%main) then
    ! Allocation
-   allocate(fld_tmp(geom%nlon,geom%nlat,geom%nl0))
+   allocate(fld_tmp(geom%nmg,geom%nl0))
 
    ! Open file
    call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
@@ -150,8 +137,7 @@ do iv=1,nam%nv
 
       ! Read data
       do il0=1,nam%nl
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0),nam%timeslot(its)/), &
-       & (/geom%nlon,geom%nlat,1,1/)))
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,il0),(/1,nam%levs(il0),nam%timeslot(its)/),(/geom%nmg,1,1/)))
       end do
 
       if (trim(nam%addvar2d(iv))/='') then
@@ -161,7 +147,7 @@ do iv=1,nam%nv
          call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
 
          ! Read data
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0),(/1,1,nam%timeslot(its)/),(/geom%nlon,geom%nlat,1/)))
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,il0),(/1,nam%timeslot(its)/),(/geom%nmg,1/)))
       end if
    end if
 
@@ -169,12 +155,11 @@ do iv=1,nam%nv
    do il0=1,geom%nl0
       if (mpl%main) then
          do ic0=1,geom%nc0
-            ilon = geom%c0_to_lon(ic0)
-            ilat = geom%c0_to_lat(ic0)
-            fld_c0(ic0) = real(fld_tmp(ilon,ilat,il0),kind_real)
+            img = geom%c0_to_mg(ic0)
+            fld_c0(ic0) = fld_tmp(img,il0)
          end do
       end if
-      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_c0,geom%nc0a,fld(:,il0,iv))
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,il0,iv))
    end do
 end do
 
@@ -186,6 +171,6 @@ if (mpl%main) then
    deallocate(fld_tmp)
 end if
 
-end subroutine model_geos_read
+end subroutine model_mpas_read
 
-end module model_geos
+end module model_mpas

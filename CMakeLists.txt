@@ -15,7 +15,8 @@ set (BUILD_TYPE "$ENV{BUMP_BUILD}")
 set (EXTERN_NETCDF_INCLUDE $ENV{BUMP_NETCDF_INCLUDE})
 set (EXTERN_NETCDFF_INCLUDE $ENV{BUMP_NETCDFF_INCLUDE})
 #
-# Set NetCDF lib directory
+# Set LAPACK and NetCDF lib directory
+set (EXTERN_LAPACK_LIBPATH $ENV{BUMP_LAPACK_LIBPATH})
 set (EXTERN_NETCDF_LIBPATH $ENV{BUMP_NETCDF_LIBPATH})
 set (EXTERN_NETCDFF_LIBPATH $ENV{BUMP_NETCDFF_LIBPATH})
 #
@@ -61,10 +62,11 @@ project (bump Fortran)
 file (GLOB BUMP_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.F90"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.F90"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/*.F90"
 )
 add_executable (bump ${BUMP_SRC})
 include_directories (${EXTERN_NETCDFF_INCLUDE} ${EXTERN_NETCDF_INCLUDE})
-target_link_libraries(bump netcdf netcdff)
+target_link_libraries(bump lapack netcdf netcdff)
 #
 #----------------------------------------------------------------------
 # Define compiler flags
@@ -89,7 +91,7 @@ if (${COMPILER} MATCHES "Cray")
 endif (${COMPILER} MATCHES "Cray")
 #
 # Set linker flags
-set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp")
+set (LINKER_FLAGS "-L${EXTERN_LAPACK_LIBPATH} -Wl,-rpath,${EXTERN_LAPACK_LIBPATH} -L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -llapack -lblas -lnetcdff -lnetcdf -fopenmp")
 set_target_properties (bump PROPERTIES LINKER_LANGUAGE Fortran)
 set (CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS})
 #

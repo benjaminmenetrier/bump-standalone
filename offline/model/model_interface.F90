@@ -12,6 +12,7 @@ module model_interface
 
 use model_aro, only: model_aro_coord,model_aro_read
 use model_arp, only: model_arp_coord,model_arp_read
+use model_fv3, only: model_fv3_coord,model_fv3_read
 use model_gem, only: model_gem_coord,model_gem_read
 use model_geos, only: model_geos_coord,model_geos_read
 use model_gfs, only: model_gfs_coord,model_gfs_read
@@ -60,13 +61,13 @@ end do
 ! Select model
 if (trim(nam%model)=='aro') call model_aro_coord(mpl,nam,geom)
 if (trim(nam%model)=='arp') call model_arp_coord(mpl,nam,geom)
+if (trim(nam%model)=='fv3') call model_fv3_coord(mpl,nam,geom)
 if (trim(nam%model)=='gem') call model_gem_coord(mpl,nam,geom)
 if (trim(nam%model)=='geos') call model_geos_coord(mpl,nam,geom)
 if (trim(nam%model)=='gfs') call model_gfs_coord(mpl,nam,geom)
 if (trim(nam%model)=='ifs') call model_ifs_coord(mpl,nam,geom)
 if (trim(nam%model)=='mpas') call model_mpas_coord(mpl,nam,geom)
 if (trim(nam%model)=='nemo') call model_nemo_coord(mpl,nam,geom)
-if (trim(nam%model)=='online') call mpl%abort('online model should not call model_coord')
 if (trim(nam%model)=='wrf') call model_wrf_coord(mpl,nam,geom)
 
 ! Define distribution
@@ -109,6 +110,7 @@ do its=1,nam%nts
    ! Select model
    if (trim(nam%model)=='aro') call model_aro_read(mpl,nam,geom,fullname,fld(:,:,:,its))
    if (trim(nam%model)=='arp') call model_arp_read(mpl,nam,geom,fullname,fld(:,:,:,its))
+   if (trim(nam%model)=='fv3') call model_fv3_read(mpl,nam,geom,fullname,fld(:,:,:,its))
    if (trim(nam%model)=='gem') call model_gem_read(mpl,nam,geom,fullname,fld(:,:,:,its))
    if (trim(nam%model)=='geos') call model_geos_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
    if (trim(nam%model)=='gfs') call model_gfs_read(mpl,nam,geom,fullname,fld(:,:,:,its))

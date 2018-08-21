@@ -38,6 +38,10 @@ mkdir pack/ncl
 mkdir pack/ncl/script
 cp -f ncl/script/*.ncl pack/ncl/script
 
+# Copy offline
+mkdir pack/offline
+cp -rf offline/* pack/offline
+
 # Copy run
 mkdir pack/run
 cp -f run/namelist* pack/run

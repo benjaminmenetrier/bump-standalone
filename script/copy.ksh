@@ -5,60 +5,45 @@
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 #----------------------------------------------------------------------
-# BUMP source
-src=${HOME}/Dropbox/code/bump/src
+if test $1 == "nemovar" ; then
+   # BUMP source
+   src=${HOME}/code/bump/src_oops
 
-if [ $1 == "ufo" ] ; then
    # Directory for BUMP
-   dst=${HOME}/Dropbox/code/ufo-bundle/oops/src/oops/generic/bump
-
-   # Sync
-   mkdir -p ${dst}
-   rsync -rtv --delete --exclude "main.F90" ${src}/* ${dst}
-
-   # To copy in ${HOME}/Dropbox/code/ufo-bundle/oops/src/CMakeLists.txt
-   echo
-   echo "To copy in ${HOME}/Dropbox/ufo-bundle/oops/src/CMakeLists.txt:"
-   for file in `ls ${src}` ; do
-      if [ "${file}" != "main.F90" ]&&[ "${file}" != "external" ] ; then
-         echo oops/generic/bump/${file}
-      fi
-   done
-   for file in `ls ${src}/external` ; do
-      echo oops/generic/bump/external/${file}
-   done
-fi
-
-if [ $1 == "nemovar" ] ; then
-   # Directory for BUMP
-   dst=${HOME}/Dropbox/code/nemovar/EXTERNAL/bump
+   dst=${HOME}/code/nemovar/EXTERNAL/bump
 
    # Sync
    mkdir -p ${dst}
    rsync -rtv --delete ${src}/* ${dst}
 fi
 
-if [ $1 == "pack" ] ; then
+if test $1 == "pack" ; then
+   # BUMP source
+   src=${HOME}/code/bump/src_oops
+
    # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/bump
 
    # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.F90 -X yomhook.F90 -e -R $src $dst;quit"
+   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -e -R $src $dst;quit"
 
    # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/pack/envar-dev.g/src/local/oops/src/oops/generic/bump
 
    # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.F90 -X yomhook.F90 -e -R $src $dst;quit"
+   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -e -R $src $dst;quit"
 
    # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/pack/cy43_envar-dev.v05/src/local/oops/src/oops/generic/bump
 
    # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -X main.F90 -X yomhook.F90 -e -R $src $dst;quit"
+   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -e -R $src $dst;quit"
 fi
 
-if [ $1 == "sc" ] ; then
+if test $1 == "sc" ; then
+   # BUMP source
+   src=${HOME}/code/bump/src
+
    # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/code/bump/src
 

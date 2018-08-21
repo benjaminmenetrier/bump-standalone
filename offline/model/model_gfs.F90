@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
-! Module: module_gem
-!> Purpose: GEM model routines
+! Module: module_gfs
+!> Purpose: GFS model routines
 !> <br>
 !> Author: Benjamin Menetrier
 !> <br>
@@ -8,11 +8,11 @@
 !> <br>
 !> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
-module model_gem
+module model_gfs
 
 use netcdf
-use tools_const, only: pi,req,deg2rad,rad2deg,ps
-use tools_kinds, only: kind_real
+use tools_const, only: pi,deg2rad,rad2deg,ps
+use tools_kinds,only: kind_real
 use tools_missing, only: msr,isanynotmsr
 use tools_nc, only: ncfloat
 use type_geom, only: geom_type
@@ -22,15 +22,15 @@ use type_nam, only: nam_type
 implicit none
 
 private
-public :: model_gem_coord,model_gem_read
+public :: model_gfs_coord,model_gfs_read
 
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: model_gem_coord
-!> Purpose: get GEM coordinates
+! Subroutine: model_gfs_coord
+!> Purpose: get GFS coordinates
 !----------------------------------------------------------------------
-subroutine model_gem_coord(mpl,nam,geom)
+subroutine model_gfs_coord(mpl,nam,geom)
 
 implicit none
 
@@ -40,32 +40,32 @@ type(nam_type),intent(in) :: nam      !< Namelist
 type(geom_type),intent(inout) :: geom !< Geometry
 
 ! Local variables
-integer :: ic0,ilon,ilat
+integer :: ilon,ilat,ic0
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,a_id,b_id
-real(kind=8),allocatable :: lon(:),lat(:),a(:),b(:)
-character(len=1024) :: subr = 'model_gem_coord'
+real(kind_real),allocatable :: lon(:),lat(:),a(:),b(:)
+character(len=1024) :: subr = 'model_gfs_coord'
 
 ! Open file and get dimensions
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lon',nlon_id))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lat',nlat_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=geom%nlon))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=geom%nlat))
 geom%nmg = geom%nlon*geom%nlat
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lev',nlev_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'level',nlev_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
 allocate(lon(geom%nlon))
 allocate(lat(geom%nlat))
-allocate(a(geom%nlev))
-allocate(b(geom%nlev))
+allocate(a(geom%nlev+1))
+allocate(b(geom%nlev+1))
 
 ! Read data and close file
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'ap',a_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'b',b_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'latitude',lat_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'ak',a_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'bk',b_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call mpl%ncerr(subr,nf90_get_var(ncid,a_id,a))
@@ -73,8 +73,8 @@ call mpl%ncerr(subr,nf90_get_var(ncid,b_id,b))
 call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Convert to radian
-lon = lon*real(deg2rad,kind=8)
-lat = lat*real(deg2rad,kind=8)
+lon = lon*deg2rad
+lat = lat*deg2rad
 
 ! Not redundant grid
 call geom%find_redundant(mpl)
@@ -87,8 +87,8 @@ do ilon=1,geom%nlon
       ic0 = ic0+1
       geom%c0_to_lon(ic0) = ilon
       geom%c0_to_lat(ic0) = ilat
-      geom%lon(ic0) = real(lon(ilon),kind_real)
-      geom%lat(ic0) = real(lat(ilat),kind_real)
+      geom%lon(ic0) = lon(ilon)
+      geom%lat(ic0) = lat(ilat)
       geom%mask(ic0,:) = .true.
    end do
 end do
@@ -99,7 +99,8 @@ geom%area = 4.0*pi
 ! Vertical unit
 do ic0=1,geom%nc0
    if (nam%logpres) then
-      geom%vunit(ic0,1:nam%nl) = log(a(nam%levs(1:nam%nl))+b(nam%levs(1:nam%nl))*ps)
+      geom%vunit(ic0,1:nam%nl) = log(0.5*(a(nam%levs(1:nam%nl))+a(nam%levs(1:nam%nl)+1)) &
+                               & +0.5*(b(nam%levs(1:nam%nl))+b(nam%levs(1:nam%nl)+1))*ps)
       if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(ps)
    else
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
@@ -112,13 +113,13 @@ deallocate(lat)
 deallocate(a)
 deallocate(b)
 
-end subroutine model_gem_coord
+end subroutine model_gfs_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_gem_read
-!> Purpose: read GEM field
+! Subroutine: model_gfs_read
+!> Purpose: read GFS field
 !----------------------------------------------------------------------
-subroutine model_gem_read(mpl,nam,geom,filename,fld)
+subroutine model_gfs_read(mpl,nam,geom,filename,fld)
 
 implicit none
 
@@ -130,17 +131,14 @@ character(len=*),intent(in) :: filename                       !< File name
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 
 ! Local variables
-integer :: iv,il0,xt,ic0,ilon,ilat
+integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
-integer,allocatable :: fld_tmp_int(:,:)
-real(kind_real) :: add_offset,scale_factor
-real(kind=8),allocatable :: fld_tmp(:,:,:)
 real(kind_real) :: fld_c0(geom%nc0)
-character(len=1024) :: subr = 'model_gem_read'
+real(kind_real),allocatable :: fld_tmp(:,:,:)
+character(len=1024) :: subr = 'model_gfs_read'
 
 if (mpl%main) then
    ! Allocation
-   allocate(fld_tmp_int(geom%nlon,geom%nlat))
    allocate(fld_tmp(geom%nlon,geom%nlat,geom%nl0))
 
    ! Open file
@@ -154,23 +152,10 @@ do iv=1,nam%nv
       ! Get variable id
       call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
-      ! Check variable type and read data
-      call mpl%ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt))
-      select case (xt)
-      case (nf90_short)
-         call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
-         call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
-         do il0=1,nam%nl
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp_int,(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-            fld_tmp(:,:,il0) = add_offset+scale_factor*real(fld_tmp_int,kind=8)
-         end do
-      case (nf90_double)
-         do il0=1,nam%nl
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
-         end do
-      case default
-         call mpl%abort('wrong variable type')
-      end select
+      ! Read data
+      do il0=1,nam%nl
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
+      end do
 
       if (trim(nam%addvar2d(iv))/='') then
          ! 2d variable
@@ -178,19 +163,8 @@ do iv=1,nam%nv
          ! Get id
          call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
 
-         ! Check variable type and read data
-         call mpl%ncerr(subr,nf90_inquire_variable(ncid,fld_id,xtype=xt))
-         select case (xt)
-         case (nf90_short)
-            call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
-            call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp_int))
-            fld_tmp(:,:,geom%nl0) = add_offset+scale_factor*real(fld_tmp_int,kind=8)
-         case (nf90_double)
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0)))
-         case default
-            call mpl%abort('wrong variable type')
-         end select
+         ! Read data
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0)))
       end if
    end if
 
@@ -200,10 +174,10 @@ do iv=1,nam%nv
          do ic0=1,geom%nc0
             ilon = geom%c0_to_lon(ic0)
             ilat = geom%c0_to_lat(ic0)
-            fld_c0(ic0) = real(fld_tmp(ilon,ilat,il0),kind_real)
+            fld_c0(ic0) = fld_tmp(ilon,ilat,il0)
          end do
       end if
-      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_c0,geom%nc0a,fld(:,il0,iv))
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,il0,iv))
    end do
 end do
 
@@ -212,10 +186,9 @@ if (mpl%main) then
    call mpl%ncerr(subr,nf90_close(ncid))
 
    ! Release memory
-   deallocate(fld_tmp_int)
    deallocate(fld_tmp)
 end if
 
-end subroutine model_gem_read
+end subroutine model_gfs_read
 
-end module model_gem
+end module model_gfs

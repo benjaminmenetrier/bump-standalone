@@ -1,0 +1,139 @@
+&general_param
+datadir = "../../../data/bump/fv3",
+prefix = "fv3",
+model = "fv3",
+colorlog = .true.,
+default_seed = .true.,
+use_metis = .true.,
+/
+
+&driver_param
+method = "loc",
+strategy = "common",
+new_vbal = .false.,
+load_vbal = .false.,
+new_hdiag = .true.,
+new_lct = .false.,
+load_cmat = .false.,
+new_nicas = .true.,
+load_nicas = .false.,
+new_obsop = .false.,
+load_obsop = .false.,
+check_adjoints = .false.,
+check_pos_def = .false.,
+check_sqrt = .false.,
+check_dirac = .true.,
+check_randomization = .false.,
+check_consistency = .false.,
+check_optimality = .false.,
+check_obsop = .false.,
+/
+
+&model_param
+nl = 1,
+levs = 40,
+logpres = .true.,
+nv = 1,
+varname = "T",
+addvar2d = "",
+nts = 1,
+timeslot = 1,
+/
+
+&ens1_param
+ens1_ne = 10,
+ens1_ne_offset = 0,
+ens1_nsub = 1,
+/
+
+&ens2_param
+ens2_ne = 10,
+ens2_ne_offset = 0,
+ens2_nsub = 1,
+/
+
+&sampling_param
+sam_write = .false.,
+sam_read = .true.,
+mask_type = "none",
+mask_th = 0,
+mask_check = .false.,
+draw_type = "random_uniform",
+nc1 = 3500,
+nc2 = 500,
+ntry = 3,
+nrep = 2,
+nc3 = 20,
+dc = 200.0e3,
+nl0r = 7,
+/
+
+&diag_param
+ne = 10,
+gau_approx = .false.,
+vbal_block = .false.,
+vbal_rad = 1000.0e3,
+var_diag = .false.,
+var_filter = .false.,
+var_full = .false.,
+var_niter = 0,
+var_rhflt = 0.0,
+local_diag = .false.,
+local_rad = 1000.0e3,
+displ_diag = .false.,
+displ_rad = 1000.0e3,
+displ_niter = 10,
+displ_rhflt = 500.0e3,
+displ_tol = 0.01,
+/
+
+&fit_param
+minim_algo = "hooke",
+double_fit = .false.,
+lhomh = .false.,
+lhomv = .false.,
+rvflt = 0.0,
+lct_nscales = 0,
+lct_diag = .true.,
+/
+
+&nicas_param
+lsqrt = .true.,
+resol = 8.0,
+nicas_interp = "bilin",
+network = .false.,
+mpicom = 2,
+advmode = 0,
+forced_radii = .false.,
+rh = 0.0,
+rv = 0.0,
+ndir = 12,
+londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
+latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
+levdir = 40,40,40,40,40,40,40,40,40,40,40,40,
+ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
+itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
+/
+
+&obsop_param
+nobs = 200,
+obsdis = "random",
+obsop_interp = "natural",
+/
+
+&output_param
+nldwh = 0,
+il_ldwh = 0,
+ic_ldwh = 0,
+nldwv = 0,
+lon_ldwv = 0.0,
+lat_ldwv = 0.0,
+diag_rhflt = 500.0e3,
+diag_interp = "bilin",
+field_io = .true.,
+split_io = .false.,
+grid_output = .true.,
+grid_resol = 200.0e3,
+grid_interp = "bilin",
+/
+

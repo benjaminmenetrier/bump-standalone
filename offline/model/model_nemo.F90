@@ -46,7 +46,7 @@ integer :: il0,img,ilat,ilon,ic0
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,tmask_id,e1t_id,e2t_id
 integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 integer(kind=1),allocatable :: tmask(:,:,:)
-real(kind=4),allocatable :: lon(:,:),lat(:,:),e1t(:,:,:),e2t(:,:,:)
+real(kind_real),allocatable :: lon(:,:),lat(:,:),e1t(:,:,:),e2t(:,:,:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
 character(len=1024) :: subr = 'model_nemo_coord'
@@ -90,8 +90,8 @@ end do
 call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Convert to radian
-lon = lon*real(deg2rad,kind=4)
-lat = lat*real(deg2rad,kind=4)
+lon = lon*deg2rad
+lat = lat*deg2rad
 
 ! Redundant grid
 img = 0
@@ -100,9 +100,9 @@ do ilon=1,geom%nlon
       img = img+1
       mg_to_lon(img) = ilon
       mg_to_lat(img) = ilat
-      lon_mg(img) = real(lon(ilon,ilat),kind_real)
-      lat_mg(img) = real(lat(ilon,ilat),kind_real)
-      area_mg(img) = real(e1t(ilon,ilat,1)*e2t(ilon,ilat,1),kind_real)/req**2
+      lon_mg(img) = lon(ilon,ilat)
+      lat_mg(img) = lat(ilon,ilat)
+      area_mg(img) = e1t(ilon,ilat,1)*e2t(ilon,ilat,1)/req**2
       do il0=1,geom%nl0
          lmask_mg(img,il0) = (tmask(ilon,ilat,il0)>0)
       end do
@@ -118,7 +118,7 @@ geom%lon = lon_mg(geom%c0_to_mg)
 geom%lat = lat_mg(geom%c0_to_mg)
 do il0=1,geom%nl0
    geom%mask(:,il0) = lmask_mg(geom%c0_to_mg,il0)
-   geom%area(il0) = sum(area_mg(geom%c0_to_mg),geom%mask(:,il0))/req**2
+   geom%area(il0) = sum(area_mg(geom%c0_to_mg),geom%mask(:,il0))
 end do
 
 ! Vertical unit
@@ -152,9 +152,8 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 ! Local variables
 integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
-real(kind=8) :: fld_tmp2
-real(kind=8),allocatable :: fld_tmp(:,:,:)
-real(kind_real) :: fld_c0(geom%nc0)
+real(kind_real) :: fld_tmp2,fld_c0(geom%nc0)
+real(kind_real),allocatable :: fld_tmp(:,:,:)
 character(len=1024) :: subr = 'model_nemo_read'
 
 if (mpl%main) then
@@ -219,10 +218,10 @@ do iv=1,nam%nv
          do ic0=1,geom%nc0
             ilon = geom%c0_to_lon(ic0)
             ilat = geom%c0_to_lat(ic0)
-            fld_c0(ic0) = real(fld_tmp(ilon,ilat,il0),kind_real)
+            fld_c0(ic0) = fld_tmp(ilon,ilat,il0)
          end do
       end if
-      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_c0,geom%nc0a,fld(:,il0,iv))
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,il0,iv))
    end do
 end do
 
