@@ -10,8 +10,8 @@
 !----------------------------------------------------------------------
 module type_minim
 
-use tools_const, only: rth
-use tools_func, only: fit_diag,fit_lct
+use tools_fit, only: ver_smooth
+use tools_func, only: eq,inf,infeq,sup,pos,fit_diag,fit_diag_dble,fit_lct
 use tools_kinds, only: kind_real
 use tools_missing, only: isnotmsr
 use type_mpl, only: mpl_type
@@ -29,7 +29,6 @@ type minim_type
    integer :: ny                              !< Function output size
    real(kind_real),allocatable :: x(:)        !< Control vector
    real(kind_real),allocatable :: guess(:)    !< Control vector guess
-   real(kind_real),allocatable :: norm(:)     !< Control vector norm
    real(kind_real),allocatable :: binf(:)     !< Control vector lower bound
    real(kind_real),allocatable :: bsup(:)     !< Control vector upper bound
    real(kind_real),allocatable :: obs(:)      !< Observation
@@ -49,7 +48,6 @@ type minim_type
    integer,allocatable :: l0rl0_to_l0(:,:)    !< Reduced level to level
    real(kind_real),allocatable :: disth(:)    !< Horizontal distance
    real(kind_real),allocatable :: distvr(:,:) !< Vertical distance
-   logical :: vlap                            !< Vertical envelope
 
    ! Specific data (LCT)
    integer :: nscales                         !< Number of LCT scales
@@ -62,9 +60,12 @@ contains
    procedure :: compute => minim_compute
    procedure :: cost => minim_cost
    procedure :: cost_fit_diag => minim_cost_fit_diag
+   procedure :: cost_fit_diag_dble => minim_cost_fit_diag_dble
    procedure :: cost_fit_lct => minim_cost_fit_lct
    procedure :: hooke => minim_hooke
    procedure :: best_nearby => minim_best_nearby
+   procedure :: vt_dir => minim_vt_dir
+   procedure :: vt_inv => minim_vt_inv
 end type minim_type
 
 private
@@ -86,7 +87,6 @@ type(mpl_type),intent(in) :: mpl         !< MPI data
 logical,intent(in) :: lprt               !< Print key
 
 ! Local variables
-integer :: ix
 real(kind_real) :: guess(minim%nx)
 
 ! Check
@@ -94,13 +94,8 @@ if (minim%nx<=0) call mpl%abort('nx should be positive to minimize')
 if (minim%ny<=0) call mpl%abort('nx should be positive to minimize')
 
 ! Initialization
-do ix=1,minim%nx
-   if (abs(minim%norm(ix))>0.0) then
-      guess(ix) = minim%guess(ix)/minim%norm(ix)
-   else
-      guess(ix) = 0.0
-   end if
-end do
+guess = minim%guess
+call minim%vt_inv(mpl,guess)
 
 ! Initial cost
 call minim%cost(mpl,guess,minim%f_guess)
@@ -116,10 +111,10 @@ call minim%cost(mpl,minim%x,minim%f_min)
 
 ! Test
 if (minim%f_min<minim%f_guess) then
-   minim%x = minim%x*minim%norm
+   call minim%vt_dir(minim%x)
    if (lprt) then
-      write(mpl%unit,'(a13,a,f6.1,a)') '','Minimizer '//trim(minim%algo)//', cost function decrease:', &
-    & abs(minim%f_min-minim%f_guess)/minim%f_guess*100.0,'%'
+      write(mpl%unit,'(a13,a,f6.1,a,e8.2,a,e8.2,a)') '','Minimizer '//trim(minim%algo)//', cost function decrease:', &
+    & abs(minim%f_min-minim%f_guess)/minim%f_guess*100.0,'% (',minim%f_guess,' to ',minim%f_min,')'
       call flush(mpl%unit)
    end if
 else
@@ -130,7 +125,7 @@ end if
 end subroutine minim_compute
 
 !----------------------------------------------------------------------
-! subroutine: minim_cost
+! Subroutine: minim_cost
 !> Purpose: compute cost function
 !----------------------------------------------------------------------
 subroutine minim_cost(minim,mpl,x,f)
@@ -146,6 +141,8 @@ real(kind_real),intent(out) :: f          !< Cost function value
 select case (minim%cost_function)
 case ('fit_diag')
    call minim%cost_fit_diag(mpl,x,f)
+case ('fit_diag_dble')
+   call minim%cost_fit_diag_dble(mpl,x,f)
 case ('fit_lct')
    call minim%cost_fit_lct(mpl,x,f)
 end select
@@ -153,7 +150,7 @@ end select
 end subroutine minim_cost
 
 !----------------------------------------------------------------------
-! Function: minim_cost_fit_diag
+! Subroutine: minim_cost_fit_diag
 !> Purpose: diagnosic fit function cost
 !----------------------------------------------------------------------
 subroutine minim_cost_fit_diag(minim,mpl,x,f)
@@ -167,13 +164,28 @@ real(kind_real),intent(in) :: x(minim%nx) !< Control vector
 real(kind_real),intent(out) :: f          !< Cost function value
 
 ! Local variables
-integer :: offset,ix
+integer :: offset,il0
+real(kind_real) :: fo,fh,fv,norm,fit_rh_avg,fit_rv_avg
 real(kind_real) :: fit_rh(minim%nl0),fit_rv(minim%nl0)
 real(kind_real) :: fit(minim%nc3,minim%nl0r,minim%nl0)
-real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),xx
+real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny)
+
+! Check control vector size
+offset = 0
+if (minim%lhomh) then
+   offset = offset+1
+else
+   offset = offset+minim%nl0
+end if
+if (minim%lhomv) then
+   offset = offset+1
+else
+   offset = offset+minim%nl0
+end if
 
 ! Renormalize
-xtmp = x*minim%norm
+xtmp = x
+call minim%vt_dir(xtmp)
 
 ! Get data
 offset = 0
@@ -193,27 +205,119 @@ else
 end if
 
 ! Compute function
-call fit_diag(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distvr,fit_rh,fit_rv,minim%vlap,fit)
+call fit_diag(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distvr,fit_rh,fit_rv,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)
 
-! Cost
-f = sum((minim%obs-fit_pack)**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+! Observations penalty
+fo = sum((fit_pack-minim%obs)**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+norm = sum(minim%obs**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+if (norm>0.0) fo = fo/norm
 
-! Bound penalty
-do ix=1,minim%nx
-   if (minim%bsup(ix)>minim%binf(ix)) then
-      xx = (xtmp(ix)-minim%binf(ix))/(minim%bsup(ix)-minim%binf(ix))
-      if (xx<0.0) then
-         f = f+minim%f_guess*xx**2
-      elseif (xx>1.0) then
-         f = f+minim%f_guess*(xx-1.0)**2
-      end if
-   end if
+! Smoothing penalty
+fh = 0.0
+fv = 0.0
+do il0=2,minim%nl0-1
+   fit_rh_avg = 0.5*(fit_rh(il0-1)+fit_rh(il0+1))
+   norm = fit_rh_avg**2
+   if (norm>0.0) fh = fh+(fit_rh(il0)-fit_rh_avg)**2/norm
+   fit_rv_avg = 0.5*(fit_rv(il0-1)+fit_rv(il0+1))
+   norm = fit_rv_avg**2
+   if (norm>0.0) fv = fv+(fit_rv(il0)-fit_rv_avg)**2/norm
 end do
 
+! Full penalty function
+f = fo+fh+fv
+
 end subroutine minim_cost_fit_diag
+
+!----------------------------------------------------------------------
+! Subroutine: minim_cost_fit_diag_dble
+!> Purpose: diagnosic fit function cost, double fit
+!----------------------------------------------------------------------
+subroutine minim_cost_fit_diag_dble(minim,mpl,x,f)
+
+implicit none
+
+! Passed variables
+class(minim_type),intent(in) :: minim     !< Minimization data
+type(mpl_type),intent(in) :: mpl          !< MPI data
+real(kind_real),intent(in) :: x(minim%nx) !< Control vector
+real(kind_real),intent(out) :: f          !< Cost function value
+
+! Local variables
+integer :: offset,il0
+real(kind_real) :: fo,fh,fv,fr,fc,norm,fit_rh_avg,fit_rv_avg,fit_rv_rfac_avg,fit_rv_coef_avg
+real(kind_real) :: fit_rh(minim%nl0),fit_rv(minim%nl0),fit_rv_rfac(minim%nl0),fit_rv_coef(minim%nl0)
+real(kind_real) :: fit(minim%nc3,minim%nl0r,minim%nl0)
+real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny)
+
+! Renormalize
+xtmp = x
+call minim%vt_dir(xtmp)
+
+! Get data
+offset = 0
+if (minim%lhomh) then
+   fit_rh = xtmp(offset+1)
+   offset = offset+1
+else
+   fit_rh = xtmp(offset+1:offset+minim%nl0)
+   offset = offset+minim%nl0
+end if
+if (minim%lhomv) then
+   fit_rv = xtmp(offset+1)
+   offset = offset+1
+   fit_rv_rfac = xtmp(offset+1)
+   offset = offset+1
+   fit_rv_coef = xtmp(offset+1)
+   offset = offset+1
+else
+   fit_rv = xtmp(offset+1:offset+minim%nl0)
+   offset = offset+minim%nl0
+   fit_rv_rfac = xtmp(offset+1:offset+minim%nl0)
+   offset = offset+minim%nl0
+   fit_rv_coef = xtmp(offset+1:offset+minim%nl0)
+   offset = offset+minim%nl0
+end if
+
+! Compute function
+call fit_diag_dble(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distvr,fit_rh,fit_rv, &
+ & fit_rv_rfac,fit_rv_coef,fit)
+
+! Pack
+fit_pack = pack(fit,mask=.true.)
+
+! Observations penalty
+fo = sum((fit_pack-minim%obs)**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+norm = sum(minim%obs**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+if (norm>0.0) fo = fo/norm
+
+! Smoothing penalty
+fh = 0.0
+fv = 0.0
+fr = 0.0
+fc = 0.0
+do il0=2,minim%nl0-1
+   fit_rh_avg = 0.5*(fit_rh(il0-1)+fit_rh(il0+1))
+   norm = fit_rh_avg**2
+   if (norm>0.0) fh = fh+(fit_rh(il0)-fit_rh_avg)**2/norm
+   fit_rv_avg = 0.5*(fit_rv(il0-1)+fit_rv(il0+1))
+   norm = fit_rv_avg**2
+   if (norm>0.0) fv = fv+(fit_rv(il0)-fit_rv_avg)**2/norm
+   fit_rv_rfac_avg = 0.5*(fit_rv_rfac(il0-1)+fit_rv_rfac(il0+1))
+   norm = fit_rv_rfac_avg**2
+   if (norm>0.0) fr = fr+(fit_rv_rfac(il0)-fit_rv_rfac_avg)**2/norm
+   fit_rv_coef_avg = 0.5*(fit_rv_coef(il0-1)+fit_rv_coef(il0+1))
+   norm = fit_rv_coef_avg**2
+   if (norm>0.0) fc = fc+(fit_rv_coef(il0)-fit_rv_coef_avg)**2/norm
+end do
+
+! Full penalty function
+f = fo+fh+fv+fr+fc
+
+end subroutine minim_cost_fit_diag_dble
 
 !----------------------------------------------------------------------
 ! Function: minim_cost_fit_lct
@@ -230,12 +334,13 @@ real(kind_real),intent(in) :: x(minim%nx) !< Control vector
 real(kind_real),intent(out) :: f          !< Cost function value
 
 ! Local variables
-integer :: ix
+real(kind_real) :: norm
 real(kind_real) :: fit(minim%nc3,minim%nl0)
-real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),xx,coef(minim%nscales)
+real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),coef(minim%nscales)
 
 ! Renormalize
-xtmp = x*minim%norm
+xtmp = x
+call minim%vt_dir(xtmp)
 
 ! Compute function
 if (minim%nscales>1) then
@@ -250,20 +355,10 @@ call fit_lct(mpl,minim%nc3,minim%nl0,minim%dx,minim%dy,minim%dz,minim%dmask,mini
 ! Pack
 fit_pack = pack(fit,mask=.true.)
 
-! Cost
-f = sum((minim%obs-fit_pack)**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
-
-! Bound penalty
-do ix=1,minim%nx
-   if (minim%bsup(ix)>minim%binf(ix)) then
-      xx = (xtmp(ix)-minim%binf(ix))/(minim%bsup(ix)-minim%binf(ix))
-      if (xx<0.0) then
-         f = f+minim%f_guess*xx**2
-      elseif (xx>1.0) then
-         f = f+minim%f_guess*(xx-1.0)**2
-      end if
-   end if
-end do
+! Observations penalty
+f = sum((fit_pack-minim%obs)**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+norm = sum(minim%obs**2,mask=isnotmsr(minim%obs).and.isnotmsr(fit_pack))
+if (norm>0.0) f = f/norm
 
 end subroutine minim_cost_fit_lct
 
@@ -290,7 +385,7 @@ real(kind_real) :: delta(minim%nx),newx(minim%nx)
 newx = guess
 minim%x = guess
 do i=1,minim%nx
-   if (abs(guess(i))>rth) then
+   if (pos(guess(i))) then
       delta(i) = rho*abs(guess(i))
    else
       delta(i) = rho
@@ -304,7 +399,7 @@ funevals = funevals + 1
 newf = fbefore
 
 ! Iterative search
-do while ((iters<itermax).and.(abs(tol-steplength)>rth*abs(tol+steplength)).and.(tol<steplength))
+do while ((iters<itermax).and.inf(tol,steplength))
    ! Update iteration
    iters = iters + 1
 
@@ -315,10 +410,10 @@ do while ((iters<itermax).and.(abs(tol-steplength)>rth*abs(tol+steplength)).and.
    ! If we made some improvements, pursue that direction
    keep = 1
 
-   do while ((abs(newf-fbefore)>rth*abs(newf+fbefore)).and.(newf<fbefore).and.(keep==1))
+   do while (inf(newf,fbefore).and.(keep==1))
       do i=1,minim%nx
          ! Arrange the sign of delta
-         if ((abs(newx(i)-minim%x(i))>rth*abs(newx(i)+minim%x(i))).and.(newx(i)>minim%x(i))) then
+         if (sup(newx(i),minim%x(i))) then
             delta(i) = abs(delta(i))
          else
             delta(i) = -abs(delta(i))
@@ -335,7 +430,7 @@ do while ((iters<itermax).and.(abs(tol-steplength)>rth*abs(tol+steplength)).and.
       call minim%best_nearby(mpl,delta,newx,fbefore,funevals,newf)
 
       ! If the further (optimistic) move was bad...
-      if ((abs(newf-fbefore)>rth*abs(newf+fbefore)).and.(fbefore<newf)) exit
+      if (inf(fbefore,newf)) exit
 
       ! Make sure that the differences between the new and the old points
       ! are due to actual displacements; beware of roundoff errors that
@@ -343,16 +438,14 @@ do while ((iters<itermax).and.(abs(tol-steplength)>rth*abs(tol+steplength)).and.
       keep = 0
 
       do i=1,minim%nx
-         if ((abs(0.5*abs(delta(i))-abs(newx(i)-minim%x(i)))>rth*abs(0.5*abs(delta(i))+abs(newx(i)-minim%x(i)))) &
-       & .and.(0.5*abs(delta(i))<abs(newx(i)-minim%x(i)))) then
+         if (inf(0.5*abs(delta(i)),abs(newx(i)-minim%x(i)))) then
             keep = 1
             exit
          end if
       end do
    end do
 
-   if ((abs(tol-steplength)>rth*abs(tol+steplength)).and.(.not.(tol>steplength)) &
- & .and.((abs(newf-fbefore)<tiny(1.0)).or.(abs(newf-fbefore)>rth*abs(newf+fbefore))).and.(.not.(fbefore>newf))) then
+   if (infeq(tol,steplength).and.infeq(fbefore,newf)) then
       steplength = steplength*rho
       delta = delta*rho
    end if
@@ -391,14 +484,14 @@ do i=1,minim%nx
    z(i) = point(i)+delta(i)
    call minim%cost(mpl,z,ftmp)
    funevals = funevals+1
-   if ((abs(ftmp-minf)>rth*abs(ftmp+minf)).and.(ftmp<minf)) then
+   if (inf(ftmp,minf)) then
       minf = ftmp
    else
       delta(i) = -delta(i)
       z(i) = point(i)+delta(i)
       call minim%cost(mpl,z,ftmp)
       funevals = funevals+1
-      if ((abs(ftmp-minf)>rth*abs(ftmp+minf)).and.(ftmp<minf)) then
+      if (inf(ftmp,minf)) then
          minf = ftmp
       else
          z(i) = point(i)
@@ -410,5 +503,50 @@ end do
 point = z
 
 end subroutine minim_best_nearby
+
+!----------------------------------------------------------------------
+! Subroutine: vt_dir
+!> Purpose: direct variable transform
+!----------------------------------------------------------------------
+subroutine minim_vt_dir(minim,x)
+
+implicit none
+
+! Passed variables
+class(minim_type),intent(in) :: minim        !< Minimization data
+real(kind_real),intent(inout) :: x(minim%nx) !< Vector
+
+! Linear expansion of the hyperbolic tangent of the variable
+x = minim%binf+0.5*(1.0+tanh(x))*(minim%bsup-minim%binf)
+
+end subroutine minim_vt_dir
+
+!----------------------------------------------------------------------
+! Subroutine: vt_inv
+!> Purpose: inverse variable transform
+!----------------------------------------------------------------------
+subroutine minim_vt_inv(minim,mpl,x)
+
+implicit none
+
+! Passed variables
+class(minim_type),intent(in) :: minim        !< Minimization data
+type(mpl_type),intent(in) :: mpl             !< MPI data
+real(kind_real),intent(inout) :: x(minim%nx) !< Vector
+
+! Local variables
+integer :: ix
+
+! Inverse hyperbolic tangent of the linearly bounded variable
+if (any((x<minim%binf).or.(x>minim%bsup))) call mpl%abort('variable out of bounds in vt_inv')
+do ix=1,minim%nx
+   if (minim%bsup(ix)>minim%binf(ix)) then
+      x(ix) = atanh(2.0*(x(ix)-minim%binf(ix))/(minim%bsup(ix)-minim%binf(ix))-1.0)
+   else
+      x(ix) = 0.0
+   end if
+end do
+
+end subroutine minim_vt_inv
 
 end module type_minim

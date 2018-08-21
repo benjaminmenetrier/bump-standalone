@@ -25,6 +25,7 @@ Code size and characterics can be found in the <a target="_blank" href="http://b
 This package can be used as standalone code, with NetCDF inputs, for the following models:
   - <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article121&lang=en">ARPEGE</a>
   - <a target="_blank" href="http://www.cnrm-game-meteo.fr/spip.php?article120&lang=en">AROME</a>
+  - <a target="_blank" href="https://www.gfdl.noaa.gov/fv3">FV3</a>
   - <a target="_blank" href="https://en.wikipedia.org/wiki/Global_Environmental_Multiscale_Model">GEM</a>
   - <a target="_blank" href="https://gmao.gsfc.nasa.gov/GEOS">GEOS</a>
   - <a target="_blank" href="https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/global-forcast-system-gfs">GFS</a>

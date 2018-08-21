@@ -7,9 +7,9 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/arp/877D"
+datadir = "~/data/bump/arp/877D/proc_2"
 prefix = "arp_877D"
-nproc = 3
+nproc = 2
 
 ; Resources:
 ; ----------
@@ -59,8 +59,9 @@ lat = data_distribution->lat
 c0_to_proc = tofloat(data_distribution->c0_to_proc)
 
 output = "../fig/" + prefix + "_distribution_" + sprinti("%0.4i",nproc)
+system("mkdir -p ../fig")
 wks = gsn_open_wks("epsi",output)
-gsn_define_colormap(wks,"example")
+gsn_define_colormap(wks,"BlWhRe")
 
 res@sfXArray = lon
 res@sfYArray = lat

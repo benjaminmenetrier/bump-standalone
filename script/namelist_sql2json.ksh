@@ -8,7 +8,7 @@
 # Function to generate a namelist
 generate_namelist() {
    # Get argument
-   if [ $# -eq 0 ] ; then
+   if test $# = 0 ; then
       echo "Error: no input argument in generate_namelist!"
    else
       echo "Generate json "${filename}" from database "${dbname}":"
@@ -36,7 +36,7 @@ generate_namelist() {
          # Loop over keys/values
          i=1
          while [[ ${i} -lt ${n} ]] ; do
-            if [[ ${values[$i]} != "NULL" ]] ; then
+            if [[ ${values[$i]} != "NULL" ]; then
                # New line
                if ${newline} ; then
                   printf "," >> ${filename}
@@ -50,7 +50,7 @@ generate_namelist() {
                list=`echo ${values[$i]} | tr "," "\n"`
                ival=1
                for value in ${list} ; do
-                  if [[ ${nval} -gt 1 ]] ; then
+                  if [[ ${nval} -gt 1 ]; then
                      # Split values
                      typeset -RZ3 ival
                      key=${keys[$i]}"("${ival}")"
@@ -60,9 +60,9 @@ generate_namelist() {
                   fi
 
                   # Change .true. into 1 and .false into 0
-                  if [[ ${value} == ".true." ]] ; then
+                  if [[ ${value} == ".true." ]; then
                      printf "   "\"${key}\"" : 1" >> ${filename}
-                  elif [[ ${value} == ".false." ]] ; then
+                  elif [[ ${value} == ".false." ]; then
                      printf "   "\"${key}\"" : 0" >> ${filename}
                   else
                      printf "   "\"${key}\"" : "${value} >> ${filename}
@@ -86,7 +86,7 @@ dbname="namelist.sqlite"
 list=`sqlite3 ${dbname} ".tables"`
 tables=`for t in ${list};do echo ${t};done | sort`
 
-if [ $# -eq 0 ] ; then
+if test $# = 0 ; then
    # Generate all namelists
    table=`echo ${tables} | gawk '{print $1}'`
    suffixes=`sqlite3 namelist.sqlite "select name from ${table}"`

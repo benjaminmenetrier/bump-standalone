@@ -10,7 +10,8 @@
 !----------------------------------------------------------------------
 module type_lct
 
-use tools_const, only: req,reqkm,pi,rth
+use tools_const, only: req,reqkm,pi
+use tools_func, only: pos,poseq
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_bpar, only: bpar_type
@@ -148,7 +149,7 @@ call hdata%compute_mpi_a(mpl,nam,geom)
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
 write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
 call flush(mpl%unit)
-call hdata%compute_mpi_ab(mpl,geom)
+call hdata%compute_mpi_ab(mpl,nam,geom)
 
 ! Compute MPI distribution, halo C
 write(mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -291,7 +292,7 @@ do ib=1,bpar%nb
                end if
 
                ! Fill missing values
-               call hdata%diag_fill(mpl,geom,il0,fld_c1a)
+               call hdata%diag_fill(mpl,nam,geom,il0,fld_c1a)
 
                ! Copy
                if (icomp<=lct%blk(ib)%ncomp(iscales)) then
@@ -433,17 +434,17 @@ do ib=1,bpar%nb
             if (mask_c1a(ic1a,il0)) then
                ! Check D determinant
                diag_prod = lct%blk(ib)%D(offset+1,ic1a,il0)*lct%blk(ib)%D(offset+2,ic1a,il0)
-               if (bpar%nl0r(ib)>1) det = det*lct%blk(ib)%D(offset+3,ic1a,il0)
                if (lct%blk(ib)%ncomp(iscales)==3) then
                   det = diag_prod
                else
                   det = diag_prod*(1.0-lct%blk(ib)%D(offset+4,ic1a,il0)**2)
                end if
+               if (bpar%nl0r(ib)>1) det = det*lct%blk(ib)%D(offset+3,ic1a,il0)
 
                ! Check coefficient
-               valid_coef = .not.((lct%blk(ib)%coef(iscales,ic1a,il0)<rth).or.(lct%blk(ib)%coef(iscales,ic1a,il0)>1.0+rth))
+               valid_coef = poseq(lct%blk(ib)%coef(iscales,ic1a,il0)).and.poseq(1.0-lct%blk(ib)%coef(iscales,ic1a,il0))
 
-               if ((det>0.0).and.valid_coef) then
+               if (pos(det).and.valid_coef) then
                   ! Copy diffusion tensor
                   fld_c1a(ic1a,il0,1) = lct%blk(ib)%D(offset+1,ic1a,il0)
                   fld_c1a(ic1a,il0,2) = lct%blk(ib)%D(offset+2,ic1a,il0)
@@ -487,7 +488,7 @@ do ib=1,bpar%nb
                else
                   det = fld(ic0a,il0,1)*fld(ic0a,il0,2)*(1.0-fld(ic0a,il0,4)**2)
                end if
-               if (det>0.0) then
+               if (pos(det)) then
                   ! Length-scale = D determinant^{1/4}
                   fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+2) = sqrt(sqrt(det))
                else
@@ -495,8 +496,8 @@ do ib=1,bpar%nb
                end if
 
                ! Check coefficient
-               valid_coef = .not.((fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+1)<rth) &
-                          & .or.(fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+1)>1.0+rth))
+               valid_coef = poseq(fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+1)) &
+                          & .and.poseq(1.0-fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+1))
                if (.not.valid_coef) call mpl%abort('non-valid coefficient in LCT, grid c0')
             end if
          end do
@@ -508,16 +509,23 @@ do ib=1,bpar%nb
       end do
 
       ! Copy to LCT
-      lct%blk(ib)%D11(:,:,iscales) = fld(:,:,1)*req**2
-      lct%blk(ib)%D22(:,:,iscales) = fld(:,:,2)*req**2
-      lct%blk(ib)%D33(:,:,iscales) = fld(:,:,3)
-      if (lct%blk(ib)%ncomp(iscales)==4) then
-         lct%blk(ib)%D12(:,:,iscales) = sqrt(fld(:,:,1)*fld(:,:,2))*fld(:,:,4)*req**2
-      else
-         lct%blk(ib)%D12(:,:,iscales) = 0.0
-      end if
-      lct%blk(ib)%Dcoef(:,:,iscales) = fld(:,:,lct%blk(ib)%ncomp(iscales)+1)
-      lct%blk(ib)%DLh(:,:,iscales) = fld(:,:,lct%blk(ib)%ncomp(iscales)+2)*reqkm
+      do il0=1,geom%nl0
+         do ic0a=1,geom%nc0a
+            ic0 = geom%c0a_to_c0(ic0a)
+            if (geom%mask(ic0,il0)) then
+               lct%blk(ib)%D11(ic0a,il0,iscales) = fld(ic0a,il0,1)
+               lct%blk(ib)%D22(ic0a,il0,iscales) = fld(ic0a,il0,2)
+               lct%blk(ib)%D33(ic0a,il0,iscales) = fld(ic0a,il0,3)
+               if (lct%blk(ib)%ncomp(iscales)==4) then
+                  lct%blk(ib)%D12(ic0a,il0,iscales) = sqrt(fld(ic0a,il0,1)*fld(ic0a,il0,2))*fld(ic0a,il0,4)
+               else
+                  lct%blk(ib)%D12(ic0a,il0,iscales) = 0.0
+               end if
+               lct%blk(ib)%Dcoef(ic0a,il0,iscales) = fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+1)
+               lct%blk(ib)%DLh(ic0a,il0,iscales) = fld(ic0a,il0,lct%blk(ib)%ncomp(iscales)+2)
+            end if
+         end do
+      end do
 
       ! Write LCT
       write(mpl%unit,'(a13,a)') '','Write LCT'
@@ -651,7 +659,7 @@ do ib=1,bpar%nb
             ! Send data
             if (iproc==mpl%myproc) call mpl%send(nam%nc3*bpar%nl0r(ib)*2,sbuf,mpl%ioproc,mpl%tag)
          end if
-         mpl%tag = mpl%tag+1
+         call mpl%update_tag(1)
 
          ! Release memory
          if (iproc==mpl%myproc) deallocate(sbuf)
@@ -660,8 +668,8 @@ do ib=1,bpar%nb
 
    ! Global to local
    do il0=1,geom%nl0
-      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_glb(:,il0,1),geom%nc0a,fld(:,il0,1))
-      call mpl%scatterv(geom%proc_to_nc0a,geom%nc0,fld_glb(:,il0,2),geom%nc0a,fld(:,il0,2))
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_glb(:,il0,1),geom%nc0a,fld(:,il0,1))
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_glb(:,il0,2),geom%nc0a,fld(:,il0,2))
    end do
 
    ! Write LCT diagnostics

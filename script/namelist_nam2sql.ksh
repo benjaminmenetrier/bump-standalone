@@ -9,12 +9,12 @@
 save_namelist() {
    #!/bin/ksh
    # Get argument
-   if [ $# -eq 0 ] ; then
+   if test $# = 0 ; then
       echo "Error: no input argument in save_namelist!"
    else
       echo "Save namelist "${filename}" in database "${dbname}":"
 
-      if [ -e namelist.sqlite ] ; then
+      if test -e namelist.sqlite ; then
          list=`sqlite3 ${dbname} ".tables"`
       else
          list=""
@@ -26,19 +26,19 @@ save_namelist() {
       do
          # Check line type
          test=`echo ${line} | cut -c -1`
-         if [ "${test}" = "&" ] ; then
+         if test "${test}" = "&" ; then
             # New block
             block=`echo ${line} | cut -c 2-`
             i2=${i}
-            if [ ${i} -le 9 ] ; then
+            if test ${i} -le 9 ; then
                i2="0"${i2}
             fi
             table="t"${i2}"_"${block}
 
             # Initialize key/value
-            if [ "${table#*$list}" = "$table" ] ; then
+            if test "${table#*$list}" = "$table" ; then
                newrecord=`sqlite3 ${dbname} "select * from ${table} where name=='${suffix}'"`
-               if [ -z  "${newrecord}" ] ; then
+               if test -z  "${newrecord}" ; then
                   # Insert new record
                   keys="name"
                   values="'"${suffix}"'"
@@ -54,11 +54,11 @@ save_namelist() {
             fi
             let i=i+1
          else
-            if [ "${test}" = "/" ] ; then
+            if test "${test}" = "/" ; then
                # End the block: insert data into database
 
                # Test recording existence
-               if [ -z  "${newrecord}" ] ; then
+               if test -z  "${newrecord}" ; then
                   echo "   Insert data into table "${table}
                   sqlite3 ${dbname} "create table if not exists ${table} (${keys},primary key('name')) "
                   sqlite3 ${dbname} "insert into ${table} (${keys}) values (${values})"
@@ -67,20 +67,20 @@ save_namelist() {
                   sqlite3 ${dbname} "update ${table} set ${update} where name = '"${suffix}"'"
                fi
             else
-               if [ ! -z  "${test}" ] ; then
+               if test ! -z  "${test}" ; then
                   # Generate key/value
                   key=`echo ${line} | cut -d"=" -f 1 | cut -d" " -f 1`
                   value=`echo ${line} | cut -d"=" -f 2 | cut -c 2-`
                   value=${value%','}
                   value=`echo ${value} | sed -e "s/'/\\\\\"/g"`
-                  if [[ ${value} == "" ]] ; then
+                  if test ${value} == "" ; then
                      value="NULL"
                   fi
-                  if [ -z  "${newrecord}" ] ; then
+                  if test -z  "${newrecord}" ; then
                      keys=${keys}","${key}
                      values=${values}",'"${value}"'"
                   else
-                     if [ ! -z "${update}" ] ; then
+                     if test ! -z "${update}" ; then
                         update=${update}","
                      fi
                      update=${update}${key}" = '"${value}"'"
@@ -95,7 +95,7 @@ save_namelist() {
 # Database
 dbname="namelist.sqlite"
 
-if [ $# -eq 0 ] ; then
+if test $# = 0 ; then
    # Save all namelists
 
    for namelist in ../run/namelist_* ; do

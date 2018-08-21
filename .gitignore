@@ -1,6 +1,3 @@
-# Data
-data
-
 # Documentation
 doc/html
 
@@ -12,6 +9,9 @@ run/bump
 
 # Listings
 run/*.out.*
+
+# Source OOPS
+src_oops
 
 # Test
 test/*.log

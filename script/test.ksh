@@ -7,29 +7,22 @@
 #----------------------------------------------------------------------
 # NetCDF files
 nc_files='
-cmat_common
+cmat_01_01_01_01
 diag
 dirac
 local_diag_cor
-local_diag_cov
 local_diag_loc
 local_diag_ncor
-nicas-2-sqrt_0001-0001_common
-nicas-2-sqrt_0001-0001_common_summary
+nicas-2-sqrt_0001-0001_01_01_01_01
+nicas-2-sqrt_0001-0001_01_01_01_01_summary
 sampling_001
 sampling'
 
-# Check in DEBUG mode
-if [[ $BUMP_BUILD != "DEBUG" ]] ; then
-   echo -e "[31mBUMP_BUILD should be set to DEBUG for reproducibility tests[m"
-   exit
-fi
-
-if [[ ! -e "../test/test_dirac.nc" ]] ; then
+if test ! -e "../test/test_dirac.nc" ; then
    # Execute
    cd ../run
    export OMP_NUM_THREADS=1;./bump namelist_test
-   if [[ -e "../test/test_dirac.nc" ]] ; then
+   if test -e "../test/test_dirac.nc" ; then
       echo -e "[32mExecution successful[m"
    else
       echo -e "[31mExecution failed[m"
@@ -102,20 +95,20 @@ do ivar=0,nvars-1
 
       ; Print message
       if (truth_test) then
-         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in truth but not in test)[m"/)/],"%42s%s")
       end if
       if (test_truth) then
-         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)[m"/)/],"%40s%s")
+         write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent missing values (in test but not in truth)[m"/)/],"%42s%s")
       end if
       if (.not.(truth_test.or.test_truth)) then
          if (distmax.gt.0.01) then
-            write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%40s%s")
+            write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%42s%s")
          else
-            write_table("${file}.out","a",[/(/"   [32m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%40s%s")
+            write_table("${file}.out","a",[/(/"   [32m" + vars(ivar)/),(/": " + sprintf("%5.2f",distmax) + "%[m"/)/],"%42s%s")
          end if
       end if
    else
-      write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent sizes[m"/)/],"%40s%s")
+      write_table("${file}.out","a",[/(/"   [31m" + vars(ivar)/),(/": Inconsistent sizes[m"/)/],"%42s%s")
    end if
 
    ; Delete
@@ -132,7 +125,7 @@ EOFNAM
 
    # Check NCL execution
    nl=`wc -l ncl_${file}.out | gawk '{print $1}'`
-   if [[ $nl -ne 5 ]]; then
+   if test $nl -ne 5 ]; then
       echo "[1mFile: ${file}[m" > ${file}.out
       echo "   [31mError with the NCL execution[m" >> ${file}.out
    fi

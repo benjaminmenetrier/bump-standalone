@@ -8,7 +8,7 @@
 # Function to generate a namelist
 generate_namelist() {
    # Get argument
-   if [ $# -eq 0 ] ; then
+   if test $# = 0 ; then
       echo "Error: no input argument in generate_namelist!"
    else
       echo "Generate namelist "${filename}" from database "${dbname}":"
@@ -58,7 +58,7 @@ dbname="namelist.sqlite"
 list=`sqlite3 ${dbname} ".tables"`
 tables=`for t in ${list};do echo ${t};done | sort`
 
-if [ $# -eq 0 ] ; then
+if test $# = 0 ; then
    # Generate all namelists
    table=`echo ${tables} | gawk '{print $1}'`
    suffixes=`sqlite3 namelist.sqlite "select name from ${table}"`
