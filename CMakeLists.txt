@@ -91,7 +91,7 @@ if (${COMPILER} MATCHES "Cray")
 endif (${COMPILER} MATCHES "Cray")
 #
 # Set linker flags
-set (LINKER_FLAGS "-L${EXTERN_LAPACK_LIBPATH} -Wl,-rpath,${EXTERN_LAPACK_LIBPATH} -L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -llapack -lblas -lnetcdff -lnetcdf -fopenmp")
+set (LINKER_FLAGS "-L${EXTERN_LAPACK_LIBPATH} -Wl,-rpath,${EXTERN_LAPACK_LIBPATH} -L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -llapack -lrefblas -lnetcdff -lnetcdf -fopenmp")
 set_target_properties (bump PROPERTIES LINKER_LANGUAGE Fortran)
 set (CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS})
 #

@@ -125,7 +125,7 @@ EOFNAM
 
    # Check NCL execution
    nl=`wc -l ncl_${file}.out | gawk '{print $1}'`
-   if test $nl -ne 5 ]; then
+   if test $nl -ne 5 ; then
       echo "[1mFile: ${file}[m" > ${file}.out
       echo "   [31mError with the NCL execution[m" >> ${file}.out
    fi

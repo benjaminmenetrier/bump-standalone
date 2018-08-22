@@ -13,13 +13,13 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=wrf
+model=nemo
 
 # Link members
 i=0
 ne=1
 while [ ${i} -lt ${ne} ] ; do
-   # Update 
+   # Update
    let i=i+1
 
    # Copy and typeset
@@ -290,7 +290,7 @@ if test ${model} = "ifs" ; then
    if test -e "${datadir}/${model}/L${nflevg}" ; then
       # Remove level 0 and extract pf
       sed '1d' ${datadir}/${model}/L${nflevg} | gawk '{print $5}' > pf_L${nflevg}
-   
+
       # Insert pf into grid.nc
       cat<<EOFNAM >pf_into_grid.ncl
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"

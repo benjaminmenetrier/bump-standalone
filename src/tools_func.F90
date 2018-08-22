@@ -22,7 +22,7 @@ integer,parameter :: M = 0                            !< Number of implicit itte
 real(kind_real),parameter :: eta = 1.0e-9_kind_real   !< Small parameter for the Cholesky decomposition
 
 private
-public :: eq,inf,infeq,sup,supeq,indist,pos,poseq, &
+public :: eq,inf,infeq,sup,supeq,indist,pos,poseq,neg,negeq, &
         & lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide, &
         & fit_diag,fit_diag_dble,gc99,fit_lct,cholesky
 
@@ -177,6 +177,42 @@ logical :: poseq
 poseq = (x>-rth)
 
 end function poseq
+
+!----------------------------------------------------------------------
+! Function: neg
+!> Purpose: negativity test for reals
+!----------------------------------------------------------------------
+function neg(x)
+
+implicit none
+
+! Passed variables
+real(kind_real),intent(in) :: x !< Real
+
+! Returned variable
+logical :: neg
+
+neg = (x<rth)
+
+end function neg
+
+!----------------------------------------------------------------------
+! Function: negeq
+!> Purpose: non-positivity test for reals
+!----------------------------------------------------------------------
+function negeq(x)
+
+implicit none
+
+! Passed variables
+real(kind_real),intent(in) :: x !< Real
+
+! Returned variable
+logical :: negeq
+
+negeq = (x<rth)
+
+end function negeq
 
 !----------------------------------------------------------------------
 ! Subroutine: lonlatmod

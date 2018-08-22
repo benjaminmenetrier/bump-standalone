@@ -789,7 +789,7 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
             call flush(mpl%unit)
             if (any(hdata%c1l0_log(hdata%c2_to_c1,il0))) then
                call kdtree%create(mpl,nam%nc2,geom%lon(hdata%c2_to_c0),geom%lat(hdata%c2_to_c0), &
-             & hdata%c1l0_log(hdata%c2_to_c1,il0))
+             & mask=hdata%c1l0_log(hdata%c2_to_c1,il0))
                do ic2=1,nam%nc2
                   ic1 = hdata%c2_to_c1(ic2)
                   ic0 = hdata%c2_to_c0(ic2)
@@ -832,7 +832,7 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
          ! Compute local masks
          write(mpl%unit,'(a7,a)') '','Compute local masks'
          call flush(mpl%unit)
-         call kdtree%create(mpl,nam%nc1,geom%lon(hdata%c1_to_c0),geom%lat(hdata%c1_to_c0),any(hdata%c1l0_log,dim=2))
+         call kdtree%create(mpl,nam%nc1,geom%lon(hdata%c1_to_c0),geom%lat(hdata%c1_to_c0),mask=any(hdata%c1l0_log,dim=2))
          do ic2=1,nam%nc2
             ! Inidices
             ic1 = hdata%c2_to_c1(ic2)
@@ -897,7 +897,7 @@ if (nam%local_diag.and.(nam%nldwv>0)) then
    call flush(mpl%unit)
    allocate(hdata%nn_ldwv_index(nam%nldwv))
    call kdtree%create(mpl,nam%nc2,geom%lon(hdata%c2_to_c0), &
-                geom%lat(hdata%c2_to_c0),hdata%c1l0_log(hdata%c2_to_c1,1))
+                geom%lat(hdata%c2_to_c0),mask=hdata%c1l0_log(hdata%c2_to_c1,1))
    do ildw=1,nam%nldwv
       call kdtree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),1,hdata%nn_ldwv_index(ildw:ildw),nn_dist)
    end do
@@ -971,7 +971,7 @@ if (nam%nc1<maxval(count(geom%mask,dim=1))) then
                if (any(geom%mask(ic0,:))) hdata%rh_c0(ic0,1) = 0.0
             end do
             do il0=1,geom%nl0
-               call kdtree%create(mpl,geom%nc0,geom%lon,geom%lat,.not.geom%mask(:,il0))
+               call kdtree%create(mpl,geom%nc0,geom%lon,geom%lat,mask=.not.geom%mask(:,il0))
                do ic0=1,geom%nc0
                   if (geom%mask(ic0,il0)) then
                      call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)

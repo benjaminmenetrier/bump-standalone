@@ -282,21 +282,6 @@ do ib=1,bpar%nb
    end if
 end do
 
-! Normalize for the average
-do ib=1,bpar%nb
-   if (bpar%diag_block(ib)) then
-      avg%blk(0,ib)%m2 = avg%blk(0,ib)%m2/real(mpl%nproc,kind_real)
-      if (nam%var_filter.and.(.not.nam%gau_approx)) avg%blk(0,ib)%m4 = avg%blk(0,ib)%m4/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%nc1a = avg%blk(0,ib)%nc1a/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%m11 = avg%blk(0,ib)%m11/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%m11m11 = avg%blk(0,ib)%m11m11/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%m2m2 = avg%blk(0,ib)%m2m2/real(mpl%nproc,kind_real)
-      if (.not.nam%gau_approx) avg%blk(0,ib)%m22 = avg%blk(0,ib)%m22/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%nc1a_cor = avg%blk(0,ib)%nc1a_cor/real(mpl%nproc,kind_real)
-      avg%blk(0,ib)%cor = avg%blk(0,ib)%cor/real(mpl%nproc,kind_real)
-   end if
-end do
-
 end subroutine avg_gather
 
 !----------------------------------------------------------------------
@@ -332,7 +317,7 @@ end do
 ! Allocation
 allocate(sbuf(npack))
 allocate(rbuf(npack))
-   
+
 ! Pack data
 offset = 0
 do ib=1,bpar%nb
@@ -346,7 +331,7 @@ do ib=1,bpar%nb
       end do
    end if
 end do
-   
+
 ! Reduce data
 call mpl%allreduce_sum(sbuf,rbuf)
 
@@ -405,7 +390,7 @@ real(kind_real) :: P9,P20,P21
 real(kind_real) :: m2sq,m4,m2sqasy,rhflt,drhflt
 real(kind_real) :: m2_ini(hdata%nc2a),m2(hdata%nc2a),m2prod,m2prod_tot
 logical :: dichotomy,convergence
- 
+
 ! Ensemble/sub-ensemble size-dependent coefficients
 n = avg%ne/avg%nsub
 P9 = -real(n,kind_real)/real((n-2)*(n-3),kind_real)
@@ -422,7 +407,7 @@ do ib=1,bpar%nb
          call flush(mpl%unit)
 
          ! Global averages
-         m2sq = 0.0 
+         m2sq = 0.0
          m4 = 0.0
          do ic2=1,nam%nc2
             m2sq = m2sq+sum(avg%blk(ic2,ib)%m2(il0,:)**2)/real(avg%nsub,kind_real)
@@ -454,7 +439,7 @@ do ib=1,bpar%nb
 
             ! Median filter to remove extreme values
             call hdata%diag_filter(mpl,nam,geom,il0,'median',rhflt,m2)
- 
+
             ! Average filter to smooth displacement
             call hdata%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,m2)
 
@@ -773,7 +758,7 @@ do ic2=0,nam%nc2
          avg%blk(ic2,bpar%nbe)%m11lrm11asy = 0.0
          m11lrm11asy = 0.0
       end select
-   
+
       ! Block averages
       do ib=1,bpar%nb
          if (bpar%avg_block(ib)) then
@@ -786,7 +771,7 @@ do ic2=0,nam%nc2
                   else
                      bwgtsq = 0.0
                   end if
-   
+
                   ! Compute sum
                   do jc3=1,nam%nc3
                      call add(avg%blk(ic2,ib)%cor(jc3,jl0r,il0),avg%blk(ic2,bpar%nbe)%cor(jc3,jl0r,il0),cor(jc3,jl0r,il0))
@@ -812,7 +797,7 @@ do ic2=0,nam%nc2
             !$omp end parallel do
          end if
       end do
-   
+
       ! Normalization
       !$omp parallel do schedule(static) private(il0,jl0r,jc3)
       do il0=1,geom%nl0

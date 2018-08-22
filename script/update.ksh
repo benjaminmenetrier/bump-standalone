@@ -74,9 +74,12 @@ cd ../doc
 rm -fr html
 doxygen Doxyfile
 
+# Remove build directory
+cd ..
+rm -fr build
+
 # Copy doc directory on ftp
 echo '--- Copy doc directory on ftp'
-cd ..
 lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc/html bump;quit"
 cd script
 

@@ -434,6 +434,7 @@ do ib=1,bpar%nb
             if (mask_c1a(ic1a,il0)) then
                ! Check D determinant
                diag_prod = lct%blk(ib)%D(offset+1,ic1a,il0)*lct%blk(ib)%D(offset+2,ic1a,il0)
+               if (bpar%nl0r(ib)>1) det = det*lct%blk(ib)%D(offset+3,ic1a,il0)
                if (lct%blk(ib)%ncomp(iscales)==3) then
                   det = diag_prod
                else

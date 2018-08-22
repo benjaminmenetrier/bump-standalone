@@ -25,7 +25,7 @@ implicit none
 
 #ifndef notdef_
   INCLUDE 'mpif.h'
-#endif  
+#endif
 
 integer,parameter :: lunit_min=10   !< Minimum unit number
 integer,parameter :: lunit_max=1000 !< Maximum unit number
@@ -1967,10 +1967,10 @@ if (mpl%main) then
       else
          ! Send data to iproc
          call mpl%send(n_loc_tmp,sbuf,iproc,mpl%tag)
-      end if 
+      end if
 
       ! Release memory
-      deallocate(sbuf)     
+      deallocate(sbuf)
    end do
 else
    ! Receive data from ioproc
@@ -2029,10 +2029,10 @@ if (mpl%main) then
       else
          ! Send data to iproc
          call mpl%send(n_loc_tmp,sbuf,iproc,mpl%tag)
-      end if 
+      end if
 
       ! Release memory
-      deallocate(sbuf)     
+      deallocate(sbuf)
    end do
 else
    ! Receive data from ioproc
@@ -2101,7 +2101,7 @@ if (mpl%main) then
       end do
 
       ! Release memory
-      deallocate(rbuf)     
+      deallocate(rbuf)
    end do
 else
    ! Send data to ioproc
@@ -2177,7 +2177,7 @@ if (mpl%main) then
       end do
 
       ! Release memory
-      deallocate(rbuf)     
+      deallocate(rbuf)
    end do
 else
    ! Send data to ioproc
