@@ -8,11 +8,11 @@ use_metis = .false.,
 /
 
 &driver_param
-method = "cor",
+method = "loc",
 strategy = "common",
 new_vbal = .false.,
 load_vbal = .false.,
-new_hdiag = .false.,
+new_hdiag = .true.,
 new_lct = .false.,
 load_cmat = .false.,
 new_nicas = .false.,
@@ -30,7 +30,7 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 21,
+nl = 5,
 levs = 60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
 logpres = .true.,
 nv = 2,
@@ -63,9 +63,9 @@ nc1 = 2000,
 nc2 = 200,
 ntry = 3,
 nrep = 2,
-nc3 = 1,
+nc3 = 10,
 dc = 100.0e3,
-nl0r = 21,
+nl0r = 5,
 /
 
 &diag_param

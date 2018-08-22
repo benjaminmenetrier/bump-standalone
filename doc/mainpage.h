@@ -50,7 +50,6 @@ The main directory $MAINDIR contains the CMakeLists.txt file and several folders
 The compilation of sources uses cmake (<a target="_blank" href="https://cmake.org">https://cmake.org</a>). Compilation options (compiler, build type, NetCDF inclue and library paths) have to be specified in four environment variables:
  - <b>BUMP_COMPILER</b>: GNU, Intel or Cray
  - <b>BUMP_BUILD</b>: DEBUG or RELEASE
- - <b>BUMP_LAPACK_LIBPATH</b>: LAPACK library path
  - <b>BUMP_NETCDF_INCLUDE</b>: C NetCDF include path
  - <b>BUMP_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
  - <b>BUMP_NETCDF_LIBPATH</b>: C NetCDF library path

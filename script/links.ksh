@@ -13,7 +13,7 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=nemo
+model=aro
 
 # Link members
 i=0
