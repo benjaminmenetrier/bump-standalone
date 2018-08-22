@@ -12,7 +12,7 @@ module type_avg_blk
 
 use tools_const, only: rth
 use tools_kinds, only: kind_real
-use tools_func, only: neg,inf
+use tools_func, only: inf
 use tools_missing, only: msr,isanynotmsr,isnotmsr,ismsr
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
@@ -271,9 +271,9 @@ if ((ic2==0).or.(nam%var_diag)) then
       do isub=1,avg_blk%nsub
          do il0=1,geom%nl0
             jl0r = bpar%il0rz(il0,ib)
-            avg_blk%m2(il0,isub) = sum(mom_blk%m2_1(:,1,il0,isub))/real(hdata%nc1a,kind_real)
+            avg_blk%m2(il0,isub) = sum(mom_blk%m2_1(:,1,il0,isub))/real(nam%nc1,kind_real)
             if (nam%var_filter.and.(.not.nam%gau_approx)) avg_blk%m4(il0,isub) = sum(mom_blk%m22(:,1,jl0r,il0,isub)) &
-                                                                               & /real(hdata%nc1a,kind_real)
+                                                                               & /real(nam%nc1,kind_real)
          end do
       end do
    else
@@ -440,32 +440,6 @@ real(kind_real),allocatable :: m11asysq(:,:),m2m2asy(:,:),m22asy(:)
 associate(ic2=>avg_blk%ic2,ib=>avg_blk%ib)
 
 if ((ic2==0).or.(nam%local_diag)) then
-   ! Normalize
-   !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub)
-   do il0=1,geom%nl0
-      do jl0r=1,bpar%nl0r(ib)
-         do jc3=1,bpar%nc3(ib)
-            if (avg_blk%nc1a(jc3,jl0r,il0)>0.0) then
-               avg_blk%m11(jc3,jl0r,il0) = avg_blk%m11(jc3,jl0r,il0)/avg_blk%nc1a(jc3,jl0r,il0)
-               do isub=1,avg_blk%nsub
-                  do jsub=1,avg_blk%nsub
-                     avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) = avg_blk%m11m11(jc3,jl0r,il0,jsub,isub)/avg_blk%nc1a(jc3,jl0r,il0)
-                     avg_blk%m2m2(jc3,jl0r,il0,jsub,isub) = avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)/avg_blk%nc1a(jc3,jl0r,il0)
-                  end do
-                  if (.not.nam%gau_approx) avg_blk%m22(jc3,jl0r,il0,isub) = avg_blk%m22(jc3,jl0r,il0,isub) &
-                                                                          & /avg_blk%nc1a(jc3,jl0r,il0)
-               end do
-            end if
-            if (avg_blk%nc1a_cor(jc3,jl0r,il0)>0.0) then
-               avg_blk%cor(jc3,jl0r,il0) = avg_blk%cor(jc3,jl0r,il0)/avg_blk%nc1a_cor(jc3,jl0r,il0)
-            else
-               call msr(avg_blk%cor(jc3,jl0r,il0))
-            end if
-         end do
-      end do
-   end do
-   !$omp end parallel do
-
    ! Ensemble size-dependent coefficients
    n = ne
    P1 = 1.0/real(n,kind_real)
@@ -531,10 +505,10 @@ if ((ic2==0).or.(nam%local_diag)) then
                if (.not.nam%gau_approx) avg_blk%m22asy(jc3,jl0r,il0) = sum(m22asy)/real(avg_blk%nsub,kind_real)
 
                ! Check positivity
-               if (neg(avg_blk%m11asysq(jc3,jl0r,il0))) call msr(avg_blk%m11asysq(jc3,jl0r,il0))
-               if (neg(avg_blk%m2m2asy(jc3,jl0r,il0))) call msr(avg_blk%m2m2asy(jc3,jl0r,il0))
+               if (avg_blk%m11asysq(jc3,jl0r,il0)<0.0) call msr(avg_blk%m11asysq(jc3,jl0r,il0))
+               if (avg_blk%m2m2asy(jc3,jl0r,il0)<0.0) call msr(avg_blk%m2m2asy(jc3,jl0r,il0))
                if (.not.nam%gau_approx) then
-                  if (neg(avg_blk%m22asy(jc3,jl0r,il0))) call msr(avg_blk%m22asy(jc3,jl0r,il0))
+                  if (avg_blk%m22asy(jc3,jl0r,il0)<0.0) call msr(avg_blk%m22asy(jc3,jl0r,il0))
                end if
 
                ! Squared covariance average

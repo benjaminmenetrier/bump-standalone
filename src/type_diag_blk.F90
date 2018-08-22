@@ -314,9 +314,9 @@ do il0=1,geom%nl0
    do jl0r=1,bpar%nl0r(ib)
       jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
       do jc3=1,bpar%nc3(ib)
-         if (isnotmsr(diag_blk%raw(jc3,jl0r,il0)).and.isnotmsr(diag_blk%raw_coef_ens(jl0)) &
-       & .and.isnotmsr(diag_blk%raw_coef_ens(il0))) &
-       & diag_blk%raw(jc3,jl0r,il0) = diag_blk%raw(jc3,jl0r,il0)/sqrt(diag_blk%raw_coef_ens(jl0)*diag_blk%raw_coef_ens(jl0))
+         if (isnotmsr(diag_blk%raw(jc3,jl0r,il0)).and.isnotmsr(diag_blk%raw_coef_ens(il0)) &
+       & .and.isnotmsr(diag_blk%raw_coef_ens(jl0))) &
+       & diag_blk%raw(jc3,jl0r,il0) = diag_blk%raw(jc3,jl0r,il0)/sqrt(diag_blk%raw_coef_ens(il0)*diag_blk%raw_coef_ens(jl0))
       end do
    end do
 end do

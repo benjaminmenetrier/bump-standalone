@@ -603,7 +603,7 @@ do il0i=1,geom%nl0i
       call hdata%hfull(il0i)%write(mpl,ncid)
    end if
 
-   if (any(nam%vbal_block(1:nam%nv*(nam%nv+1)))) then
+   if (nam%new_vbal) then
       ! Allocation
       allocate(vbal_maskint(nam%nc1,nam%nc2))
 
@@ -755,6 +755,11 @@ if (ios==1) then
    elseif (nam%new_hdiag) then
       ! Compute positive separation sampling
       call hdata%compute_sampling_ps(mpl,rng,nam,geom)
+   elseif (nam%new_vbal) then
+      ! Set log
+      do jc3=1,nam%nc3
+         hdata%c1c3_to_c0(:,jc3) = hdata%c1_to_c0
+      end do
    end if
 
    ! Compute sampling mask

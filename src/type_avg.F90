@@ -164,7 +164,7 @@ type(geom_type),intent(in) :: geom   !< Geometry
 type(bpar_type),intent(in) :: bpar   !< Block parameters
 
 ! Local variables
-integer :: npack,offset,ib,ic2
+integer :: npack,offset,ib,ic2,il0,jl0r,jc3,isub,jsub
 real(kind_real),allocatable :: sbuf(:),rbuf(:)
 logical,allocatable :: mask_0(:,:,:),mask_1(:,:,:,:),mask_2(:,:,:,:,:)
 
@@ -272,6 +272,46 @@ do ib=1,bpar%nb
             offset = offset+bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0
             avg%blk(ic2,ib)%cor = unpack(rbuf(offset+1:offset+bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0),mask_0,avg%blk(ic2,ib)%cor)
             offset = offset+bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0
+         end if
+
+         ! Normalize
+         if ((ic2==0).or.(nam%local_diag)) then
+            !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub)
+            do il0=1,geom%nl0
+               do jl0r=1,bpar%nl0r(ib)
+                  do jc3=1,bpar%nc3(ib)
+                     if (avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)>0.0) then
+                        avg%blk(ic2,ib)%m11(jc3,jl0r,il0) = avg%blk(ic2,ib)%m11(jc3,jl0r,il0) &
+                                                          & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                        do isub=1,avg%blk(ic2,ib)%nsub
+                           do jsub=1,avg%blk(ic2,ib)%nsub
+                              avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub) &
+                                                                             & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                              avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub) &
+                                                                           & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                            end do
+                           if (.not.nam%gau_approx) avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub) &
+                         & = avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub)/avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                        end do
+                     else
+                        call msr(avg%blk(ic2,ib)%m11(jc3,jl0r,il0))
+                        do isub=1,avg%blk(ic2,ib)%nsub
+                           do jsub=1,avg%blk(ic2,ib)%nsub
+                              call msr(avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub))
+                              call msr(avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub))
+                           end do
+                           if (.not.nam%gau_approx) call msr(avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub))
+                        end do
+                     end if
+                     if (avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)>0.0) then
+                        avg%blk(ic2,ib)%cor(jc3,jl0r,il0) = avg%blk(ic2,ib)%cor(jc3,jl0r,il0) &
+                                                          & /avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)
+                     else
+                        call msr(avg%blk(ic2,ib)%cor(jc3,jl0r,il0))
+                     end if
+                  end do
+               end do
+             end do
          end if
       end do
 
