@@ -34,10 +34,7 @@ This package can be used as standalone code, with NetCDF inputs, for the followi
   - <a target="_blank" href="http://www.nemo-ocean.eu">NEMO</a>
   - <a target="_blank" href="http://www.wrf-model.org">WRF</a>
 
-It can also be used "online" within an other code, using dedicated interfaces. Existing interfaces are:
-  - a generic interface
-  - a specific interface for the system OOPS
-  - a specific interface for the system NEMOVAR
+It can also be used "online" within an other code, using a dedicated interface.
 
 \section Folders Folders organization
 The main directory $MAINDIR contains the CMakeLists.txt file and several folders:
@@ -53,6 +50,7 @@ The main directory $MAINDIR contains the CMakeLists.txt file and several folders
 The compilation of sources uses cmake (<a target="_blank" href="https://cmake.org">https://cmake.org</a>). Compilation options (compiler, build type, NetCDF inclue and library paths) have to be specified in four environment variables:
  - <b>BUMP_COMPILER</b>: GNU, Intel or Cray
  - <b>BUMP_BUILD</b>: DEBUG or RELEASE
+ - <b>BUMP_LAPACK_LIBPATH</b>: LAPACK library path
  - <b>BUMP_NETCDF_INCLUDE</b>: C NetCDF include path
  - <b>BUMP_NETCDFF_INCLUDE</b>: Fortran NetCDF include path
  - <b>BUMP_NETCDF_LIBPATH</b>: C NetCDF library path
@@ -78,13 +76,13 @@ Input and output files use the NetCDF format. The NetCDF library can be download
 \section code Code structure
 The source code is organized in modules with several groups indicated by a prefix:
   - main.F90: main program
-  - model_[...]: model related routines, to get the coordinates, read and write fields
+  - model/model_[...]: model related routines, to get the coordinates, read and write fields
   - tools_[...]: useful tools for the whole code
   - type_[...]: derived types
   - external/[...]: external tools
 
 \section input Input data
-A "grid.nc" file containing the coordinates of the model grid is used in every model_$MODEL_coord routine and should be placed in $DATADIR. The script "links.ksh" located in the $DATADIR folder can help you to generate it.
+A "grid.nc" file containing the coordinates of the model grid is used in every model/model_$MODEL_coord routine and should be placed in $DATADIR. The script "links.ksh" located in the $DATADIR folder can help you to generate it.
 
 For the MPI splitting, a file $DATADIR/$PREFIX_distribution_$NPROC.nc is required, where $PREFIX and $NPROC is the number of MPI tasks formatted with 4 digits, both specified in the namelist.
 
@@ -131,12 +129,12 @@ It uses data stored in $MAINDIR/test and calls the NetCDF tools ncdump.
 
 \section model Adding a new model
 To add a model $MODEL in bump, you need to write a new module containing three routines:
- - model_$MODEL_coord to get model coordinates
+ - model/model_$MODEL_coord to get model coordinates
  - model_$MODEL_read to read a model field
 
-You need also to add three calls to model_$MODEL_coord and model_$MODEL_read in routines model_coord and model_read respectively, which are contained in the module model_interface.
+You need also to add three calls to model/model_$MODEL_coord and model/model_$MODEL_read in routines model_coord and model_read respectively, which are contained in the module model_interface.
 
 Finally, you need to add a case for the namelist check in the routine nam_check, contained in type_nam.f90.
 
-For models with a regular grid, you can start from AROME, ARPEGE, IFS, GEM, GEOS, GFS, NEMO and WRF routines. For models with an unstructured grid, you can start from MPAS routines.
+For models with a regular grid, you can start from AROME, ARPEGE, FV3, GEM, GEOS, GFS, IFS, NEMO and WRF routines. For models with an unstructured grid, you can start from MPAS routines.
 */

@@ -12,6 +12,7 @@ module type_avg_blk
 
 use tools_const, only: rth
 use tools_kinds, only: kind_real
+use tools_func, only: neg,inf
 use tools_missing, only: msr,isanynotmsr,isnotmsr,ismsr
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
@@ -22,6 +23,7 @@ use type_nam, only: nam_type
 implicit none
 
 real(kind_real),parameter :: var_min = 1.0e-24_kind_real !< Minimum variance for correlation computation
+real(kind_real),parameter :: nc1a_cor_th = 0.5           !< Threshold on the effective sampling size for asymptotic statistics
 
 ! Averaged statistics block derived type
 type avg_blk_type
@@ -307,7 +309,7 @@ if ((ic2==0).or.(nam%local_diag)) then
       do il0=1,geom%nl0
          do jl0r=1,bpar%nl0r(ib)
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
-      
+
             ! Allocation
             if (ic2>0) then
                nc1amax = count(hdata%local_mask(hdata%c1a_to_c1,ic2))
@@ -319,22 +321,22 @@ if ((ic2==0).or.(nam%local_diag)) then
             allocate(list_m2m2(nc1amax,avg_blk%nsub,avg_blk%nsub))
             allocate(list_m22(nc1amax,avg_blk%nsub))
             allocate(list_cor(nc1amax))
-      
+
             do jc3=1,bpar%nc3(ib)
                ! Fill lists
                nc1a = 0
                do ic1a=1,hdata%nc1a
                   ! Index
                   ic1 = hdata%c1a_to_c1(ic1a)
-      
+
                   ! Check validity
                   valid = hdata%c1l0_log(ic1,il0).and.hdata%c1c3l0_log(ic1,jc3,jl0)
                   if (ic2>0) valid = valid.and.hdata%local_mask(ic1,ic2)
-      
+
                   if (valid) then
                      ! Update
                      nc1a = nc1a+1
-      
+
                      ! Averages for diagnostics
                      list_m11(nc1a) = sum(mom_blk%m11(ic1a,jc3,jl0r,il0,:))/real(avg_blk%nsub,kind_real)
                      do isub=1,avg_blk%nsub
@@ -344,7 +346,7 @@ if ((ic2==0).or.(nam%local_diag)) then
                         end do
                         if (.not.nam%gau_approx) list_m22(nc1a,isub) = mom_blk%m22(ic1a,jc3,jl0r,il0,isub)
                      end do
-      
+
                      ! Correlation
                      m2_1 = sum(mom_blk%m2_1(ic1a,jc3,il0,:))/real(avg_blk%nsub,kind_real)
                      m2_2 = sum(mom_blk%m2_2(ic1a,jc3,jl0,:))/real(avg_blk%nsub,kind_real)
@@ -356,7 +358,7 @@ if ((ic2==0).or.(nam%local_diag)) then
                      end if
                   end if
                end do
-      
+
                ! Average
                avg_blk%nc1a(jc3,jl0r,il0) = real(nc1a,kind_real)
                if (nc1a>0) then
@@ -387,7 +389,7 @@ if ((ic2==0).or.(nam%local_diag)) then
                   avg_blk%cor(jc3,jl0r,il0) = 0.0
                end if
             end do
-      
+
             ! Release memory
             deallocate(list_m11)
             deallocate(list_m11m11)
@@ -463,7 +465,7 @@ if ((ic2==0).or.(nam%local_diag)) then
       end do
    end do
    !$omp end parallel do
-   
+
    ! Ensemble size-dependent coefficients
    n = ne
    P1 = 1.0/real(n,kind_real)
@@ -471,7 +473,7 @@ if ((ic2==0).or.(nam%local_diag)) then
    P4 = 1.0/real(n-1,kind_real)
    P14 = real(n**2-2*n+2,kind_real)/real(n*(n-1),kind_real)
    P16 = real(n,kind_real)/real(n-1,kind_real)
-   
+
    ! Ensemble/sub-ensemble size-dependent coefficients
    n = avg_blk%ne/avg_blk%nsub
    P7 = real((n-1)*(n**2-3*n+1),kind_real)/real(n*(n-2)*(n-3),kind_real)
@@ -483,18 +485,18 @@ if ((ic2==0).or.(nam%local_diag)) then
    P13 = -real(n-1,kind_real)/real((n-2)*(n+1),kind_real)
    P15 = real((n-1)**2,kind_real)/real(n*(n-3),kind_real)
    P17 = real((n-1)**2,kind_real)/real((n-2)*(n+1),kind_real)
-   
+
    ! Asymptotic statistics
    !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub) firstprivate(m11asysq,m2m2asy,m22asy)
    do il0=1,geom%nl0
       do jl0r=1,bpar%nl0r(ib)
          do jc3=1,bpar%nc3(ib)
-            if (avg_blk%nc1a(jc3,jl0r,il0)>0.0) then
+            if (avg_blk%nc1a_cor(jc3,jl0r,il0)>nc1a_cor_th*avg_blk%nc1a(jc3,jl0r,il0)) then
                ! Allocation
                allocate(m11asysq(avg_blk%nsub,avg_blk%nsub))
                allocate(m2m2asy(avg_blk%nsub,avg_blk%nsub))
                allocate(m22asy(avg_blk%nsub))
-   
+
                ! Asymptotic statistics
                do isub=1,avg_blk%nsub
                   do jsub=1,avg_blk%nsub
@@ -522,19 +524,19 @@ if ((ic2==0).or.(nam%local_diag)) then
                      end if
                   end do
                end do
-   
+
                ! Sum
                avg_blk%m11asysq(jc3,jl0r,il0) = sum(m11asysq)/real(avg_blk%nsub**2,kind_real)
                avg_blk%m2m2asy(jc3,jl0r,il0) = sum(m2m2asy)/real(avg_blk%nsub**2,kind_real)
                if (.not.nam%gau_approx) avg_blk%m22asy(jc3,jl0r,il0) = sum(m22asy)/real(avg_blk%nsub,kind_real)
-   
+
                ! Check positivity
-               if (.not.(avg_blk%m11asysq(jc3,jl0r,il0)>0.0)) call msr(avg_blk%m11asysq(jc3,jl0r,il0))
-               if (.not.(avg_blk%m2m2asy(jc3,jl0r,il0)>0.0)) call msr(avg_blk%m2m2asy(jc3,jl0r,il0))
+               if (neg(avg_blk%m11asysq(jc3,jl0r,il0))) call msr(avg_blk%m11asysq(jc3,jl0r,il0))
+               if (neg(avg_blk%m2m2asy(jc3,jl0r,il0))) call msr(avg_blk%m2m2asy(jc3,jl0r,il0))
                if (.not.nam%gau_approx) then
-                  if (.not.(avg_blk%m22asy(jc3,jl0r,il0)>0.0)) call msr(avg_blk%m22asy(jc3,jl0r,il0))
+                  if (neg(avg_blk%m22asy(jc3,jl0r,il0))) call msr(avg_blk%m22asy(jc3,jl0r,il0))
                end if
-   
+
                ! Squared covariance average
                if (nam%gau_approx) then
                   ! Gaussian approximation
@@ -547,13 +549,13 @@ if ((ic2==0).or.(nam%local_diag)) then
                 & avg_blk%m11sq(jc3,jl0r,il0) = P1*avg_blk%m22asy(jc3,jl0r,il0)+P14*avg_blk%m11asysq(jc3,jl0r,il0) &
                                          & +P3*avg_blk%m2m2asy(jc3,jl0r,il0)
                end if
-   
+
                ! Check value
                if (ismsr(avg_blk%m11sq(jc3,jl0r,il0))) then
-                  if (avg_blk%m11sq(jc3,jl0r,il0)<avg_blk%m11asysq(jc3,jl0r,il0)) call msr(avg_blk%m11sq(jc3,jl0r,il0))
-                  if (avg_blk%m11sq(jc3,jl0r,il0)<avg_blk%m11(jc3,jl0r,il0)**2) call msr(avg_blk%m11sq(jc3,jl0r,il0))
+                  if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11asysq(jc3,jl0r,il0))) call msr(avg_blk%m11sq(jc3,jl0r,il0))
+                  if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11(jc3,jl0r,il0)**2)) call msr(avg_blk%m11sq(jc3,jl0r,il0))
                end if
-   
+
                ! Allocation
                deallocate(m11asysq)
                deallocate(m2m2asy)
@@ -597,7 +599,7 @@ logical :: valid
 ! Associate
 associate(ic2=>avg_blk_lr%ic2,ib=>avg_blk_lr%ib)
 
-if ((ic2==0).or.(nam%local_diag)) then  
+if ((ic2==0).or.(nam%local_diag)) then
    ! Check number of sub-ensembles
    if (avg_blk%nsub/=avg_blk_lr%nsub) call mpl%abort('different number of sub-ensembles')
 
@@ -606,7 +608,7 @@ if ((ic2==0).or.(nam%local_diag)) then
    do il0=1,geom%nl0
       do jl0r=1,bpar%nl0r(ib)
          jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
-   
+
          ! Allocation
          if (ic2>0) then
             nc1amax = count(hdata%local_mask(hdata%c1a_to_c1,ic2))
@@ -614,22 +616,22 @@ if ((ic2==0).or.(nam%local_diag)) then
             nc1amax = hdata%nc1a
          end if
          allocate(list_m11lrm11(nc1amax,avg_blk_lr%nsub,avg_blk_lr%nsub))
-   
+
          do jc3=1,bpar%nc3(ib)
             ! Fill lists
             nc1a = 0
             do ic1a=1,hdata%nc1a
                ! Index
                ic1 = hdata%c1a_to_c1(ic1a)
-   
+
                ! Check validity
                valid = hdata%c1l0_log(ic1,il0).and.hdata%c1c3l0_log(ic1,jc3,jl0)
                if (ic2>0) valid = valid.and.hdata%local_mask(ic1,ic2)
-   
+
                if (valid) then
                   ! Update
                   nc1a = nc1a+1
-   
+
                   ! Averages for diagnostics
                   do isub=1,avg_blk_lr%nsub
                      do jsub=1,avg_blk_lr%nsub
@@ -638,7 +640,7 @@ if ((ic2==0).or.(nam%local_diag)) then
                   end do
                end if
             end do
-   
+
             ! Average
             avg_blk_lr%nc1a(jc3,jl0r,il0) = real(nc1a,kind_real)
             do isub=1,avg_blk_lr%nsub
@@ -647,7 +649,7 @@ if ((ic2==0).or.(nam%local_diag)) then
                end do
             end do
          end do
-   
+
          ! Release memory
          deallocate(list_m11lrm11)
       end do
@@ -680,7 +682,7 @@ integer :: il0,jl0r,jc3,isub,jsub
 ! Associate
 associate(ic2=>avg_blk_lr%ic2,ib=>avg_blk_lr%ib)
 
-if ((ic2==0).or.(nam%local_diag)) then  
+if ((ic2==0).or.(nam%local_diag)) then
    ! Normalize
    !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub)
    do il0=1,geom%nl0
@@ -698,7 +700,7 @@ if ((ic2==0).or.(nam%local_diag)) then
       end do
    end do
    !$omp end parallel do
-   
+
    ! Average over sub-ensembles
    !$omp parallel do schedule(static) private(il0,jl0r,jc3)
    do il0=1,geom%nl0

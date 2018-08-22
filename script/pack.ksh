@@ -16,17 +16,6 @@ cp -f CMakeLists.txt pack
 cp -f LICENSE pack
 cp -f README.md pack
 
-# Copy data
-mkdir pack/data
-links_list=`find data -name '*.ksh'`
-for links in ${links_list} ; do
-  cp --parents ${links} pack
-done
-obs_in_list=`find data -name '*obs_in.dat'`
-for obs_in in ${obs_in_list} ; do
-  cp --parents ${obs_in} pack
-done
-
 # Copy doc
 mkdir pack/doc
 cp -f doc/*.dox pack/doc
@@ -59,7 +48,6 @@ cp -fr src/* pack/src
 mkdir pack/test
 cp -f test/grid.nc pack/test
 cp -f test/ens1_00_*.nc pack/test
-cp -f test/links.ksh pack/test
 cp -f test/truth_*.nc pack/test
 
 # Rename and pack everything
