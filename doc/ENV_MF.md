@@ -1,5 +1,5 @@
-// This is the ENV_MF file, which can be viewed by browsing the doxygen-generated documentation.
-/*! \page ENV_MF ENV_MF
+# ENV_MF
+
 GNU compiler on beaufix/prolix:
 
     module purge
@@ -21,4 +21,3 @@ Intel compiler on beaufix/prolix:
     export BUMP_NETCDF_LIBPATH=${NETCDF_LIB_DIR}
     export BUMP_NETCDFF_INCLUDE=${NETCDF_INC_DIR}
     export BUMP_NETCDFF_LIBPATH=${NETCDF_LIB_DIR}
-*/

@@ -1,5 +1,5 @@
 &general_param
-datadir = "../../../data/bump/aro/5840",
+datadir = "../../../data/bump/aro/7G0N",
 prefix = "aro_7G0N",
 model = "aro",
 colorlog = .true.,
@@ -15,7 +15,7 @@ load_vbal = .false.,
 new_hdiag = .true.,
 new_lct = .false.,
 load_cmat = .false.,
-new_nicas = .true.,
+new_nicas = .false.,
 load_nicas = .false.,
 new_obsop = .false.,
 load_obsop = .false.,
@@ -30,14 +30,14 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 3,
-levs = 1,2,3,
+nl = 11,
+levs = 10,15,20,25,30,35,40,45,50,55,60,
 logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE","HUMI_SPECIFI",
 addvar2d = "","",
-nts = 3,
-timeslot = 2,3,4,
+nts = 1,
+timeslot = 3,
 /
 
 &ens1_param
@@ -63,9 +63,9 @@ nc1 = 3500,
 nc2 = 500,
 ntry = 3,
 nrep = 2,
-nc3 = 75,
+nc3 = 5,
 dc = 10.0e3,
-nl0r = 7,
+nl0r = 11,
 /
 
 &diag_param

@@ -22,18 +22,6 @@ if test $1 == "pack" ; then
    src=${HOME}/code/bump/src_oops
 
    # Directory for BUMP
-   dst=/home/gmap/mrpa/menetrie/pack/envar-dev.2y/src/local/oops/src/oops/generic/bump
-
-   # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -e -R $src $dst;quit"
-
-   # Directory for BUMP
-   dst=/home/gmap/mrpa/menetrie/pack/envar-dev.g/src/local/oops/src/oops/generic/bump
-
-   # Sync
-   lftp ftp://menetrie@$2 -e "mirror --delete -X *.lst -X *.mod -X *.o -X *.optrpt -e -R $src $dst;quit"
-
-   # Directory for BUMP
    dst=/home/gmap/mrpa/menetrie/pack/cy43_envar-dev.v05/src/local/oops/src/oops/generic/bump
 
    # Sync

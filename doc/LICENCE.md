@@ -1,18 +1,16 @@
-// This is the LICENCE file, which can be viewed by browsing the doxygen-generated documentation.
-/*! \page LICENCE LICENCE
-Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+# LICENCE
 
-e-mail: <a target="_blank" href="mailto:benjamin.menetrier@meteo.fr">benjamin.menetrier@meteo.fr</a>
+e-mail: [bump@posteo.net](mailto:bump@posteo.net)
 
-Le logiciel BUMP (B matrix on an Unstrucred Mesh Package) est un programme 
+Le logiciel **BUMP (B matrix on an Unstrucred Mesh Package)** est un programme 
 informatique servant à estimer et à appliquer des opérateurs liés aux covariances
 d'erreur d'ébauches, définis sur un maillage non-structuré.
 
-Ce logiciel est régi par la licence CeCILL-C soumise au droit français et
+Ce logiciel est régi par la **licence CeCILL-C** soumise au droit français et
 respectant les principes de diffusion des logiciels libres. Vous pouvez
 utiliser, modifier et/ou redistribuer ce programme sous les conditions
 de la licence CeCILL-C telle que diffusée par le CEA, le CNRS et l'INRIA 
-sur le site <a target="_blank" href="http://www.cecill.info">http://www.cecill.info</a>.
+sur le site [www.cecill.info](http://www.cecill.info).
 
 En contrepartie de l'accessibilité au code source et des droits de copie,
 de modification et de redistribution accordés par cette licence, il n'est
@@ -33,4 +31,3 @@ sécurité de leurs systèmes et ou de leurs données et, plus généralement,
 
 Le fait que vous puissiez accéder à cet en-tête signifie que vous avez 
 pris connaissance de la licence CeCILL-C, et que vous en avez accepté les termes.
-*/

@@ -11,9 +11,10 @@
 module type_rng
 
 use iso_fortran_env, only: int64
-use tools_func, only: inf,sup,sphere_dist
+use tools_func, only: sphere_dist
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,isnotmsi
+use tools_repro, only: inf,sup
 use type_kdtree, only: kdtree_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
@@ -443,7 +444,7 @@ integer,intent(in) :: ns             !< Number of samplings points
 integer,intent(out) :: ihor(ns)      !< Horizontal sampling index
 
 ! Local variables
-integer :: is,js,i,irep,irmax,itry,irval,irvalmax,i_red,ir,nn_index(2),ismin,progint,nval
+integer :: is,js,i,irep,irmax,itry,irval,irvalmax,i_red,ir,nn_index(2),ismin,progint,nval,nrep_eff
 integer,allocatable :: val_to_full(:)
 real(kind_real) :: distmax,distmin,d,nn_dist(2)
 real(kind_real),allocatable :: dist(:)
@@ -467,11 +468,12 @@ elseif (nval==ns) then
    end do
 else
    ! Allocation
+   nrep_eff = min(nrep,n-ns)
    allocate(dist(ns))
    allocate(lmask(n))
    allocate(smask(n))
    allocate(val_to_full(n))
-   allocate(done(ns+nrep))
+   allocate(done(ns+nrep_eff))
 
    ! Initialization
    call msi(ihor)
@@ -550,7 +552,7 @@ else
 
       if (is==ns+1) then
          ! Try replacement
-         if (irep<=nrep) then
+         if (irep<=nrep_eff) then
             ! Create KD-tree (unsorted)
             call kdtree%create(mpl,n,lon,lat,mask=smask,sort=.false.)
 

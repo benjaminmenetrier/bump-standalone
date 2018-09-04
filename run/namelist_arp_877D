@@ -30,10 +30,10 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 5,
+nl = 21,
 levs = 60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
 logpres = .true.,
-nv = 2,
+nv = 1,
 varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
 nts = 1,
@@ -65,7 +65,7 @@ ntry = 3,
 nrep = 2,
 nc3 = 10,
 dc = 100.0e3,
-nl0r = 5,
+nl0r = 6,
 /
 
 &diag_param
@@ -78,7 +78,7 @@ var_filter = .false.,
 var_full = .false.,
 var_niter = 10,
 var_rhflt = 500.0e3,
-local_diag = .true.,
+local_diag = .false.,
 local_rad = 3000.0e3,
 displ_diag = .false.,
 displ_rad = 3000.0e3,

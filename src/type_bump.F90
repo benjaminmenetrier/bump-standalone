@@ -442,7 +442,7 @@ if (allocated(bump%cmat%blk)) then
    ! Get C matrix data from OOPS
    write(bump%mpl%unit,'(a)') '-------------------------------------------------------------------'
    write(bump%mpl%unit,'(a)') '--- Get C matrix data from OOPS'
-   call bump%cmat%from_oops(bump%mpl,bump%bpar)
+   call bump%cmat%from_oops(bump%mpl,bump%geom,bump%bpar)
 
    ! Setup C matrix sampling
    write(bump%mpl%unit,'(a)') '-------------------------------------------------------------------'
@@ -528,6 +528,10 @@ real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bu
 integer,intent(in) :: ie                                                                    !< Member index
 integer,intent(in) :: iens                                                                  !< Ensemble number
 
+! Local variables
+integer :: its,iv
+real(kind_real) :: norm
+
 ! Add member
 if (iens==1) then
    bump%ens1%fld(:,:,:,:,ie) = fld
@@ -536,6 +540,15 @@ elseif (iens==2) then
 else
    call bump%mpl%abort('wrong ensemble number')
 end if
+
+! Print norm
+write(bump%mpl%unit,'(a4,a,i3,a,i1)') '','Member ',ie,' added to ensemble ',iens
+do its=1,bump%nam%nts
+   do iv=1,bump%nam%nv
+      norm = sum(fld(:,:,iv,its)**2)
+      write(bump%mpl%unit,'(a7,a,i2,a,i2,a,e9.2)') '','Local norm for variable ',iv,' and timeslot ',its,': ',norm
+   end do
+end do
 
 end subroutine bump_add_member
 
@@ -716,7 +729,7 @@ case ('specific_univariate','specific_multivariate')
       ! Copy to field
       if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld(:,:,iv,its))
    end do
-case ('common','common_weighted')
+case ('common','common_univariate','common_weighted')
    ! Set common index
    ib = bump%bpar%nbe
 
@@ -829,7 +842,7 @@ case ('specific_univariate','specific_multivariate')
       ! Copy to field
       if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld(:,:,iv,its))
    end do
-case ('common','common_weighted')
+case ('common','common_univariate','common_weighted')
    ! Set common index
    ib = bump%bpar%nbe
 
