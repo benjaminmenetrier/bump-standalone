@@ -10,10 +10,10 @@
 !----------------------------------------------------------------------
 module tools_fit
 
-use tools_const, only: rth
 use tools_func, only: gc99
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isanynotmsr,ismsi,ismsr
+use tools_repro, only: rth
 use type_mpl, only: mpl_type
 
 implicit none
@@ -152,21 +152,16 @@ if (raw(iz)>0.0) then
             fit_r = fit_rm
          elseif (isnotmsr(fit_rp)) then
             fit_r = fit_rp
-         else
-            fit_r = 0.0
-         end if
-
-         ! Check
-         if (fit_r<0.0) then
-            write(mpl%unit,*) iz,valid
-            write(mpl%unit,*) raw_tmp
-            write(mpl%unit,*) th,thinv
-            write(mpl%unit,*) fit_rm,fit_rp,fit_r
-            call mpl%abort('negative fit_r in fast_fit')
          end if
 
          ! Normalize
          if (isnotmsr(fit_r)) fit_r = fit_r/thinv
+
+         ! Check positivity
+         if (fit_r<0.0) then
+            call mpl%warning('negative fit_r in fast_fit')
+            fit_r = 0.0
+         end if
       else
          ! Only the zero-separation point is valid, zero radius
          fit_r = 0.0

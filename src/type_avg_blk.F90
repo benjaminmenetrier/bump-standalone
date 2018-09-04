@@ -10,10 +10,9 @@
 !----------------------------------------------------------------------
 module type_avg_blk
 
-use tools_const, only: rth
 use tools_kinds, only: kind_real
-use tools_func, only: inf
 use tools_missing, only: msr,isanynotmsr,isnotmsr,ismsr
+use tools_repro, only: rth,inf
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
 use type_hdata, only: hdata_type
@@ -550,7 +549,7 @@ end subroutine avg_blk_compute_asy
 ! Subroutine: avg_blk_compute_lr
 !> Purpose: compute averaged statistics via spatial-angular erogodicity assumption, for LR covariance/HR covariance and LR covariance/HR asymptotic covariance products
 !----------------------------------------------------------------------
-subroutine avg_blk_compute_lr(avg_blk_lr,mpl,nam,geom,bpar,hdata,mom_blk,mom_lr_blk,avg_blk)
+subroutine avg_blk_compute_lr(avg_blk_lr,mpl,nam,geom,bpar,hdata,mom_blk,mom_lr_blk)
 
 implicit none
 
@@ -563,7 +562,6 @@ type(bpar_type),intent(in) :: bpar              !< Block parameters
 type(hdata_type),intent(in) :: hdata            !< HDIAG data
 type(mom_blk_type),intent(in) :: mom_blk        !< Moments block
 type(mom_blk_type),intent(in) :: mom_lr_blk     !< Low-resolution moments block
-type(avg_blk_type),intent(inout) :: avg_blk     !< Averaged statistics block
 
 ! Local variables
 integer :: il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1amax,nc1a
@@ -575,7 +573,7 @@ associate(ic2=>avg_blk_lr%ic2,ib=>avg_blk_lr%ib)
 
 if ((ic2==0).or.(nam%local_diag)) then
    ! Check number of sub-ensembles
-   if (avg_blk%nsub/=avg_blk_lr%nsub) call mpl%abort('different number of sub-ensembles')
+   if (avg_blk_lr%nsub/=avg_blk_lr%nsub) call mpl%abort('different number of sub-ensembles')
 
    ! Average
    !$omp parallel do schedule(static) private(il0,jl0r,jl0,nc1amax,list_m11lrm11,jc3,nc1a,ic1a,ic1,valid,isub,jsub)

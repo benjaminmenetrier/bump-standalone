@@ -33,14 +33,14 @@ type nam_type
    ! general_param
    character(len=1024) :: datadir                   !< Data directory
    character(len=1024) :: prefix                    !< Files prefix
-   character(len=1024) :: model                     !< Model name ('aro', 'arp', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
+   character(len=1024) :: model                     !< Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
    logical :: colorlog                              !< Add colors to the log (for display on terminal)
    logical :: default_seed                          !< Default seed for random numbers
    logical :: use_metis                             !< Use METIS to split the domain between processors
 
    ! driver_param
    character(len=1024) :: method                    !< Localization/hybridization to compute ('cor', 'loc_norm', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
-   character(len=1024) :: strategy                  !< Localization strategy ('diag_all', 'common', 'specific_univariate', 'specific_multivariate' or 'common_weighted')
+   character(len=1024) :: strategy                  !< Localization strategy ('diag_all', 'common', 'common_univariate', 'common_weighted', 'specific_univariate' or 'specific_multivariate')
    logical :: new_vbal                              !< Compute new vertical balance operator
    logical :: load_vbal                             !< Load existing vertical balance operator
    logical :: new_hdiag                             !< Compute new HDIAG diagnostics
@@ -922,7 +922,7 @@ if (nam%new_lct) then
 end if
 if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas) then
    select case (trim(nam%strategy))
-   case ('diag_all','common','specific_univariate','common_weighted')
+   case ('diag_all','common','common_univariate','common_weighted','specific_univariate')
    case ('specific_multivariate')
       if (.not.nam%lsqrt) call mpl%abort('specific multivariate strategy requires a square-root formulation')
    case default

@@ -36,7 +36,9 @@ contains
    procedure :: dealloc => avg_dealloc
    procedure :: copy => avg_copy
    procedure :: gather => avg_gather
+   procedure :: normalize => avg_normalize
    procedure :: gather_lr => avg_gather_lr
+   procedure :: normalize_lr => avg_normalize_lr
    procedure :: var_filter => avg_var_filter
    procedure :: compute => avg_compute
    procedure :: compute_hyb => avg_compute_hyb
@@ -273,25 +275,55 @@ do ib=1,bpar%nb
             avg%blk(ic2,ib)%cor = unpack(rbuf(offset+1:offset+bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0),mask_0,avg%blk(ic2,ib)%cor)
             offset = offset+bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0
          end if
+      end do
 
-         ! Normalize
+      ! Release memory
+      deallocate(mask_0)
+      deallocate(mask_1)
+      deallocate(mask_2)
+   end if
+end do
+
+end subroutine avg_gather
+
+!----------------------------------------------------------------------
+! Subroutine: avg_normalize
+!> Purpose: normalize averaged statistics data
+!----------------------------------------------------------------------
+subroutine avg_normalize(avg,mpl,nam,geom,bpar)
+
+implicit none
+
+! Passed variables
+class(avg_type),intent(inout) :: avg !< Averaged statistics
+type(mpl_type),intent(in) :: mpl     !< MPI data
+type(nam_type),intent(in) :: nam     !< Namelist
+type(geom_type),intent(in) :: geom   !< Geometry
+type(bpar_type),intent(in) :: bpar   !< Block parameters
+
+! Local variables
+integer :: ib,ic2,il0,jl0r,jc3,isub,jsub
+real(kind_real) :: norm
+
+! Normalize
+do ib=1,bpar%nb
+   if (bpar%diag_block(ib)) then
+      do ic2=0,nam%nc2
          if ((ic2==0).or.(nam%local_diag)) then
-            !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub)
+            !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub,norm)
             do il0=1,geom%nl0
                do jl0r=1,bpar%nl0r(ib)
                   do jc3=1,bpar%nc3(ib)
                      if (avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)>0.0) then
-                        avg%blk(ic2,ib)%m11(jc3,jl0r,il0) = avg%blk(ic2,ib)%m11(jc3,jl0r,il0) &
-                                                          & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                        norm = 1.0/avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                        avg%blk(ic2,ib)%m11(jc3,jl0r,il0) = avg%blk(ic2,ib)%m11(jc3,jl0r,il0)*norm
                         do isub=1,avg%blk(ic2,ib)%nsub
                            do jsub=1,avg%blk(ic2,ib)%nsub
-                              avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub) &
-                                                                             & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
-                              avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub) &
-                                                                           & /avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                              avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m11m11(jc3,jl0r,il0,jsub,isub)*norm
+                              avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub) = avg%blk(ic2,ib)%m2m2(jc3,jl0r,il0,jsub,isub)*norm
                             end do
                            if (.not.nam%gau_approx) avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub) &
-                         & = avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub)/avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                         & = avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub)*norm
                         end do
                      else
                         call msr(avg%blk(ic2,ib)%m11(jc3,jl0r,il0))
@@ -312,21 +344,17 @@ do ib=1,bpar%nb
                   end do
                end do
              end do
+             !$omp end parallel do
          end if
       end do
-
-      ! Release memory
-      deallocate(mask_0)
-      deallocate(mask_1)
-      deallocate(mask_2)
    end if
 end do
 
-end subroutine avg_gather
+end subroutine avg_normalize
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_gather_lr
-!> Purpose: gather low-resolutin averaged statistics data
+!> Purpose: gather low-resolution averaged statistics data
 !----------------------------------------------------------------------
 subroutine avg_gather_lr(avg_lr,mpl,nam,geom,bpar)
 
@@ -399,14 +427,61 @@ do ib=1,bpar%nb
    end if
 end do
 
-! Normalize for the average
+end subroutine avg_gather_lr
+
+!----------------------------------------------------------------------
+! Subroutine: avg_normalize_lr
+!> Purpose: normalize low-resolution averaged statistics data
+!----------------------------------------------------------------------
+subroutine avg_normalize_lr(avg_lr,mpl,nam,geom,bpar)
+
+implicit none
+
+! Passed variables
+class(avg_type),intent(inout) :: avg_lr !< Averaged statistics, low resolution
+type(mpl_type),intent(in) :: mpl        !< MPI data
+type(nam_type),intent(in) :: nam        !< Namelist
+type(geom_type),intent(in) :: geom      !< Geometry
+type(bpar_type),intent(in) :: bpar      !< Block parameters
+
+! Local variables
+integer :: ib,ic2,il0,jl0r,jc3,isub,jsub
+real(kind_real) :: norm
+
+! Normalize
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
-      avg_lr%blk(0,ib)%m11lrm11sub = avg_lr%blk(0,ib)%m11lrm11sub/real(mpl%nproc,kind_real)
+      do ic2=0,nam%nc2
+         if ((ic2==0).or.(nam%local_diag)) then
+            !$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub,norm)
+            do il0=1,geom%nl0
+               do jl0r=1,bpar%nl0r(ib)
+                  do jc3=1,bpar%nc3(ib)
+                     if (avg_lr%blk(ic2,ib)%nc1a(jc3,jl0r,il0)>0.0) then
+                        norm = 1.0/avg_lr%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
+                        do isub=1,avg_lr%blk(ic2,ib)%nsub
+                           do jsub=1,avg_lr%blk(ic2,ib)%nsub
+                              avg_lr%blk(ic2,ib)%m11lrm11sub(jc3,jl0r,il0,jsub,isub) &
+                            & = avg_lr%blk(ic2,ib)%m11lrm11sub(jc3,jl0r,il0,jsub,isub)*norm
+                            end do
+                        end do
+                     else
+                        do isub=1,avg_lr%blk(ic2,ib)%nsub
+                           do jsub=1,avg_lr%blk(ic2,ib)%nsub
+                              call msr(avg_lr%blk(ic2,ib)%m11lrm11sub(jc3,jl0r,il0,jsub,isub))
+                           end do
+                        end do
+                     end if
+                  end do
+               end do
+             end do
+             !$omp end parallel do
+         end if
+      end do
    end if
 end do
 
-end subroutine avg_gather_lr
+end subroutine avg_normalize_lr
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_var_filter
@@ -568,7 +643,7 @@ do ib=1,bpar%nb
       call flush(mpl%unit)
       call mpl%prog_init(progint,done)
       do ic2=0,nam%nc2
-         call avg%blk(ic2,ib)%compute(nam,geom,bpar,hdata,mom%blk(ib))
+         if ((ic2==0).or.nam%local_diag) call avg%blk(ic2,ib)%compute(nam,geom,bpar,hdata,mom%blk(ib))
          done(ic2) = .true.
          call mpl%prog_print(progint,done)
       end do
@@ -578,11 +653,16 @@ do ib=1,bpar%nb
 end do
 
 if (mpl%nproc>1) then
-   ! Gather statistics
-   write(mpl%unit,'(a10,a)') '','Gather data'
+   ! Gather averaged statistics
+   write(mpl%unit,'(a10,a)') '','Gather averaged statistics'
    call flush(mpl%unit)
    call avg%gather(mpl,nam,geom,bpar)
 end if
+
+! Normalize averaged statistics
+write(mpl%unit,'(a10,a)') '','Normalize averaged statistics'
+call flush(mpl%unit)
+call avg%normalize(mpl,nam,geom,bpar)
 
 if (nam%var_filter) then
    ! Filter variance
@@ -600,7 +680,7 @@ do ib=1,bpar%nb
       call flush(mpl%unit)
       call mpl%prog_init(progint,done)
       do ic2=0,nam%nc2
-         call avg%blk(ic2,ib)%compute_asy(nam,geom,bpar,ne)
+         if ((ic2==0).or.nam%local_diag) call avg%blk(ic2,ib)%compute_asy(nam,geom,bpar,ne)
          done(ic2) = .true.
          call mpl%prog_print(progint,done)
       end do
@@ -648,19 +728,21 @@ do ib=1,bpar%nb
       call flush(mpl%unit)
       call mpl%prog_init(progint,done)
       do ic2=0,nam%nc2
-         select case (trim(nam%method))
-         case ('hyb-avg')
-            ! Static covariance = ensemble covariance
-            avg_2%blk(ic2,ib)%m11sta = avg_1%blk(ic2,ib)%m11**2
-            avg_2%blk(ic2,ib)%stasq = avg_1%blk(ic2,ib)%m11**2
-         case ('hyb-rnd')
-            ! Static covariance = randomized covariance
-            avg_2%blk(ic2,ib)%m11sta = avg_1%blk(ic2,ib)%m11*avg_2%blk(ic2,ib)%m11
-            avg_2%blk(ic2,ib)%stasq = avg_2%blk(ic2,ib)%m11**2
-         case ('dual-ens')
-            ! LR covariance/HR covariance product average
-            call avg_2%blk(ic2,ib)%compute_lr(mpl,nam,geom,bpar,hdata,mom_1%blk(ib),mom_2%blk(ib),avg_1%blk(ic2,ib))
-         end select
+         if ((ic2==0).or.nam%local_diag) then
+            select case (trim(nam%method))
+            case ('hyb-avg')
+               ! Static covariance = ensemble covariance
+               avg_2%blk(ic2,ib)%m11sta = avg_1%blk(ic2,ib)%m11**2
+               avg_2%blk(ic2,ib)%stasq = avg_1%blk(ic2,ib)%m11**2
+            case ('hyb-rnd')
+               ! Static covariance = randomized covariance
+               avg_2%blk(ic2,ib)%m11sta = avg_1%blk(ic2,ib)%m11*avg_2%blk(ic2,ib)%m11
+               avg_2%blk(ic2,ib)%stasq = avg_2%blk(ic2,ib)%m11**2
+            case ('dual-ens')
+               ! LR covariance/HR covariance product average
+               call avg_2%blk(ic2,ib)%compute_lr(mpl,nam,geom,bpar,hdata,mom_1%blk(ib),mom_2%blk(ib))
+            end select
+         end if
          done(ic2) = .true.
          call mpl%prog_print(progint,done)
       end do
@@ -671,11 +753,16 @@ end do
 
 if (trim(nam%method)=='dual-ens') then
    if (mpl%nproc>1) then
-      ! Gather statistics
-      write(mpl%unit,'(a13,a)') '','Gather data'
+      ! Gather averaged statistics
+      write(mpl%unit,'(a13,a)') '','Gather averaged statistics'
       call flush(mpl%unit)
       call avg_2%gather_lr(mpl,nam,geom,bpar)
     end if
+
+   ! Normalize averaged statistics
+   write(mpl%unit,'(a10,a)') '','Normalize averaged statistics'
+   call flush(mpl%unit)
+   call avg_2%normalize_lr(mpl,nam,geom,bpar)
 
    do ib=1,bpar%nb
       if (bpar%diag_block(ib)) then
@@ -684,7 +771,7 @@ if (trim(nam%method)=='dual-ens') then
          call flush(mpl%unit)
          call mpl%prog_init(progint,done)
          do ic2=0,nam%nc2
-            call avg_2%blk(ic2,ib)%compute_asy_lr(nam,geom,bpar)
+            if ((ic2==0).or.nam%local_diag) call avg_2%blk(ic2,ib)%compute_asy_lr(nam,geom,bpar)
             done(ic2) = .true.
             call mpl%prog_print(progint,done)
          end do

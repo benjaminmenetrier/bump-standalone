@@ -74,13 +74,13 @@ target_link_libraries(bump netcdf netcdff)
 # GNU compiler
 if (${COMPILER} MATCHES "GNU")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -funroll-all-loops -O3 -fopenmp")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -Og -Wextra -Wall -pedantic -fbacktrace -ftrapv -fall-intrinsics -fcheck=all -fimplicit-none -ffpe-trap=invalid,zero,underflow,overflow,denormal -fopenmp")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-save-temps -g -Og -Wextra -Wall -pedantic -fbacktrace -ftrapv -fall-intrinsics -fcheck=all -fimplicit-none -ffpe-trap=invalid,zero,underflow,overflow,denormal")
 endif (${COMPILER} MATCHES "GNU")
 #
 # Intel compiler
 if (${COMPILER} MATCHES "Intel")
    set (CMAKE_Fortran_FLAGS_RELEASE "-g -O3 -xAVX -qopenmp")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -O0 -traceback -fpe0 -check all,noarg_temp_created -qopenmp")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -O0 -traceback -fpe0 -check all,noarg_temp_created")
 endif (${COMPILER} MATCHES "Intel")
 #
 # Cray compiler
@@ -90,7 +90,12 @@ if (${COMPILER} MATCHES "Cray")
 endif (${COMPILER} MATCHES "Cray")
 #
 # Set linker flags
-set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp")
+if (${BUILD_TYPE} MATCHES DEBUG)
+   set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf")
+endif (${BUILD_TYPE} MATCHES DEBUG)
+if (${BUILD_TYPE} MATCHES RELEASE)
+   set (LINKER_FLAGS "-L${EXTERN_NETCDF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDF_LIBPATH} -L${EXTERN_NETCDFF_LIBPATH} -Wl,-rpath,${EXTERN_NETCDFF_LIBPATH} -lnetcdff -lnetcdf -fopenmp")
+endif (${BUILD_TYPE} MATCHES RELEASE)
 set_target_properties (bump PROPERTIES LINKER_LANGUAGE Fortran)
 set (CMAKE_EXE_LINKER_FLAGS ${LINKER_FLAGS})
 #

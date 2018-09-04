@@ -1,6 +1,6 @@
-// This is the ENV_NCAR file, which can be viewed by browsing the doxygen-generated documentation.
-/*! \page ENV_NCAR ENV_NCAR
-GNU compiler on <a target="_blank" href="https://www2.cisl.ucar.edu/resources/computational-systems/cheyenne">cheyenne</a>:
+# ENV_NCAR
+
+GNU compiler on [cheyenne](https://www2.cisl.ucar.edu/resources/computational-systems/cheyenne):
 
     module purge
     module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
@@ -10,4 +10,3 @@ GNU compiler on <a target="_blank" href="https://www2.cisl.ucar.edu/resources/co
     export BUMP_NETCDF_LIBPATH=${NETCDF}/lib
     export BUMP_NETCDFF_INCLUDE=${NETCDF}/include
     export BUMP_NETCDFF_LIBPATH=${NETCDF}/lib
-*/

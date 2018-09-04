@@ -1,5 +1,5 @@
-// This is the ENV_ECMWF file, which can be viewed by browsing the doxygen-generated documentation.
-/*! \page ENV_ECMWF ENV_ECMWF
+# ENV_ECMWF
+
 Cray compiler on cca/ccb:
 
     module unload cmake
@@ -10,5 +10,3 @@ Cray compiler on cca/ccb:
     export BUMP_NETCDF_LIBPATH=${NETCDF_DIR}/lib
     export BUMP_NETCDFF_INCLUDE=${NETCDF_DIR}/include
     export BUMP_NETCDFF_LIBPATH=${NETCDF_DIR}/lib
-
-*/
