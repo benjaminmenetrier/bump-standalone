@@ -8,9 +8,23 @@ This code is distributed under the [CeCILL-C license](http://www.cecill.info/lic
 The fact that you are downloading this code means that you have had knowledge of the [CeCILL-C license](http://www.cecill.info/licences/Licence_CeCILL-C_V1-en.html) and that you accept its terms.
 
 A theoretical documentation is available: 
- - about covariance filtering: [covariance_filtering.pdf](http://github.com/benjaminmenetrier/bump/raw/master/doc/pdf/covariance_filtering.pdf)
- - about the NICAS method: [nicas.pdf](http://github.com/benjaminmenetrier/bump/raw/master/doc/pdf/nicas.pdf)
- - about multivariate localization: [multivariate_localization.pdf](http://github.com/benjaminmenetrier/bump/raw/master/doc/pdf/multivariate_localization.pdf)
- - about diffusion and the Matern function: [diffusion_matern_function.pdf](http://github.com/benjaminmenetrier/bump/raw/master/doc/pdf/diffusion_matern_function.pdf)
+ - about covariance filtering: [covariance_filtering.pdf](doc/pdf/covariance_filtering.pdf)
+ - about the NICAS method: [nicas.pdf](doc/pdf/nicas.pdf)
+ - about multivariate localization: [multivariate_localization.pdf](doc/pdf/multivariate_localization.pdf)
+ - about diffusion and the Matern function: [diffusion_matern_function.pdf](doc/pdf/diffusion_matern_function.pdf)
 
-Installation instructions are available in the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html), where the code can be easily browsed.
+
+Code documentation table of contents:
+ - [Code size and characteristics](CLOC_REPORT.md)
+ - [Offline or online usage](offline_or_online_usage.md)
+ - [Folders organization](folders_organization.md)
+ - [Compilation and dependencies](compilation_and_dependencies.md)
+ - [Code structure](code_structure.md)
+ - [Input data](input_data.md)
+ - [Namelists management](namelist_management.md)
+ - [Running the code](running_the_code.md)
+ - [NCL plots](ncl_plots.md)
+ - [Test](test.md)
+ - [Adding a new model](adding_a_new_model.md)
+
+The code can be easily browsed with the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html).

@@ -141,6 +141,7 @@ real(kind_real),intent(out) :: vec_ext(com%next,nl) !< Extended vector
 
 ! Local variables
 integer :: il,iexcl,ired,ihalo
+integer :: jexclcounts(mpl%nproc),jexcldispl(mpl%nproc),jhalocounts(mpl%nproc),jhalodispl(mpl%nproc)
 real(kind_real) :: sbuf(com%nexcl*nl),rbuf(com%nhalo*nl)
 
 ! Prepare buffers to send
@@ -153,7 +154,11 @@ end do
 !$omp end parallel do
 
 ! Communication
-call mpl%alltoallv(com%nexcl*nl,sbuf,com%jexclcounts*nl,com%jexcldispl*nl,com%nhalo*nl,rbuf,com%jhalocounts*nl,com%jhalodispl*nl)
+jexclcounts = com%jexclcounts*nl
+jexcldispl = com%jexcldispl*nl
+jhalocounts = com%jhalocounts*nl
+jhalodispl = com%jhalodispl*nl
+call mpl%alltoallv(com%nexcl*nl,sbuf,jexclcounts,jexcldispl,com%nhalo*nl,rbuf,jhalocounts,jhalodispl)
 
 ! Copy interior
 !$omp parallel do schedule(static) private(il,ired)
@@ -336,7 +341,7 @@ else
 end if
 
 ! Allocation
-allocate(com%red_to_ext(com%nred))
+if (com%nred>0) allocate(com%red_to_ext(com%nred))
 allocate(com%jhalocounts(mpl%nproc))
 allocate(com%jexclcounts(mpl%nproc))
 allocate(com%jhalodispl(mpl%nproc))
@@ -345,7 +350,7 @@ if (com%nhalo>0) allocate(com%halo(com%nhalo))
 if (com%nexcl>0) allocate(com%excl(com%nexcl))
 
 ! Get variables id
-call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_red_to_ext',red_to_ext_id))
+if (com%nred>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_red_to_ext',red_to_ext_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jhalocounts',jhalocounts_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jexclcounts',jexclcounts_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_jhalodispl',jhalodispl_id))
@@ -354,7 +359,7 @@ if (com%nhalo>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_halo',h
 if (com%nexcl>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(prefix)//'_excl',excl_id))
 
 ! Get variable
-call mpl%ncerr(subr,nf90_get_var(ncid,red_to_ext_id,com%red_to_ext))
+if (com%nred>0) call mpl%ncerr(subr,nf90_get_var(ncid,red_to_ext_id,com%red_to_ext))
 call mpl%ncerr(subr,nf90_get_var(ncid,jhalocounts_id,com%jhalocounts))
 call mpl%ncerr(subr,nf90_get_var(ncid,jexclcounts_id,com%jexclcounts))
 call mpl%ncerr(subr,nf90_get_var(ncid,jhalodispl_id,com%jhalodispl))
@@ -389,13 +394,13 @@ call mpl%ncerr(subr,nf90_redef(ncid))
 ! Define dimensions
 info = nf90_inq_dimid(ncid,'nproc',nproc_id)
 if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nproc',mpl%nproc,nproc_id))
-call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nred',com%nred,nred_id))
-call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_next',com%next,next_id))
+if (com%nred>0) call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nred',com%nred,nred_id))
+if (com%next>0) call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_next',com%next,next_id))
 if (com%nhalo>0) call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nhalo',com%nhalo,nhalo_id))
 if (com%nexcl>0) call mpl%ncerr(subr,nf90_def_dim(ncid,trim(com%prefix)//'_nexcl',com%nexcl,nexcl_id))
 
 ! Define variables
-call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_red_to_ext',nf90_int,(/nred_id/),red_to_ext_id))
+if (com%nred>0) call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_red_to_ext',nf90_int,(/nred_id/),red_to_ext_id))
 call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jhalocounts',nf90_int,(/nproc_id/),jhalocounts_id))
 call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jexclcounts',nf90_int,(/nproc_id/),jexclcounts_id))
 call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_jhalodispl',nf90_int,(/nproc_id/),jhalodispl_id))
@@ -407,7 +412,7 @@ if (com%nexcl>0) call mpl%ncerr(subr,nf90_def_var(ncid,trim(com%prefix)//'_excl'
 call mpl%ncerr(subr,nf90_enddef(ncid))
 
 ! Put variables
-call mpl%ncerr(subr,nf90_put_var(ncid,red_to_ext_id,com%red_to_ext))
+if (com%nred>0) call mpl%ncerr(subr,nf90_put_var(ncid,red_to_ext_id,com%red_to_ext))
 call mpl%ncerr(subr,nf90_put_var(ncid,jhalocounts_id,com%jhalocounts))
 call mpl%ncerr(subr,nf90_put_var(ncid,jexclcounts_id,com%jexclcounts))
 call mpl%ncerr(subr,nf90_put_var(ncid,jhalodispl_id,com%jhalodispl))

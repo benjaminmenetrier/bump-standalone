@@ -168,6 +168,7 @@ contains
 end type nam_type
 
 private
+public :: nvmax,ntsmax,nlmax,nc3max,nscalesmax,ndirmax,nldwvmax
 public :: nam_type
 
 contains
@@ -869,11 +870,8 @@ class(nam_type),intent(inout) :: nam !< Namelist
 type(mpl_type),intent(in) :: mpl     !< MPI data
 
 ! Local variables
-integer :: iv,its,il,idir,ildw,itest
+integer :: iv,its,il,idir
 character(len=2) :: ivchar
-character(len=4) :: itestchar
-character(len=7) :: lonchar,latchar
-character(len=1024) :: filename
 
 ! Check maximum sizes
 if (nam%nl>nlmax) call mpl%abort('nl is too large')
@@ -1022,6 +1020,8 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%new_nicas) then
 end if
 if (nam%new_hdiag.or.nam%new_lct) then
    if (nam%nc3<=0) call mpl%abort('nc3 should be positive')
+else
+   nam%nc3 = 1
 end if
 if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct) then
    if (nam%nl0r<1) call mpl%abort ('nl0r should be positive')
@@ -1182,84 +1182,6 @@ if (nam%new_hdiag.or.nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or
    end if
 end if
 
-! Clean files
-if (mpl%main) then
-   ! Diagnostics
-   if (nam%new_hdiag) then
-      filename = trim(nam%prefix)//'_diag.nc'
-      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-
-      if (nam%local_diag) then
-         filename = trim(nam%prefix)//'_local_diag_*.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end if
-
-      do ildw=1,nam%nldwv
-         write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
-         write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
-         filename = trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end do
-
-      ! rh0
-      if (nam%sam_write.and.(trim(nam%draw_type)=='random_coast')) then
-         filename = trim(nam%prefix)//'_sampling_rh0.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end if
-   end if
-
-   ! Diagnostics
-   if (nam%new_hdiag) then
-      filename = trim(nam%prefix)//'_diag.nc'
-      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-
-      if (nam%local_diag) then
-         filename = trim(nam%prefix)//'_local_diag_*.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end if
-
-      do ildw=1,nam%nldwv
-         write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)
-         write(latchar,'(f7.2)') nam%lat_ldwv(ildw)
-         filename = trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end do
-
-      ! rh0
-      if (nam%sam_write.and.(trim(nam%draw_type)=='random_coast')) then
-         filename = trim(nam%prefix)//'_sampling_rh0.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end if
-
-      ! C matrix
-      if (trim(nam%minim_algo)/='none') then
-         filename = trim(nam%prefix)//'_cmat_*.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end if
-   end if
-
-   ! Dirac test
-   if (nam%check_dirac) then
-      filename = trim(nam%prefix)//'_dirac.nc'
-      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-   end if
-
-   ! Randomization test
-   if (nam%check_randomization) then
-      do itest=1,10
-         write(itestchar,'(i4.4)') itest
-         filename = trim(nam%prefix)//'_randomize_'//itestchar//'.nc'
-         call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-      end do
-   end if
-
-   ! LCT
-   if (nam%new_lct) then
-      filename = trim(nam%prefix)//'_lct.nc'
-      call system('rm -f '//trim(nam%datadir)//'/'//trim(filename))
-   end if
-end if
-
 end subroutine nam_check
 
 !----------------------------------------------------------------------
@@ -1274,6 +1196,9 @@ implicit none
 class(nam_type),intent(in) :: nam !< Namelist
 type(mpl_type),intent(in) :: mpl  !< MPI data
 integer,intent(in) :: ncid        !< NetCDF file ID
+
+! Local variables
+real(kind_real),allocatable :: londir(:),latdir(:),lon_ldwv(:),lat_ldwv(:)
 
 ! general_param
 call put_att(mpl,ncid,'datadir',trim(nam%datadir))
@@ -1340,7 +1265,7 @@ call put_att(mpl,ncid,'dc',nam%dc*req)
 call put_att(mpl,ncid,'nl0r',nam%nl0r)
 
 ! vbal_param
-call put_att(mpl,ncid,'vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_block(1:nam%nv*(nam%nv-1)/2))
+if (nam%nv>1) call put_att(mpl,ncid,'vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_block(1:nam%nv*(nam%nv-1)/2))
 
 ! diag_param
 call put_att(mpl,ncid,'ne',nam%ne)
@@ -1375,11 +1300,17 @@ call put_att(mpl,ncid,'network',nam%network)
 call put_att(mpl,ncid,'mpicom',nam%mpicom)
 call put_att(mpl,ncid,'advmode',nam%advmode)
 call put_att(mpl,ncid,'ndir',nam%ndir)
-call put_att(mpl,ncid,'londir',nam%ndir,nam%londir(1:nam%ndir)*rad2deg)
-call put_att(mpl,ncid,'latdir',nam%ndir,nam%latdir(1:nam%ndir)*rad2deg)
-call put_att(mpl,ncid,'levdir',nam%ndir,nam%levdir(1:nam%ndir))
-call put_att(mpl,ncid,'ivdir',nam%ndir,nam%ivdir(1:nam%ndir))
-call put_att(mpl,ncid,'itsdir',nam%ndir,nam%itsdir(1:nam%ndir))
+if (nam%ndir>0) then
+   allocate(londir(nam%ndir))
+   allocate(latdir(nam%ndir))
+   londir = nam%londir(1:nam%ndir)*rad2deg
+   latdir = nam%latdir(1:nam%ndir)*rad2deg
+   call put_att(mpl,ncid,'londir',nam%ndir,londir)
+   call put_att(mpl,ncid,'latdir',nam%ndir,latdir)
+   call put_att(mpl,ncid,'levdir',nam%ndir,nam%levdir(1:nam%ndir))
+   call put_att(mpl,ncid,'ivdir',nam%ndir,nam%ivdir(1:nam%ndir))
+   call put_att(mpl,ncid,'itsdir',nam%ndir,nam%itsdir(1:nam%ndir))
+end if
 
 ! obsop_param
 call put_att(mpl,ncid,'nobs',nam%nobs)
@@ -1388,11 +1319,19 @@ call put_att(mpl,ncid,'obsop_interp',nam%obsop_interp)
 
 ! output_param
 call put_att(mpl,ncid,'nldwh',nam%nldwh)
-call put_att(mpl,ncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
-call put_att(mpl,ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
+if (nam%nldwh>0) then
+   call put_att(mpl,ncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
+   call put_att(mpl,ncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
+end if
 call put_att(mpl,ncid,'nldwv',nam%nldwv)
-call put_att(mpl,ncid,'lon_ldwv',nam%nldwv,nam%lon_ldwv(1:nam%nldwv)*rad2deg)
-call put_att(mpl,ncid,'lat_ldwv',nam%nldwv,nam%lat_ldwv(1:nam%nldwv)*rad2deg)
+if (nam%nldwv>0) then
+   allocate(lon_ldwv(nam%nldwv))
+   allocate(lat_ldwv(nam%nldwv))
+   lon_ldwv = nam%lon_ldwv(1:nam%nldwv)*rad2deg
+   lat_ldwv = nam%lat_ldwv(1:nam%nldwv)*rad2deg
+   call put_att(mpl,ncid,'lon_ldwv',nam%nldwv,lon_ldwv)
+   call put_att(mpl,ncid,'lat_ldwv',nam%nldwv,lat_ldwv)
+end if
 call put_att(mpl,ncid,'diag_rhflt',nam%diag_rhflt*req)
 call put_att(mpl,ncid,'diag_interp',nam%diag_interp)
 call put_att(mpl,ncid,'field_io',nam%field_io)
