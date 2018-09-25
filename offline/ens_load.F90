@@ -9,7 +9,7 @@ implicit none
 
 ! Passed variables
 class(ens_type),intent(inout) :: ens    !< Ensemble
-type(mpl_type),intent(in) :: mpl        !< MPI data
+type(mpl_type),intent(inout) :: mpl     !< MPI data
 type(nam_type),intent(in) :: nam        !< Namelist
 type(geom_type),intent(in) :: geom      !< Geometry
 character(len=*),intent(in) :: filename !< Filename ('ens1' or 'ens2')
@@ -44,16 +44,16 @@ ietot = 1
 ! Loop over sub-ensembles
 do isub=1,ens%nsub
    if (ens%nsub==1) then
-      write(mpl%unit,'(a7,a)',advance='no') '','Full ensemble, member:'
+      write(mpl%info,'(a7,a)',advance='no') '','Full ensemble, member:'
    else
-      write(mpl%unit,'(a7,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+      write(mpl%info,'(a7,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
    end if
-   call flush(mpl%unit)
+   call flush(mpl%info)
 
    ! Loop over members for a given sub-ensemble
    do ie=1,ens%ne/ens%nsub
-      write(mpl%unit,'(i4)',advance='no') ne_offset+ie
-      call flush(mpl%unit)
+      write(mpl%info,'(i4)',advance='no') ne_offset+ie
+      call flush(mpl%info)
 
       ! Read member
       if (ens%nsub==1) then
@@ -66,8 +66,8 @@ do isub=1,ens%nsub
       ! Update
       ietot = ietot+1
    end do
-   write(mpl%unit,'(a)') ''
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') ''
+   call flush(mpl%info)
 end do
 
 ! Remove mean

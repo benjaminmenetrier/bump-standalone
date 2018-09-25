@@ -19,12 +19,12 @@ echo '--- Generate configuration'
 cd ../script
 cat<<EOFCONFIG >config_fortrancallgraph.py
 import os
-ASSEMBLER_DIRS = ["${HOME}/build/bump"] 
-SOURCE_DIRS = ["${HOME}/build/bump"] 
-SOURCE_FILES_PREPROCESSED = False 
+ASSEMBLER_DIRS = ["${HOME}/build/bump"]
+SOURCE_DIRS = ["${HOME}/build/bump"]
+SOURCE_FILES_PREPROCESSED = False
 SPECIAL_MODULE_FILES = {}
 EXCLUDE_MODULES = []
-IGNORE_GLOBALS_FROM_MODULES = EXCLUDE_MODULES + [] 
+IGNORE_GLOBALS_FROM_MODULES = EXCLUDE_MODULES + []
 IGNORE_DERIVED_TYPES = []
 CACHE_DIR = os.path.dirname(os.path.realpath(__file__)) + '/cache'
 

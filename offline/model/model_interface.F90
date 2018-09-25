@@ -84,7 +84,7 @@ subroutine model_read(mpl,nam,geom,filename,ie,jsub,fld)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl                                      !< MPI data
+type(mpl_type),intent(inout) :: mpl                                   !< MPI data
 type(nam_type),intent(in) :: nam                                      !< Namelist
 type(geom_type),intent(in) :: geom                                    !< Geometry
 character(len=*),intent(in) :: filename                               !< File name

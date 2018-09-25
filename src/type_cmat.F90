@@ -12,6 +12,7 @@ module type_cmat
 
 use netcdf
 use tools_const, only: rad2deg,reqkm,req
+use tools_func, only: lct_d2h,gc_gau
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsi,isnotmsr,isallnotmsr,isanynotmsr
 use type_avg, only: avg_type
@@ -23,6 +24,7 @@ use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_hdata, only: hdata_type
 use type_io, only: io_type
+use type_lct, only: lct_type
 use type_mom, only: mom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
@@ -36,13 +38,16 @@ type cmat_type
    type(cmat_blk_type),allocatable :: blk(:) !< C matrix blocks
    logical :: allocated                      !< Allocation flag
 contains
-   procedure :: alloc => cmat_alloc
+   procedure :: cmat_alloc
+   procedure :: cmat_alloc_blk
+   generic :: alloc => cmat_alloc,cmat_alloc_blk
    procedure :: dealloc => cmat_dealloc
    procedure :: copy => cmat_copy
    procedure :: read => cmat_read
    procedure :: write => cmat_write
    procedure :: run_hdiag => cmat_run_hdiag
    procedure :: from_diag => cmat_from_diag
+   procedure :: from_lct => cmat_from_lct
    procedure :: from_nam => cmat_from_nam
    procedure :: from_oops => cmat_from_oops
    procedure :: setup_sampling => cmat_setup_sampling
@@ -57,7 +62,28 @@ contains
 ! Subroutine: cmat_alloc
 !> Purpose: C matrix data allocation
 !----------------------------------------------------------------------
-subroutine cmat_alloc(cmat,nam,geom,bpar,prefix)
+subroutine cmat_alloc(cmat,bpar,prefix)
+
+implicit none
+
+! Passed variables
+class(cmat_type),intent(inout) :: cmat    !< C matrix data
+type(bpar_type),intent(in) :: bpar        !< Block parameters
+character(len=*),intent(in) :: prefix     !< Prefix
+
+! Copy prefix
+cmat%prefix = prefix
+
+! Allocation
+if (.not.allocated(cmat%blk)) allocate(cmat%blk(bpar%nbe))
+
+end subroutine cmat_alloc
+
+!----------------------------------------------------------------------
+! Subroutine: cmat_alloc_blk
+!> Purpose: C matrix block data allocation
+!----------------------------------------------------------------------
+subroutine cmat_alloc_blk(cmat,nam,geom,bpar)
 
 implicit none
 
@@ -66,25 +92,20 @@ class(cmat_type),intent(inout) :: cmat    !< C matrix data
 type(nam_type),target,intent(in) :: nam   !< Namelist
 type(geom_type),target,intent(in) :: geom !< Geometry
 type(bpar_type),intent(in) :: bpar        !< Block parameters
-character(len=*),intent(in) :: prefix     !< Prefix
 
 ! Local variables
 integer :: ib
 
-! Copy prefix
-cmat%prefix = prefix
-
 ! Allocation
-if (.not.allocated(cmat%blk)) allocate(cmat%blk(bpar%nbe))
 do ib=1,bpar%nbe
    cmat%blk(ib)%ib = ib
-   call cmat%blk(ib)%alloc(nam,geom,bpar,prefix)
+   call cmat%blk(ib)%alloc(nam,geom,bpar,cmat%prefix)
 end do
 
 ! Update allocation flag
 cmat%allocated = .true.
 
-end subroutine cmat_alloc
+end subroutine cmat_alloc_blk
 
 !----------------------------------------------------------------------
 ! Subroutine: cmat_dealloc
@@ -132,7 +153,18 @@ type(bpar_type),intent(in) :: bpar        !< Block parameters
 integer :: ib
 
 ! Allocation
-call cmat_copy%alloc(nam,geom,bpar,trim(cmat%prefix))
+call cmat_copy%alloc(bpar,trim(cmat%prefix))
+
+! Copy attributes
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat_copy%blk(ib)%double_fit = cmat%blk(ib)%double_fit
+      cmat_copy%blk(ib)%anisotropic = cmat%blk(ib)%anisotropic
+   end if
+end do
+
+! Allocation
+call cmat_copy%alloc(nam,geom,bpar)
 
 ! Copy
 do ib=1,bpar%nbe
@@ -144,6 +176,11 @@ do ib=1,bpar%nbe
    if (allocated(cmat%blk(ib)%rv_coef)) cmat_copy%blk(ib)%rv_coef = cmat%blk(ib)%rv_coef
    if (allocated(cmat%blk(ib)%rhs)) cmat_copy%blk(ib)%rhs = cmat%blk(ib)%rhs
    if (allocated(cmat%blk(ib)%rvs)) cmat_copy%blk(ib)%rvs = cmat%blk(ib)%rvs
+   if (allocated(cmat%blk(ib)%H11)) cmat_copy%blk(ib)%H11 = cmat%blk(ib)%H11
+   if (allocated(cmat%blk(ib)%H22)) cmat_copy%blk(ib)%H22 = cmat%blk(ib)%H22
+   if (allocated(cmat%blk(ib)%H33)) cmat_copy%blk(ib)%H33 = cmat%blk(ib)%H33
+   if (allocated(cmat%blk(ib)%H12)) cmat_copy%blk(ib)%H12 = cmat%blk(ib)%H12
+   if (allocated(cmat%blk(ib)%Hcoef)) cmat_copy%blk(ib)%Hcoef = cmat%blk(ib)%Hcoef
    if (allocated(cmat%blk(ib)%displ_lon)) cmat_copy%blk(ib)%displ_lon = cmat%blk(ib)%displ_lon
    if (allocated(cmat%blk(ib)%displ_lat)) cmat_copy%blk(ib)%displ_lat = cmat%blk(ib)%displ_lat
 end do
@@ -160,22 +197,48 @@ implicit none
 
 ! Passed variables
 class(cmat_type),intent(inout) :: cmat !< C matrix data
-type(mpl_type),intent(in) :: mpl       !< MPI data
+type(mpl_type),intent(inout) :: mpl    !< MPI data
 type(nam_type),intent(in) :: nam       !< Namelist
 type(geom_type),intent(in) :: geom     !< Geometry
 type(bpar_type),intent(in) :: bpar     !< Block parameters
 type(io_type),intent(in) :: io         !< I/O
 
 ! Local variables
-integer :: ib,ncid
-character(len=1024) :: filename,double_fitchar
+integer :: ib,ncid,double_fit,anisotropic
+character(len=1024) :: filename
 character(len=1024) :: subr = 'cmat_read'
 
 ! Allocation
-call cmat%alloc(nam,geom,bpar,'cmat')
+call cmat%alloc(bpar,'cmat')
 
 do ib=1,bpar%nbe
-   if (bpar%B_block(ib)) then
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      ! Set filename
+      filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
+
+      ! Read attributes
+      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
+      call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'double_fit',double_fit))
+      if (double_fit==1) then
+         cmat%blk(ib)%double_fit = .true.
+      else
+         cmat%blk(ib)%double_fit = .false.
+      end if
+      call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'anisotropic',anisotropic))
+      if (anisotropic==1) then
+         cmat%blk(ib)%anisotropic = .true.
+      else
+         cmat%blk(ib)%anisotropic = .false.
+      end if
+      call mpl%ncerr(subr,nf90_close(ncid))
+   end if
+end do
+
+! Allocation
+call cmat%alloc(nam,geom,bpar)
+
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       ! Set filename
       filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
 
@@ -185,23 +248,23 @@ do ib=1,bpar%nbe
          call io%fld_read(mpl,nam,geom,filename,'coef_sta',cmat%blk(ib)%coef_sta)
          call io%fld_read(mpl,nam,geom,filename,'rh',cmat%blk(ib)%rh)
          call io%fld_read(mpl,nam,geom,filename,'rv',cmat%blk(ib)%rv)
-         if (nam%double_fit(bpar%b_to_v1(ib))) then
+         if (cmat%blk(ib)%double_fit) then
             call io%fld_read(mpl,nam,geom,filename,'rv_rfac',cmat%blk(ib)%rv_rfac)
             call io%fld_read(mpl,nam,geom,filename,'rv_coef',cmat%blk(ib)%rv_coef)
          end if
          call io%fld_read(mpl,nam,geom,filename,'rhs',cmat%blk(ib)%rhs)
          call io%fld_read(mpl,nam,geom,filename,'rvs',cmat%blk(ib)%rvs)
+         if (cmat%blk(ib)%anisotropic) then
+            call io%fld_read(mpl,nam,geom,filename,'H11',cmat%blk(ib)%H11)
+            call io%fld_read(mpl,nam,geom,filename,'H22',cmat%blk(ib)%H22)
+            call io%fld_read(mpl,nam,geom,filename,'H33',cmat%blk(ib)%H33)
+            call io%fld_read(mpl,nam,geom,filename,'H12',cmat%blk(ib)%H12)
+         end if
       end if
       if ((ib==bpar%nbe).and.nam%displ_diag) then
          call io%fld_read(mpl,nam,geom,filename,'displ_lon',cmat%blk(ib)%displ_lon)
          call io%fld_read(mpl,nam,geom,filename,'displ_lat',cmat%blk(ib)%displ_lat)
       end if
-
-      ! Read attribute
-      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
-      call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'double_fit',double_fitchar))
-      cmat%blk(ib)%double_fit = (trim(double_fitchar)=='double_fit')
-      call mpl%ncerr(subr,nf90_close(ncid))
 
       ! Check fields
       if (bpar%nicas_block(ib)) then
@@ -237,7 +300,7 @@ character(len=1024) :: filename
 character(len=1024) :: subr = 'cmat_write'
 
 do ib=1,bpar%nbe
-   if (bpar%B_block(ib)) then
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       ! Set filename
       filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
 
@@ -247,26 +310,40 @@ do ib=1,bpar%nbe
          call io%fld_write(mpl,nam,geom,filename,'coef_sta',cmat%blk(ib)%coef_sta)
          call io%fld_write(mpl,nam,geom,filename,'rh',cmat%blk(ib)%rh)
          call io%fld_write(mpl,nam,geom,filename,'rv',cmat%blk(ib)%rv)
-         if (nam%double_fit(bpar%b_to_v1(ib))) then
+         if (cmat%blk(ib)%double_fit) then
             call io%fld_write(mpl,nam,geom,filename,'rv_rfac',cmat%blk(ib)%rv_rfac)
             call io%fld_write(mpl,nam,geom,filename,'rv_coef',cmat%blk(ib)%rv_coef)
          end if
          call io%fld_write(mpl,nam,geom,filename,'rhs',cmat%blk(ib)%rhs)
          call io%fld_write(mpl,nam,geom,filename,'rvs',cmat%blk(ib)%rvs)
+         if (cmat%blk(ib)%anisotropic) then
+            call io%fld_write(mpl,nam,geom,filename,'H11',cmat%blk(ib)%H11)
+            call io%fld_write(mpl,nam,geom,filename,'H22',cmat%blk(ib)%H22)
+            call io%fld_write(mpl,nam,geom,filename,'H33',cmat%blk(ib)%H33)
+            call io%fld_write(mpl,nam,geom,filename,'H12',cmat%blk(ib)%H12)
+         end if
       end if
       if ((ib==bpar%nbe).and.nam%displ_diag) then
          call io%fld_write(mpl,nam,geom,filename,'displ_lon',cmat%blk(ib)%displ_lon)
          call io%fld_write(mpl,nam,geom,filename,'displ_lat',cmat%blk(ib)%displ_lat)
       end if
 
-      ! Write attribute
-      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
-      if (cmat%blk(ib)%double_fit) then
-         call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'double_fit','.true.'))
-      else
-         call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'double_fit','.false.'))
+      if (mpl%main) then
+         ! Write attributes
+         call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
+         call mpl%ncerr(subr,nf90_redef(ncid))
+         if (cmat%blk(ib)%double_fit) then
+            call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'double_fit',1))
+         else
+            call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'double_fit',0))
+         end if
+         if (cmat%blk(ib)%anisotropic) then
+            call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'anisotropic',1))
+         else
+            call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'anisotropic',0))
+         end if
+         call mpl%ncerr(subr,nf90_close(ncid))
       end if
-      call mpl%ncerr(subr,nf90_close(ncid))
    end if
 end do
 
@@ -301,86 +378,86 @@ type(hdata_type) :: hdata
 type(mom_type) :: mom_1,mom_2
 
 ! Setup sampling
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
+call flush(mpl%info)
 call hdata%setup_sampling(mpl,rng,nam,geom,io)
 
 ! Compute MPI distribution, halo A
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute MPI distribution, halos A'
+call flush(mpl%info)
 call hdata%compute_mpi_a(mpl,nam,geom)
 
 if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
    ! Compute MPI distribution, halos A-B
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute MPI distribution, halos A-B'
+   call flush(mpl%info)
    call hdata%compute_mpi_ab(mpl,nam,geom)
 end if
 
 if (nam%displ_diag) then
    ! Compute MPI distribution, halo D
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halo D'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute MPI distribution, halo D'
+   call flush(mpl%info)
    call hdata%compute_mpi_d(mpl,nam,geom)
 
    ! Compute displacement diagnostic
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute displacement diagnostic'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute displacement diagnostic'
+   call flush(mpl%info)
    call displ%compute(mpl,nam,geom,hdata,ens1)
 end if
 
 ! Compute MPI distribution, halo C
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute MPI distribution, halo C'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute MPI distribution, halo C'
+call flush(mpl%info)
 call hdata%compute_mpi_c(mpl,nam,geom)
 
 if ((nam%local_diag.or.nam%displ_diag).and.(nam%diag_rhflt>0.0)) then
    ! Compute MPI distribution, halo F
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute MPI distribution, halo F'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute MPI distribution, halo F'
+   call flush(mpl%info)
    call hdata%compute_mpi_f(mpl,nam,geom)
 end if
 
 ! Compute sample moments
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute sample moments'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute sample moments'
+call flush(mpl%info)
 
 ! Compute ensemble 1 sample moments
-write(mpl%unit,'(a7,a)') '','Ensemble 1:'
-call flush(mpl%unit)
+write(mpl%info,'(a7,a)') '','Ensemble 1:'
+call flush(mpl%info)
 call mom_1%compute(mpl,nam,geom,bpar,hdata,ens1)
 
 select case(trim(nam%method))
 case ('hyb-rnd','dual-ens')
    ! Compute randomized sample moments
-   write(mpl%unit,'(a7,a)') '','Ensemble 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a7,a)') '','Ensemble 2:'
+   call flush(mpl%info)
    call mom_2%compute(mpl,nam,geom,bpar,hdata,ens2)
 end select
 
 ! Compute statistics
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute statistics'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute statistics'
+call flush(mpl%info)
 
 ! Compute ensemble 1 statistics
-write(mpl%unit,'(a7,a)') '','Ensemble 1:'
-call flush(mpl%unit)
+write(mpl%info,'(a7,a)') '','Ensemble 1:'
+call flush(mpl%info)
 call avg_1%compute(mpl,nam,geom,bpar,hdata,mom_1,nam%ne)
 
 select case(trim(nam%method))
 case ('hyb-rnd','dual-ens')
    ! Compute ensemble 2 statistics
-   write(mpl%unit,'(a7,a)') '','Ensemble 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a7,a)') '','Ensemble 2:'
+   call flush(mpl%info)
    call avg_2%compute(mpl,nam,geom,bpar,hdata,mom_2,nam%ens2_ne)
 case ('hyb-avg')
    ! Copy ensemble 1 statistics
@@ -390,36 +467,36 @@ end select
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd','dual-ens')
    ! Compute hybrid statistics
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute hybrid statistics'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute hybrid statistics'
+   call flush(mpl%info)
    call avg_2%compute_hyb(mpl,nam,geom,bpar,hdata,mom_1,mom_2,avg_1)
 end select
 
 if ((bpar%nbe>bpar%nb).and.bpar%diag_block(bpar%nbe)) then
    ! Compute block-averaged statistics
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute block-averaged statistics'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute block-averaged statistics'
+   call flush(mpl%info)
    avg_wgt = avg_1%copy_wgt(geom,bpar)
    call avg_1%compute_bwavg(mpl,nam,geom,bpar,avg_wgt)
    if ((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens')) call avg_2%compute_bwavg(mpl,nam,geom,bpar,avg_wgt)
 end if
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute covariance'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute covariance'
+call flush(mpl%info)
 
 ! Compute ensemble 1 covariance
-write(mpl%unit,'(a7,a)') '','Ensemble 1:'
-call flush(mpl%unit)
+write(mpl%info,'(a7,a)') '','Ensemble 1:'
+call flush(mpl%info)
 call cov_1%covariance(mpl,nam,geom,bpar,io,hdata,avg_1,'cov')
 
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd','dual-ens')
    ! Compute ensemble 2 covariance
-   write(mpl%unit,'(a7,a)') '','Ensemble 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a7,a)') '','Ensemble 2:'
+   call flush(mpl%info)
    select case (trim(nam%method))
    case ('hyb-avg','hyb-rnd')
       call cov_2%covariance(mpl,nam,geom,bpar,io,hdata,avg_2,'cov_sta')
@@ -428,20 +505,20 @@ case ('hyb-avg','hyb-rnd','dual-ens')
    end select
 end select
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute correlation'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute correlation'
+call flush(mpl%info)
 
 ! Compute ensemble 1 correlation
-write(mpl%unit,'(a7,a)') '','Ensemble 1:'
-call flush(mpl%unit)
+write(mpl%info,'(a7,a)') '','Ensemble 1:'
+call flush(mpl%info)
 call cor_1%correlation(mpl,nam,geom,bpar,io,hdata,avg_1,'cor')
 
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd','dual-ens')
    ! Compute ensemble 2 correlation
-   write(mpl%unit,'(a7,a)') '','Ensemble 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a7,a)') '','Ensemble 2:'
+   call flush(mpl%info)
    select case (trim(nam%method))
    case ('hyb-avg','hyb-rnd')
       call cor_2%correlation(mpl,nam,geom,bpar,io,hdata,avg_2,'cor_sta')
@@ -453,37 +530,37 @@ end select
 select case (trim(nam%method))
 case ('loc_norm','loc','hyb-avg','hyb-rnd','dual-ens')
    ! Compute localization
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute localization'
-   write(mpl%unit,'(a7,a)') '','Ensemble 1:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute localization'
+   write(mpl%info,'(a7,a)') '','Ensemble 1:'
+   call flush(mpl%info)
    call loc_1%localization(mpl,nam,geom,bpar,io,hdata,avg_1,'loc')
 end select
 
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
    ! Compute static hybridization
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute static hybridization'
-   write(mpl%unit,'(a7,a)') '','Ensemble 1 and 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute static hybridization'
+   write(mpl%info,'(a7,a)') '','Ensemble 1 and 2:'
+   call flush(mpl%info)
    call loc_2%hybridization(mpl,nam,geom,bpar,io,hdata,avg_1,avg_2,'loc_hyb')
 end select
 
 if (trim(nam%method)=='dual-ens') then
    ! Compute dual-ensemble hybridization diagnostic and fit
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Compute dual-ensemble hybridization'
-   write(mpl%unit,'(a7,a)') '','Ensembles 1 and 2:'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Compute dual-ensemble hybridization'
+   write(mpl%info,'(a7,a)') '','Ensembles 1 and 2:'
+   call flush(mpl%info)
    call loc_2%dualens(mpl,nam,geom,bpar,io,hdata,avg_1,avg_2,loc_3,'loc_deh','loc_deh_lr')
 end if
 
 if (trim(nam%minim_algo)/='none') then
    ! Copy diagnostics into C matrix data
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Copy diagnostics into C matrix data'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Copy diagnostics into C matrix data'
+   call flush(mpl%info)
    select case (trim(nam%method))
    case ('cor')
       call cmat%from_diag(mpl,nam,geom,bpar,hdata,cor_1)
@@ -496,18 +573,12 @@ if (trim(nam%minim_algo)/='none') then
    case default
       call mpl%abort('cmat not implemented yet for this method')
    end select
-
-   ! Write C matrix data
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Write C matrix data'
-   call flush(mpl%unit)
-   call cmat%write(mpl,nam,geom,bpar,io)
 end if
 
 ! Write data
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Write data'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Write data'
+call flush(mpl%info)
 
 ! Displacement
 if (nam%displ_diag) call displ%write(mpl,nam,geom,hdata,trim(nam%prefix)//'_displ_diag.nc')
@@ -533,7 +604,7 @@ implicit none
 
 ! Passed variables
 class(cmat_type),intent(inout) :: cmat !< C matrix data
-type(mpl_type),intent(in) :: mpl       !< MPI data
+type(mpl_type),intent(inout) :: mpl    !< MPI data
 type(nam_type),intent(in) :: nam       !< Namelist
 type(geom_type),intent(in) :: geom     !< Geometry
 type(bpar_type),intent(in) :: bpar     !< Block parameters
@@ -545,15 +616,23 @@ integer :: ib,n,i,il0,il0i,ic2a,its
 real(kind_real) :: fld_c2a(hdata%nc2a,geom%nl0),fld_c2b(hdata%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
 
 ! Allocation
-call cmat%alloc(nam,geom,bpar,'cmat')
+call cmat%alloc(bpar,'cmat')
+
+! Copy attributes
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat%blk(ib)%double_fit = diag%blk(0,ib)%double_fit
+      cmat%blk(ib)%anisotropic = .false.
+   end if
+end do
+
+! Allocation
+call cmat%alloc(nam,geom,bpar)
 
 ! Convolution parameters
 do ib=1,bpar%nbe
    if (bpar%B_block(ib)) then
       if (bpar%nicas_block(ib)) then
-         ! Copy attribute
-         cmat%blk(ib)%double_fit = diag%blk(0,ib)%double_fit
-
          if (nam%local_diag) then
             n = 4
             if (cmat%blk(ib)%double_fit) n = n+2
@@ -595,8 +674,8 @@ do ib=1,bpar%nbe
                ! Copy to C matrix
                if (i==1) then
                   cmat%blk(ib)%coef_ens = fld_c0a
-                  call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask(geom%c0a_to_c0,:)),cmat%blk(ib)%wgt)
-                  cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask),kind_real)
+                  call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt)
+                  cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask_c0),kind_real)
                elseif (i==2) then
                   cmat%blk(ib)%coef_sta = fld_c0a
                elseif (i==3) then
@@ -647,6 +726,92 @@ end if
 end subroutine cmat_from_diag
 
 !----------------------------------------------------------------------
+! Subroutine: cmat_from_lct
+!> Purpose: copy LCT into C matrix data
+!----------------------------------------------------------------------
+subroutine cmat_from_lct(cmat,mpl,nam,geom,bpar,lct)
+
+implicit none
+
+! Passed variables
+class(cmat_type),intent(inout) :: cmat !< C matrix data
+type(mpl_type),intent(inout) :: mpl    !< MPI data
+type(nam_type),intent(in) :: nam       !< Namelist
+type(geom_type),intent(in) :: geom     !< Geometry
+type(bpar_type),intent(in) :: bpar     !< Block parameters
+type(lct_type),intent(in) :: lct       !< LCT
+
+! Local variables
+integer :: ib,iv,jv,its,jts,iscales,il0,ic0a
+real(kind_real) :: tr,det,diff
+
+! Allocation
+call cmat%alloc(bpar,'cmat')
+
+! Copy attributes
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat%blk(ib)%double_fit = .false.
+      cmat%blk(ib)%anisotropic = .true.
+   end if
+end do
+
+! Allocation
+call cmat%alloc(nam,geom,bpar)
+
+! Convolution parameters
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      ! Indices
+      iv = bpar%b_to_v1(ib)
+      jv = bpar%b_to_v2(ib)
+      its = bpar%b_to_ts1(ib)
+      jts = bpar%b_to_ts2(ib)
+      if ((iv/=jv).or.(its/=jts)) call mpl%abort('only diagonal blocks for cmat_from_lct')
+
+      if (lct%blk(ib)%nscales>1) call mpl%abort('only one scale to define cmat from LCT')
+      iscales = 1
+
+      do il0=1,geom%nl0
+         do ic0a=1,geom%nc0a
+            if (geom%mask_c0a(ic0a,il0)) then
+               ! Inverse D to get H
+               call lct_d2h(lct%blk(ib)%D11(ic0a,il0,iscales),lct%blk(ib)%D22(ic0a,il0,iscales), &
+                          & lct%blk(ib)%D33(ic0a,il0,iscales),lct%blk(ib)%D12(ic0a,il0,iscales), &
+                          & cmat%blk(ib)%H11(ic0a,il0),cmat%blk(ib)%H22(ic0a,il0), &
+                          & cmat%blk(ib)%H33(ic0a,il0),cmat%blk(ib)%H12(ic0a,il0))
+
+               ! Copy scale coefficient
+               cmat%blk(ib)%Hcoef(ic0a,il0) = lct%blk(ib)%Dcoef(ic0a,il0,iscales)
+
+               ! Compute support radii from the largest scale
+               tr = cmat%blk(ib)%H11(ic0a,il0)+cmat%blk(ib)%H22(ic0a,il0)
+               det = cmat%blk(ib)%H11(ic0a,il0)*cmat%blk(ib)%H22(ic0a,il0)-cmat%blk(ib)%H12(ic0a,il0)**2
+               diff = 0.25*tr**2-det
+               if (0.5*tr>sqrt(diff)) then
+                  cmat%blk(ib)%rh(ic0a,il0) = 1.0/(gc_gau*sqrt(0.5*tr-sqrt(diff)))
+               else
+                  call mpl%abort('non positive-definite LCT in cmat_from_lct')
+               end if
+               if (cmat%blk(ib)%H33(ic0a,il0)>0.0) then
+                  cmat%blk(ib)%rv(ic0a,il0) = 1.0/(gc_gau*sqrt(cmat%blk(ib)%H33(ic0a,il0)))
+               else
+                  cmat%blk(ib)%rv(ic0a,il0) = 0.0
+               end if
+            end if
+         end do
+      end do
+
+      ! Set coefficients
+      cmat%blk(ib)%coef_ens = 1.0
+      cmat%blk(ib)%coef_sta = 0.0
+      cmat%blk(ib)%wgt = 1.0
+   end if
+end do
+
+end subroutine cmat_from_lct
+
+!----------------------------------------------------------------------
 ! Subroutine: cmat_from_nam
 !> Purpose: copy radii into C matrix data
 !----------------------------------------------------------------------
@@ -655,34 +820,42 @@ subroutine cmat_from_nam(cmat,mpl,nam,geom,bpar)
 implicit none
 
 ! Passed variables
-class(cmat_type),intent(inout) :: cmat                               !< C matrix data
-type(mpl_type),intent(in) :: mpl                                     !< MPI data
-type(nam_type),intent(in) :: nam                                     !< Namelist
-type(geom_type),intent(in) :: geom                                   !< Geometry
-type(bpar_type),intent(in) :: bpar                                   !< Block parameters
+class(cmat_type),intent(inout) :: cmat !< C matrix data
+type(mpl_type),intent(in) :: mpl       !< MPI data
+type(nam_type),intent(in) :: nam       !< Namelist
+type(geom_type),intent(in) :: geom     !< Geometry
+type(bpar_type),intent(in) :: bpar     !< Block parameters
 
 ! Local variables
 integer :: ib,iv,jv,its,jts
 
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Copy namemlist radii into C matrix'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Copy namelist radii into C matrix'
+call flush(mpl%info)
 
 ! Allocation
-call cmat%alloc(nam,geom,bpar,'cmat')
+call cmat%alloc(bpar,'cmat')
+
+! Copy attributes
+do ib=1,bpar%nbe
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat%blk(ib)%double_fit = .false.
+      cmat%blk(ib)%anisotropic = .false.
+   end if
+end do
+
+! Allocation
+call cmat%alloc(nam,geom,bpar)
 
 ! Convolution parameters
 do ib=1,bpar%nbe
    if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
-      ! Copy attribute
-      cmat%blk(ib)%double_fit = .false.
-
       ! Indices
       iv = bpar%b_to_v1(ib)
       jv = bpar%b_to_v2(ib)
       its = bpar%b_to_ts1(ib)
       jts = bpar%b_to_ts2(ib)
-      if ((iv/=jv).or.(its/=jts)) call mpl%abort('only diagonal blocks for cmat_from_radii')
+      if ((iv/=jv).or.(its/=jts)) call mpl%abort('only diagonal blocks for cmat_from_nam')
 
       ! Copy support radii
       cmat%blk(ib)%rh = nam%rh
@@ -717,31 +890,31 @@ type(bpar_type),intent(in) :: bpar     !< Block parameters
 integer :: ib
 
 do ib=1,bpar%nbe
-   if (bpar%B_block(ib)) then
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       if (allocated(cmat%blk(ib)%oops_coef_ens)) then
-         write(mpl%unit,'(a7,a,a)') '','Ensemble coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Ensemble coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%coef_ens = cmat%blk(ib)%oops_coef_ens
-         call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask(geom%c0a_to_c0,:)),cmat%blk(ib)%wgt)
-         cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask),kind_real)
+         call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt)
+         cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask_c0),kind_real)
       end if
       if (allocated(cmat%blk(ib)%oops_coef_sta)) then
-         write(mpl%unit,'(a7,a,a)') '','Static coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Static coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%coef_sta = cmat%blk(ib)%oops_coef_sta
       end if
       if (allocated(cmat%blk(ib)%oops_rh)) then
-         write(mpl%unit,'(a7,a,a)') '','Horizontal fit support radius copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Horizontal fit support radius copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%rh = cmat%blk(ib)%oops_rh
       end if
       if (allocated(cmat%blk(ib)%oops_rv)) then
-         write(mpl%unit,'(a7,a,a)') '','Vertical fit support radius copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Vertical fit support radius copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%rv = cmat%blk(ib)%oops_rv
       end if
       if (allocated(cmat%blk(ib)%oops_rv_rfac)) then
-         write(mpl%unit,'(a7,a,a)') '','Vertical fit factor copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Vertical fit factor copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%rv_rfac = cmat%blk(ib)%oops_rv_rfac
       end if
       if (allocated(cmat%blk(ib)%oops_rv_coef)) then
-         write(mpl%unit,'(a7,a,a)') '','Vertical fit coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
+         write(mpl%info,'(a7,a,a)') '','Vertical fit coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%rv_coef = cmat%blk(ib)%oops_rv_coef
       end if
    end if
@@ -758,7 +931,7 @@ subroutine cmat_setup_sampling(cmat,nam,geom,bpar)
 implicit none
 
 ! Passed variables
-class(cmat_type),intent(inout) :: cmat !< C matrix data
+class(cmat_type),intent(inout) :: cmat    !< C matrix data
 type(nam_type),target,intent(in) :: nam   !< Namelist
 type(geom_type),target,intent(in) :: geom !< Geometry
 type(bpar_type),intent(in) :: bpar        !< Block parameters

@@ -330,32 +330,31 @@ type(ens_type), intent(in) :: ens      !< Ensemble
 type(ens_type),intent(inout) :: ensu   !< Unbalanced ensemble
 
 ! Local variables
-integer :: il0i,i_s,ic0a,ic2b,ic2,ie,ie_sub,ic0,jl0,il0,isub,ic1,ic1a,iv,jv,offset,nc1a,progint,i
+integer :: il0i,i_s,ic0a,ic2b,ic2,ie,ie_sub,ic0,jl0,il0,isub,ic1,ic1a,iv,jv,offset,nc1a
 real(kind_real) :: fld(geom%nc0a,geom%nl0)
 real(kind_real) :: auto_avg(nam%nc2,geom%nl0,geom%nl0),cross_avg(nam%nc2,geom%nl0,geom%nl0),auto_inv(geom%nl0,geom%nl0)
 real(kind_real) :: sbuf(2*nam%nc2*geom%nl0**2),rbuf(2*nam%nc2*geom%nl0**2)
 real(kind_real),allocatable :: list_auto(:),list_cross(:),auto_avg_tmp(:,:)
 real(kind_real),allocatable :: fld_1(:,:),fld_2(:,:),auto(:,:,:,:),cross(:,:,:,:)
-logical :: valid,done_c2(nam%nc2),mask_unpack(geom%nl0,geom%nl0)
-logical,allocatable :: done_c2b(:)
+logical :: valid,mask_unpack(geom%nl0,geom%nl0)
 type(hdata_type) :: hdata
 
 ! Setup sampling
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
+call flush(mpl%info)
 call hdata%setup_sampling(mpl,rng,nam,geom,io)
 
 ! Compute MPI distribution, halo A
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute MPI distribution, halos A'
+call flush(mpl%info)
 call hdata%compute_mpi_a(mpl,nam,geom)
 
 ! Compute MPI distribution, halos A-B
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute MPI distribution, halos A-B'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute MPI distribution, halos A-B'
+call flush(mpl%info)
 call hdata%compute_mpi_ab(mpl,nam,geom)
 
 ! Copy ensemble
@@ -366,7 +365,6 @@ allocate(fld_1(hdata%nc1a,geom%nl0))
 allocate(fld_2(hdata%nc1a,geom%nl0))
 allocate(auto(hdata%nc1a,geom%nl0,geom%nl0,ens%nsub))
 allocate(cross(hdata%nc1a,geom%nl0,geom%nl0,ens%nsub))
-allocate(done_c2b(hdata%nc2b))
 if (.not.diag_auto) allocate(auto_avg_tmp(geom%nl0,geom%nl0))
 call vbal%alloc(mpl,nam,geom,bpar,hdata%nc2b)
 
@@ -390,23 +388,23 @@ do iv=1,nam%nv
    do jv=1,nam%nv
       if (bpar%vbal_block(iv,jv)) then
          ! Initialization
-         write(mpl%unit,'(a7,a)') '','Unbalancing: '//trim(nam%varname(iv))//' with respect to unbalanced '//trim(nam%varname(jv))
+         write(mpl%info,'(a7,a)') '','Unbalancing: '//trim(nam%varname(iv))//' with respect to unbalanced '//trim(nam%varname(jv))
          auto = 0.0
          cross = 0.0
 
          ! Loop on sub-ensembles
          do isub=1,ensu%nsub
             if (ensu%nsub==1) then
-               write(mpl%unit,'(a10,a)',advance='no') '','Full ensemble, member:'
+               write(mpl%info,'(a10,a)',advance='no') '','Full ensemble, member:'
             else
-               write(mpl%unit,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+               write(mpl%info,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
             end if
-            call flush(mpl%unit)
+            call flush(mpl%info)
 
             ! Compute centered moments iteratively
             do ie_sub=1,ensu%ne/ensu%nsub
-               write(mpl%unit,'(i4)',advance='no') ie_sub
-               call flush(mpl%unit)
+               write(mpl%info,'(i4)',advance='no') ie_sub
+               call flush(mpl%info)
 
                ! Full ensemble index
                ie = ie_sub+(isub-1)*ensu%ne/ensu%nsub
@@ -441,14 +439,14 @@ do iv=1,nam%nv
                end do
                !$omp end parallel do
             end do
-            write(mpl%unit,'(a)') ''
-            call flush(mpl%unit)
+            write(mpl%info,'(a)') ''
+            call flush(mpl%info)
          end do
 
          ! Average covariances
-         write(mpl%unit,'(a10,a)',advance='no') '','Average covariances: '
-         call flush(mpl%unit)
-         call mpl%prog_init(progint,done_c2)
+         write(mpl%info,'(a10,a)',advance='no') '','Average covariances: '
+         call flush(mpl%info)
+         call mpl%prog_init(nam%nc2)
          do ic2=1,nam%nc2
             !$omp parallel do schedule(static) private(il0,jl0,nc1a,ic1a,ic1,valid,isub), &
             !$omp&                             firstprivate(list_auto,list_cross)
@@ -494,15 +492,14 @@ do iv=1,nam%nv
             !$omp end parallel do
 
             ! Update
-            done_c2(ic2) = .true.
-            call mpl%prog_print(progint,done_c2)
+            call mpl%prog_print(ic2)
          end do
-         write(mpl%unit,'(a)') ''
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '100%'
+         call flush(mpl%info)
 
          ! Gather data
-         write(mpl%unit,'(a10,a)') '','Gather data'
-         call flush(mpl%unit)
+         write(mpl%info,'(a10,a)') '','Gather data'
+         call flush(mpl%info)
          if (mpl%nproc>1) then
             ! Pack data
             offset = 0
@@ -527,9 +524,9 @@ do iv=1,nam%nv
          end if
 
          ! Compute regressions
-         write(mpl%unit,'(a10,a)',advance='no') '','Compute regressions: '
-         call flush(mpl%unit)
-         call mpl%prog_init(progint,done_c2b)
+         write(mpl%info,'(a10,a)',advance='no') '','Compute regressions: '
+         call flush(mpl%info)
+         call mpl%prog_init(hdata%nc2b)
          do ic2b=1,hdata%nc2b
             ! Global index
             ic2 = hdata%c2b_to_c2(ic2b)
@@ -553,21 +550,20 @@ do iv=1,nam%nv
             vbal%blk(iv,jv)%reg(ic2b,:,:) = matmul(cross_avg(ic2,:,:),auto_inv)
 
             ! Update
-            done_c2b(ic2b) = .true.
-            call mpl%prog_print(progint,done_c2b)
+            call mpl%prog_print(ic2b)
          end do
-         write(mpl%unit,'(a)') '100%'
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '100%'
+         call flush(mpl%info)
       end if
    end do
 
    ! Unbalance ensemble
    if (any(bpar%vbal_block(iv,1:iv-1))) then
-      write(mpl%unit,'(a10,a)',advance='no') '','Unbalance ensemble members: '
-      call flush(mpl%unit)
+      write(mpl%info,'(a10,a)',advance='no') '','Unbalance ensemble members: '
+      call flush(mpl%info)
       do ie=1,ensu%ne
-         write(mpl%unit,'(i4)',advance='no') ie
-         call flush(mpl%unit)
+         write(mpl%info,'(i4)',advance='no') ie
+         call flush(mpl%info)
          do jv=1,iv-1
             if (bpar%vbal_block(iv,jv)) then
                fld = ensu%fld(:,:,jv,1,ie)
@@ -576,8 +572,8 @@ do iv=1,nam%nv
             end if
          end do
       end do
-      write(mpl%unit,'(a)') ''
-      call flush(mpl%unit)
+      write(mpl%info,'(a)') ''
+      call flush(mpl%info)
    end if
 end do
 
@@ -795,8 +791,8 @@ call vbal%apply(nam,geom,bpar,fld)
 call vbal%apply_inv(nam,geom,bpar,fld)
 mse = sum((fld-fld_save)**2)
 call mpl%allreduce_sum(mse,mse_tot)
-write(mpl%unit,'(a7,a,e15.8)') '','Vertical balance direct/inverse test:  ',mse_tot
-call flush(mpl%unit)
+write(mpl%info,'(a7,a,e15.8)') '','Vertical balance direct/inverse test:  ',mse_tot
+call flush(mpl%info)
 
 ! Inverse / direct
 fld = fld_save
@@ -804,8 +800,8 @@ call vbal%apply_inv(nam,geom,bpar,fld)
 call vbal%apply(nam,geom,bpar,fld)
 mse = sum((fld-fld_save)**2)
 call mpl%allreduce_sum(mse,mse_tot)
-write(mpl%unit,'(a7,a,e15.8)') '','Vertical balance inverse/direct test:  ',mse_tot
-call flush(mpl%unit)
+write(mpl%info,'(a7,a,e15.8)') '','Vertical balance inverse/direct test:  ',mse_tot
+call flush(mpl%info)
 
 ! Direct / inverse, adjoint
 fld = fld_save
@@ -813,8 +809,8 @@ call vbal%apply_ad(nam,geom,bpar,fld)
 call vbal%apply_inv_ad(nam,geom,bpar,fld)
 mse = sum((fld-fld_save)**2)
 call mpl%allreduce_sum(mse,mse_tot)
-write(mpl%unit,'(a7,a,e15.8)') '','Vertical balance direct/inverse (adjoint) test:  ',mse_tot
-call flush(mpl%unit)
+write(mpl%info,'(a7,a,e15.8)') '','Vertical balance direct/inverse (adjoint) test:  ',mse_tot
+call flush(mpl%info)
 
 ! Inverse / direct
 fld = fld_save
@@ -822,8 +818,8 @@ call vbal%apply_inv_ad(nam,geom,bpar,fld)
 call vbal%apply_ad(nam,geom,bpar,fld)
 mse = sum((fld-fld_save)**2)
 call mpl%allreduce_sum(mse,mse_tot)
-write(mpl%unit,'(a7,a,e15.8)') '','Vertical balance inverse/direct (adjoint) test:  ',mse_tot
-call flush(mpl%unit)
+write(mpl%info,'(a7,a,e15.8)') '','Vertical balance inverse/direct (adjoint) test:  ',mse_tot
+call flush(mpl%info)
 
 end subroutine vbal_test_inverse
 
@@ -871,9 +867,9 @@ do iv=1,nam%nv
          call vbal%blk(iv,jv)%apply_ad(geom,vbal%np,vbal%h_n_s,vbal%h_c2b,vbal%h_S,fld2_blk(:,:,iv))
          call mpl%dot_prod(fld1_blk(:,:,iv),fld2_save(:,:,iv),sum1)
          call mpl%dot_prod(fld2_blk(:,:,iv),fld1_save(:,:,iv),sum2)
-         write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance block adjoint test:  ', &
+         write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance block adjoint test:  ', &
          & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-         call flush(mpl%unit)
+         call flush(mpl%info)
       end if
    end do
 end do
@@ -893,14 +889,14 @@ call vbal%apply_inv_ad(nam,geom,bpar,fld2_inv)
 ! Print result
 call mpl%dot_prod(fld1_dir,fld2_save,sum1)
 call mpl%dot_prod(fld2_dir,fld1_save,sum2)
-write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance direct adjoint test:  ', &
+write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance direct adjoint test:  ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-call flush(mpl%unit)
+call flush(mpl%info)
 call mpl%dot_prod(fld1_inv,fld2_save,sum1)
 call mpl%dot_prod(fld2_inv,fld1_save,sum2)
-write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance inverse adjoint test: ', &
+write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Vertical balance inverse adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-call flush(mpl%unit)
+call flush(mpl%info)
 
 end subroutine vbal_test_adjoint
 

@@ -496,15 +496,15 @@ integer :: ib
 call nicas%alloc(mpl,nam,bpar,'nicas')
 
 ! Compute NICAS parameters
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Compute NICAS parameters'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Compute NICAS parameters'
+call flush(mpl%info)
 
 do ib=1,bpar%nbe
    if (bpar%nicas_block(ib).or.((ib==bpar%nbe).and.nam%displ_diag)) then
-      write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-      write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
-      call flush(mpl%unit)
+      write(mpl%info,'(a)') '-------------------------------------------------------------------'
+      write(mpl%info,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+      call flush(mpl%info)
    end if
 
    ! NICAS parameters
@@ -525,15 +525,15 @@ do ib=1,bpar%nbe
 end do
 
 ! Write NICAS parameters
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Write NICAS parameters'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Write NICAS parameters'
+call flush(mpl%info)
 call nicas%write(mpl,nam,geom,bpar)
 
 ! Write NICAS MPI summary
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Write NICAS MPI summary'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Write NICAS MPI summary'
+call flush(mpl%info)
 call nicas%write_mpi_summary(mpl,nam,geom,bpar)
 
 end subroutine nicas_run_nicas
@@ -562,37 +562,37 @@ integer :: ib
 
 if (nam%check_adjoints) then
    ! Test adjoint
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS adjoint'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS adjoint'
+   call flush(mpl%info)
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '-------------------------------------------------------------------'
+         write(mpl%info,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%info)
          call nicas%blk(ib)%test_adjoint(mpl,rng,nam,geom)
       end if
    end do
 
    ! Test NICAS adjoint
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS adjoint'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS adjoint'
+   call flush(mpl%info)
    call nicas%test_adjoint(mpl,rng,nam,geom,bpar,ens)
 end if
 
 if (nam%check_pos_def) then
    ! Test NICAS positive definiteness
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS positive definiteness'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS positive definiteness'
+   call flush(mpl%info)
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '-------------------------------------------------------------------'
+         write(mpl%info,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%info)
          call nicas%blk(ib)%test_pos_def(mpl,rng,nam,geom)
       end if
    end do
@@ -600,69 +600,69 @@ end if
 
 if (nam%check_sqrt) then
    ! Test NICAS full/square-root equivalence
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS full/square-root equivalence'
+   call flush(mpl%info)
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '-------------------------------------------------------------------'
+         write(mpl%info,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%info)
          call nicas%blk(ib)%test_sqrt(mpl,rng,nam,geom,bpar,io,cmat%blk(ib))
       end if
    end do
 
    ! Test NICAS full/square-root equivalence
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS full/square-root equivalence'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS full/square-root equivalence'
+   call flush(mpl%info)
    call nicas%test_sqrt(mpl,rng,nam,geom,bpar,io,cmat,ens)
 end if
 
 if (nam%check_dirac) then
    ! Apply NICAS to diracs
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Apply NICAS to diracs'
+   call flush(mpl%info)
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
-         write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-         write(mpl%unit,'(a)') '--- Block: '//trim(bpar%blockname(ib))
-         call flush(mpl%unit)
+         write(mpl%info,'(a)') '-------------------------------------------------------------------'
+         write(mpl%info,'(a)') '--- Block: '//trim(bpar%blockname(ib))
+         call flush(mpl%info)
          call nicas%blk(ib)%test_dirac(mpl,nam,geom,bpar,io)
       end if
    end do
 
    ! Apply NICAS to diracs
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Apply NICAS to diracs'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Apply NICAS to diracs'
+   call flush(mpl%info)
    call nicas%test_dirac(mpl,nam,geom,bpar,io,ens)
 end if
 
 if (nam%check_randomization) then
    ! Test NICAS randomization
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test NICAS randomization'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test NICAS randomization'
+   call flush(mpl%info)
    call nicas%test_randomization(mpl,rng,nam,geom,bpar,io)
 end if
 
 if (nam%check_consistency) then
    ! Test HDIAG-NICAS consistency
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test HDIAG-NICAS consistency'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test HDIAG-NICAS consistency'
+   call flush(mpl%info)
    call nicas%test_consistency(mpl,rng,nam,geom,bpar,io,cmat)
 end if
 
 if (nam%check_optimality) then
    ! Test HDIAG optimality
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a)') '--- Test HDIAG optimality'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a)') '--- Test HDIAG optimality'
+   call flush(mpl%info)
    call nicas%test_optimality(mpl,rng,nam,geom,bpar,io)
 end if
 
@@ -672,32 +672,49 @@ end subroutine nicas_run_nicas_tests
 ! Subroutine: nicas_alloc_cv
 !> Purpose: control vector allocation
 !----------------------------------------------------------------------
-subroutine nicas_alloc_cv(nicas,bpar,cv)
+subroutine nicas_alloc_cv(nicas,bpar,cv,getsizeonly)
 
 implicit none
 
 ! Passed variables
-class(nicas_type),intent(in) :: nicas !< NICAS data
-type(bpar_type),intent(in) :: bpar    !< Block parameters
-type(cv_type),intent(inout) :: cv     !< Control vector
+class(nicas_type),intent(in) :: nicas      !< NICAS data
+type(bpar_type),intent(in) :: bpar         !< Block parameters
+type(cv_type),intent(inout) :: cv          !< Control vector
+logical,intent(in),optional :: getsizeonly !< Flag to get the control variable size only (no allocation)
 
 ! Local variables
 integer :: ib
+logical :: lgetsizeonly
+
+! Check flag existence
+lgetsizeonly = .false.
+if (present(getsizeonly)) lgetsizeonly = getsizeonly
 
 ! Allocation
 allocate(cv%blk(bpar%nbe))
 
+! Initialization
+cv%n = 0
+cv%nbe = bpar%nbe
+
 do ib=1,bpar%nbe
    if (bpar%cv_block(ib)) then
-      ! Allocation
-      if (bpar%nicas_block(ib)) then
-         allocate(cv%blk(ib)%alpha(nicas%blk(ib)%nsa))
-      else
-         allocate(cv%blk(ib)%alpha(nicas%blk(1)%nsa))
-      end if
+      ! Copy block size
+      cv%blk(ib)%n = nicas%blk(ib)%nsa
 
-      ! Initialization
-      call msr(cv%blk(ib)%alpha)
+      ! Update total size
+      cv%n = cv%n+nicas%blk(ib)%nsa
+
+      if (.not.lgetsizeonly) then
+         ! Allocation
+         allocate(cv%blk(ib)%alpha(cv%blk(ib)%n))
+
+         ! Initialization
+         call msr(cv%blk(ib)%alpha)
+      end if
+   else
+      ! Set zero size
+      cv%blk(ib)%n = 0
    end if
 end do
 
@@ -785,7 +802,7 @@ case ('common')
    !$omp parallel do schedule(static) private(il0,ic0a)
    do il0=1,geom%nl0
       do ic0a=1,geom%nc0a
-         if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
+         if (geom%mask_c0a(ic0a,il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
       end do
    end do
    !$omp end parallel do
@@ -797,7 +814,7 @@ case ('common')
    !$omp parallel do schedule(static) private(il0,ic0a)
    do il0=1,geom%nl0
       do ic0a=1,geom%nc0a
-         if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
+         if (geom%mask_c0a(ic0a,il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
       end do
    end do
    !$omp end parallel do
@@ -829,7 +846,7 @@ case ('common_univariate')
       !$omp parallel do schedule(static) private(il0,ic0a)
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+            if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                          & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
          end do
       end do
@@ -842,7 +859,7 @@ case ('common_univariate')
       !$omp parallel do schedule(static) private(il0,ic0a)
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+            if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                          & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
          end do
       end do
@@ -893,7 +910,7 @@ case ('common_weighted')
       !$omp parallel do schedule(static) private(il0,ic0a)
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+            if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                          & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
          end do
       end do
@@ -906,7 +923,7 @@ case ('common_weighted')
       !$omp parallel do schedule(static) private(il0,ic0a)
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+            if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                          & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
          end do
       end do
@@ -944,7 +961,7 @@ case ('specific_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -957,7 +974,7 @@ case ('specific_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1061,7 +1078,7 @@ case ('common')
    !$omp parallel do schedule(static) private(il0,ic0a)
    do il0=1,geom%nl0
       do ic0a=1,geom%nc0a
-         if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
+         if (geom%mask_c0a(ic0a,il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
       end do
    end do
    !$omp end parallel do
@@ -1088,7 +1105,7 @@ case ('common_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1145,7 +1162,7 @@ case ('common_weighted')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1181,7 +1198,7 @@ case ('specific_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1209,7 +1226,7 @@ case ('specific_multivariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1278,7 +1295,7 @@ case ('common')
    !$omp parallel do schedule(static) private(il0,ic0a)
    do il0=1,geom%nl0
       do ic0a=1,geom%nc0a
-         if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
+         if (geom%mask_c0a(ic0a,il0)) fld_3d(ic0a,il0) = fld_3d(ic0a,il0)*sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
       end do
    end do
    !$omp end parallel do
@@ -1304,7 +1321,7 @@ case ('common_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d_tmp(ic0a,il0,iv) = fld_4d_tmp(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d_tmp(ic0a,il0,iv) = fld_4d_tmp(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1370,7 +1387,7 @@ case ('common_weighted')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d_tmp(ic0a,il0,iv) = fld_4d_tmp(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d_tmp(ic0a,il0,iv) = fld_4d_tmp(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(bpar%nbe)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1399,7 +1416,7 @@ case ('specific_univariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1432,7 +1449,7 @@ case ('specific_multivariate')
          !$omp parallel do schedule(static) private(il0,ic0a)
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
+               if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
                                                                             & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
             end do
          end do
@@ -1496,7 +1513,7 @@ do its=1,nam%nts
    do iv=1,nam%nv
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) std(ic0a,il0,iv,its) = sqrt(sum(ens%fld(ic0a,il0,iv,its,:)**2)) &
+            if (geom%mask_c0a(ic0a,il0)) std(ic0a,il0,iv,its) = sqrt(sum(ens%fld(ic0a,il0,iv,its,:)**2)) &
                                                                           & /norm
          end do
       end do
@@ -1510,7 +1527,7 @@ do its=1,nam%nts
    do iv=1,nam%nv
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
-            if (geom%mask(geom%c0a_to_c0(ic0a),il0)) ens%fld(ic0a,il0,iv,its,:) = ens%fld(ic0a,il0,iv,its,:) &
+            if (geom%mask_c0a(ic0a,il0)) ens%fld(ic0a,il0,iv,its,:) = ens%fld(ic0a,il0,iv,its,:) &
                                                                                 & /std(ic0a,il0,iv,its)
          end do
       end do
@@ -1615,7 +1632,7 @@ do ie=1,nam%ens1_ne
       do iv=1,nam%nv
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               if (geom%mask(geom%c0a_to_c0(ic0a),il0)) pert(ic0a,il0,iv,its) = ens%fld(ic0a,il0,iv,its,ie)/norm
+               if (geom%mask_c0a(ic0a,il0)) pert(ic0a,il0,iv,its) = ens%fld(ic0a,il0,iv,its,ie)/norm
             end do
          end do
       end do
@@ -1696,22 +1713,22 @@ end if
 ! Print result
 call mpl%dot_prod(fld1_loc,fld2_save,sum1)
 call mpl%dot_prod(fld2_loc,fld1_save,sum2)
-write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test: ', &
+write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','NICAS adjoint test: ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-call flush(mpl%unit)
+call flush(mpl%info)
 if (abs(nam%advmode)==1) then
    call mpl%dot_prod(fld1_adv,fld2_save,sum1)
    call mpl%dot_prod(fld2_adv,fld1_save,sum2)
-   write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
+   write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Advection adjoint test:    ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-   call flush(mpl%unit)
+   call flush(mpl%info)
 end if
 if (ens%ne>0) then
    call mpl%dot_prod(fld1_bens,fld2_save,sum1)
    call mpl%dot_prod(fld2_bens,fld1_save,sum2)
-   write(mpl%unit,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Ensemble B adjoint test:   ', &
+   write(mpl%info,'(a7,a,e15.8,a,e15.8,a,e15.8)') '','Ensemble B adjoint test:   ', &
  & sum1,' / ',sum2,' / ',2.0*abs(sum1-sum2)/abs(sum1+sum2)
-   call flush(mpl%unit)
+   call flush(mpl%info)
 end if
 
 end subroutine nicas_test_adjoint
@@ -1823,11 +1840,11 @@ end do
 nam%lsqrt = .not.nam%lsqrt
 
 ! Print difference
-write(mpl%unit,'(a7,a,f6.1,a)') '','NICAS full / square-root error : ', &
+write(mpl%info,'(a7,a,f6.1,a)') '','NICAS full / square-root error : ', &
  & sqrt(sum((fld_loc_sqrt-fld_loc)**2)/sum(fld_loc**2))*100.0,'%'
-if (ens%ne>0) write(mpl%unit,'(a7,a,f6.1,a)') '','Ensemble B full / square-root error:  ', &
+if (ens%ne>0) write(mpl%info,'(a7,a,f6.1,a)') '','Ensemble B full / square-root error:  ', &
  & sqrt(sum((fld_bens_sqrt-fld_bens)**2)/sum(fld_bens**2))*100.0,'%'
-call flush(mpl%unit)
+call flush(mpl%info)
 
 end subroutine nicas_test_sqrt
 
@@ -1924,13 +1941,13 @@ character(len=1024) :: filename
 type(ens_type) :: ens
 
 ! Define test vectors
-write(mpl%unit,'(a4,a)') '','Define test vectors'
-call flush(mpl%unit)
+write(mpl%info,'(a4,a)') '','Define test vectors'
+call flush(mpl%info)
 call define_test_vectors(mpl,rng,nam,geom,ntest,fld_save)
 
 ! Apply NICAS to test vectors
-write(mpl%unit,'(a4,a)') '','Apply NICAS to test vectors'
-call flush(mpl%unit)
+write(mpl%info,'(a4,a)') '','Apply NICAS to test vectors'
+call flush(mpl%info)
 fld_ref = fld_save
 do itest=1,ntest
    call nicas%apply_from_sqrt(mpl,nam,geom,bpar,fld_ref(:,:,:,:,itest))
@@ -1952,8 +1969,8 @@ end do
 ! Save namelist variables
 ens1_ne = nam%ens1_ne
 
-write(mpl%unit,'(a4,a)') '','Test randomization for various ensemble sizes:'
-call flush(mpl%unit)
+write(mpl%info,'(a4,a)') '','Test randomization for various ensemble sizes:'
+call flush(mpl%info)
 do ifac=1,nfac
    ! Ensemble size
    nefac(ifac) = max(int(5.0*real(ifac,kind_real)/real(nfac,kind_real)*real(ne_rand,kind_real)),3)
@@ -1987,9 +2004,9 @@ do ifac=1,nfac
    end do
 
    ! Print scores
-   write(mpl%unit,'(a7,a,i4,a,e15.8,a,e15.8)') '','Ensemble size ',nefac(ifac),', MSE (exp. / th.): ', &
+   write(mpl%info,'(a7,a,i4,a,e15.8,a,e15.8)') '','Ensemble size ',nefac(ifac),', MSE (exp. / th.): ', &
  & sum(mse(:,ifac))/real(ntest,kind_real),' / ',sum(mse_th(:,ifac))/real(ntest,kind_real)
-   call flush(mpl%unit)
+   call flush(mpl%info)
 
    ! Release memory
    call ens%dealloc
@@ -2026,13 +2043,13 @@ type(cmat_type) :: cmat_test
 type(ens_type) :: ens
 
 ! Randomize ensemble
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Randomize ensemble'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Randomize ensemble'
+call flush(mpl%info)
 call nicas%randomize(mpl,rng,nam,geom,bpar,ne_rand,ens)
 
 ! Copy sampling
-call system('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
+call execute_command_line('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
  & //trim(nam%datadir)//'/'//trim(nam%prefix)//'_consistency-test_sampling.nc')
 
 ! Save namelist variables
@@ -2053,26 +2070,24 @@ nam%ens1_nsub = 1
 call cmat_test%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
 
 ! Print scores
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- HDIAG/NICAS consistency results'
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- HDIAG/NICAS consistency results'
 do ib=1,bpar%nbe
    if (bpar%nicas_block(ib)) then
-      write(mpl%unit,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
+      write(mpl%info,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
       do il0=1,geom%nl0
-         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rh(:,il0)-cmat%blk(ib)%rh(:,il0),geom%mask(geom%c0a_to_c0,il0)), &
-       & rh_c0_sum)
-         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rv(:,il0)-cmat%blk(ib)%rv(:,il0),geom%mask(geom%c0a_to_c0,il0)), &
-       & rv_c0_sum)
-         call mpl%allreduce_sum(real(count(geom%mask(geom%c0a_to_c0,il0)),kind_real),norm)
-         write(mpl%unit,'(a10,a7,i3,a4,a25,f6.1,a)') '','Level: ',nam%levs(il0),' ~> ','horizontal length-scale: ', &
+         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rh(:,il0)-cmat%blk(ib)%rh(:,il0),geom%mask_c0a(:,il0)),rh_c0_sum)
+         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rv(:,il0)-cmat%blk(ib)%rv(:,il0),geom%mask_c0a(:,il0)),rv_c0_sum)
+         call mpl%allreduce_sum(real(count(geom%mask_c0a(:,il0)),kind_real),norm)
+         write(mpl%info,'(a10,a7,i3,a4,a25,f6.1,a)') '','Level: ',nam%levs(il0),' ~> ','horizontal length-scale: ', &
        & rh_c0_sum/norm*reqkm,' km'
          if (any(abs(cmat%blk(ib)%rv(:,il0))>0.0)) then
-            write(mpl%unit,'(a49,f6.1,a)') 'vertical length-scale: ',rh_c0_sum/norm,' '//trim(mpl%vunitchar)
+            write(mpl%info,'(a49,f6.1,a)') 'vertical length-scale: ',rh_c0_sum/norm,' '//trim(mpl%vunitchar)
          end if
       end do
    end if
 end do
-call flush(mpl%unit)
+call flush(mpl%info)
 
 ! Reset namelist variables
 nam%prefix = prefix
@@ -2110,26 +2125,26 @@ type(ens_type) :: ens
 type(nicas_type) :: nicas_test
 
 ! Define test vectors
-write(mpl%unit,'(a4,a)') '','Define test vectors'
-call flush(mpl%unit)
+write(mpl%info,'(a4,a)') '','Define test vectors'
+call flush(mpl%info)
 call define_test_vectors(mpl,rng,nam,geom,ntest,fld_save)
 
 ! Apply NICAS to test vectors
-write(mpl%unit,'(a4,a)') '','Apply NICAS to test vectors'
-call flush(mpl%unit)
+write(mpl%info,'(a4,a)') '','Apply NICAS to test vectors'
+call flush(mpl%info)
 fld_ref = fld_save
 do itest=1,ntest
    call nicas%apply_from_sqrt(mpl,nam,geom,bpar,fld_ref(:,:,:,:,itest))
 end do
 
 ! Randomize ensemble
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Randomize ensemble'
-call flush(mpl%unit)
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Randomize ensemble'
+call flush(mpl%info)
 call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
 
 ! Copy sampling
-call system('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
+call execute_command_line('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
  & //trim(nam%datadir)//'/'//trim(nam%prefix)//'_optimality-test_sampling.nc')
 
 ! Save namelist variables
@@ -2142,7 +2157,6 @@ nam%method = 'loc_norm'
 
 ! Allocation
 call nicas_test%alloc(mpl,nam,bpar,'nicas_test')
-call cmat_save%alloc(nam,geom,bpar,'cmat_save')
 
 ! Call hdiag driver
 call cmat_save%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
@@ -2154,9 +2168,9 @@ do ifac=1,nfac
    ! Multiplication factor
    fac(ifac) = 2.0*real(ifac,kind_real)/real(nfac,kind_real)
 
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,f4.2,a)') '--- Apply a multiplicative factor ',fac(ifac),' to length-scales'
-   call flush(mpl%unit)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a,f4.2,a)') '--- Apply a multiplicative factor ',fac(ifac),' to length-scales'
+   call flush(mpl%info)
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
@@ -2192,19 +2206,19 @@ do ifac=1,nfac
    end do
 
    ! Print scores
-   write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-   write(mpl%unit,'(a,f4.2,a,e15.8)') '--- Optimality results for a factor ',fac(ifac),', MSE: ', &
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(mpl%info,'(a,f4.2,a,e15.8)') '--- Optimality results for a factor ',fac(ifac),', MSE: ', &
  & sum(mse(:,ifac))/real(ntest,kind_real)
-   call flush(mpl%unit)
+   call flush(mpl%info)
 end do
 
 ! Print scores summary
-write(mpl%unit,'(a)') '-------------------------------------------------------------------'
-write(mpl%unit,'(a)') '--- Optimality results summary'
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+write(mpl%info,'(a)') '--- Optimality results summary'
 do ifac=1,nfac
-   write(mpl%unit,'(a7,a,f4.2,a,e15.8)') '','Factor ',fac(ifac),', MSE: ',sum(mse(:,ifac))/real(ntest,kind_real)
+   write(mpl%info,'(a7,a,f4.2,a,e15.8)') '','Factor ',fac(ifac),', MSE: ',sum(mse(:,ifac))/real(ntest,kind_real)
 end do
-call flush(mpl%unit)
+call flush(mpl%info)
 
 ! Reset namelist variables
 nam%prefix = prefix

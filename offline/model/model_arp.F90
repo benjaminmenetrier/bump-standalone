@@ -93,7 +93,7 @@ do ilon=1,geom%nlon
          geom%c0_to_lat(ic0) = ilat
          geom%lon(ic0) = lon(ilon,ilat)
          geom%lat(ic0) = lat(ilon,ilat)
-         geom%mask(ic0,:) = .true.
+         geom%mask_c0(ic0,:) = .true.
       end if
    end do
 end do
@@ -129,7 +129,7 @@ subroutine model_arp_read(mpl,nam,geom,filename,fld)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl                              !< MPI data
+type(mpl_type),intent(inout) :: mpl                           !< MPI data
 type(nam_type),intent(in) :: nam                              !< Namelist
 type(geom_type),intent(in) :: geom                            !< Geometry
 character(len=*),intent(in) :: filename                       !< File name
@@ -138,7 +138,7 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
 ! Local variables
 integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
-real(kind_real) :: fld_c0(geom%nc0)
+real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
 character(len=3) :: ilchar
 character(len=1024) :: subr = 'model_arp_read'
@@ -178,16 +178,16 @@ do iv=1,nam%nv
    end if
 
    ! Global to local
-   do il0=1,geom%nl0
-      if (mpl%main) then
+   if (mpl%main) then
+      do il0=1,geom%nl0
          do ic0=1,geom%nc0
             ilon = geom%c0_to_lon(ic0)
             ilat = geom%c0_to_lat(ic0)
-            fld_c0(ic0) = fld_tmp(ilon,ilat,il0)
+            fld_c0(ic0,il0) = fld_tmp(ilon,ilat,il0)
          end do
-      end if
-      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,il0,iv))
-   end do
+      end do
+   end if
+   call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,:,iv))
 end do
 
 if (mpl%main) then
