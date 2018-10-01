@@ -9,9 +9,9 @@ The compilation of sources uses cmake ([cmake.org](https://cmake.org)). Compilat
  - **BUMP_NETCDFF_LIBPATH**: Fotran NetCDF library path
 
 Some examples are given for several supercomputer:
- - at [ECMWF (Cray compiler)](ENV_ECMWF.html)
- - at [Météo-France (GNU and Intel compiler)](ENV_MF.html)
- - at [NCAR (GNU compiler)](ENV_NCAR.html)
+ - at [ECMWF (Cray compiler)](ENV_ECMWF.md)
+ - at [Météo-France (GNU and Intel compiler)](ENV_MF.md)
+ - at [NCAR (GNU compiler)](ENV_NCAR.md)
 
 Then, to compile in a directory $BUILDDIR, with $N processors (if available):
  

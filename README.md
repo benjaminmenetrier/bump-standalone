@@ -7,14 +7,14 @@ This code is distributed under the [CeCILL-C license](http://www.cecill.info/lic
 
 The fact that you are downloading this code means that you have had knowledge of the [CeCILL-C license](http://www.cecill.info/licences/Licence_CeCILL-C_V1-en.html) and that you accept its terms.
 
-A theoretical documentation is available: 
+Theoretical documentation: 
  - about covariance filtering: [covariance_filtering.pdf](doc/pdf/covariance_filtering.pdf)
  - about the NICAS method: [nicas.pdf](doc/pdf/nicas.pdf)
  - about multivariate localization: [multivariate_localization.pdf](doc/pdf/multivariate_localization.pdf)
  - about diffusion and the Matern function: [diffusion_matern_function.pdf](doc/pdf/diffusion_matern_function.pdf)
 
 
-Code documentation table of contents:
+Code documentation:
  - [Code size and characteristics](doc/CLOC_REPORT.md)
  - [Offline or online usage](doc/offline_or_online_usage.md)
  - [Folders organization](doc/folders_organization.md)
@@ -27,4 +27,4 @@ Code documentation table of contents:
  - [Test](doc/test.md)
  - [Adding a new model](doc/adding_a_new_model.md)
 
-The code can be easily browsed with the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html).
+Code browser with the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html).

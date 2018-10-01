@@ -7,7 +7,7 @@ The source code is organized in modules:
  - external/[...].F90: external tools
  - model/model_[...].F90: model related routines, to get the coordinates, read and write fields
 
-1. Main program main.F90 is simple:
+1. Main program main.F90:
  - MPI intialization
  - command line arguments parsing
  - offline setup (call to the BUMP routines)
