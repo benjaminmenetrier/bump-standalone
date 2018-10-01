@@ -16,3 +16,8 @@ To generate a namelist from the database:
 
 where $SUFFIX is the namelist suffix. If no $SUFFIX is specified, all namelists present in the database are generated in $MAINDIR/run.
 
+To generate the equivalent JSON file from the database:
+ 
+    cd $MAINDIR/script
+    ./namelist_sql2json.ksh $SUFFIX
+

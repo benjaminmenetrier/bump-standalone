@@ -10,6 +10,6 @@ This package can be used as standalone code, with NetCDF inputs, for the followi
   - [IFS](http://www.ecmwf.int/en/research/modelling-and-prediction)
   - [MPAS](https://mpas-dev.github.io)
   - [NEMO](http://www.nemo-ocean.eu)
-  - [WRF](http://www.wrf-model.org)
+  - [WRF](https://www.mmm.ucar.edu/weather-research-and-forecasting-model)
 
-It can also be used "online" within an other code, using a dedicated interface.
+It can also be used "online" within an other code, using a dedicated interface: [type_bump.F90](https://github.com/benjaminmenetrier/bump/src/type_bump.F90)
