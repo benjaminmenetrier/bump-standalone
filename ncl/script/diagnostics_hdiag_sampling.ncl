@@ -7,8 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/nemo"
-prefix = "nemo"
+datadir = "/home/benjamin/data/bump/arp/877D"
+prefix = "arp_877D"
 nc_plot = 30
 ic_colors = toint(fspan(2,201,nc_plot))
 
@@ -59,11 +59,16 @@ lat_sampling = data->lat(:,:,ic1_plot)
 lon_sampling = data->lon(:,:,ic1_plot)
 lat_c1 = data->lat(0,0,:)
 lon_c1 = data->lon(0,0,:)
-c2_to_c1 = data->c2_to_c1
-nc2 = dimsizes(c2_to_c1)
-
+local_diag = data@local_diag
+displ_diag = data@displ_diag
+if (local_diag.eq.".true.") then
+   c2_to_c1 = data->c2_to_c1
+   nc2 = dimsizes(c2_to_c1)
+end if
 dot_c1 = new(nc1,graphic)
-dot_c2 = new(nc2,graphic)
+if (local_diag.eq.".true.") then
+   dot_c2 = new(nc2,graphic)
+end if
 
 output = "../fig/" + prefix + "_hdiag_c1"
 wks = gsn_open_wks("epsi",output)
@@ -71,12 +76,14 @@ gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
 res@tiMainString = "Samplings C1 and C2"
 plot = gsn_csm_map(wks,res)
-pmres@gsMarkerColor = 170
-pmres@gsMarkerSizeF = 0.01
-do ic2=0,nc2-1
-   ic1 = c2_to_c1(ic2)-1
-   dot_c2(ic2) = gsn_add_polymarker(wks,plot,lon_c1(ic1),lat_c1(ic1),pmres)
-end do
+if (local_diag.eq.".true.") then
+   pmres@gsMarkerColor = 170
+   pmres@gsMarkerSizeF = 0.01
+   do ic2=0,nc2-1
+      ic1 = c2_to_c1(ic2)-1
+      dot_c2(ic2) = gsn_add_polymarker(wks,plot,lon_c1(ic1),lat_c1(ic1),pmres)
+   end do
+end if
 pmres@gsMarkerColor = 2
 pmres@gsMarkerSizeF = 0.005
 do ic1=0,nc1-1
@@ -115,8 +122,6 @@ do il0=0,nl0-1
    system("epstopdf " + output + ".epsi;rm -f " + output + ".epsi")
 end do
 
-local_diag = data@local_diag
-displ_diag = data@displ_diag
 if ((local_diag.eq."true").or.(displ_diag.eq."true")) then
    do il=0,nl-1
       if (isfilepresent(datadir + "/" + prefix + "_sampling_" + sprinti("%0.3i",(il)) + ".nc")) then

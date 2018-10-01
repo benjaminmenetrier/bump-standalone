@@ -58,6 +58,11 @@ do
    tag="use netcdf"
    test "${line#*$tag}" != "$line" && echo "${add}" >> ${src_tmp}/${filename}"_tmp"
 
+   # Insert "use type_timer, only: timer_type" after "use type_rng, only: rng_type"
+   add="use type_timer, only: timer_type"
+   tag="use type_rng, only: rng_type"
+   test "${line#*$tag}" != "$line" && echo "${add}" >> ${src_tmp}/${filename}"_tmp"
+
    # Insert bump_setup_offline.F90 after "end subroutine bump_setup_online"
    add=bump_setup_offline.F90
    tag="end subroutine bump_setup_online"
@@ -110,11 +115,14 @@ else
    fi
 fi
 
-# Add main
+# Add main.F90
 rsync -rtv --delete ${offline}/main.F90 ${src}
 
 # Add model
 rsync -rtv --delete ${offline}/model ${src}
+
+# Add type_timer.F90
+rsync -rtv --delete ${offline}/type_timer.F90 ${src}
 
 # Remove src_tmp
 rm -fr ${src_tmp}

@@ -71,11 +71,19 @@ class(cmat_type),intent(inout) :: cmat    !< C matrix data
 type(bpar_type),intent(in) :: bpar        !< Block parameters
 character(len=*),intent(in) :: prefix     !< Prefix
 
+! Local variables
+integer :: ib
+
 ! Copy prefix
 cmat%prefix = prefix
 
 ! Allocation
 if (.not.allocated(cmat%blk)) allocate(cmat%blk(bpar%nbe))
+
+! Set block name
+do ib=1,bpar%nbe
+   cmat%blk(ib)%name = trim(prefix)//'_'//trim(bpar%blockname(ib))
+end do
 
 end subroutine cmat_alloc
 
@@ -99,7 +107,7 @@ integer :: ib
 ! Allocation
 do ib=1,bpar%nbe
    cmat%blk(ib)%ib = ib
-   call cmat%blk(ib)%alloc(nam,geom,bpar,cmat%prefix)
+   call cmat%blk(ib)%alloc(nam,geom,bpar)
 end do
 
 ! Update allocation flag
@@ -162,7 +170,7 @@ do ib=1,bpar%nbe
       cmat_copy%blk(ib)%anisotropic = cmat%blk(ib)%anisotropic
    end if
 end do
-
+   
 ! Allocation
 call cmat_copy%alloc(nam,geom,bpar)
 
@@ -625,7 +633,7 @@ do ib=1,bpar%nbe
       cmat%blk(ib)%anisotropic = .false.
    end if
 end do
-
+   
 ! Allocation
 call cmat%alloc(nam,geom,bpar)
 
@@ -780,7 +788,7 @@ do ib=1,bpar%nbe
                           & lct%blk(ib)%D33(ic0a,il0,iscales),lct%blk(ib)%D12(ic0a,il0,iscales), &
                           & cmat%blk(ib)%H11(ic0a,il0),cmat%blk(ib)%H22(ic0a,il0), &
                           & cmat%blk(ib)%H33(ic0a,il0),cmat%blk(ib)%H12(ic0a,il0))
-
+   
                ! Copy scale coefficient
                cmat%blk(ib)%Hcoef(ic0a,il0) = lct%blk(ib)%Dcoef(ic0a,il0,iscales)
 
@@ -838,7 +846,7 @@ call cmat%alloc(bpar,'cmat')
 
 ! Copy attributes
 do ib=1,bpar%nbe
-   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then    
       cmat%blk(ib)%double_fit = .false.
       cmat%blk(ib)%anisotropic = .false.
    end if

@@ -137,7 +137,7 @@ if (present(lunit)) then
    bump%close_listing = .false.
 else
    call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%colorlog,bump%nam%logpres)
-   bump%close_listing = (trim(bump%nam%model)=='online')
+   bump%close_listing = (trim(bump%nam%model)=='online').and.(.not.present(nobs))
 end if
 
 ! Generic setup
@@ -201,7 +201,6 @@ if (present(nobs)) then
    close(unit=bump%mpl%info)
    call flush(bump%mpl%test)
    close(unit=bump%mpl%test)
-   call bump%mpl%delete_empty_test(bump%nam%prefix)
 end if
 
 if ((bump%nam%ens1_ne>0).or.(bump%nam%ens2_ne>0)) then
@@ -231,7 +230,7 @@ type(timer_type) :: timer
 call bump%mpl%init(mpi_comm)
 
 ! Initialize timer
-if (bump%mpl%main) call timer%start
+call timer%start(bump%mpl)
 
 ! Initialize, read and broadcast namelist
 call bump%nam%init
@@ -294,11 +293,9 @@ bump%close_listing = .false.
 call bump%run_drivers
 
 ! Execution stats
-if (bump%mpl%main) then
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Execution stats'
-   call timer%display(bump%mpl)
-end if
+write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
+write(bump%mpl%info,'(a)') '--- Execution stats'
+call timer%display(bump%mpl)
 call flush(bump%mpl%info)
 
 ! Close listings
@@ -309,7 +306,6 @@ call flush(bump%mpl%info)
 close(unit=bump%mpl%info)
 call flush(bump%mpl%test)
 close(unit=bump%mpl%test)
-call bump%mpl%delete_empty_test(bump%nam%prefix)
 
 end subroutine bump_setup_offline
 
@@ -542,7 +538,6 @@ if (bump%close_listing) then
    close(unit=bump%mpl%info)
    call flush(bump%mpl%test)
    close(unit=bump%mpl%test)
-   call bump%mpl%delete_empty_test(bump%nam%prefix)
 end if
 
 end subroutine bump_run_drivers
@@ -792,7 +787,7 @@ real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0)    !< Field
 real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) !< Observations columns
 
 ! Apply observation operator
-if (bump%obsop%nobsa>0) call bump%obsop%apply(bump%mpl,bump%geom,fld,obs)
+call bump%obsop%apply(bump%mpl,bump%geom,fld,obs)
 
 end subroutine bump_apply_obsop
 
@@ -810,11 +805,7 @@ real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) !< Observation
 real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0)  !< Field
 
 ! Apply observation operator adjoint
-if (bump%obsop%nobsa>0) then
-   call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld)
-else
-   fld = 0.0
-end if
+call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld)
 
 end subroutine bump_apply_obsop_ad
 
@@ -977,14 +968,14 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
          jv = bump%bpar%b_to_v2(ib)
          its = bump%bpar%b_to_ts1(ib)
          jts = bump%bpar%b_to_ts2(ib)
-
+   
          ! Copy to field
          if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld(:,:,iv,its))
       end do
    case ('common','common_univariate','common_weighted')
       ! Set common index
       ib = bump%bpar%nbe
-
+   
       do its=1,bump%nam%nts
          do iv=1,bump%nam%nv
             ! Copy to field

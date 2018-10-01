@@ -15,16 +15,16 @@ A theoretical documentation is available:
 
 
 Code documentation table of contents:
- - [Code size and characteristics](CLOC_REPORT.md)
- - [Offline or online usage](offline_or_online_usage.md)
- - [Folders organization](folders_organization.md)
- - [Compilation and dependencies](compilation_and_dependencies.md)
- - [Code structure](code_structure.md)
- - [Input data](input_data.md)
- - [Namelists management](namelist_management.md)
- - [Running the code](running_the_code.md)
- - [NCL plots](ncl_plots.md)
- - [Test](test.md)
- - [Adding a new model](adding_a_new_model.md)
+ - [Code size and characteristics](doc/CLOC_REPORT.md)
+ - [Offline or online usage](doc/offline_or_online_usage.md)
+ - [Folders organization](doc/folders_organization.md)
+ - [Compilation and dependencies](doc/compilation_and_dependencies.md)
+ - [Code structure](doc/code_structure.md)
+ - [Input data](doc/input_data.md)
+ - [Namelists management](doc/namelist_management.md)
+ - [Running the code](doc/running_the_code.md)
+ - [NCL plots](doc/ncl_plots.md)
+ - [Test](doc/test.md)
+ - [Adding a new model](doc/adding_a_new_model.md)
 
 The code can be easily browsed with the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html).
