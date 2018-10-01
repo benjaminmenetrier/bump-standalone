@@ -43,6 +43,7 @@ real(kind_real),parameter :: sqrt_coef = 0.54_kind_real   !< Square-root factor 
 real(kind_real),parameter :: S_inf = 1.0e-2_kind_real     !< Minimum value for the convolution coefficients
 real(kind_real),parameter :: tol = 1.0e-3_kind_real       !< Positive-definiteness test tolerance
 integer,parameter :: nitermax = 50                        !< Number of iterations for the positive-definiteness test
+logical,parameter :: test_no_point = .false.              !< Test NICAS with no subgrid point on the last MPI task
 
 ! Ball data derived type
 type balldata_type
@@ -540,7 +541,7 @@ type(geom_type),intent(in) :: geom               !< Geometry
 type(cmat_blk_type),intent(in) :: cmat_blk       !< C matrix data block
 
 ! Local variables
-integer :: il0,il0_prev,il1,ic0,ic1,ic2,is,ic0a
+integer :: il0,il0_prev,il1,ic0,ic1,ic2,is,ic0a,iproc
 integer :: ncid,nc1_id,nl1_id,lon_c1_id,lat_c1_id,mask_c2_id
 integer,allocatable :: c2_to_c1(:)
 real(kind_real) :: rhs_sum(geom%nl0),rhs_avg(geom%nl0),rvs_sum(geom%nl0),rvs_avg(geom%nl0),norm(geom%nl0),distnorm(geom%nc0a)
@@ -548,7 +549,7 @@ real(kind_real) :: distnormmin,rv,rhs_minavg
 real(kind_real),allocatable :: rhs_min(:),rhs_min_glb(:),rhs_c0(:),rhs_c1(:)
 real(kind_real),allocatable :: lon_c1(:),lat_c1(:),mask_c2_real(:,:)
 logical :: inside
-logical,allocatable :: mask_c1(:)
+logical,allocatable :: mask_hor_c0(:),mask_c1(:)
 character(len=1024) :: filename
 character(len=1024) :: subr = 'nicas_blk_compute_sampling'
 
@@ -612,17 +613,25 @@ allocate(nicas_blk%c1_to_c0(nicas_blk%nc1))
 call mpl%loc_to_glb(geom%nc0a,rhs_min,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,rhs_min_glb)
 
 ! Compute subset
-if (mpl%main) then
-   write(mpl%info,'(a7,a)',advance='no') '','Compute horizontal subset C1: '
-   call flush(mpl%info)
+write(mpl%info,'(a7,a)',advance='no') '','Compute horizontal subset C1: '
+call flush(mpl%info)
 
-   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,geom%mask_hor_c0,rhs_min_glb,nam%ntry,nam%nrep, &
- & nicas_blk%nc1,nicas_blk%c1_to_c0)
-else
-   write(mpl%info,'(a7,a)') '','Compute horizontal subset C1'
-   call flush(mpl%info)
+! Allocation
+allocate(mask_hor_c0(geom%nc0))
+mask_hor_c0 = geom%mask_hor_c0
+
+if (test_no_point) then
+   ! Mask points on the last MPI task
+   if (mpl%nproc==1) call mpl%abort('at least 2 MPI tasks required for test_no_point')
+   do ic0=1,geom%nc0
+      iproc = geom%c0_to_proc(ic0)
+      if (iproc==mpl%nproc) mask_hor_c0(ic0) = .false.
+   end do
 end if
-call mpl%bcast(nicas_blk%c1_to_c0)
+
+! Compute subsampling
+call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,mask_hor_c0,rhs_min_glb,nam%ntry,nam%nrep, &
+ & nicas_blk%nc1,nicas_blk%c1_to_c0)
 nicas_blk%c1_to_proc = geom%c0_to_proc(nicas_blk%c1_to_c0)
 
 ! Inverse conversion
@@ -709,19 +718,16 @@ end do
 ! Allocation
 allocate(nicas_blk%nc2(nicas_blk%nl1))
 allocate(nicas_blk%mask_c2(nicas_blk%nc1,nicas_blk%nl1))
-if (mpl%main) allocate(rhs_c0(geom%nc0))
-if (mpl%main) allocate(rhs_c1(nicas_blk%nc1))
+allocate(lon_c1(nicas_blk%nc1))
+allocate(lat_c1(nicas_blk%nc1))
 allocate(mask_c1(nicas_blk%nc1))
+allocate(rhs_c0(geom%nc0))
+allocate(rhs_c1(nicas_blk%nc1))
 
 ! Horizontal subsampling
 do il1=1,nicas_blk%nl1
-   if (mpl%main) then
-      write(mpl%info,'(a7,a,i3,a)',advance='no') '','Compute horizontal subset C2 (level ',il1,'): '
-      call flush(mpl%info)
-   else
-      write(mpl%info,'(a7,a,i3,a)') '','Compute horizontal subset C2 (level ',il1,')'
-      call flush(mpl%info)
-   end if
+   write(mpl%info,'(a7,a,i3,a)',advance='no') '','Compute horizontal subset C2 (level ',il1,'): '
+   call flush(mpl%info)
 
    ! Compute nc2
    il0 = nicas_blk%l1_to_l0(il1)
@@ -735,17 +741,15 @@ do il1=1,nicas_blk%nl1
 
       ! Compute subset
       call mpl%loc_to_glb(geom%nc0a,cmat_blk%rhs(:,il0),geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,rhs_c0)
-      if (mpl%main) then
-         ! Initialization
-         lon_c1 = geom%lon(nicas_blk%c1_to_c0)
-         lat_c1 = geom%lat(nicas_blk%c1_to_c0)
-         mask_c1 = geom%mask_c0(nicas_blk%c1_to_c0,il0)
-         rhs_c1 = rhs_c0(nicas_blk%c1_to_c0)
 
-         ! Initialize sampling
-         call rng%initialize_sampling(mpl,nicas_blk%nc1,lon_c1,lat_c1,mask_c1,rhs_c1,nam%ntry,nam%nrep,nicas_blk%nc2(il1),c2_to_c1)
-      end if
-      call mpl%bcast(c2_to_c1)
+      ! Initialization
+      lon_c1 = geom%lon(nicas_blk%c1_to_c0)
+      lat_c1 = geom%lat(nicas_blk%c1_to_c0)
+      mask_c1 = geom%mask_c0(nicas_blk%c1_to_c0,il0)
+      rhs_c1 = rhs_c0(nicas_blk%c1_to_c0)
+
+      ! Initialize sampling
+      call rng%initialize_sampling(mpl,nicas_blk%nc1,lon_c1,lat_c1,mask_c1,rhs_c1,nam%ntry,nam%nrep,nicas_blk%nc2(il1),c2_to_c1)
 
       ! Fill C2 mask
       nicas_blk%mask_c2(:,il1) = .false.
@@ -1640,7 +1644,7 @@ if (nicas_blk%double_fit) then
          rfac(ic1,il1) = sqrt(rv_rfac_c1(ic1,il1)*rv_rfac_c1(jc1,jl1))
          coef(ic1,il1) = sqrt(rv_coef_c1(ic1,il1)*rv_coef_c1(jc1,jl1))
       end do
-
+      
       ! Pack data
       call nicas_blk%distnormv(isbb)%pack(nicas_blk%nc1,nicas_blk%nl1,distnormv)
       call nicas_blk%rfac(isbb)%pack(nicas_blk%nc1,nicas_blk%nl1,rfac)

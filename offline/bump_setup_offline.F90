@@ -19,7 +19,7 @@ type(timer_type) :: timer
 call bump%mpl%init(mpi_comm)
 
 ! Initialize timer
-if (bump%mpl%main) call timer%start
+call timer%start(bump%mpl)
 
 ! Initialize, read and broadcast namelist
 call bump%nam%init
@@ -82,11 +82,9 @@ bump%close_listing = .false.
 call bump%run_drivers
 
 ! Execution stats
-if (bump%mpl%main) then
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Execution stats'
-   call timer%display(bump%mpl)
-end if
+write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
+write(bump%mpl%info,'(a)') '--- Execution stats'
+call timer%display(bump%mpl)
 call flush(bump%mpl%info)
 
 ! Close listings
@@ -97,6 +95,5 @@ call flush(bump%mpl%info)
 close(unit=bump%mpl%info)
 call flush(bump%mpl%test)
 close(unit=bump%mpl%test)
-call bump%mpl%delete_empty_test(bump%nam%prefix)
 
 end subroutine bump_setup_offline

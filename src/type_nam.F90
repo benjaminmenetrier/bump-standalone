@@ -168,7 +168,7 @@ contains
 end type nam_type
 
 private
-public :: nvmax,ntsmax,nlmax,nc3max,nscalesmax,ndirmax,nldwvmax
+public :: nvmax,ntsmax,nlmax,nc3max,nscalesmax,ndirmax,nldwvmax 
 public :: nam_type
 
 contains
@@ -933,6 +933,8 @@ if ((nam%new_hdiag.or.nam%new_lct).and.nam%load_cmat) call mpl%abort('new_hdiag 
 if (nam%new_nicas.and.nam%load_nicas) call mpl%abort('new_nicas and load_nicas are exclusive')
 if (nam%new_obsop.and.nam%load_obsop) call mpl%abort('new_obsop and load_obsop are exclusive')
 if (nam%check_vbal.and..not.(nam%new_vbal.or.nam%load_vbal)) call mpl%abort('check_vbal requires new_vbal or load_vbal')
+if (nam%new_nicas.and..not.(nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%forced_radii)) &
+ & call mpl%abort('new_nicas requires a C matrix')
 if (nam%check_adjoints.and..not.(nam%new_nicas.or.nam%load_nicas)) call mpl%abort('check_adjoint requires new_nicas or load_nicas')
 if (nam%check_pos_def.and..not.(nam%new_nicas.or.nam%load_nicas)) call mpl%abort('check_pos_def requires new_nicas or load_nicas')
 if (nam%check_sqrt.and..not.(nam%new_nicas.or.nam%load_nicas)) call mpl%abort('check_sqrt requires new_nicas or load_nicas')
@@ -1135,7 +1137,13 @@ end if
 
 ! Check obsop_param
 if (nam%new_obsop) then
-   if (nam%nobs<1) call mpl%abort('nobs should be positive')
+   select case (trim(nam%obsdis))
+   case('')
+   case ('random','local','adjusted')
+      if (trim(nam%model)=='online') call mpl%abort('modified distribution of observations only available for offline execution')
+   case default
+      call mpl%abort('wrong observation distribution')
+   end select
    select case (trim(nam%obsop_interp))
    case ('bilin','natural')
    case default

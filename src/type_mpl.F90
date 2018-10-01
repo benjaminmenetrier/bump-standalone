@@ -65,7 +65,6 @@ contains
    procedure :: check => mpl_check
    procedure :: init => mpl_init
    procedure :: init_listing => mpl_init_listing
-   procedure :: delete_empty_test => mpl_delete_empty_test
    procedure :: abort => mpl_abort
    procedure :: warning => mpl_warning
    procedure :: barrier => mpl_barrier
@@ -351,42 +350,6 @@ end do
 end subroutine mpl_init_listing
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_delete_empty_test
-!> Purpose: delete test file if empty
-!----------------------------------------------------------------------
-subroutine mpl_delete_empty_test(mpl,prefix)
-
-implicit none
-
-! Passed variables
-class(mpl_type),intent(in) :: mpl     !< MPI data
-character(len=*),intent(in) :: prefix !< Output prefix
-
-! Local variables
-integer :: iproc,isize
-character(len=1024) :: filename
-
-! Define test unit and open file
-do iproc=1,mpl%nproc
-   ! Deal with each proc sequentially
-   if (iproc==mpl%myproc) then
-      ! Check file size
-      write(filename,'(a,i4.4)') trim(prefix)//'.test.',mpl%myproc-1
-      inquire(file=trim(filename),size=isize)
-      if (isize==0) then
-         call execute_command_line ('rm -f '//trim(filename))
-      elseif (mpl%main) then
-         call execute_command_line ('cp -f '//trim(filename)//' bump.test')
-      end if
-   end if
-
-   ! Wait
-   call mpl%barrier
-end do
-
-end subroutine mpl_delete_empty_test
-
-!----------------------------------------------------------------------
 ! Subroutine: mpl_abort
 !> Purpose: clean MPI abort
 !----------------------------------------------------------------------
@@ -408,6 +371,9 @@ call flush(mpl%info)
 ! Write message
 write(output_unit,'(a,i4.4,a)') '!!! ABORT on task #',mpl%myproc,': '//trim(message)
 call flush(output_unit)
+
+! Flush test
+call flush(mpl%test)
 
 ! Abort MPI
 call mpi_abort(mpl%mpi_comm,1,info)
@@ -2354,7 +2320,7 @@ end if
 
 ! Allocation
 allocate(sbuf(n_loc*nl))
-
+   
 ! Prepare buffer
 do il=1,nl
    do i_loc=1,n_loc
