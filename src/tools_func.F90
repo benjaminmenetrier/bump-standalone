@@ -18,12 +18,13 @@ use type_mpl, only: mpl_type
 
 implicit none
 
-real(kind_real),parameter :: gc_gau = 0.28            !< Gaussian to GC99 factor (empirical)
+real(kind_real),parameter :: gc2gau = 0.28            !< GC99 support radius to Gaussian Daley length-scale (empirical)
+real(kind_real),parameter :: gau2gc = 3.57            !< Gaussian Daley length-scale to GC99 support radius (empirical)
 real(kind_real),parameter :: Dmin = 1.0e-12_kind_real !< Minimum tensor diagonal value
-integer,parameter :: M = 0                            !< Number of implicit itteration for the Matern function (GC 99 function if M = -1 and Gaussian function if M = 0)
+integer,parameter :: M = 0                            !< Number of implicit itteration for the Matern function (Gaussian function if M = 0)
 
 private
-public :: gc_gau
+public :: gc2gau,gau2gc,Dmin,M
 public :: lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide, &
         & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,cholesky,syminv
 
@@ -544,7 +545,7 @@ end function gc99
 ! Subroutine: fit_lct
 !> Purpose: LCT fit
 !----------------------------------------------------------------------
-subroutine fit_lct(mpl,nc,nl0,dx,dy,dz,dmask,nscales,ncomp,D,coef,fit)
+subroutine fit_lct(mpl,nc,nl0,dx,dy,dz,dmask,nscales,D,coef,fit)
 
 implicit none
 
@@ -554,37 +555,37 @@ integer,intent(in) :: nc                    !< Number of classes
 integer,intent(in) :: nl0                   !< Number of levels
 real(kind_real),intent(in) :: dx(nc,nl0)    !< Zonal separation
 real(kind_real),intent(in) :: dy(nc,nl0)    !< Meridian separation
-real(kind_real),intent(in) :: dz(nl0)       !< Vertical separation
+real(kind_real),intent(in) :: dz(nc,nl0)    !< Vertical separation
 logical,intent(in) :: dmask(nc,nl0)         !< Mask
 integer,intent(in) :: nscales               !< Number of LCT scales
-integer,intent(in) :: ncomp(nscales)        !< Number of LCT components
-real(kind_real),intent(in) :: D(sum(ncomp)) !< LCT components
+real(kind_real),intent(in) :: D(4,nscales)  !< LCT components
 real(kind_real),intent(in) :: coef(nscales) !< LCT coefficients
 real(kind_real),intent(out) :: fit(nc,nl0)  !< Fit
 
 ! Local variables
-integer :: jl0,jc3,iscales,offset
-real(kind_real) :: Hcoef(nscales),D11,D22,D33,D12,H11,H22,H33,H12,rsq,distnorm
+integer :: jl0,jc3,iscales
+real(kind_real) :: Dcoef(nscales),D11,D22,D33,D12,H11,H22,H33,H12,rsq
 
 ! Initialization
-offset = 0
 call msr(fit)
 
 ! Coefficients
-Hcoef = max(Dmin,min(coef,1.0_kind_real))
-Hcoef = Hcoef/sum(Hcoef)
+Dcoef = max(Dmin,min(coef,1.0_kind_real))
+Dcoef = Dcoef/sum(Dcoef)
 
 do iscales=1,nscales
    ! Ensure positive-definiteness of D
-   D11 = max(Dmin,D(offset+1))
-   D22 = max(Dmin,D(offset+2))
-   D33 = 0.0
-   if (nl0>1) D33 = max(Dmin,D(offset+3))
-   D12 = 0.0
-   if (ncomp(iscales)==4) D12 = sqrt(D11*D22)*max(-1.0_kind_real+Dmin,min(D(offset+4),1.0_kind_real-Dmin))
+   D11 = max(Dmin,D(1,iscales))
+   D22 = max(Dmin,D(2,iscales))
+   if (nl0>1) then
+      D33 = max(Dmin,D(3,iscales))
+   else
+      D33 = 0.0
+   end if
+   D12 = sqrt(D11*D22)*max(-1.0_kind_real+Dmin,min(D(4,iscales),1.0_kind_real-Dmin))
 
    ! Inverse D to get H
-   call lct_d2h(D11,D22,D33,D12,H11,H22,H33,H12)
+   call lct_d2h(mpl,D11,D22,D33,D12,H11,H22,H33,H12)
 
    ! Homogeneous anisotropic approximation
    !$omp parallel do schedule(static) private(jl0,jc3,rsq)
@@ -595,28 +596,19 @@ do iscales=1,nscales
             if (iscales==1) fit(jc3,jl0) = 0.0
 
             ! Squared distance
-            rsq = H11*dx(jc3,jl0)**2+H22*dy(jc3,jl0)**2
-            if (nl0>1) rsq = rsq+H33*dz(jl0)**2
-            if (ncomp(iscales)==4) rsq = rsq+2.0*H12*dx(jc3,jl0)*dy(jc3,jl0)
+            rsq = H11*dx(jc3,jl0)**2+H22*dy(jc3,jl0)**2+H33*dz(jc3,jl0)**2+2.0*H12*dx(jc3,jl0)*dy(jc3,jl0)
 
-            if (M==-1) then
-               ! Gaspari-Cohn 1999 function
-               distnorm = sqrt(rsq)*gc_gau
-               fit(jc3,jl0) = fit(jc3,jl0)+Hcoef(iscales)*gc99(mpl,distnorm)
-            elseif (M==0) then
+            if (M==0) then
                ! Gaussian function
-               if (rsq<40.0) fit(jc3,jl0) = fit(jc3,jl0)+Hcoef(iscales)*exp(-0.5*rsq)
+               if (rsq<40.0) fit(jc3,jl0) = fit(jc3,jl0)+Dcoef(iscales)*exp(-0.5*rsq)
             else
                ! Matern function
-               fit(jc3,jl0) = fit(jc3,jl0)+Hcoef(iscales)*matern(mpl,M,sqrt(rsq))
+               fit(jc3,jl0) = fit(jc3,jl0)+Dcoef(iscales)*matern(mpl,M,sqrt(rsq))
             end if
          end if
       end do
    end do
    !$omp end parallel do
-
-   ! Update offset
-   offset = offset+ncomp(iscales)
 end do
 
 end subroutine fit_lct
@@ -625,11 +617,12 @@ end subroutine fit_lct
 ! Subroutine: lct_d2h
 !> Purpose: inversion from D (Daley tensor) to H (local correlation tensor)
 !----------------------------------------------------------------------
-subroutine lct_d2h(D11,D22,D33,D12,H11,H22,H33,H12)
+subroutine lct_d2h(mpl,D11,D22,D33,D12,H11,H22,H33,H12)
 
 implicit none
 
 ! Passed variables
+type(mpl_type),intent(in) :: mpl   !< MPI data
 real(kind_real),intent(in) :: D11  !< Daley tensor component 11
 real(kind_real),intent(in) :: D22  !< Daley tensor component 22
 real(kind_real),intent(in) :: D33  !< Daley tensor component 33
@@ -646,14 +639,18 @@ real(kind_real) :: det
 det = D11*D22-D12**2
 
 ! Inverse D to get H
-H11 = D22/det
-H22 = D11/det
+if (det>0) then
+   H11 = D22/det
+   H22 = D11/det
+   H12 = -D12/det
+else
+   call mpl%abort('non-invertible tensor')
+end if
 if (D33>0.0) then
    H33 = 1.0/D33
 else
    H33 = 0.0
 end if
-H12 = -D12/det
 
 end subroutine lct_d2h
 

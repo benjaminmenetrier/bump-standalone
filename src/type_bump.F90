@@ -81,14 +81,13 @@ contains
 ! Subroutine: bump_setup_online
 !> Purpose: online setup
 !----------------------------------------------------------------------
-subroutine bump_setup_online(bump,mpi_comm,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
+subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
                            & nobs,lonobs,latobs,namelname,lunit)
 
 implicit none
 
 ! Passed variables
 class(bump_type),intent(inout) :: bump                 !< BUMP
-integer,intent(in) :: mpi_comm                         !< MPI communicator
 integer,intent(in) :: nmga                             !< Halo A size
 integer,intent(in) :: nl0                              !< Number of levels in subset Sl0
 integer,intent(in) :: nv                               !< Number of variables
@@ -112,7 +111,7 @@ integer,intent(in),optional :: lunit                   !< Listing unit
 integer :: lens1_ne,lens1_nsub,lens2_ne,lens2_nsub
 
 ! Initialize MPL
-call bump%mpl%init(mpi_comm)
+call bump%mpl%init
 
 if (present(namelname)) then
    ! Read and broadcast namelist
@@ -214,20 +213,19 @@ end subroutine bump_setup_online
 ! Subroutine: bump_setup_offline
 !> Purpose: offline setup
 !----------------------------------------------------------------------
-subroutine bump_setup_offline(bump,mpi_comm,namelname)
+subroutine bump_setup_offline(bump,namelname)
 
 implicit none
 
 ! Passed variables
 class(bump_type),intent(inout) :: bump   !< BUMP
-integer,intent(in) :: mpi_comm           !< MPI communicator
 character(len=*),intent(in) :: namelname !< Namelist name
 
 ! Local variables
 type(timer_type) :: timer
 
 ! Initialize MPL
-call bump%mpl%init(mpi_comm)
+call bump%mpl%init
 
 ! Initialize timer
 call timer%start(bump%mpl)
@@ -263,7 +261,7 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Initialize block parameters'
 call bump%bpar%alloc(bump%nam,bump%geom)
 
-if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.bump%nam%check_dirac) then
+if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.(bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    write(bump%mpl%info,'(a)') '--- Load ensemble 1'
    call flush(bump%mpl%info)

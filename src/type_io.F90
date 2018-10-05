@@ -22,6 +22,7 @@ use type_linop, only: linop_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
+use fckit_mpi_module, only: fckit_mpi_status
 
 implicit none
 
@@ -107,7 +108,7 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0) !< Field
 
 ! Local variables
 integer :: ncid,fld_id,dum
-real(kind_real),allocatable :: fld_c0(:,:)
+real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 character(len=1024) :: filename_proc
 character(len=1024) :: subr = 'fld_read'
 
@@ -127,9 +128,6 @@ if (nam%field_io) then
       call mpl%ncerr(subr,nf90_close(ncid))
    else
       if (mpl%main) then
-         ! Allocation
-         allocate(fld_c0(geom%nc0,geom%nl0))
-
          ! Open file
          call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
 
@@ -255,7 +253,7 @@ if (nam%field_io) then
       call mpl%ncerr(subr,nf90_close(ncid))
    else
       ! Allocation
-      if (mpl%main) allocate(fld_c0(geom%nc0,geom%nl0))
+      allocate(fld_c0(geom%nc0,geom%nl0))
 
       ! Local to global
       call mpl%loc_to_glb(geom%nl0,geom%nc0a,fld_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,fld_c0)
@@ -309,7 +307,7 @@ if (nam%field_io) then
 
          ! Convert to degrees
          lon = geom%lon*rad2deg
-         lat = geom%lon*rad2deg
+         lat = geom%lat*rad2deg
 
          ! Write data
          call mpl%ncerr(subr,nf90_put_var(ncid,lon_id,lon))
@@ -572,6 +570,7 @@ real(kind_real) :: fld_c0b(io%nc0b,geom%nl0)
 real(kind_real) :: fld_oga(io%noga,geom%nl0)
 real(kind_real),allocatable :: sbuf(:),rbuf(:),fld_grid(:,:,:),lon_gridded(:),lat_gridded(:)
 character(len=1024) :: subr = 'io_grid_write'
+type(fckit_mpi_status) :: status
 
 ! Halo extension and interpolation
 call io%com_AB%ext(mpl,geom%nl0,fld,fld_c0b)
@@ -616,8 +615,8 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Receive data on ioproc
-         call mpl%recv(io%proc_to_noga(iproc),oga_to_og,iproc,mpl%tag)
-         call mpl%recv(io%proc_to_noga(iproc)*geom%nl0,rbuf,iproc,mpl%tag+1)
+         call mpl%f_comm%receive(oga_to_og,iproc-1,mpl%tag,status)
+         call mpl%f_comm%receive(rbuf,iproc-1,mpl%tag+1,status)
       end if
 
       ! Write data
@@ -638,8 +637,8 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl%send(io%noga,io%oga_to_og,mpl%ioproc,mpl%tag)
-   call mpl%send(io%noga*geom%nl0,sbuf,mpl%ioproc,mpl%tag+1)
+   call mpl%f_comm%send(io%oga_to_og,mpl%ioproc-1,mpl%tag)
+   call mpl%f_comm%send(sbuf,mpl%ioproc-1,mpl%tag+1)
 end if
 call mpl%update_tag(2)
 

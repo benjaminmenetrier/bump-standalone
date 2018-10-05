@@ -22,6 +22,7 @@ use type_geom, only: geom_type
 use type_hdata, only: hdata_type
 use type_mom, only: mom_type
 use type_mpl, only: mpl_type
+use fckit_mpi_module, only: fckit_mpi_sum
 use type_nam, only: nam_type
 
 implicit none
@@ -193,6 +194,7 @@ allocate(rbuf(npack))
 
 ! Pack data
 offset = 0
+sbuf = 0.0
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
       do ic2=0,nam%nc2
@@ -227,7 +229,7 @@ do ib=1,bpar%nb
 end do
 
 ! Reduce data
-call mpl%allreduce_sum(sbuf,rbuf)
+call mpl%f_comm%allreduce(sbuf,rbuf,fckit_mpi_sum())
 
 ! Unpack data
 offset = 0
@@ -387,6 +389,7 @@ allocate(rbuf(npack))
 
 ! Pack data
 offset = 0
+sbuf = 0.0
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
       do ic2=0,nam%nc2
@@ -400,7 +403,7 @@ do ib=1,bpar%nb
 end do
 
 ! Reduce data
-call mpl%allreduce_sum(sbuf,rbuf)
+call mpl%f_comm%allreduce(sbuf,rbuf,fckit_mpi_sum())
 
 ! Unpack data
 offset = 0
@@ -560,7 +563,7 @@ do ib=1,bpar%nb
             m2prod = sum(m2*m2_ini)
 
             ! Reduce product
-            call mpl%allreduce_sum(m2prod,m2prod_tot)
+            call mpl%f_comm%allreduce(m2prod,m2prod_tot,fckit_mpi_sum())
 
             ! Print result
             write(mpl%info,'(a19,a,i2,a,f10.2,a,f10.2)') '','Iteration ',iter,': rhflt = ', &

@@ -51,7 +51,7 @@ else
 end if
 
 ! Offline setup
-call bump%setup_offline(mpi_comm_world,namelname)
+call bump%setup_offline(namelname)
 
 ! Finalize MPI
 call mpi_finalize(info)

@@ -129,7 +129,7 @@ if (nam%new_lct) then
       bpar%cv_block(ib) = .true.
 
       ! Blocks information
-      write(bpar%blockname(ib),'(i2.2,a,i2.2)') iv,'_',its
+      write(bpar%blockname(ib),'(i2.2,a,i2.2,a,i2.2,a,i2.2)') iv,'_',iv,'_',its,'_',its
       bpar%b_to_v1(ib) = iv
       bpar%b_to_v2(ib) = iv
       bpar%b_to_ts1(ib) = its

@@ -12,7 +12,7 @@ module type_cmat
 
 use netcdf
 use tools_const, only: rad2deg,reqkm,req
-use tools_func, only: lct_d2h,gc_gau
+use tools_func, only: gau2gc
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsi,isnotmsr,isallnotmsr,isanynotmsr
 use type_avg, only: avg_type
@@ -29,6 +29,7 @@ use type_mom, only: mom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
+use fckit_mpi_module, only: fckit_mpi_sum
 
 implicit none
 
@@ -221,24 +222,30 @@ call cmat%alloc(bpar,'cmat')
 
 do ib=1,bpar%nbe
    if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
-      ! Set filename
-      filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
+      if (mpl%main) then
+         ! Set filename
+         filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
 
-      ! Read attributes
-      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
-      call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'double_fit',double_fit))
-      if (double_fit==1) then
-         cmat%blk(ib)%double_fit = .true.
-      else
-         cmat%blk(ib)%double_fit = .false.
+         ! Read attributes
+         call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
+         call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'double_fit',double_fit))
+         if (double_fit==1) then   
+            cmat%blk(ib)%double_fit = .true.
+         else
+            cmat%blk(ib)%double_fit = .false.
+         end if
+         call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'anisotropic',anisotropic))
+         if (anisotropic==1) then
+            cmat%blk(ib)%anisotropic = .true.
+         else
+            cmat%blk(ib)%anisotropic = .false.
+         end if
+         call mpl%ncerr(subr,nf90_close(ncid))
       end if
-      call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'anisotropic',anisotropic))
-      if (anisotropic==1) then
-         cmat%blk(ib)%anisotropic = .true.
-      else
-         cmat%blk(ib)%anisotropic = .false.
-      end if
-      call mpl%ncerr(subr,nf90_close(ncid))
+
+      ! Broadcast
+      call mpl%f_comm%broadcast(cmat%blk(ib)%double_fit,mpl%ioproc-1)
+      call mpl%f_comm%broadcast(cmat%blk(ib)%anisotropic,mpl%ioproc-1)
    end if
 end do
 
@@ -272,14 +279,6 @@ do ib=1,bpar%nbe
       if ((ib==bpar%nbe).and.nam%displ_diag) then
          call io%fld_read(mpl,nam,geom,filename,'displ_lon',cmat%blk(ib)%displ_lon)
          call io%fld_read(mpl,nam,geom,filename,'displ_lat',cmat%blk(ib)%displ_lat)
-      end if
-
-      ! Check fields
-      if (bpar%nicas_block(ib)) then
-         if (any((cmat%blk(ib)%rh<0.0).and.isnotmsr(cmat%blk(ib)%rh))) call mpl%abort('rh should be positive')
-         if (any((cmat%blk(ib)%rv<0.0).and.isnotmsr(cmat%blk(ib)%rv))) call mpl%abort('rv should be positive')
-         if (any((cmat%blk(ib)%rhs<0.0).and.isnotmsr(cmat%blk(ib)%rhs))) call mpl%abort('rhs should be positive')
-         if (any((cmat%blk(ib)%rvs<0.0).and.isnotmsr(cmat%blk(ib)%rvs))) call mpl%abort('rvs should be positive')
       end if
    end if
 end do
@@ -682,7 +681,7 @@ do ib=1,bpar%nbe
                ! Copy to C matrix
                if (i==1) then
                   cmat%blk(ib)%coef_ens = fld_c0a
-                  call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt)
+                  call mpl%f_comm%allreduce(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt,fckit_mpi_sum())
                   cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask_c0),kind_real)
                elseif (i==2) then
                   cmat%blk(ib)%coef_sta = fld_c0a
@@ -783,12 +782,12 @@ do ib=1,bpar%nbe
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
             if (geom%mask_c0a(ic0a,il0)) then
-               ! Inverse D to get H
-               call lct_d2h(lct%blk(ib)%D11(ic0a,il0,iscales),lct%blk(ib)%D22(ic0a,il0,iscales), &
-                          & lct%blk(ib)%D33(ic0a,il0,iscales),lct%blk(ib)%D12(ic0a,il0,iscales), &
-                          & cmat%blk(ib)%H11(ic0a,il0),cmat%blk(ib)%H22(ic0a,il0), &
-                          & cmat%blk(ib)%H33(ic0a,il0),cmat%blk(ib)%H12(ic0a,il0))
-   
+               ! Copy LCT
+               cmat%blk(ib)%H11(ic0a,il0) = lct%blk(ib)%H11(ic0a,il0,iscales)
+               cmat%blk(ib)%H22(ic0a,il0) = lct%blk(ib)%H22(ic0a,il0,iscales)
+               cmat%blk(ib)%H33(ic0a,il0) = lct%blk(ib)%H33(ic0a,il0,iscales)
+               cmat%blk(ib)%H12(ic0a,il0) = lct%blk(ib)%H12(ic0a,il0,iscales)
+
                ! Copy scale coefficient
                cmat%blk(ib)%Hcoef(ic0a,il0) = lct%blk(ib)%Dcoef(ic0a,il0,iscales)
 
@@ -797,12 +796,12 @@ do ib=1,bpar%nbe
                det = cmat%blk(ib)%H11(ic0a,il0)*cmat%blk(ib)%H22(ic0a,il0)-cmat%blk(ib)%H12(ic0a,il0)**2
                diff = 0.25*tr**2-det
                if (0.5*tr>sqrt(diff)) then
-                  cmat%blk(ib)%rh(ic0a,il0) = 1.0/(gc_gau*sqrt(0.5*tr-sqrt(diff)))
+                  cmat%blk(ib)%rh(ic0a,il0) = gau2gc/(sqrt(0.5*tr-sqrt(diff)))
                else
                   call mpl%abort('non positive-definite LCT in cmat_from_lct')
                end if
                if (cmat%blk(ib)%H33(ic0a,il0)>0.0) then
-                  cmat%blk(ib)%rv(ic0a,il0) = 1.0/(gc_gau*sqrt(cmat%blk(ib)%H33(ic0a,il0)))
+                  cmat%blk(ib)%rv(ic0a,il0) = gau2gc/(sqrt(cmat%blk(ib)%H33(ic0a,il0)))
                else
                   cmat%blk(ib)%rv(ic0a,il0) = 0.0
                end if
@@ -902,7 +901,7 @@ do ib=1,bpar%nbe
       if (allocated(cmat%blk(ib)%oops_coef_ens)) then
          write(mpl%info,'(a7,a,a)') '','Ensemble coefficient copied from OOPS for block ',trim(bpar%blockname(ib))
          cmat%blk(ib)%coef_ens = cmat%blk(ib)%oops_coef_ens
-         call mpl%allreduce_sum(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt)
+         call mpl%f_comm%allreduce(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt,fckit_mpi_sum())
          cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(count(geom%mask_c0),kind_real)
       end if
       if (allocated(cmat%blk(ib)%oops_coef_sta)) then

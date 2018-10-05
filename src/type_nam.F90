@@ -26,7 +26,7 @@ integer,parameter :: ntsmax = 20    !< Maximum number of time slots
 integer,parameter :: nlmax = 200    !< Maximum number of levels
 integer,parameter :: nc3max = 1000  !< Maximum number of classes
 integer,parameter :: nscalesmax = 5 !< Maximum number of variables
-integer,parameter :: ndirmax = 100  !< Maximum number of diracs
+integer,parameter :: ndirmax = 300  !< Maximum number of diracs
 integer,parameter :: nldwvmax = 100 !< Maximum number of local diagnostic profiles
 
 type nam_type
@@ -125,6 +125,7 @@ type nam_type
    ! nicas_param
    logical :: lsqrt                                 !< Square-root formulation
    real(kind_real) :: resol                         !< Resolution
+   logical :: fast_sampling                         !< Fast sampling flag
    character(len=1024) :: nicas_interp              !< NICAS interpolation type
    logical :: network                               !< Network-base convolution calculation (distance-based if false)
    integer :: mpicom                                !< Number of communication steps
@@ -288,6 +289,7 @@ nam%lct_diag = .false.
 ! nicas_param default
 nam%lsqrt = .false.
 call msr(nam%resol)
+nam%fast_sampling = .false.
 nam%nicas_interp = ''
 nam%network = .false.
 call msi(nam%mpicom)
@@ -350,7 +352,7 @@ logical :: new_vbal,load_vbal,new_hdiag,new_lct,load_cmat,new_nicas,load_nicas,n
 logical :: check_vbal,check_adjoints,check_pos_def,check_sqrt,check_dirac,check_randomization,check_consistency,check_optimality
 logical :: check_obsop,logpres,sam_write,sam_read,mask_check
 logical :: vbal_block(nvmax*(nvmax-1)/2),var_diag,var_filter,var_full,gau_approx,local_diag,displ_diag,double_fit(0:nvmax)
-logical :: lhomh,lhomv,lct_diag(nscalesmax),lsqrt,network,forced_radii,field_io,split_io,grid_output
+logical :: lhomh,lhomv,lct_diag(nscalesmax),lsqrt,fast_sampling,network,forced_radii,field_io,split_io,grid_output
 real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,displ_rad,displ_rhflt,displ_tol,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
 character(len=1024) :: datadir,prefix,model,strategy,method,mask_type,draw_type,minim_algo,nicas_interp
@@ -369,7 +371,8 @@ namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,draw_typ
 namelist/diag_param/ne,gau_approx,vbal_block,vbal_rad,var_diag,var_filter,var_full,var_niter,var_rhflt,local_diag,local_rad, &
                   & displ_diag,displ_rad,displ_niter,displ_rhflt,displ_tol
 namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
-namelist/nicas_param/lsqrt,resol,nicas_interp,network,mpicom,advmode,forced_radii,rh,rv,ndir,londir,latdir,levdir,ivdir,itsdir
+namelist/nicas_param/lsqrt,resol,fast_sampling,nicas_interp,network,mpicom,advmode,forced_radii,rh,rv,ndir,londir,latdir,levdir, &
+                   & ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
 namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
                     & grid_output,grid_resol,grid_interp
@@ -624,6 +627,7 @@ if (mpl%main) then
    if (ndir>ndirmax) call mpl%abort('ndir is too large')
    nam%lsqrt = lsqrt
    nam%resol = resol
+   nam%fast_sampling = fast_sampling
    nam%nicas_interp = nicas_interp
    nam%network = network
    nam%mpicom = mpicom
@@ -681,133 +685,134 @@ class(nam_type),intent(inout) :: nam !< Namelist
 type(mpl_type),intent(in) :: mpl     !< MPI data
 
 ! general_param
-call mpl%bcast(nam%datadir)
-call mpl%bcast(nam%prefix)
-call mpl%bcast(nam%model)
-call mpl%bcast(nam%colorlog)
-call mpl%bcast(nam%default_seed)
-call mpl%bcast(nam%use_metis)
+call mpl%f_comm%broadcast(nam%datadir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%prefix,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%model,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%colorlog,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%default_seed,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%use_metis,mpl%ioproc-1)
 
 ! driver_param
-call mpl%bcast(nam%method)
-call mpl%bcast(nam%strategy)
-call mpl%bcast(nam%new_vbal)
-call mpl%bcast(nam%load_vbal)
-call mpl%bcast(nam%new_hdiag)
-call mpl%bcast(nam%new_lct)
-call mpl%bcast(nam%load_cmat)
-call mpl%bcast(nam%new_nicas)
-call mpl%bcast(nam%load_nicas)
-call mpl%bcast(nam%new_obsop)
-call mpl%bcast(nam%load_obsop)
-call mpl%bcast(nam%check_vbal)
-call mpl%bcast(nam%check_adjoints)
-call mpl%bcast(nam%check_pos_def)
-call mpl%bcast(nam%check_sqrt)
-call mpl%bcast(nam%check_dirac)
-call mpl%bcast(nam%check_randomization)
-call mpl%bcast(nam%check_consistency)
-call mpl%bcast(nam%check_optimality)
-call mpl%bcast(nam%check_obsop)
+call mpl%f_comm%broadcast(nam%method,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%strategy,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%new_vbal,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%load_vbal,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%new_hdiag,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%new_lct,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%load_cmat,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%new_nicas,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%load_nicas,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%new_obsop,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%load_obsop,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_vbal,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_adjoints,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_pos_def,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_sqrt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_dirac,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_randomization,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_consistency,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_optimality,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%check_obsop,mpl%ioproc-1)
 
 ! model_param
-call mpl%bcast(nam%nl)
-call mpl%bcast(nam%levs)
-call mpl%bcast(nam%logpres)
-call mpl%bcast(nam%nv)
-call mpl%bcast(nam%varname)
-call mpl%bcast(nam%addvar2d)
-call mpl%bcast(nam%nts)
-call mpl%bcast(nam%timeslot)
+call mpl%f_comm%broadcast(nam%nl,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%levs,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%logpres,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nv,mpl%ioproc-1)
+call mpl%bcast(nam%varname,mpl%ioproc-1)
+call mpl%bcast(nam%addvar2d,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nts,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%timeslot,mpl%ioproc-1)
 
 ! ens1_param
-call mpl%bcast(nam%ens1_ne)
-call mpl%bcast(nam%ens1_ne_offset)
-call mpl%bcast(nam%ens1_nsub)
+call mpl%f_comm%broadcast(nam%ens1_ne,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ens1_ne_offset,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ens1_nsub,mpl%ioproc-1)
 
 ! ens2_param
-call mpl%bcast(nam%ens2_ne)
-call mpl%bcast(nam%ens2_ne_offset)
-call mpl%bcast(nam%ens2_nsub)
+call mpl%f_comm%broadcast(nam%ens2_ne,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ens2_ne_offset,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ens2_nsub,mpl%ioproc-1)
 
 ! sampling_param
-call mpl%bcast(nam%sam_write)
-call mpl%bcast(nam%sam_read)
-call mpl%bcast(nam%mask_type)
-call mpl%bcast(nam%mask_th)
-call mpl%bcast(nam%mask_check)
-call mpl%bcast(nam%draw_type)
-call mpl%bcast(nam%nc1)
-call mpl%bcast(nam%nc2)
-call mpl%bcast(nam%ntry)
-call mpl%bcast(nam%nrep)
-call mpl%bcast(nam%nc3)
-call mpl%bcast(nam%dc)
-call mpl%bcast(nam%nl0r)
+call mpl%f_comm%broadcast(nam%sam_write,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%sam_read,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%mask_type,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%mask_th,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%mask_check,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%draw_type,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nc1,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nc2,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ntry,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nrep,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nc3,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%dc,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nl0r,mpl%ioproc-1)
 
 ! diag_param
-call mpl%bcast(nam%ne)
-call mpl%bcast(nam%gau_approx)
-call mpl%bcast(nam%vbal_block)
-call mpl%bcast(nam%vbal_rad)
-call mpl%bcast(nam%var_diag)
-call mpl%bcast(nam%var_filter)
-call mpl%bcast(nam%var_full)
-call mpl%bcast(nam%var_niter)
-call mpl%bcast(nam%var_rhflt)
-call mpl%bcast(nam%local_diag)
-call mpl%bcast(nam%local_rad)
-call mpl%bcast(nam%displ_diag)
-call mpl%bcast(nam%displ_rad)
-call mpl%bcast(nam%displ_niter)
-call mpl%bcast(nam%displ_rhflt)
-call mpl%bcast(nam%displ_tol)
+call mpl%f_comm%broadcast(nam%ne,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%gau_approx,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%vbal_block,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%vbal_rad,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%var_diag,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%var_filter,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%var_full,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%var_niter,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%var_rhflt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%local_diag,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%local_rad,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%displ_diag,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%displ_rad,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%displ_niter,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%displ_rhflt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%displ_tol,mpl%ioproc-1)
 
 ! fit_param
-call mpl%bcast(nam%minim_algo)
-call mpl%bcast(nam%double_fit)
-call mpl%bcast(nam%lhomh)
-call mpl%bcast(nam%lhomv)
-call mpl%bcast(nam%rvflt)
-call mpl%bcast(nam%lct_nscales)
-call mpl%bcast(nam%lct_diag)
+call mpl%f_comm%broadcast(nam%minim_algo,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%double_fit,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lhomh,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lhomv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%rvflt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lct_nscales,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lct_diag,mpl%ioproc-1)
 
 ! nicas_param
-call mpl%bcast(nam%lsqrt)
-call mpl%bcast(nam%resol)
-call mpl%bcast(nam%nicas_interp)
-call mpl%bcast(nam%network)
-call mpl%bcast(nam%mpicom)
-call mpl%bcast(nam%advmode)
-call mpl%bcast(nam%forced_radii)
-call mpl%bcast(nam%rh)
-call mpl%bcast(nam%rv)
-call mpl%bcast(nam%ndir)
-call mpl%bcast(nam%londir)
-call mpl%bcast(nam%latdir)
-call mpl%bcast(nam%levdir)
-call mpl%bcast(nam%ivdir)
-call mpl%bcast(nam%itsdir)
+call mpl%f_comm%broadcast(nam%lsqrt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%resol,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%fast_sampling,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nicas_interp,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%network,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%mpicom,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%advmode,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%forced_radii,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%rh,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%rv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ndir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%londir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%latdir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%levdir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ivdir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%itsdir,mpl%ioproc-1)
 
 ! obsop_param
-call mpl%bcast(nam%nobs)
-call mpl%bcast(nam%obsdis)
-call mpl%bcast(nam%obsop_interp)
+call mpl%f_comm%broadcast(nam%nobs,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%obsdis,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%obsop_interp,mpl%ioproc-1)
 
 ! output_param
-call mpl%bcast(nam%nldwh)
-call mpl%bcast(nam%il_ldwh)
-call mpl%bcast(nam%ic_ldwh)
-call mpl%bcast(nam%nldwv)
-call mpl%bcast(nam%lon_ldwv)
-call mpl%bcast(nam%lat_ldwv)
-call mpl%bcast(nam%diag_rhflt)
-call mpl%bcast(nam%diag_interp)
-call mpl%bcast(nam%field_io)
-call mpl%bcast(nam%split_io)
-call mpl%bcast(nam%grid_output)
-call mpl%bcast(nam%grid_resol)
-call mpl%bcast(nam%grid_interp)
+call mpl%f_comm%broadcast(nam%nldwh,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%il_ldwh,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ic_ldwh,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nldwv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lon_ldwv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%diag_interp,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%field_io,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%split_io,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%grid_output,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%grid_resol,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%grid_interp,mpl%ioproc-1)
 
 end subroutine nam_bcast
 
@@ -1012,8 +1017,10 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct) then
       end if
    end if
    if (nam%new_lct) then
-      call mpl%warning('nc2 should be equal to nc2 for new_lct, resetting nc2 to nc1')
-      nam%nc2 = nam%nc1
+      if (nam%nc2/=nam%nc1) then
+         call mpl%warning('nc2 should be equal to nc2 for new_lct, resetting nc2 to nc1')
+         nam%nc2 = nam%nc1
+      end if
    end if
 end if
 if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%new_nicas) then
@@ -1303,6 +1310,7 @@ call put_att(mpl,ncid,'lct_diag',nam%lct_nscales,nam%lct_diag)
 ! nicas_param
 call put_att(mpl,ncid,'lsqrt',nam%lsqrt)
 call put_att(mpl,ncid,'resol',nam%resol)
+call put_att(mpl,ncid,'fast_sampling',nam%fast_sampling)
 call put_att(mpl,ncid,'nicas_interp',nam%nicas_interp)
 call put_att(mpl,ncid,'network',nam%network)
 call put_att(mpl,ncid,'mpicom',nam%mpicom)
