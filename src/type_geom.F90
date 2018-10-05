@@ -24,6 +24,7 @@ use type_mesh, only: mesh_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
+use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
@@ -105,6 +106,7 @@ contains
    procedure :: check_arc => geom_check_arc
    procedure :: copy_c0a_to_mga => geom_copy_c0a_to_mga
    procedure :: copy_mga_to_c0a => geom_copy_mga_to_c0a
+   procedure :: compute_deltas => geom_compute_deltas
 end type geom_type
 
 private
@@ -231,6 +233,7 @@ integer :: ic0,ic0a,il0,offset,iproc,img,imga
 integer,allocatable :: mg_to_proc(:),order(:),order_inv(:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:),vunit_mg(:,:),list(:)
 logical,allocatable :: lmask_mg(:,:)
+type(fckit_mpi_status) :: status
 
 ! Copy geometry variables
 geom%nmga = nmga
@@ -241,7 +244,7 @@ geom%nlev = nl0
 allocate(geom%proc_to_nmga(mpl%nproc))
 
 ! Communication
-call mpl%allgather(geom%nmga,geom%proc_to_nmga)
+call mpl%f_comm%allgather(geom%nmga,geom%proc_to_nmga)
 
 ! Global number of model grid points
 geom%nmg = sum(geom%proc_to_nmga)
@@ -273,13 +276,13 @@ if (mpl%main) then
          end do
       else
          ! Receive data on ioproc
-         call mpl%recv(geom%proc_to_nmga(iproc),lon_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc,mpl%tag)
-         call mpl%recv(geom%proc_to_nmga(iproc),lat_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc,mpl%tag+1)
-         call mpl%recv(geom%proc_to_nmga(iproc),area_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc,mpl%tag+2)
+         call mpl%f_comm%receive(lon_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag,status)
+         call mpl%f_comm%receive(lat_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag+1,status)
+         call mpl%f_comm%receive(area_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag+2,status)
          do il0=1,geom%nl0
-            call mpl%recv(geom%proc_to_nmga(iproc),vunit_mg(offset+1:offset+geom%proc_to_nmga(iproc),il0),iproc,mpl%tag+2+il0)
-            call mpl%recv(geom%proc_to_nmga(iproc),lmask_mg(offset+1:offset+geom%proc_to_nmga(iproc),il0),iproc, &
-          & mpl%tag+2+geom%nl0+il0)
+            call mpl%f_comm%receive(vunit_mg(offset+1:offset+geom%proc_to_nmga(iproc),il0),iproc-1,mpl%tag+2+il0,status)
+            call mpl%f_comm%receive(lmask_mg(offset+1:offset+geom%proc_to_nmga(iproc),il0),iproc-1, &
+          & mpl%tag+2+geom%nl0+il0,status)
          end do
       end if
 
@@ -288,12 +291,12 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl%send(geom%nmga,lon,mpl%ioproc,mpl%tag)
-   call mpl%send(geom%nmga,lat,mpl%ioproc,mpl%tag+1)
-   call mpl%send(geom%nmga,area,mpl%ioproc,mpl%tag+2)
+   call mpl%f_comm%send(lon,mpl%ioproc-1,mpl%tag)
+   call mpl%f_comm%send(lat,mpl%ioproc-1,mpl%tag+1)
+   call mpl%f_comm%send(area,mpl%ioproc-1,mpl%tag+2)
    do il0=1,geom%nl0
-      call mpl%send(geom%nmga,vunit(:,il0),mpl%ioproc,mpl%tag+2+il0)
-      call mpl%send(geom%nmga,lmask(:,il0),mpl%ioproc,mpl%tag+2+geom%nl0+il0)
+      call mpl%f_comm%send(vunit(:,il0),mpl%ioproc-1,mpl%tag+2+il0)
+      call mpl%f_comm%send(lmask(:,il0),mpl%ioproc-1,mpl%tag+2+geom%nl0+il0)
    end do
 end if
 call mpl%update_tag(3+2*geom%nl0)
@@ -305,11 +308,11 @@ if (mpl%main) then
 end if
 
 ! Broadcast data
-call mpl%bcast(lon_mg)
-call mpl%bcast(lat_mg)
-call mpl%bcast(area_mg)
-call mpl%bcast(vunit_mg)
-call mpl%bcast(lmask_mg)
+call mpl%f_comm%broadcast(lon_mg,mpl%ioproc-1)
+call mpl%f_comm%broadcast(lat_mg,mpl%ioproc-1)
+call mpl%f_comm%broadcast(area_mg,mpl%ioproc-1)
+call mpl%f_comm%broadcast(vunit_mg,mpl%ioproc-1)
+call mpl%f_comm%broadcast(lmask_mg,mpl%ioproc-1)
 
 ! Find redundant points
 call geom%find_redundant(mpl,lon_mg,lat_mg)
@@ -791,7 +794,7 @@ elseif (mpl%nproc>1) then
       filename_nc = trim(nam%prefix)//'_distribution_'//nprocchar//'.nc'
       info = nf90_open(trim(nam%datadir)//'/'//trim(filename_nc),nf90_nowrite,ncid)
    end if
-   call mpl%bcast(info)
+   call mpl%f_comm%broadcast(info,mpl%ioproc-1)
 
    if (info==nf90_noerr) then
       ! Read local distribution
@@ -812,8 +815,8 @@ elseif (mpl%nproc>1) then
       end if
 
       ! Broadcast distribution
-      call mpl%bcast(geom%c0_to_proc)
-      call mpl%bcast(geom%c0_to_c0a)
+      call mpl%f_comm%broadcast(geom%c0_to_proc,mpl%ioproc-1)
+      call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
 
       ! Check
       if (maxval(geom%c0_to_proc)>mpl%nproc) call mpl%abort('wrong distribution')
@@ -861,7 +864,7 @@ elseif (mpl%nproc>1) then
             inquire(file=trim(nam%datadir)//'/'//trim(filename_metis)//'.part.'//adjustl(nprocchar),exist=ismetis)
             if (.not.ismetis) call mpl%warning('METIS not available to generate the local distribution')
          end if
-         call mpl%bcast(ismetis)
+         call mpl%f_comm%broadcast(ismetis,mpl%ioproc-1)
       else
          ! No METIS
          ismetis = .false.
@@ -900,8 +903,8 @@ elseif (mpl%nproc>1) then
          end if
 
          ! Broadcast distribution
-         call mpl%bcast(geom%c0_to_proc)
-         call mpl%bcast(geom%c0_to_c0a)
+         call mpl%f_comm%broadcast(geom%c0_to_proc,mpl%ioproc-1)
+         call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
       else
          write(mpl%info,'(a7,a)') '','Define a basic local distribution'
          call flush(mpl%info)
@@ -1123,7 +1126,7 @@ if (nred>0) then
    ! Communicate redundant values
    mask_unpack = .true.
    red_val_pack = pack(red_val,.true.)
-   call mpl%allreduce_sum(red_val_pack,red_val_pack_tot)
+   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_tot,fckit_mpi_sum())
    red_val_tot = unpack(red_val_pack_tot,mask_unpack,red_val_tot)
 
    ! Copy values
@@ -1167,5 +1170,32 @@ end do
 if (any(ismsr(fld_c0a))) call mpl%abort('missing value in copy_mga_to_c0a')
 
 end subroutine geom_copy_mga_to_c0a
+
+!----------------------------------------------------------------------
+! Subroutine: geom_compute_deltas
+!> Purpose: compute deltas for LCT definition
+!----------------------------------------------------------------------
+subroutine geom_compute_deltas(geom,ic0,il0,jc0,jl0,dx,dy,dz)
+
+implicit none
+
+! Passed variables
+class(geom_type),intent(in) :: geom !< Geometry
+integer,intent(in) :: ic0           !< TODO
+integer,intent(in) :: il0           !< TODO
+integer,intent(in) :: jc0           !< TODO
+integer,intent(in) :: jl0           !< TODO
+real(kind_real),intent(out) :: dx   !< TODO
+real(kind_real),intent(out) :: dy   !< TODO
+real(kind_real),intent(out) :: dz   !< TODO
+
+! Compute deltas
+dx = geom%lon(jc0)-geom%lon(ic0)
+dy = geom%lat(jc0)-geom%lat(ic0)
+call lonlatmod(dx,dy)
+dx = dx*cos(geom%lat(ic0))
+dz = real(geom%vunit(ic0,jl0)-geom%vunit(ic0,il0),kind_real)
+
+end subroutine geom_compute_deltas
 
 end module type_geom

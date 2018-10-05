@@ -12,4 +12,4 @@ This package can be used as standalone code, with NetCDF inputs, for the followi
   - [NEMO](http://www.nemo-ocean.eu)
   - [WRF](https://www.mmm.ucar.edu/weather-research-and-forecasting-model)
 
-It can also be used "online" within an other code, using a dedicated interface: [type_bump.F90](https://github.com/benjaminmenetrier/bump/src/type_bump.F90)
+It can also be used "online" within an other code, using a dedicated interface: [type_bump.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90)

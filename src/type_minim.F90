@@ -52,10 +52,9 @@ type minim_type
 
    ! Specific data (LCT)
    integer :: nscales                         !< Number of LCT scales
-   integer,allocatable :: ncomp(:)            !< Number of LCT components
    real(kind_real),allocatable :: dx(:,:)     !< Zonal separation
    real(kind_real),allocatable :: dy(:,:)     !< Meridian separation
-   real(kind_real),allocatable :: dz(:)       !< Vertical separation
+   real(kind_real),allocatable :: dz(:,:)     !< Vertical separation
    logical,allocatable :: dmask(:,:)          !< Mask
 contains
    procedure :: compute => minim_compute
@@ -335,8 +334,9 @@ real(kind_real),intent(in) :: x(minim%nx) !< Control vector
 real(kind_real),intent(out) :: f          !< Cost function value
 
 ! Local variables
+integer :: iscales,icomp
 real(kind_real) :: norm
-real(kind_real) :: fit(minim%nc3,minim%nl0)
+real(kind_real) :: fit(minim%nc3,minim%nl0),D(4,minim%nscales)
 real(kind_real) :: xtmp(minim%nx),fit_pack(minim%ny),coef(minim%nscales)
 
 ! Renormalize
@@ -344,14 +344,19 @@ xtmp = x
 call minim%vt_dir(xtmp)
 
 ! Compute function
+do iscales=1,minim%nscales
+   do icomp=1,4
+      D(icomp,iscales) = xtmp((iscales-1)*4+icomp)
+   end do
+end do
 if (minim%nscales>1) then
-   coef(1:minim%nscales-1) = xtmp(sum(minim%ncomp)+1:sum(minim%ncomp)+minim%nscales-1)
+   coef(1:minim%nscales-1) = xtmp(minim%nscales*4+1:minim%nscales*4+minim%nscales-1)
    coef(minim%nscales) = 1.0-sum(coef(1:minim%nscales-1))
 else
    coef(1) = 1.0
 end if
-call fit_lct(mpl,minim%nc3,minim%nl0,minim%dx,minim%dy,minim%dz,minim%dmask,minim%nscales,minim%ncomp, &
- & xtmp(1:sum(minim%ncomp)),coef,fit)
+call fit_lct(mpl,minim%nc3,minim%nl0,minim%dx,minim%dy,minim%dz,minim%dmask,minim%nscales, &
+ & xtmp(1:minim%nscales*4),coef,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)

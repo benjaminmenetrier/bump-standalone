@@ -7,8 +7,9 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/arp/877D"
-prefix = "arp_877D"
+home = getenv("HOME")
+datadir = home + "/data/bump/nemo/nemovar"
+prefix = "nemo_lct"
 
 ; Resources :
 ; -----------
@@ -44,7 +45,8 @@ res@mpLandFillColor = -1
 res@mpGridAndLimbDrawOrder = "PreDraw"
 res@mpPerimOn = False
 res@mpGreatCircleLinesOn = True
-res@mpProjection = "WinkelTripel"
+;res@mpProjection = "WinkelTripel"
+res@mpProjection = "CylindricalEquidistant"
 res@mpGridAndLimbOn = True
 res@mpGridSpacingF = 360.0
 res@mpCenterLonF = 0.0
@@ -86,7 +88,7 @@ do ilevs=0,nlevs-1
    do iv=0,nv-1
       do its=0,nts-1
          tmp = varname(iv) + "_" + sprinti("%0.2i",its+1)
-         var = data->$tmp$(:,ilevs_plot(ilevs))
+         var = data->$tmp$(ilevs_plot(ilevs),:)
 
          output = "../fig/" + prefix + "_dirac_" + varname(iv) + "_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
          wks = gsn_open_wks("epsi",output)

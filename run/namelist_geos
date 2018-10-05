@@ -100,6 +100,7 @@ lct_diag = .true.,
 &nicas_param
 lsqrt = .true.,
 resol = 8.0,
+fast_sampling = .false.,
 nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,

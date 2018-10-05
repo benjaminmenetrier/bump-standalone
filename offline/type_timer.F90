@@ -84,8 +84,8 @@ if (mpl%main) then
 end if
 
 ! Broadcast
-call mpl%bcast(timer%cpu)
-call mpl%bcast(timer%elapsed)
+call mpl%f_comm%broadcast(timer%cpu,mpl%ioproc-1)
+call mpl%f_comm%broadcast(timer%elapsed,mpl%ioproc-1)
 
 end subroutine timer_end
 

@@ -115,10 +115,14 @@ else
    fi
 fi
 
+
+# Add fckit_mpi_module.F90
+rsync -rtv --delete ${offline}/fckit_mpi_module.F90 ${src}
+
 # Add main.F90
 rsync -rtv --delete ${offline}/main.F90 ${src}
 
-# Add model
+# Add model routines
 rsync -rtv --delete ${offline}/model ${src}
 
 # Add type_timer.F90

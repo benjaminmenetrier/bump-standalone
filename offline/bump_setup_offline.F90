@@ -3,20 +3,19 @@
 ! Subroutine: bump_setup_offline
 !> Purpose: offline setup
 !----------------------------------------------------------------------
-subroutine bump_setup_offline(bump,mpi_comm,namelname)
+subroutine bump_setup_offline(bump,namelname)
 
 implicit none
 
 ! Passed variables
 class(bump_type),intent(inout) :: bump   !< BUMP
-integer,intent(in) :: mpi_comm           !< MPI communicator
 character(len=*),intent(in) :: namelname !< Namelist name
 
 ! Local variables
 type(timer_type) :: timer
 
 ! Initialize MPL
-call bump%mpl%init(mpi_comm)
+call bump%mpl%init
 
 ! Initialize timer
 call timer%start(bump%mpl)
@@ -52,7 +51,7 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Initialize block parameters'
 call bump%bpar%alloc(bump%nam,bump%geom)
 
-if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.bump%nam%check_dirac) then
+if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.(bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    write(bump%mpl%info,'(a)') '--- Load ensemble 1'
    call flush(bump%mpl%info)

@@ -27,6 +27,7 @@ use type_mesh, only: mesh_type
 use type_hdata, only: hdata_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
@@ -146,7 +147,7 @@ type(ens_type), intent(in) :: ens        !< Ensemble
 
 ! Local variables
 integer :: ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d,ind
-real(kind_real) :: fac4,fac6,m11_avg,m2m2_avg,fld_1,fld_2,drhflt,dum,distsum,norm,cormax
+real(kind_real) :: fac4,fac6,m11_avg,m2m2_avg,fld_1,fld_2,drhflt,dum,cormax
 real(kind_real) :: lon_target,lat_target,rad_target,x_cm,y_cm,z_cm,n_cm
 real(kind_real) :: norm_tot,distsum_tot
 real(kind_real),allocatable :: fld_ext(:,:,:,:)
@@ -176,11 +177,9 @@ allocate(m2_1(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
 allocate(m1_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
 allocate(m2_2(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
 allocate(m11(nam%nc1,hdata%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
-if (mpl%main) then
-   allocate(lon_c2(nam%nc2))
-   allocate(lat_c2(nam%nc2))
-   allocate(valid_c2(nam%nc2))
-end if
+allocate(lon_c2(nam%nc2))
+allocate(lat_c2(nam%nc2))
+allocate(valid_c2(nam%nc2))
 
 ! Initialization
 m1_1 = 0.0
@@ -300,8 +299,7 @@ do its=2,nam%nts
       call flush(mpl%info)
 
       ! Number of points
-      norm = real(count(mask_c2a(:,il0)),kind_real)
-      call mpl%allreduce_sum(norm,norm_tot)
+      call mpl%f_comm%allreduce(real(count(mask_c2a(:,il0)),kind_real),norm_tot,fckit_mpi_sum())
 
       !$omp parallel do schedule(static) private(ic2a,ic2,jc1,jc0,iv,m11_avg,m2m2_avg,lon_target,lat_target,rad_target), &
       !$omp&                             private(x_cm,y_cm,z_cm,n_cm,ind) firstprivate(cor,cor_avg,x,y,z)
@@ -435,12 +433,11 @@ do its=2,nam%nts
          call mesh%check(valid_c2)
          displ%valid(0,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
       end if
-      call mpl%bcast(displ%valid(0,il0,its))
+      call mpl%f_comm%broadcast(displ%valid(0,il0,its),mpl%ioproc-1)
       displ%rhflt(0,il0,its) = 0.0
 
       ! Average distance
-      distsum = sum(dist_c2a,mask=mask_c2a(:,il0))
-      call mpl%allreduce_sum(distsum,distsum_tot)
+      call mpl%f_comm%allreduce(sum(dist_c2a,mask=mask_c2a(:,il0)),distsum_tot,fckit_mpi_sum())
       displ%dist(0,il0,its) = distsum_tot/norm_tot
 
       ! Copy
@@ -515,7 +512,7 @@ do its=2,nam%nts
                call mesh%check(valid_c2)
                displ%valid(iter,il0,its) = sum(valid_c2,mask=mask_c2(:,il0))/real(count((mask_c2(:,il0))),kind_real)
             end if
-            call mpl%bcast(displ%valid(iter,il0,its))
+            call mpl%f_comm%broadcast(displ%valid(iter,il0,its),mpl%ioproc-1)
 
             ! Compute distances
             do ic2a=1,hdata%nc2a
@@ -524,8 +521,7 @@ do its=2,nam%nts
             end do
 
             ! Average distance
-            distsum = sum(dist_c2a,mask=mask_c2a(:,il0))
-            call mpl%allreduce_sum(distsum,distsum_tot)
+            call mpl%f_comm%allreduce(sum(dist_c2a,mask=mask_c2a(:,il0)),distsum_tot,fckit_mpi_sum())
             displ%dist(iter,il0,its) = distsum_tot/norm_tot
 
             ! Print results
@@ -632,6 +628,7 @@ real(kind_real),allocatable :: sbuf(:),rbuf(:),lon_c2(:,:),lat_c2(:,:)
 real(kind_real),allocatable :: lon_c2_raw(:,:,:),lat_c2_raw(:,:,:),dist_c2_raw(:,:,:)
 real(kind_real),allocatable :: lon_c2_flt(:,:,:),lat_c2_flt(:,:,:),dist_c2_flt(:,:,:)
 character(len=1024) :: subr = 'displ_write'
+type(fckit_mpi_status) :: status
 
 ! Allocation
 allocate(sbuf(hdata%nc2a*geom%nl0*(2+(nam%nts-1)*6)))
@@ -683,8 +680,8 @@ if (mpl%main) then
          rbuf = sbuf
       else
          ! Receive data on ioproc
-         call mpl%recv(hdata%proc_to_nc2a(iproc),c2a_to_c2,iproc,mpl%tag)
-         call mpl%recv(hdata%proc_to_nc2a(iproc)*geom%nl0*(2+(nam%nts-1)*6),rbuf,iproc,mpl%tag+1)
+         call mpl%f_comm%receive(c2a_to_c2,iproc-1,mpl%tag,status)
+         call mpl%f_comm%receive(rbuf,iproc-1,mpl%tag+1,status)
       end if
 
       ! Write data
@@ -719,8 +716,8 @@ if (mpl%main) then
    end do
 else
    ! Send data to ioproc
-   call mpl%send(hdata%nc2a,hdata%c2a_to_c2,mpl%ioproc,mpl%tag)
-   call mpl%send(hdata%nc2a*geom%nl0*(2+(nam%nts-1)*6),sbuf,mpl%ioproc,mpl%tag+1)
+   call mpl%f_comm%send(hdata%c2a_to_c2,mpl%ioproc-1,mpl%tag)
+   call mpl%f_comm%send(sbuf,mpl%ioproc-1,mpl%tag+1)
 end if
 call mpl%update_tag(2)
 

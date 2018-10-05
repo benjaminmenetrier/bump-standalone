@@ -29,6 +29,7 @@ use type_nicas_blk, only: nicas_blk_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
+use fckit_mpi_module, only: fckit_mpi_sum
 
 implicit none
 
@@ -993,7 +994,7 @@ end select
 if (pos_def_test) then
    ! Positive-definiteness test
    prod = sum(fld_save*fld)
-   call mpl%allreduce_sum(prod,prod_tot)
+   call mpl%f_comm%allreduce(prod,prod_tot,fckit_mpi_sum())
    if (prod_tot<0.0) call mpl%abort('negative result in nicas_apply')
 end if
 
@@ -1038,7 +1039,7 @@ call nicas%apply_sqrt(mpl,nam,geom,bpar,cv,fld)
 if (pos_def_test) then
    ! Positivity test
    prod = sum(fld_save*fld)
-   call mpl%allreduce_sum(prod,prod_tot)
+   call mpl%f_comm%allreduce(prod,prod_tot,fckit_mpi_sum())
    if (prod_tot<0.0) call mpl%abort('negative result in nicas_apply')
 end if
 
@@ -1895,7 +1896,7 @@ else
    call nicas%apply(mpl,nam,geom,bpar,fld_loc)
 end if
 
-if (ens%ne>0) then
+if ((ens%ne>0).and.(trim(nam%method)/='cor')) then
    ! Apply localized ensemble covariance
    fld_bens = fld
    call nicas%apply_bens(mpl,nam,geom,bpar,ens,fld_bens)
@@ -1907,8 +1908,8 @@ do its=1,nam%nts
    write(itschar,'(i2.2)') its
    do iv=1,nam%nv
       call io%fld_write(mpl,nam,geom,filename,trim(nam%varname(iv))//'_'//itschar,fld_loc(:,:,iv,its))
-      if (ens%ne>0) call io%fld_write(mpl,nam,geom,filename,trim(nam%varname(iv))//'_'//itschar//'_Bens', &
-       & fld_bens(:,:,iv,its))
+      if ((ens%ne>0).and.(trim(nam%method)/='cor')) call io%fld_write(mpl,nam,geom,filename, &
+       & trim(nam%varname(iv))//'_'//itschar//'_Bens',fld_bens(:,:,iv,its))
    end do
 end do
 
@@ -2076,9 +2077,11 @@ do ib=1,bpar%nbe
    if (bpar%nicas_block(ib)) then
       write(mpl%info,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
       do il0=1,geom%nl0
-         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rh(:,il0)-cmat%blk(ib)%rh(:,il0),geom%mask_c0a(:,il0)),rh_c0_sum)
-         call mpl%allreduce_sum(sum(cmat_test%blk(ib)%rv(:,il0)-cmat%blk(ib)%rv(:,il0),geom%mask_c0a(:,il0)),rv_c0_sum)
-         call mpl%allreduce_sum(real(count(geom%mask_c0a(:,il0)),kind_real),norm)
+         call mpl%f_comm%allreduce(sum(cmat_test%blk(ib)%rh(:,il0)-cmat%blk(ib)%rh(:,il0),geom%mask_c0a(:,il0)), &
+       & rh_c0_sum,fckit_mpi_sum())
+         call mpl%f_comm%allreduce(sum(cmat_test%blk(ib)%rv(:,il0)-cmat%blk(ib)%rv(:,il0),geom%mask_c0a(:,il0)),&
+       & rv_c0_sum,fckit_mpi_sum())
+         call mpl%f_comm%allreduce(real(count(geom%mask_c0a(:,il0)),kind_real),norm,fckit_mpi_sum())
          write(mpl%info,'(a10,a7,i3,a4,a25,f6.1,a)') '','Level: ',nam%levs(il0),' ~> ','horizontal length-scale: ', &
        & rh_c0_sum/norm*reqkm,' km'
          if (any(abs(cmat%blk(ib)%rv(:,il0))>0.0)) then
