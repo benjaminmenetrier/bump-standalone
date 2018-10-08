@@ -28,10 +28,10 @@ The source code is organized as follows:
      - subroutine [divide](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L207): check if value missing and divide if not missing
      - subroutine [fit_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L228): compute diagnostic fit function
      - subroutine [fit_diag_dble](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L362): compute diagnostic fit function
-     - function [: gc99](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L511): Gaspari and Cohn (1999) function, with the support radius as a parameter
+     - function [gc99](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L511): Gaspari and Cohn (1999) function, with the support radius as a parameter
      - subroutine [fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L541): LCT fit
      - subroutine [lct_d2h](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L613): inversion from D (Daley tensor) to H (local correlation tensor)
-     - function [: matern](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L654): compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3)
+     - function [matern](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L654): compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3)
      - subroutine [cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L696): compute cholesky decomposition
      - subroutine [syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L744): compute inverse of a symmetric matrix
  - module [tools_kinds.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_kinds.F90): kinds definition
@@ -50,70 +50,70 @@ The source code is organized as follows:
      - subroutine [msr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L292): set real number to missing value
      - subroutine [msr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L307): set real number to missing value
      - subroutine [msr_6d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L322): set real number to missing value
-     - function [: isnotmsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L337): check if an integer is not set to missing value
-     - function [: isnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L355): check if an integer is not set to missing value
-     - function [: isnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L377): check if an integer is not set to missing value
-     - function [: isnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L399): check if an integer is not set to missing value
-     - function [: isnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L421): check if an integer is not set to missing value
-     - function [: isnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L443): check if an integer is not set to missing value
-     - function [: ismsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L465): check if an integer is set to missing value
-     - function [: ismsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L483): check if an integer is set to missing value
-     - function [: ismsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L501): check if an integer is set to missing value
-     - function [: ismsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L519): check if an integer is set to missing value
-     - function [: ismsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L537): check if an integer is set to missing value
-     - function [: ismsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L555): check if an integer is set to missing value
-     - function [: isnotmsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L573): check if an real number is not set to missing value
-     - function [: isnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L591): check if an real number is not set to missing value
-     - function [: isnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L613): check if an real number is not set to missing value
-     - function [: isnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L635): check if an real number is not set to missing value
-     - function [: isnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L657): check if an real number is not set to missing value
-     - function [: isnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L679): check if an real number is not set to missing value
-     - function [: ismsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L701): check if an real number is set to missing value
-     - function [: ismsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L719): check if an real number is set to missing value
-     - function [: ismsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L737): check if an real number is set to missing value
-     - function [: ismsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L755): check if an real number is set to missing value
-     - function [: ismsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L773): check if an real number is set to missing value
-     - function [: ismsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L791): check if an real number is set to missing value
-     - function [: isanynotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L809): check if an integer is not set to missing value
-     - function [: isanynotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L824): check if an integer is not set to missing value
-     - function [: isanynotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L839): check if an integer is not set to missing value
-     - function [: isanynotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L854): check if an integer is not set to missing value
-     - function [: isanynotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L869): check if an integer is not set to missing value
-     - function [: isanymsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L884): check if an integer is set to missing value
-     - function [: isanymsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L899): check if an integer is set to missing value
-     - function [: isanymsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L914): check if an integer is set to missing value
-     - function [: isanymsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L929): check if an integer is set to missing value
-     - function [: isanymsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L944): check if an integer is set to missing value
-     - function [: isanynotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L959): check if a real is not set to missing value
-     - function [: isanynotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L974): check if a real is not set to missing value
-     - function [: isanynotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L989): check if a real is not set to missing value
-     - function [: isanynotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1004): check if a real is not set to missing value
-     - function [: isanynotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1019): check if a real is not set to missing value
-     - function [: isanymsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1034): check if a real is set to missing value
-     - function [: isanymsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1049): check if a real is set to missing value
-     - function [: isanymsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1064): check if a real is set to missing value
-     - function [: isanymsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1079): check if a real is set to missing value
-     - function [: isanymsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1094): check if a real is set to missing value
-     - function [: isallnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1109): check if an integer is not set to missing value
-     - function [: isallnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1124): check if an integer is not set to missing value
-     - function [: isallnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1139): check if an integer is not set to missing value
-     - function [: isallnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1154): check if an integer is not set to missing value
-     - function [: isallnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1169): check if an integer is not set to missing value
-     - function [: isallmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1184): check if an integer is set to missing value
-     - function [: isallmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1199): check if an integer is set to missing value
-     - function [: isallmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1214): check if an integer is set to missing value
-     - function [: isallmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1229): check if an integer is set to missing value
-     - function [: isallmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1244): check if an integer is set to missing value
-     - function [: isallnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1259): check if a real is not set to missing value
-     - function [: isallnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1274): check if a real is not set to missing value
-     - function [: isallnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1289): check if a real is not set to missing value
-     - function [: isallnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1304): check if a real is not set to missing value
-     - function [: isallnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1319): check if a real is not set to missing value
-     - function [: isallmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1334): check if a real is set to missing value
-     - function [: isallmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1349): check if a real is set to missing value
-     - function [: isallmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1364): check if a real is set to missing value
-     - function [: isallmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1379): check if a real is set to missing value
-     - function [: isallmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1394): check if a real is set to missing value
+     - function [isnotmsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L337): check if an integer is not set to missing value
+     - function [isnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L355): check if an integer is not set to missing value
+     - function [isnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L377): check if an integer is not set to missing value
+     - function [isnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L399): check if an integer is not set to missing value
+     - function [isnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L421): check if an integer is not set to missing value
+     - function [isnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L443): check if an integer is not set to missing value
+     - function [ismsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L465): check if an integer is set to missing value
+     - function [ismsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L483): check if an integer is set to missing value
+     - function [ismsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L501): check if an integer is set to missing value
+     - function [ismsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L519): check if an integer is set to missing value
+     - function [ismsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L537): check if an integer is set to missing value
+     - function [ismsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L555): check if an integer is set to missing value
+     - function [isnotmsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L573): check if an real number is not set to missing value
+     - function [isnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L591): check if an real number is not set to missing value
+     - function [isnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L613): check if an real number is not set to missing value
+     - function [isnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L635): check if an real number is not set to missing value
+     - function [isnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L657): check if an real number is not set to missing value
+     - function [isnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L679): check if an real number is not set to missing value
+     - function [ismsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L701): check if an real number is set to missing value
+     - function [ismsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L719): check if an real number is set to missing value
+     - function [ismsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L737): check if an real number is set to missing value
+     - function [ismsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L755): check if an real number is set to missing value
+     - function [ismsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L773): check if an real number is set to missing value
+     - function [ismsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L791): check if an real number is set to missing value
+     - function [isanynotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L809): check if an integer is not set to missing value
+     - function [isanynotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L824): check if an integer is not set to missing value
+     - function [isanynotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L839): check if an integer is not set to missing value
+     - function [isanynotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L854): check if an integer is not set to missing value
+     - function [isanynotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L869): check if an integer is not set to missing value
+     - function [isanymsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L884): check if an integer is set to missing value
+     - function [isanymsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L899): check if an integer is set to missing value
+     - function [isanymsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L914): check if an integer is set to missing value
+     - function [isanymsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L929): check if an integer is set to missing value
+     - function [isanymsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L944): check if an integer is set to missing value
+     - function [isanynotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L959): check if a real is not set to missing value
+     - function [isanynotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L974): check if a real is not set to missing value
+     - function [isanynotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L989): check if a real is not set to missing value
+     - function [isanynotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1004): check if a real is not set to missing value
+     - function [isanynotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1019): check if a real is not set to missing value
+     - function [isanymsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1034): check if a real is set to missing value
+     - function [isanymsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1049): check if a real is set to missing value
+     - function [isanymsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1064): check if a real is set to missing value
+     - function [isanymsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1079): check if a real is set to missing value
+     - function [isanymsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1094): check if a real is set to missing value
+     - function [isallnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1109): check if an integer is not set to missing value
+     - function [isallnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1124): check if an integer is not set to missing value
+     - function [isallnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1139): check if an integer is not set to missing value
+     - function [isallnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1154): check if an integer is not set to missing value
+     - function [isallnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1169): check if an integer is not set to missing value
+     - function [isallmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1184): check if an integer is set to missing value
+     - function [isallmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1199): check if an integer is set to missing value
+     - function [isallmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1214): check if an integer is set to missing value
+     - function [isallmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1229): check if an integer is set to missing value
+     - function [isallmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1244): check if an integer is set to missing value
+     - function [isallnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1259): check if a real is not set to missing value
+     - function [isallnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1274): check if a real is not set to missing value
+     - function [isallnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1289): check if a real is not set to missing value
+     - function [isallnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1304): check if a real is not set to missing value
+     - function [isallnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1319): check if a real is not set to missing value
+     - function [isallmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1334): check if a real is set to missing value
+     - function [isallmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1349): check if a real is set to missing value
+     - function [isallmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1364): check if a real is set to missing value
+     - function [isallmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1379): check if a real is set to missing value
+     - function [isallmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1394): check if a real is set to missing value
  - module [tools_nc.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90): NetCDF routines
      - subroutine [put_att_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L35): write namelist integer as NetCDF attribute
      - subroutine [put_att_integer_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L57): write namelist integer array as NetCDF attribute
@@ -124,12 +124,12 @@ The source code is organized as follows:
      - subroutine [put_att_string](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L209): write namelist string as NetCDF attribute
      - subroutine [put_att_string_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L231): write namelist string array as NetCDF attribute
  - module [tools_repro.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90): reproducibility functions
-     - function [: eq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L23): equal test for reals
-     - function [: inf](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L42): inferior test for reals
-     - function [: infeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L61): inferior or equal test for reals
-     - function [: sup](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L80): superior test for reals
-     - function [: supeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L99): superior or equal test for reals
-     - function [: indist](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L118): indistiguishability test
+     - function [eq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L23): equal test for reals
+     - function [inf](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L42): inferior test for reals
+     - function [infeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L61): inferior or equal test for reals
+     - function [sup](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L80): superior test for reals
+     - function [supeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L99): superior or equal test for reals
+     - function [indist](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L118): indistiguishability test
  - module [tools_test.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90): test tools
      - subroutine [define_dirac](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90#L26): define dirac indices
      - subroutine [define_test_vectors](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90#L60): define test vectors
@@ -139,7 +139,7 @@ The source code is organized as follows:
  - module [type_avg_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90): averaged statistics block derived type
      - subroutine [avg_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L64): averaged statistics block data allocation
      - subroutine [avg_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L154): averaged statistics block data deallocation
-     - function [: avg_blk%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L186): averaged statistics block copy
+     - function [avg_blk%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L186): averaged statistics block copy
      - subroutine [avg_blk%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L239): compute averaged statistics via spatial-angular erogodicity assumption
      - subroutine [avg_blk%compute_asy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L415): compute asymptotic statistics
      - subroutine [avg_blk%compute_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L545): compute averaged statistics via spatial-angular erogodicity assumption, for LR covariance/HR covariance and LR covariance/HR asymptotic covariance products
@@ -147,7 +147,7 @@ The source code is organized as follows:
  - module [type_avg.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90): average routines
      - subroutine [avg%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L52): averaged statistics allocation
      - subroutine [avg%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L87): averaged statistics deallocation
-     - function [: avg%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L117): averaged statistics copy
+     - function [avg%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L117): averaged statistics copy
      - subroutine [avg%gather](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L151): gather averaged statistics data
      - subroutine [avg%normalize](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L288): normalize averaged statistics data
      - subroutine [avg%gather_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L353): gather low-resolution averaged statistics data
@@ -155,7 +155,7 @@ The source code is organized as follows:
      - subroutine [avg%var_filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L484): filter variance
      - subroutine [avg%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L609): compute averaged statistics
      - subroutine [avg%compute_hyb](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L688): compute hybrid averaged statistics
-     - function [: avg%copy_wgt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L776): averaged statistics data copy for weight definition
+     - function [avg%copy_wgt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L776): averaged statistics data copy for weight definition
      - subroutine [avg%compute_bwavg](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L809): compute block-averaged statistics
  - module [type_bpar.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bpar.F90): block parameters derived type
      - subroutine [bpar%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bpar.F90#L47): allocate general parameters
@@ -188,7 +188,7 @@ The source code is organized as follows:
      - subroutine [cmat%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L59): C matrix data allocation
      - subroutine [cmat%alloc_blk](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L88): C matrix block data allocation
      - subroutine [cmat%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L116): C matrix data allocation
-     - function [: cmat%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L144): C matrix data copy
+     - function [cmat%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L144): C matrix data copy
      - subroutine [cmat%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L196): read C matrix data
      - subroutine [cmat%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L285): write C matrix data
      - subroutine [cmat%run_hdiag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L356): HDIAG driver
@@ -242,7 +242,7 @@ The source code is organized as follows:
      - subroutine [ens%from](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L231): copy ensemble array into ensemble data
      - subroutine [ens%from_nemovar](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L270): copy 2d NEMOVAR ensemble into ensemble data
  - module [type_fckit_mpi_comm.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90): FCKIT emulator for offline execution
-     - function [: fckit_mpi_comm%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L89): initialize fckit MPI communicator
+     - function [fckit_mpi_comm%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L89): initialize fckit MPI communicator
      - subroutine [fckit_mpi_comm%final](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L115): finalize fckit MPI communicator
      - subroutine [fckit_mpi_comm%rank](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L141): get MPI rank
      - subroutine [fckit_mpi_comm%size](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L166): get MPI size
@@ -344,7 +344,7 @@ The source code is organized as follows:
  - module [type_linop.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90): linear operator derived type
      - subroutine [linop%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L67): linear operator allocation
      - subroutine [linop%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L108): linear operator deallocation
-     - function [: linop%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L127): linear operator copy
+     - function [linop%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L127): linear operator copy
      - subroutine [linop%reorder](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L167): reorder linear operator
      - subroutine [linop%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L225): read linear operator from a NetCDF file
      - subroutine [linop%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L285): write linear operator to a NetCDF file
@@ -361,7 +361,7 @@ The source code is organized as follows:
  - module [type_mesh.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90): mesh derived type
      - subroutine [mesh%create](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L67): create mesh
      - subroutine [mesh%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L138): deallocate mesh
-     - function [: mesh%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L167): copy mesh
+     - function [mesh%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L167): copy mesh
      - subroutine [mesh%trans](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L226): transform to cartesian coordinates
      - subroutine [mesh%trlist](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L248): compute triangle list, arc list
      - subroutine [mesh%bnodes](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L300): find boundary nodes
@@ -375,7 +375,7 @@ The source code is organized as follows:
      - subroutine [minim%cost](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L124): compute cost function
      - subroutine [minim%cost_fit_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L149): diagnosic fit function cost
      - subroutine [minim%cost_fit_diag_dble](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L232): diagnosic fit function cost, double fit
-     - function [: minim%cost_fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L319): LCT fit function cost
+     - function [minim%cost_fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L319): LCT fit function cost
      - subroutine [minim%hooke](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L368): seeks a minimizer of a scalar function of several variables
      - subroutine [minim%best_nearby](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L459): looks for a better nearby point, one coordinate at a time
      - subroutine [vt_dir](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L510): direct variable transform
@@ -526,70 +526,70 @@ The source code is organized as follows:
 
 
 4. **External tools**
- - module [tools_asa007.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90): inverse of symmetric positive definite matrix routines
-     - subroutine [asa007_cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90#L28): compute cholesky decomposition
-     - subroutine [asa007_syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90#L96): compute inverse of a symmetric matrix
- - module [tools_kdtree2.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90): K-d tree routines
-     - function [: kdtree2_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L129): create the actual tree structure, given an input array of data
-     - subroutine [build_tree](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L189): build tree
-     - function [: build_tree_for_range](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L204): build tree
-     - function [: select_on_coordinate_value](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L333): move elts of ind around between l and u, so that all points <= than alpha (in c cooordinate) are first, and then all points > alpha are second
-     - subroutine [select_on_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L391): move elts of ind around between l and u, so that the kth element is >= those below, <= those above, in the coordinate c
-     - subroutine [spread_in_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L424): return lower bound in 'smin', and upper in 'smax', the spread in coordinate 'c', between l and u.
-     - subroutine [kdtree2_destroy](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L472): deallocates all memory for the tree, except input data matrix
-     - subroutine [destroy_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L491): destroy node
-     - subroutine [kdtree2_n_nearest](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L517): find the 'nn' vectors in the tree nearest to 'qv' in euclidean norm
-     - function [: kdtree2_r_count](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L557): count the number of neighbors within square distance 'r2'
-     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L598): make sure we have enough storage for n
-     - function [: square_distance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L613): distance between iv[1:n] and qv[1:n]
-     - function [: sdistance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L629): spherical distance between iv[1:n] and qv[1:n]
-     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L650): innermost core routine of the kd-tree search
-     - function [: dis2_from_bnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L727): compute squared distance
-     - subroutine [process_terminal_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L748): Look for actual near neighbors in 'node', and update the search results on the sr data structure
-     - subroutine [process_terminal_node_fixedball](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L846): look for actual near neighbors in 'node', and update the search results on the sr data structure, i.e. save all within a fixed ball.
-     - subroutine [kdtree2_sort_results](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L930): use after search to sort results(1:nfound) in order of increasing distance
-     - subroutine [heapsort_struct](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L946): sort a(1:n) in ascending order
- - module [tools_kdtree2_pq.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90): K-d tree priority queue routines
-     - function [: pq_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L81): create a priority queue from ALREADY allocated array pointers for storage
-     - subroutine [heapify](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L109): take a heap rooted at 'i' and force it to be in the heap canonical form
-     - subroutine [pq_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L186): return the priority and its payload of the maximum priority element on the queue, which should be the first one, if it is in heapified form
-     - function [: pq_maxpri](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L202): unknown
-     - subroutine [pq_extract_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L217): return the priority and payload of maximum priority element, and remove it from the queue
-     - function [: pq_insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L247): insert a new element and return the new maximum priority, which may or may not be the same as the old maximum priority
-     - function [: pq_replace_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L294): replace the extant maximum priority element in the PQ with (dis,sdis,idx)
-     - subroutine [pq_delete](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L368): delete item with index 'i'
- - module [tools_qsort.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90): qsort routines
-     - subroutine [qsort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L38): sort an integer subvector
-     - subroutine [qsort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L62): sort a real subvector
-     - subroutine [quick_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L86): sort an integer subvector
-     - subroutine [quick_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L148): sort a real subvector
-     - subroutine [interchange_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L210): interchange integers
-     - subroutine [interchange_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L244): interchange reals
- - module [tools_stripack.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90): STRIPACK routines
-     - subroutine [addnod](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L27): add a node to a triangulation
-     - function [: areas](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L296): compute the area of a spherical triangle on the unit sphere
-     - subroutine [bdyadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L441): add a boundary node to a triangulation
-     - subroutine [bnodes](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L583): return the boundary nodes of a triangulation
-     - subroutine [circum](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L719): return the circumcenter of a spherical triangle
-     - subroutine [covsph](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L806): connect an exterior node to boundary nodes, covering the sphere
-     - subroutine [det](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L918): compute 3D determinant
-     - subroutine [crlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L955): return triangle circumcenters and other information
-     - subroutine [insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L1595): insert K as a neighbor of N1
-     - function [: inside](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L1654): determine if a point is inside a polygonal region
-     - subroutine [intadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2017): add an interior node to a triangulation
-     - subroutine [intrsc](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2119): find the intersection of two great circles
-     - subroutine [jrand](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2227): return a random integer between 1 and N
-     - subroutine [left](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2293): determin whether a node is to the left of a plane through the origin
-     - subroutine [lstptr](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2356): return the index of NB in the adjacency list
-     - function [: nbcnt](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2437): return the number of neighbors of a node
-     - function [: nearnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2513): return the nearest node to a given point
-     - subroutine [scoord](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2837): convert from Cartesian to spherical coordinates
-     - subroutine [swap](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2902): replace the diagonal arc of a quadrilateral with the other diagonal
-     - subroutine [swptst](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3019): decide whether to replace a diagonal arc by the other
-     - subroutine [trans](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3119): transform spherical coordinates to Cartesian coordinates
-     - subroutine [trfind](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3198): locate a point relative to a triangulation
-     - subroutine [trlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3712): convert a triangulation data structure to a triangle list
-     - subroutine [trmesh](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L4012): create a Delaunay triangulation on the unit sphere
+ - module [tools_asa007.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.F90): inverse of symmetric positive definite matrix routines
+     - subroutine [asa007_cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.F90#L28): compute cholesky decomposition
+     - subroutine [asa007_syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.F90#L96): compute inverse of a symmetric matrix
+ - module [tools_kdtree2.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90): K-d tree routines
+     - function [kdtree2_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L129): create the actual tree structure, given an input array of data
+     - subroutine [build_tree](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L189): build tree
+     - function [build_tree_for_range](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L204): build tree
+     - function [select_on_coordinate_value](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L333): move elts of ind around between l and u, so that all points <= than alpha (in c cooordinate) are first, and then all points > alpha are second
+     - subroutine [select_on_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L391): move elts of ind around between l and u, so that the kth element is >= those below, <= those above, in the coordinate c
+     - subroutine [spread_in_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L424): return lower bound in 'smin', and upper in 'smax', the spread in coordinate 'c', between l and u.
+     - subroutine [kdtree2_destroy](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L472): deallocates all memory for the tree, except input data matrix
+     - subroutine [destroy_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L491): destroy node
+     - subroutine [kdtree2_n_nearest](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L517): find the 'nn' vectors in the tree nearest to 'qv' in euclidean norm
+     - function [kdtree2_r_count](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L557): count the number of neighbors within square distance 'r2'
+     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L598): make sure we have enough storage for n
+     - function [square_distance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L613): distance between iv[1:n] and qv[1:n]
+     - function [sdistance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L629): spherical distance between iv[1:n] and qv[1:n]
+     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L650): innermost core routine of the kd-tree search
+     - function [dis2_from_bnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L727): compute squared distance
+     - subroutine [process_terminal_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L748): Look for actual near neighbors in 'node', and update the search results on the sr data structure
+     - subroutine [process_terminal_node_fixedball](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L846): look for actual near neighbors in 'node', and update the search results on the sr data structure, i.e. save all within a fixed ball.
+     - subroutine [kdtree2_sort_results](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L930): use after search to sort results(1:nfound) in order of increasing distance
+     - subroutine [heapsort_struct](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.F90#L946): sort a(1:n) in ascending order
+ - module [tools_kdtree2_pq.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90): K-d tree priority queue routines
+     - function [pq_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L81): create a priority queue from ALREADY allocated array pointers for storage
+     - subroutine [heapify](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L109): take a heap rooted at 'i' and force it to be in the heap canonical form
+     - subroutine [pq_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L186): return the priority and its payload of the maximum priority element on the queue, which should be the first one, if it is in heapified form
+     - function [pq_maxpri](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L202): unknown
+     - subroutine [pq_extract_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L217): return the priority and payload of maximum priority element, and remove it from the queue
+     - function [pq_insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L247): insert a new element and return the new maximum priority, which may or may not be the same as the old maximum priority
+     - function [pq_replace_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L294): replace the extant maximum priority element in the PQ with (dis,sdis,idx)
+     - subroutine [pq_delete](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.F90#L368): delete item with index 'i'
+ - module [tools_qsort.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90): qsort routines
+     - subroutine [qsort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L38): sort an integer subvector
+     - subroutine [qsort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L62): sort a real subvector
+     - subroutine [quick_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L86): sort an integer subvector
+     - subroutine [quick_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L148): sort a real subvector
+     - subroutine [interchange_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L210): interchange integers
+     - subroutine [interchange_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.F90#L244): interchange reals
+ - module [tools_stripack.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90): STRIPACK routines
+     - subroutine [addnod](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L27): add a node to a triangulation
+     - function [areas](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L296): compute the area of a spherical triangle on the unit sphere
+     - subroutine [bdyadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L441): add a boundary node to a triangulation
+     - subroutine [bnodes](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L583): return the boundary nodes of a triangulation
+     - subroutine [circum](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L719): return the circumcenter of a spherical triangle
+     - subroutine [covsph](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L806): connect an exterior node to boundary nodes, covering the sphere
+     - subroutine [det](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L918): compute 3D determinant
+     - subroutine [crlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L955): return triangle circumcenters and other information
+     - subroutine [insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L1595): insert K as a neighbor of N1
+     - function [inside](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L1654): determine if a point is inside a polygonal region
+     - subroutine [intadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2017): add an interior node to a triangulation
+     - subroutine [intrsc](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2119): find the intersection of two great circles
+     - subroutine [jrand](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2227): return a random integer between 1 and N
+     - subroutine [left](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2293): determin whether a node is to the left of a plane through the origin
+     - subroutine [lstptr](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2356): return the index of NB in the adjacency list
+     - function [nbcnt](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2437): return the number of neighbors of a node
+     - function [nearnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2513): return the nearest node to a given point
+     - subroutine [scoord](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2837): convert from Cartesian to spherical coordinates
+     - subroutine [swap](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L2902): replace the diagonal arc of a quadrilateral with the other diagonal
+     - subroutine [swptst](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L3019): decide whether to replace a diagonal arc by the other
+     - subroutine [trans](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L3119): transform spherical coordinates to Cartesian coordinates
+     - subroutine [trfind](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L3198): locate a point relative to a triangulation
+     - subroutine [trlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L3712): convert a triangulation data structure to a triangle list
+     - subroutine [trmesh](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.F90#L4012): create a Delaunay triangulation on the unit sphere
 
 
 5. **Model-related routines**
