@@ -1,5 +1,5 @@
 !----------------------------------------------------------------------
-! Module: tools_kdtree2
+! Module: tools_kdtree2.f90
 ! Purpose: K-d tree routines
 ! Source: https://github.com/jmhodges/kdtree2
 ! Author: Matthew Kennel, Institute for Nonlinear Science (2004)

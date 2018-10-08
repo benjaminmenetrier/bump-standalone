@@ -1,5 +1,5 @@
 !----------------------------------------------------------------------
-! Module: tools_stripack
+! Module: tools_stripack.f90
 ! Purpose: STRIPACK routines
 ! Source: https://people.sc.fsu.edu/~jburkardt/f_src/stripack/stripack.html
 ! Author: Robert Renka

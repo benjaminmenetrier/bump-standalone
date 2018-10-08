@@ -1,4 +1,4 @@
-# Code list
+# Code structure
 
 The source code is organized as follows:
 
