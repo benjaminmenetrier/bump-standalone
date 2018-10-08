@@ -1,15 +1,15 @@
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_offline
-!> Purpose: offline setup
+! Purpose: offline setup
 !----------------------------------------------------------------------
 subroutine bump_setup_offline(bump,namelname)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump   !< BUMP
-character(len=*),intent(in) :: namelname !< Namelist name
+class(bump_type),intent(inout) :: bump   ! BUMP
+character(len=*),intent(in) :: namelname ! Namelist name
 
 ! Local variables
 type(timer_type) :: timer
@@ -94,5 +94,8 @@ call flush(bump%mpl%info)
 close(unit=bump%mpl%info)
 call flush(bump%mpl%test)
 close(unit=bump%mpl%test)
+
+! Finalize MPL
+call bump%mpl%final
 
 end subroutine bump_setup_offline

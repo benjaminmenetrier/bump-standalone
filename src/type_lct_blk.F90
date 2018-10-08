@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_lct_blk
-!> Purpose: LCT data derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: LCT data derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_lct_blk
 
@@ -24,40 +21,40 @@ use type_nam, only: nam_type
 
 implicit none
 
-real(kind_real),parameter :: cor_min = 0.5_kind_real !< Minimum relevant correlation for first guess
-real(kind_real),parameter :: Dscale = 10.0_kind_real !< Typical factor between diffusion scales
-logical,parameter :: lprt = .false.                  !< Optimization print
+real(kind_real),parameter :: cor_min = 0.5_kind_real ! Minimum relevant correlation for first guess
+real(kind_real),parameter :: Dscale = 10.0_kind_real ! Typical factor between diffusion scales
+logical,parameter :: lprt = .false.                  ! Optimization print
 
 ! LCT block data derived type
 type lct_blk_type
    ! Attributes
-   integer :: ib                                    !< Block index
-   integer :: nscales                               !< Number of LCT scales
+   integer :: ib                                    ! Block index
+   integer :: nscales                               ! Number of LCT scales
 
    ! Correlation
-   real(kind_real),allocatable :: raw(:,:,:,:)      !< Raw correlations
+   real(kind_real),allocatable :: raw(:,:,:,:)      ! Raw correlations
 
    ! Diffusion data
-   real(kind_real),allocatable :: D(:,:,:,:)        !< Diffusion components
-   real(kind_real),allocatable :: coef(:,:,:)       !< Multi-scale coefficients
-   real(kind_real),allocatable :: fit(:,:,:,:)      !< Fitted correlations
+   real(kind_real),allocatable :: D(:,:,:,:)        ! Diffusion components
+   real(kind_real),allocatable :: coef(:,:,:)       ! Multi-scale coefficients
+   real(kind_real),allocatable :: fit(:,:,:,:)      ! Fitted correlations
 
    ! Filtered diffusion data
-   real(kind_real),allocatable :: D_filt(:,:,:,:)   !< Diffusion components
-   real(kind_real),allocatable :: coef_filt(:,:,:)  !< Multi-scale coefficients
-   real(kind_real),allocatable :: fit_filt(:,:,:,:) !< Fitted correlations
+   real(kind_real),allocatable :: D_filt(:,:,:,:)   ! Diffusion components
+   real(kind_real),allocatable :: coef_filt(:,:,:)  ! Multi-scale coefficients
+   real(kind_real),allocatable :: fit_filt(:,:,:,:) ! Fitted correlations
 
    ! Output data
-   real(kind_real),allocatable :: D11(:,:,:)        !< TODO
-   real(kind_real),allocatable :: D22(:,:,:)        !< TODO
-   real(kind_real),allocatable :: D33(:,:,:)        !< TODO
-   real(kind_real),allocatable :: D12(:,:,:)        !< TODO
-   real(kind_real),allocatable :: H11(:,:,:)        !< TODO
-   real(kind_real),allocatable :: H22(:,:,:)        !< TODO
-   real(kind_real),allocatable :: H33(:,:,:)        !< TODO
-   real(kind_real),allocatable :: H12(:,:,:)        !< TODO
-   real(kind_real),allocatable :: Dcoef(:,:,:)      !< TODO
-   real(kind_real),allocatable :: DLh(:,:,:)        !< TODO
+   real(kind_real),allocatable :: D11(:,:,:)        ! Daley tensor, component 11
+   real(kind_real),allocatable :: D22(:,:,:)        ! Daley tensor, component 22
+   real(kind_real),allocatable :: D33(:,:,:)        ! Daley tensor, component 33
+   real(kind_real),allocatable :: D12(:,:,:)        ! Daley tensor, component 12
+   real(kind_real),allocatable :: H11(:,:,:)        ! Local correlation tensor, component 11
+   real(kind_real),allocatable :: H22(:,:,:)        ! Local correlation tensor, component 22
+   real(kind_real),allocatable :: H33(:,:,:)        ! Local correlation tensor, component 33
+   real(kind_real),allocatable :: H12(:,:,:)        ! Local correlation tensor, component 12
+   real(kind_real),allocatable :: Dcoef(:,:,:)      ! Tensor coefficient
+   real(kind_real),allocatable :: DLh(:,:,:)        ! Tensor length-scale
 contains
    procedure :: alloc => lct_blk_alloc
    procedure :: dealloc => lct_blk_dealloc
@@ -72,19 +69,19 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_blk_alloc
-!> Purpose: LCT block data allocation
+! Purpose: LCT block data allocation
 !----------------------------------------------------------------------
 subroutine lct_blk_alloc(lct_blk,nam,geom,bpar,hdata,ib)
 
 implicit none
 
 ! Passed variables
-class(lct_blk_type),intent(inout) :: lct_blk !< LCT block
-type(nam_type),intent(in) :: nam             !< Namelist
-type(geom_type),intent(in) :: geom           !< Geometry
-type(bpar_type),intent(in) :: bpar           !< Block parameters
-type(hdata_type),intent(in) :: hdata         !< HDIAG data
-integer,intent(in) :: ib                     !< Block index
+class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
+type(nam_type),intent(in) :: nam             ! Namelist
+type(geom_type),intent(in) :: geom           ! Geometry
+type(bpar_type),intent(in) :: bpar           ! Block parameters
+type(hdata_type),intent(in) :: hdata         ! HDIAG data
+integer,intent(in) :: ib                     ! Block index
 
 ! Attributes
 lct_blk%ib = ib
@@ -136,14 +133,14 @@ end subroutine lct_blk_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_blk_dealloc
-!> Purpose: LCT block data deallocation
+! Purpose: LCT block data deallocation
 !----------------------------------------------------------------------
 subroutine lct_blk_dealloc(lct_blk)
 
 implicit none
 
 ! Passed variables
-class(lct_blk_type),intent(inout) :: lct_blk !< LCT block
+class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
 
 ! Release memory
 if (allocated(lct_blk%raw)) deallocate(lct_blk%raw)
@@ -168,19 +165,19 @@ end subroutine lct_blk_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_blk_correlation
-!> Purpose: compute raw correlation
+! Purpose: compute raw correlation
 !----------------------------------------------------------------------
 subroutine lct_blk_correlation(lct_blk,nam,geom,bpar,hdata,mom_blk)
 
 implicit none
 
 ! Passed variables
-class(lct_blk_type),intent(inout) :: lct_blk !< LCT block
-type(nam_type),intent(in) :: nam             !< Namelist
-type(geom_type),intent(in) :: geom           !< Geometry
-type(bpar_type),intent(in) :: bpar           !< Block parameters
-type(hdata_type),intent(in) :: hdata         !< HDIAG data
-type(mom_blk_type),intent(in) :: mom_blk     !< Moments block
+class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
+type(nam_type),intent(in) :: nam             ! Namelist
+type(geom_type),intent(in) :: geom           ! Geometry
+type(bpar_type),intent(in) :: bpar           ! Block parameters
+type(hdata_type),intent(in) :: hdata         ! HDIAG data
+type(mom_blk_type),intent(in) :: mom_blk     ! Moments block
 
 ! Local variables
 integer :: jsub,il0,jl0r,jl0,jc3,ic1a,ic1
@@ -240,19 +237,19 @@ end subroutine lct_blk_correlation
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_blk_fitting
-!> Purpose: fitting LCT
+! Purpose: fitting LCT
 !----------------------------------------------------------------------
 subroutine lct_blk_fitting(lct_blk,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_blk_type),intent(inout) :: lct_blk !< LCT block
-type(mpl_type),intent(inout) :: mpl          !< MPI data
-type(nam_type),intent(in) :: nam             !< Namelist
-type(geom_type),intent(in) :: geom           !< Geometry
-type(bpar_type),intent(in) :: bpar           !< Block parameters
-type(hdata_type),intent(in) :: hdata         !< HDIAG data
+class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
+type(mpl_type),intent(inout) :: mpl          ! MPI data
+type(nam_type),intent(in) :: nam             ! Namelist
+type(geom_type),intent(in) :: geom           ! Geometry
+type(bpar_type),intent(in) :: bpar           ! Block parameters
+type(hdata_type),intent(in) :: hdata         ! HDIAG data
 
 ! Local variables
 integer :: il0,jl0r,jl0,ic1a,ic1,ic0,jc3,jc0,iscales,icomp

@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: module_aro
-!> Purpose: AROME model routines
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: AROME model routines
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module model_aro
 
@@ -24,22 +21,22 @@ implicit none
 private
 public :: model_aro_coord,model_aro_read
 
-character(len=1024) :: zone = 'C+I' !< Computation zone ('C', 'C+I' or 'C+I+E')
+character(len=1024) :: zone = 'C+I' ! Computation zone ('C', 'C+I' or 'C+I+E')
 
 contains
 
 !----------------------------------------------------------------------
 ! Subroutine: model_aro_coord
-!> Purpose: load AROME coordinates
+! Purpose: load AROME coordinates
 !----------------------------------------------------------------------
 subroutine model_aro_coord(mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam      !< Namelist
-type(geom_type),intent(inout) :: geom !< Geometry
+type(mpl_type),intent(in) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: ncid,nlon_id,nlat_id,nlev_id,pp_id,lon_id,lat_id,cmask_id,a_id,b_id
@@ -140,18 +137,18 @@ end subroutine model_aro_coord
 
 !----------------------------------------------------------------------
 ! Subroutine: model_aro_read
-!> Purpose: read AROME field
+! Purpose: read AROME field
 !----------------------------------------------------------------------
 subroutine model_aro_read(mpl,nam,geom,filename,fld)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl                           !< MPI data
-type(nam_type),intent(in) :: nam                              !< Namelist
-type(geom_type),intent(in) :: geom                            !< Geometry
-character(len=*),intent(in) :: filename                       !< File name
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
+type(mpl_type),intent(inout) :: mpl                           ! MPI data
+type(nam_type),intent(in) :: nam                              ! Namelist
+type(geom_type),intent(in) :: geom                            ! Geometry
+character(len=*),intent(in) :: filename                       ! File name
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Field
 
 ! Local variables
 integer :: iv,il0,ic0,ilon,ilat

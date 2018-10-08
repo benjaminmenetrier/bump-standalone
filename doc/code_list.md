@@ -1,0 +1,630 @@
+# Code list
+
+The source code is organized as follows:
+
+ - The main program main.F90
+ - Useful tools for the whole code: tools_[...].F90
+ - Derived types and associated methods: type_[...].F90
+ - External tools: external/[...].F90
+ - Model related routines, to get the coordinates, read and write fields: model/model_[...].F90
+
+
+1. **Main program** [main.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/main.F90): command line arguments parsing and offline setup (call to the BUMP routine)
+
+
+2. **Tools**
+ - module [tools_const.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_const.F90): define usual constants and missing values
+ - module [tools_fit.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_fit.F90): fit-related tools
+     - subroutine [fast_fit](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_fit.F90#L25): fast fit length-scale estimation based on the value at mid-height
+     - subroutine [ver_smooth](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_fit.F90#L177): homogeneous smoothing of a vertical profile
+     - subroutine [ver_fill](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_fit.F90#L230): missing values filling of a vertical profile
+ - module [tools_func.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90): usual functions
+     - subroutine [lonlatmod](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L30): set latitude between -pi/2 and pi/2 and longitude between -pi and pi
+     - subroutine [sphere_dist](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L60): compute the great-circle distance between two points
+     - subroutine [reduce_arc](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L87): reduce arc to a given distance
+     - subroutine [vector_product](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L124): compute normalized vector product
+     - subroutine [vector_triple_product](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L151): compute vector triple product
+     - subroutine [add](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L178): check if value missing and add if not missing
+     - subroutine [divide](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L207): check if value missing and divide if not missing
+     - subroutine [fit_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L228): compute diagnostic fit function
+     - subroutine [fit_diag_dble](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L362): compute diagnostic fit function
+     - function [: gc99](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L511): Gaspari and Cohn (1999) function, with the support radius as a parameter
+     - subroutine [fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L541): LCT fit
+     - subroutine [lct_d2h](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L613): inversion from D (Daley tensor) to H (local correlation tensor)
+     - function [: matern](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L654): compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3)
+     - subroutine [cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L696): compute cholesky decomposition
+     - subroutine [syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L744): compute inverse of a symmetric matrix
+ - module [tools_kinds.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_kinds.F90): kinds definition
+ - module [tools_missing.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90): deal with missing values
+     - subroutine [msi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L127): set integer to missing value
+     - subroutine [msi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L142): set integer to missing value
+     - subroutine [msi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L157): set integer to missing value
+     - subroutine [msi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L172): set integer to missing value
+     - subroutine [msi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L187): set integer to missing value
+     - subroutine [msi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L202): set integer to missing value
+     - subroutine [msi_6d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L217): set integer to missing value
+     - subroutine [msr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L232): set real number to missing value
+     - subroutine [msr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L247): set real number to missing value
+     - subroutine [msr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L262): set real number to missing value
+     - subroutine [msr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L277): set real number to missing value
+     - subroutine [msr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L292): set real number to missing value
+     - subroutine [msr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L307): set real number to missing value
+     - subroutine [msr_6d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L322): set real number to missing value
+     - function [: isnotmsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L337): check if an integer is not set to missing value
+     - function [: isnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L355): check if an integer is not set to missing value
+     - function [: isnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L377): check if an integer is not set to missing value
+     - function [: isnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L399): check if an integer is not set to missing value
+     - function [: isnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L421): check if an integer is not set to missing value
+     - function [: isnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L443): check if an integer is not set to missing value
+     - function [: ismsi_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L465): check if an integer is set to missing value
+     - function [: ismsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L483): check if an integer is set to missing value
+     - function [: ismsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L501): check if an integer is set to missing value
+     - function [: ismsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L519): check if an integer is set to missing value
+     - function [: ismsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L537): check if an integer is set to missing value
+     - function [: ismsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L555): check if an integer is set to missing value
+     - function [: isnotmsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L573): check if an real number is not set to missing value
+     - function [: isnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L591): check if an real number is not set to missing value
+     - function [: isnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L613): check if an real number is not set to missing value
+     - function [: isnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L635): check if an real number is not set to missing value
+     - function [: isnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L657): check if an real number is not set to missing value
+     - function [: isnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L679): check if an real number is not set to missing value
+     - function [: ismsr_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L701): check if an real number is set to missing value
+     - function [: ismsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L719): check if an real number is set to missing value
+     - function [: ismsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L737): check if an real number is set to missing value
+     - function [: ismsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L755): check if an real number is set to missing value
+     - function [: ismsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L773): check if an real number is set to missing value
+     - function [: ismsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L791): check if an real number is set to missing value
+     - function [: isanynotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L809): check if an integer is not set to missing value
+     - function [: isanynotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L824): check if an integer is not set to missing value
+     - function [: isanynotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L839): check if an integer is not set to missing value
+     - function [: isanynotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L854): check if an integer is not set to missing value
+     - function [: isanynotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L869): check if an integer is not set to missing value
+     - function [: isanymsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L884): check if an integer is set to missing value
+     - function [: isanymsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L899): check if an integer is set to missing value
+     - function [: isanymsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L914): check if an integer is set to missing value
+     - function [: isanymsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L929): check if an integer is set to missing value
+     - function [: isanymsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L944): check if an integer is set to missing value
+     - function [: isanynotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L959): check if a real is not set to missing value
+     - function [: isanynotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L974): check if a real is not set to missing value
+     - function [: isanynotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L989): check if a real is not set to missing value
+     - function [: isanynotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1004): check if a real is not set to missing value
+     - function [: isanynotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1019): check if a real is not set to missing value
+     - function [: isanymsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1034): check if a real is set to missing value
+     - function [: isanymsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1049): check if a real is set to missing value
+     - function [: isanymsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1064): check if a real is set to missing value
+     - function [: isanymsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1079): check if a real is set to missing value
+     - function [: isanymsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1094): check if a real is set to missing value
+     - function [: isallnotmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1109): check if an integer is not set to missing value
+     - function [: isallnotmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1124): check if an integer is not set to missing value
+     - function [: isallnotmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1139): check if an integer is not set to missing value
+     - function [: isallnotmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1154): check if an integer is not set to missing value
+     - function [: isallnotmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1169): check if an integer is not set to missing value
+     - function [: isallmsi_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1184): check if an integer is set to missing value
+     - function [: isallmsi_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1199): check if an integer is set to missing value
+     - function [: isallmsi_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1214): check if an integer is set to missing value
+     - function [: isallmsi_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1229): check if an integer is set to missing value
+     - function [: isallmsi_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1244): check if an integer is set to missing value
+     - function [: isallnotmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1259): check if a real is not set to missing value
+     - function [: isallnotmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1274): check if a real is not set to missing value
+     - function [: isallnotmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1289): check if a real is not set to missing value
+     - function [: isallnotmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1304): check if a real is not set to missing value
+     - function [: isallnotmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1319): check if a real is not set to missing value
+     - function [: isallmsr_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1334): check if a real is set to missing value
+     - function [: isallmsr_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1349): check if a real is set to missing value
+     - function [: isallmsr_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1364): check if a real is set to missing value
+     - function [: isallmsr_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1379): check if a real is set to missing value
+     - function [: isallmsr_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_missing.F90#L1394): check if a real is set to missing value
+ - module [tools_nc.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90): NetCDF routines
+     - subroutine [put_att_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L35): write namelist integer as NetCDF attribute
+     - subroutine [put_att_integer_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L57): write namelist integer array as NetCDF attribute
+     - subroutine [put_att_real](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L89): write namelist real as NetCDF attribute
+     - subroutine [put_att_real_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L111): write namelist real array as NetCDF attribute
+     - subroutine [put_att_logical](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L143): write namelist logical as NetCDF attribute
+     - subroutine [put_att_logical_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L169): write namelist logical array as NetCDF attribute
+     - subroutine [put_att_string](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L209): write namelist string as NetCDF attribute
+     - subroutine [put_att_string_array](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_nc.F90#L231): write namelist string array as NetCDF attribute
+ - module [tools_repro.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90): reproducibility functions
+     - function [: eq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L23): equal test for reals
+     - function [: inf](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L42): inferior test for reals
+     - function [: infeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L61): inferior or equal test for reals
+     - function [: sup](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L80): superior test for reals
+     - function [: supeq](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L99): superior or equal test for reals
+     - function [: indist](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_repro.F90#L118): indistiguishability test
+ - module [tools_test.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90): test tools
+     - subroutine [define_dirac](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90#L26): define dirac indices
+     - subroutine [define_test_vectors](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_test.F90#L60): define test vectors
+
+
+3. **Derived types**
+ - module [type_avg_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90): averaged statistics block derived type
+     - subroutine [avg_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L64): averaged statistics block data allocation
+     - subroutine [avg_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L154): averaged statistics block data deallocation
+     - function [: avg_blk%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L186): averaged statistics block copy
+     - subroutine [avg_blk%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L239): compute averaged statistics via spatial-angular erogodicity assumption
+     - subroutine [avg_blk%compute_asy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L415): compute asymptotic statistics
+     - subroutine [avg_blk%compute_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L545): compute averaged statistics via spatial-angular erogodicity assumption, for LR covariance/HR covariance and LR covariance/HR asymptotic covariance products
+     - subroutine [avg_blk%compute_asy_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg_blk.F90#L634): compute LR covariance/HR asymptotic covariance products
+ - module [type_avg.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90): average routines
+     - subroutine [avg%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L52): averaged statistics allocation
+     - subroutine [avg%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L87): averaged statistics deallocation
+     - function [: avg%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L117): averaged statistics copy
+     - subroutine [avg%gather](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L151): gather averaged statistics data
+     - subroutine [avg%normalize](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L288): normalize averaged statistics data
+     - subroutine [avg%gather_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L353): gather low-resolution averaged statistics data
+     - subroutine [avg%normalize_lr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L431): normalize low-resolution averaged statistics data
+     - subroutine [avg%var_filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L484): filter variance
+     - subroutine [avg%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L609): compute averaged statistics
+     - subroutine [avg%compute_hyb](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L688): compute hybrid averaged statistics
+     - function [: avg%copy_wgt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L776): averaged statistics data copy for weight definition
+     - subroutine [avg%compute_bwavg](https://github.com/benjaminmenetrier/bump/tree/master/src/type_avg.F90#L809): compute block-averaged statistics
+ - module [type_bpar.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bpar.F90): block parameters derived type
+     - subroutine [bpar%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bpar.F90#L47): allocate general parameters
+     - subroutine [bpar%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bpar.F90#L295): deallocate general parameters
+ - module [type_bump.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90): BUMP derived type
+     - subroutine [bump%setup_online](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L77): online setup
+     - subroutine [bump%setup_offline](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L209): offline setup
+     - subroutine [bump%setup_generic](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L310): generic setup
+     - subroutine [bump%run_drivers](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L353): run drivers
+     - subroutine [bump%add_member](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L543): add member into bump%ens[1,2]
+     - subroutine [bump%apply_vbal](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L581): vertical balance application
+     - subroutine [bump%apply_vbal_inv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L603): vertical balance application, inverse
+     - subroutine [bump%apply_vbal_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L625): vertical balance application, adjoint
+     - subroutine [bump%apply_vbal_inv_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L647): vertical balance application, inverse adjoint
+     - subroutine [bump%apply_nicas](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L669): NICAS application
+     - subroutine [bump%get_cv_size](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L690): get control variable size
+     - subroutine [bump%apply_nicas_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L713): NICAS square-root application
+     - subroutine [bump%apply_nicas_sqrt_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L745): NICAS square-root adjoint application
+     - subroutine [bump%apply_obsop](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L774): observation operator application
+     - subroutine [bump%apply_obsop_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L792): observation operator adjoint application
+     - subroutine [bump%get_parameter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L810): get a parameter
+     - subroutine [bump%copy_to_field](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L866): copy to field
+     - subroutine [bump%set_parameter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L943): set a parameter
+     - subroutine [bump%copy_from_field](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L999): copy from field
+     - subroutine [bump%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1053): deallocation of BUMP fields
+ - module [type_cmat_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90): correlation matrix derived type
+     - subroutine [cmat_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90#L61): C matrix block data allocation
+     - subroutine [cmat_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90#L136): C matrix block data deallocation
+ - module [type_cmat.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90): C matrix derived type
+     - subroutine [cmat%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L59): C matrix data allocation
+     - subroutine [cmat%alloc_blk](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L88): C matrix block data allocation
+     - subroutine [cmat%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L116): C matrix data allocation
+     - function [: cmat%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L144): C matrix data copy
+     - subroutine [cmat%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L196): read C matrix data
+     - subroutine [cmat%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L285): write C matrix data
+     - subroutine [cmat%run_hdiag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L356): HDIAG driver
+     - subroutine [cmat%from_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L601): transform diagnostics into C matrix data
+     - subroutine [cmat%from_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L732): copy LCT into C matrix data
+     - subroutine [cmat%from_nam](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L818): copy radii into C matrix data
+     - subroutine [cmat%from_oops](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L879): copy C matrix data from OOPS
+     - subroutine [cmat%setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L929): setup C matrix sampling
+ - module [type_com.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90): communications derived type
+     - subroutine [com%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L57): communications data deallocation
+     - subroutine [com%ext_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L81): communicate field to halo (extension), 1d
+     - subroutine [com%ext_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L125): communicate field to halo (extension), 2d
+     - subroutine [com%red_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L181): communicate vector from halo (reduction)
+     - subroutine [com%red_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L235): communicate vector from halo (reduction)
+     - subroutine [com%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L298): read communications from a NetCDF file
+     - subroutine [com%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L376): write communications to a NetCDF file
+     - subroutine [com%setup](https://github.com/benjaminmenetrier/bump/tree/master/src/type_com.F90#L429): setup communications
+ - module [type_cv_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cv_blk.F90): control vector derived type
+ - module [type_cv.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cv.F90): control vector derived type
+     - subroutine [cv%pack](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cv.F90#L30): pack control variable
+     - subroutine [cv%unpack](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cv.F90#L58): unpack control variable
+ - module [type_diag_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90): diagnostic block derived type
+     - subroutine [diag_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L65): diagnostic block data allocation
+     - subroutine [diag_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L145): diagnostic block data deallocation
+     - subroutine [diag_blk%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L168): write a diagnostic
+     - subroutine [diag_blk%normalization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L338): compute diagnostic block normalization
+     - subroutine [diag_blk%fitting](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L400): compute a semi-positive definite fit of a raw function
+     - subroutine [diag_blk%localization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L640): diag_blk localization
+     - subroutine [diag_blk%hybridization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L676): diag_blk hybridization
+     - subroutine [diag_blk%dualens](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag_blk.F90#L742): diag_blk dualens
+ - module [type_diag.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90): diagnostic derived type
+     - subroutine [diag%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L52): allocation
+     - subroutine [diag%fit_filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L94): filter fit diagnostics
+     - subroutine [diag%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L237): write all diagnostics
+     - subroutine [diag%covariance](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L341): compute covariance
+     - subroutine [diag%correlation](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L397): compute correlation
+     - subroutine [diag%localization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L501): compute diagnostic localization
+     - subroutine [diag%hybridization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L591): compute diagnostic hybridization
+     - subroutine [diag%dualens](https://github.com/benjaminmenetrier/bump/tree/master/src/type_diag.F90#L674): compute diagnostic dualens
+ - module [type_displ.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_displ.F90): displacement data derived type
+     - subroutine [displ%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_displ.F90#L61): displacement data allocation
+     - subroutine [displ%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_displ.F90#L103): displacement data deallocation
+     - subroutine [displ%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_displ.F90#L129): compute correlation maximum displacement
+     - subroutine [displ%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_displ.F90#L603): write displacement data
+ - module [type_ens.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90): ensemble derived type
+     - subroutine [ens%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L44): ensemble data allocation
+     - subroutine [ens%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L75): ensemble data deallocation
+     - subroutine [ens%load](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L92): load ensemble data
+     - subroutine [ens%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L168): ensemble data copy
+     - subroutine [ens%remove_mean](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L196): remove ensemble mean
+     - subroutine [ens%from](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L231): copy ensemble array into ensemble data
+     - subroutine [ens%from_nemovar](https://github.com/benjaminmenetrier/bump/tree/master/src/type_ens.F90#L270): copy 2d NEMOVAR ensemble into ensemble data
+ - module [type_fckit_mpi_comm.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90): FCKIT emulator for offline execution
+     - function [: fckit_mpi_comm%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L89): initialize fckit MPI communicator
+     - subroutine [fckit_mpi_comm%final](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L115): finalize fckit MPI communicator
+     - subroutine [fckit_mpi_comm%rank](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L141): get MPI rank
+     - subroutine [fckit_mpi_comm%size](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L166): get MPI size
+     - subroutine [fckit_mpi_comm%check](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L191): check MPI error
+     - subroutine [fckit_mpi_comm%abort](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L221): abort
+     - subroutine [fckit_mpi_comm%barrier](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L244): MPI barrier
+     - subroutine [fckit_mpi_comm%broadcast_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L266): broadcast integer
+     - subroutine [fckit_mpi_comm%broadcast_integer_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L290): broadcast 1d integer array
+     - subroutine [fckit_mpi_comm%broadcast_integer_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L314): broadcast 2d integer array
+     - subroutine [fckit_mpi_comm%broadcast_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L338): broadcast real
+     - subroutine [fckit_mpi_comm%broadcast_real_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L362): broadcast 1d real array
+     - subroutine [fckit_mpi_comm%broadcast_real_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L386): broadcast 2d real array
+     - subroutine [fckit_mpi_comm%broadcast_real_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L410): broadcast 3d real array
+     - subroutine [fckit_mpi_comm%broadcast_real_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L434): broadcast 4d real array
+     - subroutine [fckit_mpi_comm%broadcast_real_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L458): broadcast 5d real array
+     - subroutine [fckit_mpi_comm%broadcast_real_6d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L482): broadcast 6d real array
+     - subroutine [fckit_mpi_comm%broadcast_logical_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L506): broadcast logical
+     - subroutine [fckit_mpi_comm%broadcast_logical_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L530): broadcast 1d logical array
+     - subroutine [fckit_mpi_comm%broadcast_logical_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L554): broadcast 2d logical array
+     - subroutine [fckit_mpi_comm%broadcast_logical_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L578): broadcast 3d logical array
+     - subroutine [fckit_mpi_comm%broadcast_string_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L602): broadcast string
+     - subroutine [fckit_mpi_comm%receive_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L626): receive integer
+     - subroutine [fckit_mpi_comm%receive_integer_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L652): receive 1d integer array
+     - subroutine [fckit_mpi_comm%receive_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L678): receive real
+     - subroutine [fckit_mpi_comm%receive_real_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L704): receive 1d real array
+     - subroutine [fckit_mpi_comm%receive_logical_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L730): receive 1d logical array
+     - subroutine [fckit_mpi_comm%send_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L756): send integer
+     - subroutine [fckit_mpi_comm%send_integer_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L781): send 1d integer array
+     - subroutine [fckit_mpi_comm%send_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L806): send real
+     - subroutine [fckit_mpi_comm%send_integer_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L831): send 1d real array
+     - subroutine [fckit_mpi_comm%send_logical_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L856): send 1d logical array
+     - subroutine [fckit_mpi_comm%allgather_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L881): allgather for a integer
+     - subroutine [fckit_mpi_comm%allgather_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L909): allgather for a real
+     - subroutine [fckit_mpi_comm%allgather_logical_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L937): allgather for a logical
+     - subroutine [fckit_mpi_comm%alltoallv_real](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L965): alltoallv for a real array
+     - subroutine [fckit_mpi_comm%allreduce_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L993): allreduce for an integer
+     - subroutine [fckit_mpi_comm%allreduce_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1018): allreduce for a real number
+     - subroutine [fckit_mpi_comm%allreduce_real_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1043): allreduce for a real array, 1d
+     - subroutine [fckit_mpi_sum](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1068): get MPI sum index
+     - subroutine [fckit_mpi_min](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1082): get MPI min index
+     - subroutine [fckit_mpi_max](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1096): get MPI max index
+     - subroutine [fckit_mpi_real](https://github.com/benjaminmenetrier/bump/tree/master/src/type_fckit_mpi_comm.F90#L1110): get MPI real index
+ - module [type_geom.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90): geometry derived type
+     - subroutine [geom%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L114): geometry allocation
+     - subroutine [geom%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L159): geometry deallocation
+     - subroutine [geom%setup_online](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L209): setup online geometry
+     - subroutine [geom%find_redundant](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L415): find redundant model grid points
+     - subroutine [geom%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L497): initialize geometry
+     - subroutine [geom%define_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L583): define mask
+     - subroutine [geom%compute_area](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L652): compute domain area
+     - subroutine [geom%compute_mask_boundaries](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L684): compute domain area
+     - subroutine [geom%define_distribution](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L756): define local distribution
+     - subroutine [geom%check_arc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1011): check if an arc is crossing boundaries
+     - subroutine [geom%copy_c0a_to_mga](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1062): copy from subset Sc0 to model grid, halo A
+     - subroutine [geom%copy_mga_to_c0a](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1141): copy from model grid to subset Sc0, halo A
+     - subroutine [geom%compute_deltas](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1171): compute deltas for LCT definition
+ - module [type_hdata.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90): sample data derived type
+     - subroutine [hdata%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L129): HDIAG data allocation
+     - subroutine [hdata%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L185): HDIAG data deallocation
+     - subroutine [hdata%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L233): read HDIAG data
+     - subroutine [hdata%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L463): write HDIAG data
+     - subroutine [hdata%setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L707): setup sampling
+     - subroutine [hdata%compute_sampling_zs](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L932): compute zero-separation sampling
+     - subroutine [hdata%compute_sampling_ps](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L998): compute positive separation sampling
+     - subroutine [hdata%compute_sampling_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1131): compute LCT sampling
+     - subroutine [hdata%compute_sampling_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1328): compute sampling mask
+     - subroutine [hdata%compute_mpi_a](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1375): compute HDIAG MPI distribution, halo A
+     - subroutine [hdata%compute_mpi_ab](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1438): compute HDIAG MPI distribution, halos A-B
+     - subroutine [hdata%compute_mpi_d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1591): compute HDIAG MPI distribution, halo D
+     - subroutine [hdata%compute_mpi_c](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1662): compute HDIAG MPI distribution, halo C
+     - subroutine [hdata%compute_mpi_f](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1831): compute HDIAG MPI distribution, halo F
+     - subroutine [hdata%diag_filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L1905): filter diagnostics
+     - subroutine [hdata%diag_fill](https://github.com/benjaminmenetrier/bump/tree/master/src/type_hdata.F90#L2022): fill diagnostics missing values
+ - module [type_io.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90): I/O derived type
+     - subroutine [io%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L60): deallocate I/O
+     - subroutine [io%fld_read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L89): write field
+     - subroutine [io%fld_write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L154): write field
+     - subroutine [io%grid_init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L328): initialize fields regridding
+     - subroutine [io%grid_write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L545): interpolate and write field
+ - module [type_kdtree.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_kdtree.F90): KD-tree derived type
+     - subroutine [kdtree%create](https://github.com/benjaminmenetrier/bump/tree/master/src/type_kdtree.F90#L37): create a KD-tree
+     - subroutine [kdtree%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_kdtree.F90#L110): deallocate KD-tree
+     - subroutine [kdtree%find_nearest_neighbors](https://github.com/benjaminmenetrier/bump/tree/master/src/type_kdtree.F90#L131): find nearest neighbors using a KD-tree
+     - subroutine [kdtree%count_nearest_neighbors](https://github.com/benjaminmenetrier/bump/tree/master/src/type_kdtree.F90#L194): count nearest neighbors using a KD-tree
+ - module [type_lct_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct_blk.F90): LCT data derived type
+     - subroutine [lct_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct_blk.F90#L70): LCT block data allocation
+     - subroutine [lct_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct_blk.F90#L134): LCT block data deallocation
+     - subroutine [lct_blk%correlation](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct_blk.F90#L166): compute raw correlation
+     - subroutine [lct_blk%fitting](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct_blk.F90#L238): fitting LCT
+ - module [type_lct.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90): LCT data derived type
+     - subroutine [lct%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L50): LCT data allocation
+     - subroutine [lct%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L79): LCT data deallocation
+     - subroutine [lct%run_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L107): LCT driver
+     - subroutine [lct%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L206): compute LCT
+     - subroutine [lct%filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L246): filter LCT
+     - subroutine [lct%rmse](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L405): compute LCT fit RMSE
+     - subroutine [lct%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L475): interpolate and write LCT
+     - subroutine [lct%write_cor](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L667): write correlation and LCT fit
+ - module [type_linop.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90): linear operator derived type
+     - subroutine [linop%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L67): linear operator allocation
+     - subroutine [linop%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L108): linear operator deallocation
+     - function [: linop%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L127): linear operator copy
+     - subroutine [linop%reorder](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L167): reorder linear operator
+     - subroutine [linop%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L225): read linear operator from a NetCDF file
+     - subroutine [linop%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L285): write linear operator to a NetCDF file
+     - subroutine [linop%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L343): apply linear operator
+     - subroutine [linop%apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L429): apply linear operator, adjoint
+     - subroutine [linop%apply_sym](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L483): apply linear operator, symmetric
+     - subroutine [linop%add_op](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L549): add operation
+     - subroutine [linop%gather](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L594): gather data from OpenMP threads
+     - subroutine [linop%interp_from_lat_lon](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L628): compute horizontal interpolation from source latitude/longitude
+     - subroutine [linop%interp_from_mesh_kdtree](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L697): compute horizontal interpolation from source mesh and kdtree
+     - subroutine [linop%interp_grid](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L916): compute horizontal grid interpolation
+     - subroutine [interp_check_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1042): check mask boundaries for interpolations
+     - subroutine [linop%interp_missing](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1120): deal with missing interpolation points
+ - module [type_mesh.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90): mesh derived type
+     - subroutine [mesh%create](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L67): create mesh
+     - subroutine [mesh%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L138): deallocate mesh
+     - function [: mesh%copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L167): copy mesh
+     - subroutine [mesh%trans](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L226): transform to cartesian coordinates
+     - subroutine [mesh%trlist](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L248): compute triangle list, arc list
+     - subroutine [mesh%bnodes](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L300): find boundary nodes
+     - subroutine [mesh%barcs](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L320): find boundary arcs
+     - subroutine [mesh%check](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L398): check whether the mesh is made of counter-clockwise triangles
+     - subroutine [mesh%inside](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L461): find whether a point is inside the mesh
+     - subroutine [mesh%barycentric](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L492): compute barycentric coordinates
+     - subroutine [mesh%addnode](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L521): add node to a mesh
+     - subroutine [mesh%polygon](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mesh.F90#L604): compute polygon area
+ - module [type_minim.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90): minimization data derived type
+     - subroutine [minim%cost](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L124): compute cost function
+     - subroutine [minim%cost_fit_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L149): diagnosic fit function cost
+     - subroutine [minim%cost_fit_diag_dble](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L232): diagnosic fit function cost, double fit
+     - function [: minim%cost_fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L319): LCT fit function cost
+     - subroutine [minim%hooke](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L368): seeks a minimizer of a scalar function of several variables
+     - subroutine [minim%best_nearby](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L459): looks for a better nearby point, one coordinate at a time
+     - subroutine [vt_dir](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L510): direct variable transform
+     - subroutine [vt_inv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_minim.F90#L527): inverse variable transform
+ - module [type_mom_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mom_blk.F90): moments block derived type
+ - module [type_mom.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mom.F90): moments derived type
+     - subroutine [mom%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mom.F90#L40): allocate moments
+     - subroutine [mom%compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mom.F90#L89): compute centered moments (iterative formulae)
+ - module [type_mpl.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90): MPI parameters derived type
+     - subroutine [mpl%newunit](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L86): find a free unit
+     - subroutine [mpl%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L116): initialize MPL object
+     - subroutine [mpl%final](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L154): finalize MPI
+     - subroutine [mpl%init_listing](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L170): initialize listings
+     - subroutine [mpl%abort](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L259): clean MPI abort
+     - subroutine [mpl%warning](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L287): print warning message
+     - subroutine [prog_init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L305): initialize progression display
+     - subroutine [mpl%prog_print](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L332): print progression display
+     - subroutine [mpl%ncerr](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L362): handle NetCDF error
+     - subroutine [mpl%update_tag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L380): update MPL tag
+     - subroutine [mpl%bcast_string_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L401): broadcast 1d string array
+     - subroutine [mpl%dot_prod_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L424): global dot product over local fields, 1d
+     - subroutine [mpl%dot_prod_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L454): global dot product over local fields, 2d
+     - subroutine [mpl%dot_prod_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L483): global dot product over local fields, 3d
+     - subroutine [mpl%dot_prod_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L512): global dot product over local fields, 4d
+     - subroutine [mpl%split](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L541): split array over different MPI tasks
+     - subroutine [mpl%glb_to_loc_index](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L576): communicate global index to local index
+     - subroutine [mpl%glb_to_loc_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L639): global to local, 1d array
+     - subroutine [mpl%glb_to_loc_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L700): global to local, 2d array
+     - subroutine [mpl%loc_to_glb_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L774): local to global, 1d array
+     - subroutine [mpl%loc_to_glb_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_mpl.F90#L839): local to global, 2d array
+ - module [type_nam.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90): namelist derived type
+     - subroutine [nam%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L174): intialize namelist parameters
+     - subroutine [nam%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L326): read namelist parameters
+     - subroutine [nam%bcast](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L672): broadcast namelist parameters
+     - subroutine [nam%setup_internal](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L816): setup namelist parameters internally (model 'online')
+     - subroutine [nam%check](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L862): check namelist parameters
+     - subroutine [nam%ncwrite](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nam.F90#L1199): write namelist parameters as NetCDF attributes
+ - module [type_nicas_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90): NICAS data block derived type
+     - subroutine [balldata_alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L231): ball data allocation
+     - subroutine [balldata_dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L249): ball data deallocation
+     - subroutine [balldata_pack](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L267): pack data into balldata object
+     - subroutine [nicas_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L305): NICAS block data deallocation
+     - subroutine [nicas_blk%compute_parameters](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L454): compute NICAS parameters
+     - subroutine [nicas_blk%compute_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L542): compute NICAS sampling
+     - subroutine [nicas_blk%compute_interp_h](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L868): compute basic horizontal interpolation
+     - subroutine [nicas_blk%compute_interp_v](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L898): compute vertical interpolation
+     - subroutine [nicas_blk%compute_interp_s](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L977): compute horizontal subsampling interpolation
+     - subroutine [nicas_blk%compute_mpi_ab](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L1073): compute NICAS MPI distribution, halos A-B
+     - subroutine [nicas_blk%compute_convol](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L1359): compute convolution
+     - subroutine [nicas_blk%compute_convol_network](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L1859): compute convolution with a network approach
+     - subroutine [nicas_blk%compute_convol_distance](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2100): compute convolution with a distance approach
+     - subroutine [nicas_blk%compute_convol_weights](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2245): compute convolution weights
+     - subroutine [nicas_blk%compute_mpi_c](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2354): compute NICAS MPI distribution, halo C
+     - subroutine [nicas_blk%compute_normalization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2477): compute normalization
+     - subroutine [nicas_blk%compute_adv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2715): compute advection
+     - subroutine [nicas_blk%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2943): apply NICAS method
+     - subroutine [nicas_blk%apply_from_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L2996): apply NICAS method from its square-root formulation
+     - subroutine [nicas_blk%apply_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3021): apply NICAS method square-root
+     - subroutine [nicas_blk%apply_sqrt_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3059): apply NICAS method square-root adjoint
+     - subroutine [nicas_blk%apply_interp](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3097): apply interpolation
+     - subroutine [nicas_blk%apply_interp_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3129): apply interpolation adjoint
+     - subroutine [nicas_blk%apply_interp_h](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3162): apply horizontal interpolation
+     - subroutine [nicas_blk%apply_interp_h_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3189): apply horizontal interpolation adjoint
+     - subroutine [nicas_blk%apply_interp_v](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3215): apply vertical interpolation
+     - subroutine [nicas_blk%apply_interp_v_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3258): apply vertical interpolation adjoint
+     - subroutine [nicas_blk%apply_interp_s](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3301): apply subsampling interpolation
+     - subroutine [nicas_blk%apply_interp_s_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3338): apply subsampling interpolation adjoint
+     - subroutine [nicas_blk%apply_convol](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3372): apply convolution
+     - subroutine [nicas_blk%apply_adv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3390): apply advection
+     - subroutine [nicas_blk%apply_adv_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3425): apply advection
+     - subroutine [nicas_blk%apply_adv_inv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3460): apply inverse advection
+     - subroutine [nicas_blk%test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3495): test NICAS adjoint accuracy
+     - subroutine [nicas_blk%test_pos_def](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3701): test positive_definiteness
+     - subroutine [nicas_blk%test_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3804): test full/square-root equivalence
+     - subroutine [nicas_blk%test_dirac](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas_blk.F90#L3869): apply NICAS to diracs
+ - module [type_nicas.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90): NICAS data derived type
+     - subroutine [nicas%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L73): NICAS data allocation
+     - subroutine [nicas%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L112): NICAS data deallocation
+     - subroutine [nicas%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L140): read NICAS data
+     - subroutine [nicas%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L283): write NICAS data
+     - subroutine [nicas%write_mpi_summary](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L390): write NICAS MPI related data summary
+     - subroutine [nicas%run_nicas](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L473): NICAS driver
+     - subroutine [nicas%run_nicas_tests](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L539): NICAS tests driver
+     - subroutine [nicas%alloc_cv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L669): control vector allocation
+     - subroutine [nicas%random_cv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L721): generate a random control vector
+     - subroutine [nicas%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L748): apply NICAS
+     - subroutine [nicas%apply_from_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1003): apply NICAS from square-root
+     - subroutine [nicas%apply_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1045): apply NICAS square-root
+     - subroutine [nicas%apply_sqrt_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1246): apply NICAS square-root, adjoint
+     - subroutine [nicas%randomize](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1467): randomize NICAS from square-root
+     - subroutine [nicas%apply_bens](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1538): apply localized ensemble covariance
+     - subroutine [nicas%apply_bens_noloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1597): apply ensemble covariance, without localization
+     - subroutine [nicas%test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1652): test NICAS adjoint
+     - subroutine [nicas%test_sqrt](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1734): test full/square-root equivalence
+     - subroutine [nicas%test_dirac](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1849): apply NICAS to diracs
+     - subroutine [nicas%test_randomization](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L1915): test NICAS randomization method with respect to theoretical error statistics
+     - subroutine [nicas%test_consistency](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L2018): test HDIAG-NICAS consistency with a randomization method
+     - subroutine [nicas%test_optimality](https://github.com/benjaminmenetrier/bump/tree/master/src/type_nicas.F90#L2101): test HDIAG localization optimality with a randomization method
+ - module [type_obsop.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90): observation operator data derived type
+     - subroutine [obsop%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L69): observation operator deallocation
+     - subroutine [obsop%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L89): read observations locations
+     - subroutine [obsop%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L127): write observations locations
+     - subroutine [obsop%generate](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L170): generate observations locations
+     - subroutine [obsop%from](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L263): copy observation operator data
+     - subroutine [obsop%run_obsop](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L292): observation operator driver
+     - subroutine [obsop%run_obsop_tests](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L659): observation operator tests driver
+     - subroutine [obsop%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L689): observation operator interpolation
+     - subroutine [obsop%apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L722): observation operator interpolation adjoint
+     - subroutine [obsop%test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L758): test observation operator adjoints accuracy
+     - subroutine [obsop%test_accuracy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L805): test observation operator accuracy
+ - module [type_rng.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90): random numbers generator derived type
+     - subroutine [rng%init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L56): initialize the random number generator
+     - subroutine [rng%reseed](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L97): re-seed the random number generator
+     - subroutine [rng%lcg](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L123): linear congruential generator
+     - subroutine [rng%rand_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L143): generate a random integer, 0d
+     - subroutine [rng%rand_integer_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L171): generate a random integer, 1d
+     - subroutine [rng%rand_real_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L194): generate a random real, 0d
+     - subroutine [rng%rand_real_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L222): generate a random real, 1d
+     - subroutine [rng%rand_real_2d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L245): generate a random real, 2d
+     - subroutine [rng%rand_real_3d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L270): generate a random real, 3d
+     - subroutine [rng%rand_real_4d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L297): generate a random real, 4d
+     - subroutine [rng%rand_real_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L326): generate a random real, 5d
+     - subroutine [rng%rand_gau_1d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L357): generate random Gaussian deviates, 1d
+     - subroutine [rng%rand_gau_5d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L398): generate random Gaussian deviates, 5d
+     - subroutine [rng%initialize_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L425): intialize sampling
+ - module [type_timer.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_timer.F90): timer data derived type
+     - subroutine [timer%start](https://github.com/benjaminmenetrier/bump/tree/master/src/type_timer.F90#L36): initialize timer
+     - subroutine [timer%end](https://github.com/benjaminmenetrier/bump/tree/master/src/type_timer.F90#L57): finalize timer
+     - subroutine [timer%display](https://github.com/benjaminmenetrier/bump/tree/master/src/type_timer.F90#L89): display timer
+ - module [type_vbal_blk.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal_blk.F90): vertical balance block derived type
+     - subroutine [vbal_blk%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal_blk.F90#L39): vertical balance block data allocation
+     - subroutine [vbal_blk%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal_blk.F90#L68): vertical balance block data deallocation
+     - subroutine [vbal_blk%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal_blk.F90#L87): apply vertical balance block
+     - subroutine [vbal_blk%apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal_blk.F90#L132): apply adjoint vertical balance block
+ - module [type_vbal.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90): vertical balance derived type
+     - subroutine [vbal%alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L64): allocate vertical balance
+     - subroutine [vbal%dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L114): vertical balance allocation
+     - subroutine [vbal%read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L147): read vertical balance
+     - subroutine [vbal%write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L229): write vertical balance
+     - subroutine [vbal%run_vbal](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L311): compute vertical balance
+     - subroutine [vbal%run_vbal_tests](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L583): compute vertical balance tests
+     - subroutine [vbal%apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L607): apply vertical balance
+     - subroutine [vbal%apply_inv](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L645): apply inverse vertical balance
+     - subroutine [vbal%apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L683): apply adjoint vertical balance
+     - subroutine [vbal%apply_inv_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L721): apply inverse adjoint vertical balance
+     - subroutine [vbal%test_inverse](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L759): test vertical balance inverse
+     - subroutine [vbal%test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L824): test vertical balance adjoint
+
+
+4. **External tools**
+ - module [tools_asa007.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90): inverse of symmetric positive definite matrix routines
+     - subroutine [asa007_cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90#L28): compute cholesky decomposition
+     - subroutine [asa007_syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_asa007.f90.F90#L96): compute inverse of a symmetric matrix
+ - module [tools_kdtree2.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90): K-d tree routines
+     - function [: kdtree2_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L129): create the actual tree structure, given an input array of data
+     - subroutine [build_tree](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L189): build tree
+     - function [: build_tree_for_range](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L204): build tree
+     - function [: select_on_coordinate_value](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L333): move elts of ind around between l and u, so that all points <= than alpha (in c cooordinate) are first, and then all points > alpha are second
+     - subroutine [select_on_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L391): move elts of ind around between l and u, so that the kth element is >= those below, <= those above, in the coordinate c
+     - subroutine [spread_in_coordinate](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L424): return lower bound in 'smin', and upper in 'smax', the spread in coordinate 'c', between l and u.
+     - subroutine [kdtree2_destroy](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L472): deallocates all memory for the tree, except input data matrix
+     - subroutine [destroy_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L491): destroy node
+     - subroutine [kdtree2_n_nearest](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L517): find the 'nn' vectors in the tree nearest to 'qv' in euclidean norm
+     - function [: kdtree2_r_count](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L557): count the number of neighbors within square distance 'r2'
+     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L598): make sure we have enough storage for n
+     - function [: square_distance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L613): distance between iv[1:n] and qv[1:n]
+     - function [: sdistance](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L629): spherical distance between iv[1:n] and qv[1:n]
+     - subroutine [validate_query_storage](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L650): innermost core routine of the kd-tree search
+     - function [: dis2_from_bnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L727): compute squared distance
+     - subroutine [process_terminal_node](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L748): Look for actual near neighbors in 'node', and update the search results on the sr data structure
+     - subroutine [process_terminal_node_fixedball](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L846): look for actual near neighbors in 'node', and update the search results on the sr data structure, i.e. save all within a fixed ball.
+     - subroutine [kdtree2_sort_results](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L930): use after search to sort results(1:nfound) in order of increasing distance
+     - subroutine [heapsort_struct](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2.f90.F90#L946): sort a(1:n) in ascending order
+ - module [tools_kdtree2_pq.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90): K-d tree priority queue routines
+     - function [: pq_create](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L81): create a priority queue from ALREADY allocated array pointers for storage
+     - subroutine [heapify](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L109): take a heap rooted at 'i' and force it to be in the heap canonical form
+     - subroutine [pq_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L186): return the priority and its payload of the maximum priority element on the queue, which should be the first one, if it is in heapified form
+     - function [: pq_maxpri](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L202): unknown
+     - subroutine [pq_extract_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L217): return the priority and payload of maximum priority element, and remove it from the queue
+     - function [: pq_insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L247): insert a new element and return the new maximum priority, which may or may not be the same as the old maximum priority
+     - function [: pq_replace_max](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L294): replace the extant maximum priority element in the PQ with (dis,sdis,idx)
+     - subroutine [pq_delete](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_kdtree2_pq.f90.F90#L368): delete item with index 'i'
+ - module [tools_qsort.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90): qsort routines
+     - subroutine [qsort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L38): sort an integer subvector
+     - subroutine [qsort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L62): sort a real subvector
+     - subroutine [quick_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L86): sort an integer subvector
+     - subroutine [quick_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L148): sort a real subvector
+     - subroutine [interchange_sort_integer](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L210): interchange integers
+     - subroutine [interchange_sort_real](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_qsort.f90.F90#L244): interchange reals
+ - module [tools_stripack.f90.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90): STRIPACK routines
+     - subroutine [addnod](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L27): add a node to a triangulation
+     - function [: areas](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L296): compute the area of a spherical triangle on the unit sphere
+     - subroutine [bdyadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L441): add a boundary node to a triangulation
+     - subroutine [bnodes](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L583): return the boundary nodes of a triangulation
+     - subroutine [circum](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L719): return the circumcenter of a spherical triangle
+     - subroutine [covsph](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L806): connect an exterior node to boundary nodes, covering the sphere
+     - subroutine [det](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L918): compute 3D determinant
+     - subroutine [crlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L955): return triangle circumcenters and other information
+     - subroutine [insert](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L1595): insert K as a neighbor of N1
+     - function [: inside](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L1654): determine if a point is inside a polygonal region
+     - subroutine [intadd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2017): add an interior node to a triangulation
+     - subroutine [intrsc](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2119): find the intersection of two great circles
+     - subroutine [jrand](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2227): return a random integer between 1 and N
+     - subroutine [left](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2293): determin whether a node is to the left of a plane through the origin
+     - subroutine [lstptr](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2356): return the index of NB in the adjacency list
+     - function [: nbcnt](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2437): return the number of neighbors of a node
+     - function [: nearnd](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2513): return the nearest node to a given point
+     - subroutine [scoord](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2837): convert from Cartesian to spherical coordinates
+     - subroutine [swap](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L2902): replace the diagonal arc of a quadrilateral with the other diagonal
+     - subroutine [swptst](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3019): decide whether to replace a diagonal arc by the other
+     - subroutine [trans](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3119): transform spherical coordinates to Cartesian coordinates
+     - subroutine [trfind](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3198): locate a point relative to a triangulation
+     - subroutine [trlist](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L3712): convert a triangulation data structure to a triangle list
+     - subroutine [trmesh](https://github.com/benjaminmenetrier/bump/tree/master/src/external/tools_stripack.f90.F90#L4012): create a Delaunay triangulation on the unit sphere
+
+
+5. **Model-related routines**
+ - module [module_aro.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_aro.F90): AROME model routines
+     - subroutine [model_aro_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_aro.F90#L28): load AROME coordinates
+     - subroutine [model_aro_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_aro.F90#L138): read AROME field
+ - module [module_arp.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_arp.F90): ARPEGE model routines
+     - subroutine [model_arp_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_arp.F90#L26): get ARPEGE coordinates
+     - subroutine [model_arp_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_arp.F90#L120): read ARPEGE field
+ - module [module_fv3.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_fv3.F90): FV3 model routines
+     - subroutine [model_fv3_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_fv3.F90#L28): get FV3 coordinates
+     - subroutine [model_fv3_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_fv3.F90#L120): read FV3 field
+ - module [module_gem.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gem.F90): GEM model routines
+     - subroutine [model_gem_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gem.F90#L26): get GEM coordinates
+     - subroutine [model_gem_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gem.F90#L114): read GEM field
+ - module [module_geos.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_geos.F90): GEOS model routines
+     - subroutine [model_geos_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_geos.F90#L26): get GEOS coordinates
+     - subroutine [model_geos_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_geos.F90#L110): read GEOS field
+ - module [module_gfs.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gfs.F90): GFS model routines
+     - subroutine [model_gfs_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gfs.F90#L26): get GFS coordinates
+     - subroutine [model_gfs_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_gfs.F90#L115): read GFS field
+ - module [module_ifs.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_ifs.F90): IFS model routines
+     - subroutine [model_ifs_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_ifs.F90#L26): get IFS coordinates
+     - subroutine [model_ifs_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_ifs.F90#L109): read IFS field
+ - module [model_interface.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/model_interface.F90): model routines
+     - subroutine [model_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/model_interface.F90#L35): get coordinates
+     - subroutine [model_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/model_interface.F90#L75): read model field
+ - module [module_mpas.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_mpas.F90): MPAS model routines
+     - subroutine [model_mpas_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_mpas.F90#L26): get MPAS coordinates
+     - subroutine [model_mpas_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_mpas.F90#L97): read MPAS field
+ - module [module_nemo.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_nemo.F90): NEMO model routines
+     - subroutine [model_nemo_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_nemo.F90#L28): get NEMO coordinates
+     - subroutine [model_nemo_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_nemo.F90#L133): read NEMO field
+ - module [module_wrf.F90](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_wrf.F90): WRF model routines
+     - subroutine [model_wrf_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_wrf.F90#L26): get WRF coordinates
+     - subroutine [model_wrf_read](https://github.com/benjaminmenetrier/bump/tree/master/src/model/module_wrf.F90#L115): read WRF field
+
+

@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_obsop
-!> Purpose: observation operator data derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: observation operator data derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_obsop
 
@@ -27,29 +24,29 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max,fckit_mpi_
 
 implicit none
 
-logical,parameter :: test_no_obs = .false. !< Test observation operator with no observation on the last MPI task
+logical,parameter :: test_no_obs = .false. ! Test observation operator with no observation on the last MPI task
 
 ! Observation operator data derived type
 type obsop_type
    ! Observations
-   integer :: nobs                          !< Number of observations
-   real(kind_real),allocatable :: lonobs(:) !< Observations longitudes
-   real(kind_real),allocatable :: latobs(:) !< Observations latitudes
-   integer,allocatable :: obsa_to_obs(:)    !< Local to global observation
+   integer :: nobs                          ! Number of observations
+   real(kind_real),allocatable :: lonobs(:) ! Observations longitudes
+   real(kind_real),allocatable :: latobs(:) ! Observations latitudes
+   integer,allocatable :: obsa_to_obs(:)    ! Local to global observation
 
    ! Required data to apply an observation operator
 
    ! Number of points
-   integer :: nc0b                          !< Halo B size
+   integer :: nc0b                          ! Halo B size
 
    ! Number of observations
-   integer :: nobsa                         !< Local number of observations
+   integer :: nobsa                         ! Local number of observations
 
    ! Interpolation data
-   type(linop_type) :: h                    !< Interpolation data
+   type(linop_type) :: h                    ! Interpolation data
 
    ! Communication data
-   type(com_type) :: com                    !< Communication data
+   type(com_type) :: com                    ! Communication data
 contains
    procedure :: dealloc => obsop_dealloc
    procedure :: read => obsop_read
@@ -71,14 +68,14 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_dealloc
-!> Purpose: observation operator deallocation
+! Purpose: observation operator deallocation
 !----------------------------------------------------------------------
 subroutine obsop_dealloc(obsop)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
 
 ! Release memory
 if (allocated(obsop%lonobs)) deallocate(obsop%lonobs)
@@ -91,16 +88,16 @@ end subroutine obsop_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_read
-!> Purpose: read observations locations
+! Purpose: read observations locations
 !----------------------------------------------------------------------
 subroutine obsop_read(obsop,mpl,nam)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
 integer :: ncid
@@ -129,16 +126,16 @@ end subroutine obsop_read
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_write
-!> Purpose: write observations locations
+! Purpose: write observations locations
 !----------------------------------------------------------------------
 subroutine obsop_write(obsop,mpl,nam)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
 integer :: ncid
@@ -172,18 +169,18 @@ end subroutine obsop_write
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_generate
-!> Purpose: generate observations locations
+! Purpose: generate observations locations
 !----------------------------------------------------------------------
 subroutine obsop_generate(obsop,mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: iobs,jobs,iproc,iobsa,nproc_max
@@ -265,17 +262,17 @@ end subroutine obsop_generate
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_from
-!> Purpose: copy observation operator data
+! Purpose: copy observation operator data
 !----------------------------------------------------------------------
 subroutine obsop_from(obsop,nobs,lonobs,latobs)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop   !< Observation operator data
-integer,intent(in) :: nobs                 !< Number of observations
-real(kind_real),intent(in) :: lonobs(nobs) !< Observations longitudes (in degrees)
-real(kind_real),intent(in) :: latobs(nobs) !< Observations latitudes (in degrees)
+class(obsop_type),intent(inout) :: obsop   ! Observation operator data
+integer,intent(in) :: nobs                 ! Number of observations
+real(kind_real),intent(in) :: lonobs(nobs) ! Observations longitudes (in degrees)
+real(kind_real),intent(in) :: latobs(nobs) ! Observations latitudes (in degrees)
 
 ! Get size
 obsop%nobs = nobs
@@ -294,18 +291,18 @@ end subroutine obsop_from
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_run_obsop
-!> Purpose: observation operator driver
+! Purpose: observation operator driver
 !----------------------------------------------------------------------
 subroutine obsop_run_obsop(obsop,mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: offset,iobs,jobs,iobsa,iproc,i_s,ic0,ic0b,i,ic0a,delta,nres,ind(1),lunit
@@ -661,17 +658,17 @@ end subroutine obsop_run_obsop
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_run_obsop_tests
-!> Purpose: observation operator tests driver
+! Purpose: observation operator tests driver
 !----------------------------------------------------------------------
 subroutine obsop_run_obsop_tests(obsop,mpl,rng,geom)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(geom_type),intent(in) :: geom       !< Geometry
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Test adjoints
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -691,18 +688,18 @@ end subroutine obsop_run_obsop_tests
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_apply
-!> Purpose: observation operator interpolation
+! Purpose: observation operator interpolation
 !----------------------------------------------------------------------
 subroutine obsop_apply(obsop,mpl,geom,fld,obs)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(in) :: obsop                    !< Observation operator data
-type(mpl_type),intent(in) :: mpl                         !< MPI data
-type(geom_type),intent(in) :: geom                       !< Geometry
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)    !< Field
-real(kind_real),intent(out) :: obs(obsop%nobsa,geom%nl0) !< Observations columns
+class(obsop_type),intent(in) :: obsop                    ! Observation operator data
+type(mpl_type),intent(in) :: mpl                         ! MPI data
+type(geom_type),intent(in) :: geom                       ! Geometry
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0)    ! Field
+real(kind_real),intent(out) :: obs(obsop%nobsa,geom%nl0) ! Observations columns
 
 ! Local variables
 integer :: il0
@@ -724,18 +721,18 @@ end subroutine obsop_apply
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_apply_ad
-!> Purpose: observation operator interpolation adjoint
+! Purpose: observation operator interpolation adjoint
 !----------------------------------------------------------------------
 subroutine obsop_apply_ad(obsop,mpl,geom,obs,fld)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(in) :: obsop                   !< Observation operator data
-type(mpl_type),intent(in) :: mpl                        !< MPI data
-type(geom_type),intent(in) :: geom                      !< Geometry
-real(kind_real),intent(in) :: obs(obsop%nobsa,geom%nl0) !< Observations columns
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  !< Field
+class(obsop_type),intent(in) :: obsop                   ! Observation operator data
+type(mpl_type),intent(in) :: mpl                        ! MPI data
+type(geom_type),intent(in) :: geom                      ! Geometry
+real(kind_real),intent(in) :: obs(obsop%nobsa,geom%nl0) ! Observations columns
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0)  ! Field
 
 ! Local variables
 integer :: il0
@@ -760,17 +757,17 @@ end subroutine obsop_apply_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_test_adjoint
-!> Purpose: test observation operator adjoints accuracy
+! Purpose: test observation operator adjoints accuracy
 !----------------------------------------------------------------------
 subroutine obsop_test_adjoint(obsop,mpl,rng,geom)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(geom_type),intent(in) :: geom       !< Geometry
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 real(kind_real) :: sum1,sum2_loc,sum2
@@ -807,16 +804,16 @@ end subroutine obsop_test_adjoint
 
 !----------------------------------------------------------------------
 ! Subroutine: obsop_test_accuracy
-!> Purpose: test observation operator accuracy
+! Purpose: test observation operator accuracy
 !----------------------------------------------------------------------
 subroutine obsop_test_accuracy(obsop,mpl,geom)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop !< Observation operator data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(geom_type),intent(in) :: geom       !< Geometry
+class(obsop_type),intent(inout) :: obsop ! Observation operator data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: ic0a,ic0,iobsa

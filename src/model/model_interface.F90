@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: model_interface
-!> Purpose: model routines
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: model routines
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module model_interface
 
@@ -37,17 +34,17 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: model_coord
-!> Purpose: get coordinates
+! Purpose: get coordinates
 !----------------------------------------------------------------------
 subroutine model_coord(mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng   !< Random number generator
-type(nam_type),intent(in) :: nam      !< Namelist variables
-type(geom_type),intent(inout) :: geom !< Geometry
+type(mpl_type),intent(in) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng   ! Random number generator
+type(nam_type),intent(in) :: nam      ! Namelist variables
+type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: iv
@@ -77,20 +74,20 @@ end subroutine model_coord
 
 !----------------------------------------------------------------------
 ! Subroutine: model_read
-!> Purpose: read model field
+! Purpose: read model field
 !----------------------------------------------------------------------
 subroutine model_read(mpl,nam,geom,filename,ie,jsub,fld)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl                                   !< MPI data
-type(nam_type),intent(in) :: nam                                      !< Namelist
-type(geom_type),intent(in) :: geom                                    !< Geometry
-character(len=*),intent(in) :: filename                               !< File name
-integer,intent(in) :: ie                                              !< Ensemble member index
-integer,intent(in) :: jsub                                            !< Sub-ensemble index
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) !< Field
+type(mpl_type),intent(inout) :: mpl                                   ! MPI data
+type(nam_type),intent(in) :: nam                                      ! Namelist
+type(geom_type),intent(in) :: geom                                    ! Geometry
+character(len=*),intent(in) :: filename                               ! File name
+integer,intent(in) :: ie                                              ! Ensemble member index
+integer,intent(in) :: jsub                                            ! Sub-ensemble index
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) ! Field
 
 ! Local variables
 integer :: its

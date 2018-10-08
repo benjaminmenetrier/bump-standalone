@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: module_ifs
-!> Purpose: IFS model routines
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: IFS model routines
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module model_ifs
 
@@ -28,16 +25,16 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: model_ifs_coord
-!> Purpose: get IFS coordinates
+! Purpose: get IFS coordinates
 !----------------------------------------------------------------------
 subroutine model_ifs_coord(mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam      !< Namelist
-type(geom_type),intent(inout) :: geom !< Geometry
+type(mpl_type),intent(in) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: ilon,ilat,ic0
@@ -111,19 +108,19 @@ end subroutine model_ifs_coord
 
 !----------------------------------------------------------------------
 ! Subroutine: model_ifs_read
-!> Purpose: read IFS field
+! Purpose: read IFS field
 !----------------------------------------------------------------------
 subroutine model_ifs_read(mpl,nam,geom,filename,its,fld)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl                           !< MPI data
-type(nam_type),intent(in) :: nam                              !< Namelist
-type(geom_type),intent(in) :: geom                            !< Geometry
-character(len=*),intent(in) :: filename                       !< File name
-integer,intent(in) :: its                                     !< Timeslot index
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
+type(mpl_type),intent(inout) :: mpl                           ! MPI data
+type(nam_type),intent(in) :: nam                              ! Namelist
+type(geom_type),intent(in) :: geom                            ! Geometry
+character(len=*),intent(in) :: filename                       ! File name
+integer,intent(in) :: its                                     ! Timeslot index
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Field
 
 ! Local variables
 integer :: iv,il0,ic0,ilon,ilat

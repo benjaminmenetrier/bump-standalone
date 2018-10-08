@@ -1,18 +1,18 @@
 
 !----------------------------------------------------------------------
 ! Subroutine: ens_load
-!> Purpose: load ensemble data
+! Purpose: load ensemble data
 !----------------------------------------------------------------------
 subroutine ens_load(ens,mpl,nam,geom,filename)
 
 implicit none
 
 ! Passed variables
-class(ens_type),intent(inout) :: ens    !< Ensemble
-type(mpl_type),intent(inout) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-character(len=*),intent(in) :: filename !< Filename ('ens1' or 'ens2')
+class(ens_type),intent(inout) :: ens    ! Ensemble
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+character(len=*),intent(in) :: filename ! Filename ('ens1' or 'ens2')
 
 ! Local variables
 integer :: ne,ne_offset,nsub,isub,jsub,ie,ietot

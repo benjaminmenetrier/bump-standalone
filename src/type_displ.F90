@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_displ
-!> Purpose: displacement data derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: displacement data derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_displ
 
@@ -31,24 +28,24 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
-character(len=1024) :: displ_method = 'cor_max'         !< Displacement computation method
-real(kind_real),parameter :: cor_th = 0.2_kind_real     !< Correlation threshold
+character(len=1024) :: displ_method = 'cor_max'         ! Displacement computation method
+real(kind_real),parameter :: cor_th = 0.2_kind_real     ! Correlation threshold
 
 ! Displacement data derived type
 type displ_type
-   integer :: niter                                   !< Number of stored iterations
-   real(kind_real),allocatable :: dist(:,:,:)         !< Displacement distance
-   real(kind_real),allocatable :: valid(:,:,:)        !< Displacement validity
-   real(kind_real),allocatable :: rhflt(:,:,:)        !< Displacement filtering support radius
+   integer :: niter                                   ! Number of stored iterations
+   real(kind_real),allocatable :: dist(:,:,:)         ! Displacement distance
+   real(kind_real),allocatable :: valid(:,:,:)        ! Displacement validity
+   real(kind_real),allocatable :: rhflt(:,:,:)        ! Displacement filtering support radius
 
-   real(kind_real),allocatable :: lon_c2a(:,:)        !< Longitude origin
-   real(kind_real),allocatable :: lat_c2a(:,:)        !< Latitude origin
-   real(kind_real),allocatable :: lon_c2a_raw(:,:,:)  !< Raw displaced longitude
-   real(kind_real),allocatable :: lat_c2a_raw(:,:,:)  !< Raw displaced latitude
-   real(kind_real),allocatable :: dist_c2a_raw(:,:,:) !< Raw displacement distance
-   real(kind_real),allocatable :: lon_c2a_flt(:,:,:)  !< Filtered displaced longitude
-   real(kind_real),allocatable :: lat_c2a_flt(:,:,:)  !< Filtered displaced latitude
-   real(kind_real),allocatable :: dist_c2a_flt(:,:,:) !< Displacement distance, filtered
+   real(kind_real),allocatable :: lon_c2a(:,:)        ! Longitude origin
+   real(kind_real),allocatable :: lat_c2a(:,:)        ! Latitude origin
+   real(kind_real),allocatable :: lon_c2a_raw(:,:,:)  ! Raw displaced longitude
+   real(kind_real),allocatable :: lat_c2a_raw(:,:,:)  ! Raw displaced latitude
+   real(kind_real),allocatable :: dist_c2a_raw(:,:,:) ! Raw displacement distance
+   real(kind_real),allocatable :: lon_c2a_flt(:,:,:)  ! Filtered displaced longitude
+   real(kind_real),allocatable :: lat_c2a_flt(:,:,:)  ! Filtered displaced latitude
+   real(kind_real),allocatable :: dist_c2a_flt(:,:,:) ! Displacement distance, filtered
 contains
    procedure :: alloc => displ_alloc
    procedure :: dealloc => displ_dealloc
@@ -63,17 +60,17 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: displ_alloc
-!> Purpose: displacement data allocation
+! Purpose: displacement data allocation
 !----------------------------------------------------------------------
 subroutine displ_alloc(displ,nam,geom,hdata)
 
 implicit none
 
 ! Passed variables
-class(displ_type),intent(inout) :: displ !< Displacement data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
-type(hdata_type),intent(in) :: hdata     !< HDIAG data
+class(displ_type),intent(inout) :: displ ! Displacement data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
+type(hdata_type),intent(in) :: hdata     ! HDIAG data
 
 ! Allocation
 allocate(displ%dist(0:nam%displ_niter,geom%nl0,2:nam%nts))
@@ -105,14 +102,14 @@ end subroutine displ_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: displ_dealloc
-!> Purpose: displacement data deallocation
+! Purpose: displacement data deallocation
 !----------------------------------------------------------------------
 subroutine displ_dealloc(displ)
 
 implicit none
 
 ! Passed variables
-class(displ_type),intent(inout) :: displ !< Displacement data
+class(displ_type),intent(inout) :: displ ! Displacement data
 
 ! Deallocation
 if (allocated(displ%dist)) deallocate(displ%dist)
@@ -131,19 +128,19 @@ end subroutine displ_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: displ_compute
-!> Purpose: compute correlation maximum displacement
+! Purpose: compute correlation maximum displacement
 !----------------------------------------------------------------------
 subroutine displ_compute(displ,mpl,nam,geom,hdata,ens)
 
 implicit none
 
 ! Passed variables
-class(displ_type),intent(inout) :: displ !< Displacement data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
-type(hdata_type),intent(inout) :: hdata  !< HDIAG data
-type(ens_type), intent(in) :: ens        !< Ensemble
+class(displ_type),intent(inout) :: displ ! Displacement data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
+type(hdata_type),intent(inout) :: hdata  ! HDIAG data
+type(ens_type), intent(in) :: ens        ! Ensemble
 
 ! Local variables
 integer :: ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d,ind
@@ -605,19 +602,19 @@ end subroutine displ_compute
 
 !----------------------------------------------------------------------
 ! Subroutine: displ_write
-!> Purpose: write displacement data
+! Purpose: write displacement data
 !----------------------------------------------------------------------
 subroutine displ_write(displ,mpl,nam,geom,hdata,filename)
 
 implicit none
 
 ! Passed variables
-class(displ_type),intent(in) :: displ   !< Displacement data
-type(mpl_type),intent(inout) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(hdata_type),intent(in) :: hdata    !< HDIAG data
-character(len=*),intent(in) :: filename !< File name
+class(displ_type),intent(in) :: displ   ! Displacement data
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(hdata_type),intent(in) :: hdata    ! HDIAG data
+character(len=*),intent(in) :: filename ! File name
 
 ! Local variables
 integer :: ncid,nc2_id,nl0_id,nts_id,displ_niter_id,vunit_id,valid_id,dist_id,rhflt_id

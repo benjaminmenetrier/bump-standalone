@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_geom
-!> Purpose: geometry derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: geometry derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_geom
 
@@ -28,71 +25,71 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
-integer :: nredmax = 10 !< Maximum number of similar redundant points
+integer :: nredmax = 10 ! Maximum number of similar redundant points
 
 ! Geometry derived type
 type geom_type
    ! Offline geometry data
-   integer :: nlon                            !< Longitude size
-   integer :: nlat                            !< Latitude size
-   integer :: nlev                            !< Number of levels
-   integer,allocatable :: c0_to_lon(:)        !< Subset Sc0 to longitude index
-   integer,allocatable :: c0_to_lat(:)        !< Subset Sc0 to latgitude index
-   integer,allocatable :: c0_to_tile(:)       !< Subset Sc0 to tile index
+   integer :: nlon                            ! Longitude size
+   integer :: nlat                            ! Latitude size
+   integer :: nlev                            ! Number of levels
+   integer,allocatable :: c0_to_lon(:)        ! Subset Sc0 to longitude index
+   integer,allocatable :: c0_to_lat(:)        ! Subset Sc0 to latgitude index
+   integer,allocatable :: c0_to_tile(:)       ! Subset Sc0 to tile index
 
    ! Number of points and levels
-   integer :: nmg                             !< Number of model grid points
-   integer :: nc0                             !< Number of points in subset Sc0
-   integer :: nl0                             !< Number of levels in subset Sl0
-   integer :: nl0i                            !< Number of independent levels in subset Sl0
+   integer :: nmg                             ! Number of model grid points
+   integer :: nc0                             ! Number of points in subset Sc0
+   integer :: nl0                             ! Number of levels in subset Sl0
+   integer :: nl0i                            ! Number of independent levels in subset Sl0
 
    ! Basic geometry data
-   real(kind_real),allocatable :: lon(:)      !< Longitudes
-   real(kind_real),allocatable :: lat(:)      !< Latitudes
-   real(kind_real),allocatable :: area(:)     !< Domain area
-   real(kind_real),allocatable :: vunit(:,:)  !< Vertical unit
-   real(kind_real),allocatable :: vunitavg(:) !< Averaged vertical unit
-   real(kind_real),allocatable :: disth(:)    !< Horizontal distance
+   real(kind_real),allocatable :: lon(:)      ! Longitudes
+   real(kind_real),allocatable :: lat(:)      ! Latitudes
+   real(kind_real),allocatable :: area(:)     ! Domain area
+   real(kind_real),allocatable :: vunit(:,:)  ! Vertical unit
+   real(kind_real),allocatable :: vunitavg(:) ! Averaged vertical unit
+   real(kind_real),allocatable :: disth(:)    ! Horizontal distance
 
    ! Masks
-   logical,allocatable :: mask_c0(:,:)        !< Mask on subset Sc0, global
-   logical,allocatable :: mask_c0a(:,:)       !< Mask on subset Sc0, halo A
-   logical,allocatable :: mask_hor_c0(:)      !< Union of horizontal masks on subset Sc0, global
-   logical,allocatable :: mask_hor_c0a(:)     !< Union of horizontal masks on subset Sc0, halo A
-   logical,allocatable :: mask_ver_c0(:)      !< Union of vertical masks
-   integer,allocatable :: nc0_mask(:)         !< Horizontal mask size on subset Sc0
+   logical,allocatable :: mask_c0(:,:)        ! Mask on subset Sc0, global
+   logical,allocatable :: mask_c0a(:,:)       ! Mask on subset Sc0, halo A
+   logical,allocatable :: mask_hor_c0(:)      ! Union of horizontal masks on subset Sc0, global
+   logical,allocatable :: mask_hor_c0a(:)     ! Union of horizontal masks on subset Sc0, halo A
+   logical,allocatable :: mask_ver_c0(:)      ! Union of vertical masks
+   integer,allocatable :: nc0_mask(:)         ! Horizontal mask size on subset Sc0
 
    ! Mesh
-   type(mesh_type) :: mesh                    !< Mesh
+   type(mesh_type) :: mesh                    ! Mesh
 
    ! KD-tree
-   type(kdtree_type) :: kdtree                !< KD-tree
+   type(kdtree_type) :: kdtree                ! KD-tree
 
    ! Boundary nodes
-   integer,allocatable :: nbnd(:)             !< Number of boundary nodes
-   real(kind_real),allocatable :: xbnd(:,:,:) !< Boundary nodes, x-coordinate
-   real(kind_real),allocatable :: ybnd(:,:,:) !< Boundary nodes, y-coordinate
-   real(kind_real),allocatable :: zbnd(:,:,:) !< Boundary nodes, z-coordinate
-   real(kind_real),allocatable :: vbnd(:,:,:) !< Boundary nodes, orthogonal vector
+   integer,allocatable :: nbnd(:)             ! Number of boundary nodes
+   real(kind_real),allocatable :: xbnd(:,:,:) ! Boundary nodes, x-coordinate
+   real(kind_real),allocatable :: ybnd(:,:,:) ! Boundary nodes, y-coordinate
+   real(kind_real),allocatable :: zbnd(:,:,:) ! Boundary nodes, z-coordinate
+   real(kind_real),allocatable :: vbnd(:,:,:) ! Boundary nodes, orthogonal vector
 
    ! Gripoints and subset Sc0
-   integer,allocatable :: redundant(:)        !< Redundant points array
-   integer,allocatable :: c0_to_mg(:)         !< Subset Sc0 to model grid
-   integer,allocatable :: mg_to_c0(:)         !< Model grid to subset Sc0
+   integer,allocatable :: redundant(:)        ! Redundant points array
+   integer,allocatable :: c0_to_mg(:)         ! Subset Sc0 to model grid
+   integer,allocatable :: mg_to_c0(:)         ! Model grid to subset Sc0
 
    ! MPI distribution
-   integer :: nmga                            !< Halo A size for model grid
-   integer :: nc0a                            !< Halo A size for subset Sc0
-   integer,allocatable :: mg_to_proc(:)       !< Model grid to local task
-   integer,allocatable :: mg_to_mga(:)        !< Model grid, global to halo A
-   integer,allocatable :: mga_to_mg(:)        !< Model grid, halo A to global
-   integer,allocatable :: proc_to_nmga(:)     !< Halo A size for each proc
-   integer,allocatable :: c0_to_proc(:)       !< Subset Sc0 to local task
-   integer,allocatable :: c0_to_c0a(:)        !< Subset Sc0, global to halo A
-   integer,allocatable :: c0a_to_c0(:)        !< Subset Sc0, halo A to global
-   integer,allocatable :: proc_to_nc0a(:)     !< Halo A size for each proc
-   integer,allocatable :: c0a_to_mga(:)       !< Subset Sc0 to model grid, halo A
-   type(com_type) :: com_mg                   !< Communication between subset Sc0 and model grid
+   integer :: nmga                            ! Halo A size for model grid
+   integer :: nc0a                            ! Halo A size for subset Sc0
+   integer,allocatable :: mg_to_proc(:)       ! Model grid to local task
+   integer,allocatable :: mg_to_mga(:)        ! Model grid, global to halo A
+   integer,allocatable :: mga_to_mg(:)        ! Model grid, halo A to global
+   integer,allocatable :: proc_to_nmga(:)     ! Halo A size for each proc
+   integer,allocatable :: c0_to_proc(:)       ! Subset Sc0 to local task
+   integer,allocatable :: c0_to_c0a(:)        ! Subset Sc0, global to halo A
+   integer,allocatable :: c0a_to_c0(:)        ! Subset Sc0, halo A to global
+   integer,allocatable :: proc_to_nc0a(:)     ! Halo A size for each proc
+   integer,allocatable :: c0a_to_mga(:)       ! Subset Sc0 to model grid, halo A
+   type(com_type) :: com_mg                   ! Communication between subset Sc0 and model grid
 contains
    procedure :: alloc => geom_alloc
    procedure :: dealloc => geom_dealloc
@@ -116,14 +113,14 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_alloc
-!> Purpose: geometry allocation
+! Purpose: geometry allocation
 !----------------------------------------------------------------------
 subroutine geom_alloc(geom)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
+class(geom_type),intent(inout) :: geom ! Geometry
 
 ! Allocation
 allocate(geom%c0_to_proc(geom%nc0))
@@ -161,14 +158,14 @@ end subroutine geom_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_dealloc
-!> Purpose: geometry deallocation
+! Purpose: geometry deallocation
 !----------------------------------------------------------------------
 subroutine geom_dealloc(geom)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
+class(geom_type),intent(inout) :: geom ! Geometry
 
 ! Release memory
 if (allocated(geom%c0_to_lon)) deallocate(geom%c0_to_lon)
@@ -211,22 +208,22 @@ end subroutine geom_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_setup_online
-!> Purpose: setup online geometry
+! Purpose: setup online geometry
 !----------------------------------------------------------------------
 subroutine geom_setup_online(geom,mpl,nmga,nl0,lon,lat,area,vunit,lmask)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom        !< Geometry
-type(mpl_type),intent(inout) :: mpl           !< MPI data
-integer,intent(in) :: nmga                    !< Halo A size
-integer,intent(in) :: nl0                     !< Number of levels in subset Sl0
-real(kind_real),intent(in) :: lon(nmga)       !< Longitudes
-real(kind_real),intent(in) :: lat(nmga)       !< Latitudes
-real(kind_real),intent(in) :: area(nmga)      !< Area
-real(kind_real),intent(in) :: vunit(nmga,nl0) !< Vertical unit
-logical,intent(in) :: lmask(nmga,nl0)         !< Mask
+class(geom_type),intent(inout) :: geom        ! Geometry
+type(mpl_type),intent(inout) :: mpl           ! MPI data
+integer,intent(in) :: nmga                    ! Halo A size
+integer,intent(in) :: nl0                     ! Number of levels in subset Sl0
+real(kind_real),intent(in) :: lon(nmga)       ! Longitudes
+real(kind_real),intent(in) :: lat(nmga)       ! Latitudes
+real(kind_real),intent(in) :: area(nmga)      ! Area
+real(kind_real),intent(in) :: vunit(nmga,nl0) ! Vertical unit
+logical,intent(in) :: lmask(nmga,nl0)         ! Mask
 
 ! Local variables
 integer :: ic0,ic0a,il0,offset,iproc,img,imga
@@ -417,17 +414,17 @@ end subroutine geom_setup_online
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_find_redundant
-!> Purpose: find redundant model grid points
+! Purpose: find redundant model grid points
 !----------------------------------------------------------------------
 subroutine geom_find_redundant(geom,mpl,lon,lat)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom               !< Geometry
-type(mpl_type),intent(in) :: mpl                     !< MPI data
-real(kind_real),intent(in),optional :: lon(geom%nmg) !< Longitudes
-real(kind_real),intent(in),optional :: lat(geom%nmg) !< Latitudes
+class(geom_type),intent(inout) :: geom               ! Geometry
+type(mpl_type),intent(in) :: mpl                     ! MPI data
+real(kind_real),intent(in),optional :: lon(geom%nmg) ! Longitudes
+real(kind_real),intent(in),optional :: lat(geom%nmg) ! Latitudes
 
 ! Local variables
 integer :: img,ic0,ired,nn_index(nredmax)
@@ -499,17 +496,17 @@ end subroutine geom_find_redundant
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_init
-!> Purpose: initialize geometry
+! Purpose: initialize geometry
 !----------------------------------------------------------------------
 subroutine geom_init(geom,mpl,rng,nam)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(rng_type),intent(inout) :: rng    !< Random number generator
-type(nam_type),intent(in) :: nam       !< Namelist
+class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(rng_type),intent(inout) :: rng    ! Random number generator
+type(nam_type),intent(in) :: nam       ! Namelist
 
 ! Local variables
 integer :: ic0,il0,jc3,iproc
@@ -585,16 +582,16 @@ end subroutine geom_init
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_define_mask
-!> Purpose: define mask
+! Purpose: define mask
 !----------------------------------------------------------------------
 subroutine geom_define_mask(geom,mpl,nam)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
+class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
 
 ! Local variables
 integer :: latmin,latmax,il0,ic0,ildw
@@ -654,14 +651,14 @@ end subroutine geom_define_mask
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_compute_area
-!> Purpose: compute domain area
+! Purpose: compute domain area
 !----------------------------------------------------------------------
 subroutine geom_compute_area(geom)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
+class(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: il0,it
@@ -686,15 +683,15 @@ end subroutine geom_compute_area
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_compute_mask_boundaries
-!> Purpose: compute domain area
+! Purpose: compute domain area
 !----------------------------------------------------------------------
 subroutine geom_compute_mask_boundaries(geom,mpl)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
-type(mpl_type),intent(in) :: mpl       !< MPI data
+class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
 
 ! Local variables
 integer :: i,j,k,iend,ic0,jc0,kc0,ibnd,il0
@@ -758,17 +755,17 @@ end subroutine geom_compute_mask_boundaries
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_define_distribution
-!> Purpose: define local distribution
+! Purpose: define local distribution
 !----------------------------------------------------------------------
 subroutine geom_define_distribution(geom,mpl,nam,rng)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom !< Geometry
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(rng_type),intent(inout) :: rng    !< Random number generator
+class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(rng_type),intent(inout) :: rng    ! Random number generator
 
 ! Local variables
 integer :: ic0,il0,i,j,iend,info,iproc,ic0a,nc0amax,lunit
@@ -1013,20 +1010,20 @@ end subroutine geom_define_distribution
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_check_arc
-!> Purpose: check if an arc is crossing boundaries
+! Purpose: check if an arc is crossing boundaries
 !----------------------------------------------------------------------
 subroutine geom_check_arc(geom,il0,lon_s,lat_s,lon_e,lat_e,valid)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(in) :: geom !< Geometry
-integer,intent(in) :: il0           !< Level
-real(kind_real),intent(in) :: lon_s !< First point longitude
-real(kind_real),intent(in) :: lat_s !< First point latitude
-real(kind_real),intent(in) :: lon_e !< Second point longitude
-real(kind_real),intent(in) :: lat_e !< Second point latitude
-logical,intent(out) :: valid        !< True for valid arcs
+class(geom_type),intent(in) :: geom ! Geometry
+integer,intent(in) :: il0           ! Level
+real(kind_real),intent(in) :: lon_s ! First point longitude
+real(kind_real),intent(in) :: lat_s ! First point latitude
+real(kind_real),intent(in) :: lon_e ! Second point longitude
+real(kind_real),intent(in) :: lat_e ! Second point latitude
+logical,intent(out) :: valid        ! True for valid arcs
 
 ! Local variables
 integer :: ibnd
@@ -1064,17 +1061,17 @@ end subroutine geom_check_arc
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_copy_c0a_to_mga
-!> Purpose: copy from subset Sc0 to model grid, halo A
+! Purpose: copy from subset Sc0 to model grid, halo A
 !----------------------------------------------------------------------
 subroutine geom_copy_c0a_to_mga(geom,mpl,fld_c0a,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(in) :: geom                        !< Geometry
-type(mpl_type),intent(in) :: mpl                           !< MPI data
-real(kind_real),intent(in) :: fld_c0a(geom%nc0a,geom%nl0)  !< Field on subset Sc0, halo A
-real(kind_real),intent(out) :: fld_mga(geom%nmga,geom%nl0) !< Field on model grid, halo A
+class(geom_type),intent(in) :: geom                        ! Geometry
+type(mpl_type),intent(in) :: mpl                           ! MPI data
+real(kind_real),intent(in) :: fld_c0a(geom%nc0a,geom%nl0)  ! Field on subset Sc0, halo A
+real(kind_real),intent(out) :: fld_mga(geom%nmga,geom%nl0) ! Field on model grid, halo A
 
 ! Local variables
 integer :: ic0a,imga,nred,ired,img,jmg,jmga
@@ -1143,17 +1140,17 @@ end subroutine geom_copy_c0a_to_mga
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_copy_mga_to_c0a
-!> Purpose: copy from model grid to subset Sc0, halo A
+! Purpose: copy from model grid to subset Sc0, halo A
 !----------------------------------------------------------------------
 subroutine geom_copy_mga_to_c0a(geom,mpl,fld_mga,fld_c0a)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(in) :: geom                        !< Geometry
-type(mpl_type),intent(in) :: mpl                           !< MPI data
-real(kind_real),intent(in) :: fld_mga(geom%nmga,geom%nl0)  !< Field on model grid, halo A
-real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) !< Field on subset Sc0, halo A
+class(geom_type),intent(in) :: geom                        ! Geometry
+type(mpl_type),intent(in) :: mpl                           ! MPI data
+real(kind_real),intent(in) :: fld_mga(geom%nmga,geom%nl0)  ! Field on model grid, halo A
+real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) ! Field on subset Sc0, halo A
 
 ! Local variables
 integer :: ic0a,il0,imga
@@ -1173,21 +1170,21 @@ end subroutine geom_copy_mga_to_c0a
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_compute_deltas
-!> Purpose: compute deltas for LCT definition
+! Purpose: compute deltas for LCT definition
 !----------------------------------------------------------------------
 subroutine geom_compute_deltas(geom,ic0,il0,jc0,jl0,dx,dy,dz)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(in) :: geom !< Geometry
-integer,intent(in) :: ic0           !< TODO
-integer,intent(in) :: il0           !< TODO
-integer,intent(in) :: jc0           !< TODO
-integer,intent(in) :: jl0           !< TODO
-real(kind_real),intent(out) :: dx   !< TODO
-real(kind_real),intent(out) :: dy   !< TODO
-real(kind_real),intent(out) :: dz   !< TODO
+class(geom_type),intent(in) :: geom ! Geometry
+integer,intent(in) :: ic0           ! First horizontal index
+integer,intent(in) :: il0           ! First vertical index
+integer,intent(in) :: jc0           ! Second horizontal index
+integer,intent(in) :: jl0           ! Second vertical index
+real(kind_real),intent(out) :: dx   ! Longitude delta
+real(kind_real),intent(out) :: dy   ! Latitude delta
+real(kind_real),intent(out) :: dz   ! Altitude delta
 
 ! Compute deltas
 dx = geom%lon(jc0)-geom%lon(ic0)

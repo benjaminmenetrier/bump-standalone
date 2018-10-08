@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_hdata
-!> Purpose: sample data derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: sample data derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_hdata
 
@@ -32,79 +29,79 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
-integer,parameter :: irmax = 10000                           !< Maximum number of random number draws
-real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req !< Length-scale to increase sampling density along coasts
-real(kind_real),parameter :: rcoast = 0.2_kind_real          !< Minimum value to increase sampling density along coasts
+integer,parameter :: irmax = 10000                           ! Maximum number of random number draws
+real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req ! Length-scale to increase sampling density along coasts
+real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to increase sampling density along coasts
 
 ! HDIAG data derived type
 type hdata_type
    ! Sampling
-   real(kind_real),allocatable :: rh_c0(:,:)        !< Sampling radius
-   integer,allocatable :: c1_to_c0(:)               !< First sampling index
-   logical,allocatable :: c1l0_log(:,:)             !< Log for the first sampling index
-   integer,allocatable :: c1c3_to_c0(:,:)           !< Second horizontal sampling index
-   logical,allocatable :: c1c3l0_log(:,:,:)         !< Log for the second horizontal sampling index
-   integer,allocatable :: c2_to_c1(:)               !< Subgrid to diagnostic points
-   integer,allocatable :: c2_to_c0(:)               !< Subgrid to grid
+   real(kind_real),allocatable :: rh_c0(:,:)        ! Sampling radius
+   integer,allocatable :: c1_to_c0(:)               ! First sampling index
+   logical,allocatable :: c1l0_log(:,:)             ! Log for the first sampling index
+   integer,allocatable :: c1c3_to_c0(:,:)           ! Second horizontal sampling index
+   logical,allocatable :: c1c3l0_log(:,:,:)         ! Log for the second horizontal sampling index
+   integer,allocatable :: c2_to_c1(:)               ! Subgrid to diagnostic points
+   integer,allocatable :: c2_to_c0(:)               ! Subgrid to grid
 
    ! Local data
-   logical,allocatable ::  vbal_mask(:,:)           !< Vertical balance mask
-   logical,allocatable ::  local_mask(:,:)          !< Local mask
-   logical,allocatable ::  displ_mask(:,:)          !< Displacement mask
-   integer,allocatable :: nn_c2_index(:,:,:)        !< Nearest diagnostic neighbors from diagnostic points
-   real(kind_real),allocatable :: nn_c2_dist(:,:,:) !< Nearest diagnostic neighbors distance from diagnostic points
-   integer,allocatable :: nn_ldwv_index(:)          !< Nearest diagnostic neighbors for local diagnostics profiles
+   logical,allocatable ::  vbal_mask(:,:)           ! Vertical balance mask
+   logical,allocatable ::  local_mask(:,:)          ! Local mask
+   logical,allocatable ::  displ_mask(:,:)          ! Displacement mask
+   integer,allocatable :: nn_c2_index(:,:,:)        ! Nearest diagnostic neighbors from diagnostic points
+   real(kind_real),allocatable :: nn_c2_dist(:,:,:) ! Nearest diagnostic neighbors distance from diagnostic points
+   integer,allocatable :: nn_ldwv_index(:)          ! Nearest diagnostic neighbors for local diagnostics profiles
 
    ! Sampling mesh
-   type(mesh_type) :: mesh                          !< Sampling mesh
+   type(mesh_type) :: mesh                          ! Sampling mesh
 
    ! Displacement
-   real(kind_real),allocatable :: displ_lon(:,:,:)  !< Interpolated displaced longitude
-   real(kind_real),allocatable :: displ_lat(:,:,:)  !< Interpolated displaced latitude
+   real(kind_real),allocatable :: displ_lon(:,:,:)  ! Interpolated displaced longitude
+   real(kind_real),allocatable :: displ_lat(:,:,:)  ! Interpolated displaced latitude
 
    ! Interpolations
-   type(linop_type),allocatable :: hfull(:)         !< Horizontal interpolation from Sc2 to Sc0 (global)
-   type(linop_type),allocatable :: h(:)             !< Horizontal interpolation from Sc2 to Sc0 (local)
-   type(linop_type),allocatable :: d(:,:)           !< Displacement interpolation
+   type(linop_type),allocatable :: hfull(:)         ! Horizontal interpolation from Sc2 to Sc0 (global)
+   type(linop_type),allocatable :: h(:)             ! Horizontal interpolation from Sc2 to Sc0 (local)
+   type(linop_type),allocatable :: d(:,:)           ! Displacement interpolation
 
    ! MPI distribution
-   integer :: nc0c                                  !< Number of points in subset Sc0, halo C
-   integer :: nc0d                                  !< Number of points in subset Sc0, halo D
-   integer :: nc1a                                  !< Number of points in subset Sc1, halo A
-   integer :: nc2a                                  !< Number of points in subset Sc2, halo A
-   integer :: nc2b                                  !< Number of points in subset Sc2, halo B
-   integer :: nc2f                                  !< Number of points in subset Sc2, halo F
-   logical,allocatable :: lcheck_c0a(:)             !< Detection of halo A on subset Sc0
-   logical,allocatable :: lcheck_c0c(:)             !< Detection of halo C on subset Sc0
-   logical,allocatable :: lcheck_c0d(:)             !< Detection of halo D on subset Sc0
-   logical,allocatable :: lcheck_c1a(:)             !< Detection of halo A on subset Sc1
-   logical,allocatable :: lcheck_c2a(:)             !< Detection of halo A on subset Sc2
-   logical,allocatable :: lcheck_c2b(:)             !< Detection of halo B on subset Sc2
-   logical,allocatable :: lcheck_c2f(:)             !< Detection of halo F on subset Sc2
-   logical,allocatable :: lcheck_h(:,:)             !< Detection of horizontal interpolation coefficients
-   logical,allocatable :: lcheck_d(:,:,:)           !< Detection of displacement interpolation coefficients
-   integer,allocatable :: c0c_to_c0(:)              !< Subset Sc0, halo C to global
-   integer,allocatable :: c0_to_c0c(:)              !< Subset Sc0, global to halo C
-   integer,allocatable :: c0a_to_c0c(:)             !< Subset Sc0, halo A to halo C
-   integer,allocatable :: c0d_to_c0(:)              !< Subset Sc0, halo D to global
-   integer,allocatable :: c0_to_c0d(:)              !< Subset Sc0, global to halo D
-   integer,allocatable :: c0a_to_c0d(:)             !< Subset Sc0, halo A to halo D
-   integer,allocatable :: c1a_to_c1(:)              !< Subset Sc1, halo A to global
-   integer,allocatable :: c1_to_c1a(:)              !< Subset Sc1, global to halo A
-   integer,allocatable :: c2a_to_c2(:)              !< Subset Sc2, halo A to global
-   integer,allocatable :: c2_to_c2a(:)              !< Subset Sc2, global to halo A
-   integer,allocatable :: c2b_to_c2(:)              !< Subset Sc2, halo B to global
-   integer,allocatable :: c2_to_c2b(:)              !< Subset Sc2, global to halo B
-   integer,allocatable :: c2a_to_c2b(:)             !< Subset Sc2, halo A to halo B
-   integer,allocatable :: c2f_to_c2(:)              !< Subset Sc2, halo B to global
-   integer,allocatable :: c2_to_c2f(:)              !< Subset Sc2, global to halo B
-   integer,allocatable :: c2a_to_c2f(:)             !< Subset Sc2, halo A to halo B
-   integer,allocatable :: c2_to_proc(:)             !< Subset Sc2, global to processor
-   integer,allocatable :: proc_to_nc2a(:)           !< Number of points in subset Sc2, halo A, for each processor
-   type(com_type) :: com_AC                         !< Communication between halos A and C
-   type(com_type) :: com_AB                         !< Communication between halos A and B
-   type(com_type) :: com_AD                         !< Communication between halos A and D
-   type(com_type) :: com_AF                         !< Communication between halos A and F (filtering)
+   integer :: nc0c                                  ! Number of points in subset Sc0, halo C
+   integer :: nc0d                                  ! Number of points in subset Sc0, halo D
+   integer :: nc1a                                  ! Number of points in subset Sc1, halo A
+   integer :: nc2a                                  ! Number of points in subset Sc2, halo A
+   integer :: nc2b                                  ! Number of points in subset Sc2, halo B
+   integer :: nc2f                                  ! Number of points in subset Sc2, halo F
+   logical,allocatable :: lcheck_c0a(:)             ! Detection of halo A on subset Sc0
+   logical,allocatable :: lcheck_c0c(:)             ! Detection of halo C on subset Sc0
+   logical,allocatable :: lcheck_c0d(:)             ! Detection of halo D on subset Sc0
+   logical,allocatable :: lcheck_c1a(:)             ! Detection of halo A on subset Sc1
+   logical,allocatable :: lcheck_c2a(:)             ! Detection of halo A on subset Sc2
+   logical,allocatable :: lcheck_c2b(:)             ! Detection of halo B on subset Sc2
+   logical,allocatable :: lcheck_c2f(:)             ! Detection of halo F on subset Sc2
+   logical,allocatable :: lcheck_h(:,:)             ! Detection of horizontal interpolation coefficients
+   logical,allocatable :: lcheck_d(:,:,:)           ! Detection of displacement interpolation coefficients
+   integer,allocatable :: c0c_to_c0(:)              ! Subset Sc0, halo C to global
+   integer,allocatable :: c0_to_c0c(:)              ! Subset Sc0, global to halo C
+   integer,allocatable :: c0a_to_c0c(:)             ! Subset Sc0, halo A to halo C
+   integer,allocatable :: c0d_to_c0(:)              ! Subset Sc0, halo D to global
+   integer,allocatable :: c0_to_c0d(:)              ! Subset Sc0, global to halo D
+   integer,allocatable :: c0a_to_c0d(:)             ! Subset Sc0, halo A to halo D
+   integer,allocatable :: c1a_to_c1(:)              ! Subset Sc1, halo A to global
+   integer,allocatable :: c1_to_c1a(:)              ! Subset Sc1, global to halo A
+   integer,allocatable :: c2a_to_c2(:)              ! Subset Sc2, halo A to global
+   integer,allocatable :: c2_to_c2a(:)              ! Subset Sc2, global to halo A
+   integer,allocatable :: c2b_to_c2(:)              ! Subset Sc2, halo B to global
+   integer,allocatable :: c2_to_c2b(:)              ! Subset Sc2, global to halo B
+   integer,allocatable :: c2a_to_c2b(:)             ! Subset Sc2, halo A to halo B
+   integer,allocatable :: c2f_to_c2(:)              ! Subset Sc2, halo B to global
+   integer,allocatable :: c2_to_c2f(:)              ! Subset Sc2, global to halo B
+   integer,allocatable :: c2a_to_c2f(:)             ! Subset Sc2, halo A to halo B
+   integer,allocatable :: c2_to_proc(:)             ! Subset Sc2, global to processor
+   integer,allocatable :: proc_to_nc2a(:)           ! Number of points in subset Sc2, halo A, for each processor
+   type(com_type) :: com_AC                         ! Communication between halos A and C
+   type(com_type) :: com_AB                         ! Communication between halos A and B
+   type(com_type) :: com_AD                         ! Communication between halos A and D
+   type(com_type) :: com_AF                         ! Communication between halos A and F (filtering)
 contains
    procedure :: alloc => hdata_alloc
    procedure :: dealloc => hdata_dealloc
@@ -131,16 +128,16 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_alloc
-!> Purpose: HDIAG data allocation
+! Purpose: HDIAG data allocation
 !----------------------------------------------------------------------
 subroutine hdata_alloc(hdata,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Allocation
 allocate(hdata%rh_c0(geom%nc0,geom%nl0))
@@ -187,15 +184,15 @@ end subroutine hdata_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_dealloc
-!> Purpose: HDIAG data deallocation
+! Purpose: HDIAG data deallocation
 !----------------------------------------------------------------------
 subroutine hdata_dealloc(hdata,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: il0
@@ -235,18 +232,18 @@ end subroutine hdata_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_read
-!> Purpose: read HDIAG data
+! Purpose: read HDIAG data
 !----------------------------------------------------------------------
 subroutine hdata_read(hdata,mpl,nam,geom,ios)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(nam_type),intent(inout) :: nam      !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
-integer,intent(out) :: ios               !< Status flag
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(nam_type),intent(inout) :: nam      ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
+integer,intent(out) :: ios               ! Status flag
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
@@ -465,17 +462,17 @@ end subroutine hdata_read
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_write
-!> Purpose: write HDIAG data
+! Purpose: write HDIAG data
 !----------------------------------------------------------------------
 subroutine hdata_write(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(in) :: hdata !< HDIAG data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(nam_type),intent(in) :: nam      !< Namelist
-type(geom_type),intent(in) :: geom    !< Geometry
+class(hdata_type),intent(in) :: hdata ! HDIAG data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(in) :: geom    ! Geometry
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
@@ -709,19 +706,19 @@ end subroutine hdata_write
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_setup_sampling
-!> Purpose: setup sampling
+! Purpose: setup sampling
 !----------------------------------------------------------------------
 subroutine hdata_setup_sampling(hdata,mpl,rng,nam,geom,io)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(nam_type),intent(inout) :: nam      !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
-type(io_type),intent(in) :: io           !< I/O
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(nam_type),intent(inout) :: nam      ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
+type(io_type),intent(in) :: io           ! I/O
 
 ! Local variables
 integer :: ios,ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,nc2_eff
@@ -934,18 +931,18 @@ end subroutine hdata_setup_sampling
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_sampling_zs
-!> Purpose: compute zero-separation sampling
+! Purpose: compute zero-separation sampling
 !----------------------------------------------------------------------
 subroutine hdata_compute_sampling_zs(hdata,mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: ic0,ic1,il0
@@ -1000,18 +997,18 @@ end subroutine hdata_compute_sampling_zs
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_sampling_ps
-!> Purpose: compute positive separation sampling
+! Purpose: compute positive separation sampling
 !----------------------------------------------------------------------
 subroutine hdata_compute_sampling_ps(hdata,mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(rng_type),intent(inout) :: rng      !< Random number generator
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng      ! Random number generator
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: irmaxloc,jc3,ic1,ir,ic0,jc0,i,nvc0,ivc0,icinf,icsup,ictest
@@ -1133,17 +1130,17 @@ end subroutine hdata_compute_sampling_ps
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_sampling_lct
-!> Purpose: compute LCT sampling
+! Purpose: compute LCT sampling
 !----------------------------------------------------------------------
 subroutine hdata_compute_sampling_lct(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: i,il0,ic1,ic0,jc0,ibnd,ic3
@@ -1330,16 +1327,16 @@ end subroutine hdata_compute_sampling_lct
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_sampling_mask
-!> Purpose: compute sampling mask
+! Purpose: compute sampling mask
 !----------------------------------------------------------------------
 subroutine hdata_compute_sampling_mask(hdata,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: jc3,ic1,ic0,jc0,il0
@@ -1377,17 +1374,17 @@ end subroutine hdata_compute_sampling_mask
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_mpi_a
-!> Purpose: compute HDIAG MPI distribution, halo A
+! Purpose: compute HDIAG MPI distribution, halo A
 !----------------------------------------------------------------------
 subroutine hdata_compute_mpi_a(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(in) :: mpl         !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(in) :: mpl         ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: ic0a,ic0,ic1a,ic1
@@ -1440,17 +1437,17 @@ end subroutine hdata_compute_mpi_a
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_mpi_ab
-!> Purpose: compute HDIAG MPI distribution, halos A-B
+! Purpose: compute HDIAG MPI distribution, halos A-B
 !----------------------------------------------------------------------
 subroutine hdata_compute_mpi_ab(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: iproc,ic0,ic2a,ic2b,ic2,jc2,i_s,i_s_loc,h_n_s_max,il0i,h_n_s_max_loc
@@ -1593,17 +1590,17 @@ end subroutine hdata_compute_mpi_ab
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_mpi_d
-!> Purpose: compute HDIAG MPI distribution, halo D
+! Purpose: compute HDIAG MPI distribution, halo D
 !----------------------------------------------------------------------
 subroutine hdata_compute_mpi_d(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: ic0,ic0a,ic0d,ic1,ic2,ic2a,jc0,jc1
@@ -1664,17 +1661,17 @@ end subroutine hdata_compute_mpi_d
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_mpi_c
-!> Purpose: compute HDIAG MPI distribution, halo C
+! Purpose: compute HDIAG MPI distribution, halo C
 !----------------------------------------------------------------------
 subroutine hdata_compute_mpi_c(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: jc3,ic0,ic0a,ic0c,ic1,ic1a,its,il0,d_n_s_max,d_n_s_max_loc,i_s,i_s_loc
@@ -1833,17 +1830,17 @@ end subroutine hdata_compute_mpi_c
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_compute_mpi_f
-!> Purpose: compute HDIAG MPI distribution, halo F
+! Purpose: compute HDIAG MPI distribution, halo F
 !----------------------------------------------------------------------
 subroutine hdata_compute_mpi_f(hdata,mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(inout) :: hdata !< HDIAG data
-type(mpl_type),intent(inout) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
+class(hdata_type),intent(inout) :: hdata ! HDIAG data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
 
 ! Local variables
 integer :: ic2,ic1,jc2,ic2a,ic2f,il0,kc2
@@ -1907,21 +1904,21 @@ end subroutine hdata_compute_mpi_f
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_diag_filter
-!> Purpose: filter diagnostics
+! Purpose: filter diagnostics
 !----------------------------------------------------------------------
 subroutine hdata_diag_filter(hdata,mpl,nam,geom,il0,filter_type,rflt,diag)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(in) :: hdata             !< HDIAG data
-type(mpl_type),intent(inout) :: mpl               !< MPI data
-type(nam_type),intent(in) :: nam                  !< Namelist
-type(geom_type),intent(in) :: geom                !< Geometry
-integer,intent(in) :: il0                         !< Level
-character(len=*),intent(in) :: filter_type        !< Filter type
-real(kind_real),intent(in) :: rflt                !< Filter support radius
-real(kind_real),intent(inout) :: diag(hdata%nc2a) !< Filtered diagnostic
+class(hdata_type),intent(in) :: hdata             ! HDIAG data
+type(mpl_type),intent(inout) :: mpl               ! MPI data
+type(nam_type),intent(in) :: nam                  ! Namelist
+type(geom_type),intent(in) :: geom                ! Geometry
+integer,intent(in) :: il0                         ! Level
+character(len=*),intent(in) :: filter_type        ! Filter type
+real(kind_real),intent(in) :: rflt                ! Filter support radius
+real(kind_real),intent(inout) :: diag(hdata%nc2a) ! Filtered diagnostic
 
 ! Local variables
 integer :: ic2a,ic2,ic1,jc2,nc2eff,kc2,kc2_glb
@@ -2024,19 +2021,19 @@ end subroutine hdata_diag_filter
 
 !----------------------------------------------------------------------
 ! Subroutine: hdata_diag_fill
-!> Purpose: fill diagnostics missing values
+! Purpose: fill diagnostics missing values
 !----------------------------------------------------------------------
 subroutine hdata_diag_fill(hdata,mpl,nam,geom,il0,diag)
 
 implicit none
 
 ! Passed variables
-class(hdata_type),intent(in) :: hdata             !< HDIAG data
-type(mpl_type),intent(inout) :: mpl               !< MPI data
-type(nam_type),intent(in) :: nam                  !< Namelist
-type(geom_type),intent(in) :: geom                !< Geometry
-integer,intent(in) :: il0                         !< Level
-real(kind_real),intent(inout) :: diag(hdata%nc2a) !< Filtered diagnostic
+class(hdata_type),intent(in) :: hdata             ! HDIAG data
+type(mpl_type),intent(inout) :: mpl               ! MPI data
+type(nam_type),intent(in) :: nam                  ! Namelist
+type(geom_type),intent(in) :: geom                ! Geometry
+integer,intent(in) :: il0                         ! Level
+real(kind_real),intent(inout) :: diag(hdata%nc2a) ! Filtered diagnostic
 
 ! Local variables
 integer :: nmsr,nmsr_tot,ic2,jc2,kc2

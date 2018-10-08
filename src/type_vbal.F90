@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_vbal
-!> Purpose: vertical balance derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: vertical balance derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_vbal
 
@@ -34,13 +31,13 @@ implicit none
 
 ! Vertical balance derived type
 type vbal_type
-   integer :: np                               !< Maximum number of neighbors
-   integer :: nc2b                             !< Subset Sc2 size, halo B
-   logical :: allocated                        !< Allocation flag
-   integer,allocatable :: h_n_s(:,:)           !< Number of neighbors for the horizontal interpolation
-   integer,allocatable :: h_c2b(:,:,:)         !< Index of neighbors for the horizontal interpolation
-   real(kind_real),allocatable :: h_S(:,:,:)   !< Weight of neighbors for the horizontal interpolation
-   type(vbal_blk_type),allocatable :: blk(:,:) !< Vertical balance blocks
+   integer :: np                               ! Maximum number of neighbors
+   integer :: nc2b                             ! Subset Sc2 size, halo B
+   logical :: allocated                        ! Allocation flag
+   integer,allocatable :: h_n_s(:,:)           ! Number of neighbors for the horizontal interpolation
+   integer,allocatable :: h_c2b(:,:,:)         ! Index of neighbors for the horizontal interpolation
+   real(kind_real),allocatable :: h_S(:,:,:)   ! Weight of neighbors for the horizontal interpolation
+   type(vbal_blk_type),allocatable :: blk(:,:) ! Vertical balance blocks
 contains
    procedure :: alloc => vbal_alloc
    procedure :: dealloc => vbal_dealloc
@@ -56,8 +53,8 @@ contains
    procedure :: test_adjoint => vbal_test_adjoint
 end type vbal_type
 
-logical,parameter :: diag_auto = .true.   !< Diagonal auto-covariance for the inversion
-real(kind_real),parameter :: var_th = 0.8 !< Variance threshold to truncate the vertical auto-covariance spectrum
+logical,parameter :: diag_auto = .true.   ! Diagonal auto-covariance for the inversion
+real(kind_real),parameter :: var_th = 0.8 ! Variance threshold to truncate the vertical auto-covariance spectrum
 
 private
 public :: vbal_type
@@ -66,19 +63,19 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_alloc
-!> Purpose: allocate vertical balance
+! Purpose: allocate vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_alloc(vbal,mpl,nam,geom,bpar,nc2b)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-integer,intent(in) :: nc2b             !< Subset Sc2 size, halo B
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+integer,intent(in) :: nc2b             ! Subset Sc2 size, halo B
 
 ! Local variables
 integer :: iv,jv
@@ -116,15 +113,15 @@ end subroutine vbal_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_dealloc
-!> Purpose: vertical balance allocation
+! Purpose: vertical balance allocation
 !----------------------------------------------------------------------
 subroutine vbal_dealloc(vbal,nam)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(nam_type),intent(in) :: nam       !< Namelist
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(nam_type),intent(in) :: nam       ! Namelist
 
 ! Local variables
 integer :: iv,jv
@@ -149,18 +146,18 @@ end subroutine vbal_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_read
-!> Purpose: read vertical balance
+! Purpose: read vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_read(vbal,mpl,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 
 ! Local variables
 integer :: iv,jv
@@ -231,18 +228,18 @@ end subroutine vbal_read
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_write
-!> Purpose: write vertical balance
+! Purpose: write vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_write(vbal,mpl,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(mpl_type),intent(in) :: mpl       !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 
 ! Local variables
 integer :: iv,jv
@@ -313,22 +310,22 @@ end subroutine vbal_write
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_run_vbal
-!> Purpose: compute vertical balance
+! Purpose: compute vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_run_vbal(vbal,mpl,rng,nam,geom,bpar,io,ens,ensu)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(rng_type),intent(inout) :: rng    !< Random number generator
-type(nam_type),intent(inout) :: nam    !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(ens_type), intent(in) :: ens      !< Ensemble
-type(ens_type),intent(inout) :: ensu   !< Unbalanced ensemble
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(rng_type),intent(inout) :: rng    ! Random number generator
+type(nam_type),intent(inout) :: nam    ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(ens_type), intent(in) :: ens      ! Ensemble
+type(ens_type),intent(inout) :: ensu   ! Unbalanced ensemble
 
 ! Local variables
 integer :: il0i,i_s,ic0a,ic2b,ic2,ie,ie_sub,ic0,jl0,il0,isub,ic1,ic1a,iv,jv,offset,nc1a
@@ -585,19 +582,19 @@ end subroutine vbal_run_vbal
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_run_vbal_tests
-!> Purpose: compute vertical balance tests
+! Purpose: compute vertical balance tests
 !----------------------------------------------------------------------
 subroutine vbal_run_vbal_tests(vbal,mpl,rng,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(inout) :: vbal !< Vertical balance
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(rng_type),intent(inout) :: rng    !< Random number generator
-type(nam_type),intent(inout) :: nam    !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
+class(vbal_type),intent(inout) :: vbal ! Vertical balance
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(rng_type),intent(inout) :: rng    ! Random number generator
+type(nam_type),intent(inout) :: nam    ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 
 ! Test inverse
 call vbal%test_inverse(mpl,rng,nam,geom,bpar)
@@ -609,18 +606,18 @@ end subroutine vbal_run_vbal_tests
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_apply
-!> Purpose: apply vertical balance
+! Purpose: apply vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_apply(vbal,nam,geom,bpar,fld)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal                             !< Vertical balance
-type(nam_type),intent(in) :: nam                                !< Namelist
-type(geom_type),intent(in) :: geom                              !< Geometry
-type(bpar_type),intent(in) :: bpar                              !< Block parameters
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Source/destination vector
+class(vbal_type),intent(in) :: vbal                             ! Vertical balance
+type(nam_type),intent(in) :: nam                                ! Namelist
+type(geom_type),intent(in) :: geom                              ! Geometry
+type(bpar_type),intent(in) :: bpar                              ! Block parameters
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Source/destination vector
 
 ! Local variables
 integer :: iv,jv
@@ -647,18 +644,18 @@ end subroutine vbal_apply
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_apply_inv
-!> Purpose: apply inverse vertical balance
+! Purpose: apply inverse vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_apply_inv(vbal,nam,geom,bpar,fld)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal                             !< Vertical balance
-type(nam_type),intent(in) :: nam                                !< Namelist
-type(geom_type),intent(in) :: geom                              !< Geometry
-type(bpar_type),intent(in) :: bpar                              !< Block parameters
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Source/destination vector
+class(vbal_type),intent(in) :: vbal                             ! Vertical balance
+type(nam_type),intent(in) :: nam                                ! Namelist
+type(geom_type),intent(in) :: geom                              ! Geometry
+type(bpar_type),intent(in) :: bpar                              ! Block parameters
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Source/destination vector
 
 ! Local variables
 integer :: iv,jv
@@ -685,18 +682,18 @@ end subroutine vbal_apply_inv
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_apply_ad
-!> Purpose: apply adjoint vertical balance
+! Purpose: apply adjoint vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_apply_ad(vbal,nam,geom,bpar,fld)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal                             !< Vertical balance
-type(nam_type),intent(in) :: nam                                !< Namelist
-type(geom_type),intent(in) :: geom                              !< Geometry
-type(bpar_type),intent(in) :: bpar                              !< Block parameters
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Source/destination vector
+class(vbal_type),intent(in) :: vbal                             ! Vertical balance
+type(nam_type),intent(in) :: nam                                ! Namelist
+type(geom_type),intent(in) :: geom                              ! Geometry
+type(bpar_type),intent(in) :: bpar                              ! Block parameters
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Source/destination vector
 
 ! Local variables
 integer :: iv,jv
@@ -723,18 +720,18 @@ end subroutine vbal_apply_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_apply_inv_ad
-!> Purpose: apply inverse adjoint vertical balance
+! Purpose: apply inverse adjoint vertical balance
 !----------------------------------------------------------------------
 subroutine vbal_apply_inv_ad(vbal,nam,geom,bpar,fld)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal                             !< Vertical balance
-type(nam_type),intent(in) :: nam                                !< Namelist
-type(geom_type),intent(in) :: geom                              !< Geometry
-type(bpar_type),intent(in) :: bpar                              !< Block parameters
-real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Source/destination vector
+class(vbal_type),intent(in) :: vbal                             ! Vertical balance
+type(nam_type),intent(in) :: nam                                ! Namelist
+type(geom_type),intent(in) :: geom                              ! Geometry
+type(bpar_type),intent(in) :: bpar                              ! Block parameters
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Source/destination vector
 
 ! Local variables
 integer :: iv,jv
@@ -761,19 +758,19 @@ end subroutine vbal_apply_inv_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_test_inverse
-!> Purpose: test vertical balance inverse
+! Purpose: test vertical balance inverse
 !----------------------------------------------------------------------
 subroutine vbal_test_inverse(vbal,mpl,rng,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal       !< Vertical balance
-type(mpl_type),intent(in) :: mpl          !< MPI data
-type(rng_type),intent(inout) :: rng       !< Random number generator
-type(nam_type),intent(in) :: nam          !< Namelist
-type(geom_type),intent(in) :: geom        !< Geometry
-type(bpar_type),intent(in) :: bpar        !< Block parameters
+class(vbal_type),intent(in) :: vbal       ! Vertical balance
+type(mpl_type),intent(in) :: mpl          ! MPI data
+type(rng_type),intent(inout) :: rng       ! Random number generator
+type(nam_type),intent(in) :: nam          ! Namelist
+type(geom_type),intent(in) :: geom        ! Geometry
+type(bpar_type),intent(in) :: bpar        ! Block parameters
 
 ! Local variables
 real(kind_real) :: mse,mse_tot
@@ -826,19 +823,19 @@ end subroutine vbal_test_inverse
 
 !----------------------------------------------------------------------
 ! Subroutine: vbal_test_adjoint
-!> Purpose: test vertical balance adjoint
+! Purpose: test vertical balance adjoint
 !----------------------------------------------------------------------
 subroutine vbal_test_adjoint(vbal,mpl,rng,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(vbal_type),intent(in) :: vbal       !< Vertical balance
-type(mpl_type),intent(in) :: mpl          !< MPI data
-type(rng_type),intent(inout) :: rng       !< Random number generator
-type(nam_type),intent(in) :: nam          !< Namelist
-type(geom_type),intent(in) :: geom        !< Geometry
-type(bpar_type),intent(in) :: bpar        !< Block parameters
+class(vbal_type),intent(in) :: vbal       ! Vertical balance
+type(mpl_type),intent(in) :: mpl          ! MPI data
+type(rng_type),intent(inout) :: rng       ! Random number generator
+type(nam_type),intent(in) :: nam          ! Namelist
+type(geom_type),intent(in) :: geom        ! Geometry
+type(bpar_type),intent(in) :: bpar        ! Block parameters
 
 ! Local variables
 integer :: iv,jv

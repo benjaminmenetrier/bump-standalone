@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_diag
-!> Purpose: diagnostic derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: diagnostic derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_diag
 
@@ -29,13 +26,13 @@ use fckit_mpi_module, only: fckit_mpi_sum
 
 implicit none
 
-real(kind_real),parameter :: bound = 5.0_kind_real !< Restriction bound
+real(kind_real),parameter :: bound = 5.0_kind_real ! Restriction bound applied on local diagnostics with respect to the global diagnostic
 
 ! Diagnostic derived type
 type diag_type
-   character(len=1024) :: prefix               !< Prefix
-   integer :: nc2a                             !< Number of local points
-   type(diag_blk_type),allocatable :: blk(:,:) !< Diagnostic blocks
+   character(len=1024) :: prefix               ! Prefix
+   integer :: nc2a                             ! Number of local points
+   type(diag_blk_type),allocatable :: blk(:,:) ! Diagnostic blocks
 contains
    procedure :: alloc => diag_alloc
    procedure :: fit_filter => diag_fit_filter
@@ -54,20 +51,20 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_alloc
-!> Purpose: allocation
+! Purpose: allocation
 !----------------------------------------------------------------------
 subroutine diag_alloc(diag,nam,geom,bpar,hdata,prefix,double_fit)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-character(len=*),intent(in) :: prefix  !< Block prefix
-logical,intent(in) :: double_fit       !< Double fit
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+character(len=*),intent(in) :: prefix  ! Block prefix
+logical,intent(in) :: double_fit       ! Double fit
 
 ! Local variables
 integer :: ib,ic2a
@@ -96,19 +93,19 @@ end subroutine diag_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_fit_filter
-!> Purpose: filter fit diagnostics
+! Purpose: filter fit diagnostics
 !----------------------------------------------------------------------
 subroutine diag_fit_filter(diag,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
 
 ! Local variables
 integer :: ib,il0,ic2a
@@ -239,20 +236,20 @@ end subroutine diag_fit_filter
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_write
-!> Purpose: write all diagnostics
+! Purpose: write all diagnostics
 !----------------------------------------------------------------------
 subroutine diag_write(diag,mpl,nam,geom,bpar,io,hdata)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
 
 ! Local variables
 integer :: ib,i,ic2,il0,il0i,iproc,ic2a,ildw,n
@@ -343,22 +340,22 @@ end subroutine diag_write
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_covariance
-!> Purpose: compute covariance
+! Purpose: compute covariance
 !----------------------------------------------------------------------
 subroutine diag_covariance(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-type(avg_type),intent(in) :: avg       !< Averaged statistics
-character(len=*),intent(in) :: prefix  !< Diagnostic prefix
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(avg_type),intent(in) :: avg       ! Averaged statistics
+character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0
@@ -399,22 +396,22 @@ end subroutine diag_covariance
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_correlation
-!> Purpose: compute correlation
+! Purpose: compute correlation
 !----------------------------------------------------------------------
 subroutine diag_correlation(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-type(avg_type),intent(in) :: avg       !< Averaged statistics
-character(len=*),intent(in) :: prefix  !< Diagnostic prefix
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(avg_type),intent(in) :: avg       ! Averaged statistics
+character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0
@@ -503,22 +500,22 @@ end subroutine diag_correlation
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_localization
-!> Purpose: compute diagnostic _localization
+! Purpose: compute diagnostic localization
 !----------------------------------------------------------------------
 subroutine diag_localization(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-type(avg_type),intent(in) :: avg       !< Averaged statistics
-character(len=*),intent(in) :: prefix  !< Block prefix
+class(diag_type),intent(inout) :: diag ! Diagnostic
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(avg_type),intent(in) :: avg       ! Averaged statistics
+character(len=*),intent(in) :: prefix  ! Block prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0
@@ -593,23 +590,23 @@ end subroutine diag_localization
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_hybridization
-!> Purpose: compute diagnostic hybridization
+! Purpose: compute diagnostic hybridization
 !----------------------------------------------------------------------
 subroutine diag_hybridization(diag,mpl,nam,geom,bpar,io,hdata,avg,avg_sta,prefix)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag !< Diagnostic (localization)
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(io_type),intent(in) :: io         !< I/O
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-type(avg_type),intent(in) :: avg       !< Averaged statistics
-type(avg_type),intent(in) :: avg_sta   !< Static averaged statistics
-character(len=*),intent(in) :: prefix  !< Diagnostic prefix
+class(diag_type),intent(inout) :: diag ! Diagnostic (localization)
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(io_type),intent(in) :: io         ! I/O
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(avg_type),intent(in) :: avg       ! Averaged statistics
+type(avg_type),intent(in) :: avg_sta   ! Static averaged statistics
+character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0
@@ -676,25 +673,25 @@ end subroutine diag_hybridization
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_dualens
-!> Purpose: compute diagnostic dualens
+! Purpose: compute diagnostic dualens
 !----------------------------------------------------------------------
 subroutine diag_dualens(diag,mpl,nam,geom,bpar,io,hdata,avg,avg_lr,diag_lr,prefix,prefix_lr)
 
 implicit none
 
 ! Passed variables
-class(diag_type),intent(inout) :: diag   !< Diagnostic (localization)
-type(mpl_type),intent(inout) :: mpl    !< MPI data
-type(nam_type),intent(in) :: nam         !< Namelist
-type(geom_type),intent(in) :: geom       !< Geometry
-type(bpar_type),intent(in) :: bpar       !< Block parameters
-type(io_type),intent(in) :: io           !< I/O
-type(hdata_type),intent(in) :: hdata     !< HDIAG data
-type(avg_type),intent(in) :: avg         !< Averaged statistics
-type(avg_type),intent(in) :: avg_lr      !< LR averaged statistics
-type(diag_type),intent(inout) :: diag_lr !< Diagnostic (LR localization)
-character(len=*),intent(in) :: prefix    !< Diagnostic prefix
-character(len=*),intent(in) :: prefix_lr !< LR diagnostic prefix
+class(diag_type),intent(inout) :: diag   ! Diagnostic (localization)
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam         ! Namelist
+type(geom_type),intent(in) :: geom       ! Geometry
+type(bpar_type),intent(in) :: bpar       ! Block parameters
+type(io_type),intent(in) :: io           ! I/O
+type(hdata_type),intent(in) :: hdata     ! HDIAG data
+type(avg_type),intent(in) :: avg         ! Averaged statistics
+type(avg_type),intent(in) :: avg_lr      ! LR averaged statistics
+type(diag_type),intent(inout) :: diag_lr ! Diagnostic (LR localization)
+character(len=*),intent(in) :: prefix    ! Diagnostic prefix
+character(len=*),intent(in) :: prefix_lr ! LR diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0

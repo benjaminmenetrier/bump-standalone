@@ -1,60 +1,39 @@
 !----------------------------------------------------------------------
 ! Program: main
-!> Purpose: initialization, drivers, finalization
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: command line arguments parsing and offline setup (call to the BUMP routine)
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 program main
 
 use iso_fortran_env, only : output_unit
-use mpi
 use type_bump, only: bump_type
 
 implicit none
 
 ! Local variables
-integer :: len,info,info_loc,myproc,narg
-character(len=mpi_max_error_string) :: message
+integer :: narg
 character(len=1024) :: namelname
 type(bump_type) :: bump
-
-! Initialize MPI
-call mpi_init(info)
-if (info/=mpi_success) then
-   call mpi_error_string(info,message,len,info_loc)
-   write(output_unit,'(a)') '!!! Error:',trim(message)
-   call flush(output_unit)
-   call mpi_abort(mpi_comm_world,1,info)
-end if
-call mpi_comm_rank(mpi_comm_world,myproc,info)
 
 ! Parse arguments
 narg = command_argument_count()
 if (narg==0) then
-   if (myproc==0) then
-      write(output_unit,'(a)') 'Error: a namelist path should be provided as argument'
-      call flush(output_unit)
-   end if
-   call mpi_finalize(info)
+   write(output_unit,'(a)') 'Error: a namelist path should be provided as argument'
+   call flush(output_unit)
    stop
 elseif (narg==1) then
    call get_command_argument(1,namelname)
 else
-   if (myproc==0) then
-      write(output_unit,'(a)') 'Warning: one arguments only required (namelist path)'
-      call flush(output_unit)
-   end if
+   write(output_unit,'(a)') 'Warning: one arguments only required (namelist path)'
+   call flush(output_unit)
 end if
 
 ! Offline setup
 call bump%setup_offline(namelname)
 
-! Finalize MPI
-call mpi_finalize(info)
+! Stop
 stop
 
 end program main
