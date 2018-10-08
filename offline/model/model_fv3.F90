@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: module_fv3
-!> Purpose: FV3 model routines
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: FV3 model routines
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module model_fv3
 
@@ -21,7 +18,7 @@ use type_nam, only: nam_type
 
 implicit none
 
-integer,parameter :: ntile = 6 !< Number of tiles
+integer,parameter :: ntile = 6 ! Number of tiles
 
 private
 public :: model_fv3_coord,model_fv3_read
@@ -30,16 +27,16 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: model_fv3_coord
-!> Purpose: get FV3 coordinates
+! Purpose: get FV3 coordinates
 !----------------------------------------------------------------------
 subroutine model_fv3_coord(mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      !< MPI data
-type(nam_type),intent(in) :: nam      !< Namelist
-type(geom_type),intent(inout) :: geom !< Geometry
+type(mpl_type),intent(in) :: mpl      ! MPI data
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: ilon,ilat,ic0,itile
@@ -122,18 +119,18 @@ end subroutine model_fv3_coord
 
 !----------------------------------------------------------------------
 ! Subroutine: model_fv3_read
-!> Purpose: read FV3 field
+! Purpose: read FV3 field
 !----------------------------------------------------------------------
 subroutine model_fv3_read(mpl,nam,geom,filename,fld)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl                           !< MPI data
-type(nam_type),intent(in) :: nam                              !< Namelist
-type(geom_type),intent(in) :: geom                            !< Geometry
-character(len=*),intent(in) :: filename                       !< File name
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) !< Field
+type(mpl_type),intent(inout) :: mpl                           ! MPI data
+type(nam_type),intent(in) :: nam                              ! Namelist
+type(geom_type),intent(in) :: geom                            ! Geometry
+character(len=*),intent(in) :: filename                       ! File name
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Field
 
 ! Local variables
 integer :: iv,il0,ic0,ilon,ilat,itile

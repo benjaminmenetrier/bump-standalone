@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: tools_test
-!> Purpose: test tools
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: test tools
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module tools_test
 
@@ -28,18 +25,18 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: define_dirac
-!> Purpose: define dirac indices
+! Purpose: define dirac indices
 !----------------------------------------------------------------------
 subroutine define_dirac(nam,geom,iprocdir,ic0adir,il0dir)
 
 implicit none
 
 ! Passed variables
-type(nam_type),intent(in) :: nam          !< Namelist
-type(geom_type),intent(in) :: geom        !< Geometry
-integer,intent(out) :: iprocdir(nam%ndir) !< Dirac processor index
-integer,intent(out) :: ic0adir(nam%ndir)  !< Dirac gridpoint index
-integer,intent(out) :: il0dir(nam%ndir)   !< Dirac level index
+type(nam_type),intent(in) :: nam          ! Namelist
+type(geom_type),intent(in) :: geom        ! Geometry
+integer,intent(out) :: iprocdir(nam%ndir) ! Dirac processor index
+integer,intent(out) :: ic0adir(nam%ndir)  ! Dirac gridpoint index
+integer,intent(out) :: il0dir(nam%ndir)   ! Dirac level index
 
 ! Local variables
 integer :: idir,il0,nn_index(1),ic0dir
@@ -62,17 +59,17 @@ end subroutine define_dirac
 
 !----------------------------------------------------------------------
 ! Subroutine: define_test_vectors
-!> Purpose: define test vectors
+! Purpose: define test vectors
 !----------------------------------------------------------------------
 subroutine define_test_vectors(mpl,rng,nam,geom,ntest,fld)
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl                                            !< MPI data
-type(rng_type),intent(inout) :: rng                                         !< Random number generator
-type(nam_type),intent(in) :: nam                                            !< Namelist
-type(geom_type),intent(in) :: geom                                          !< Geometry
-integer,intent(in) :: ntest                                                 !< Number of vectors
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest) !< Field
+type(mpl_type),intent(in) :: mpl                                            ! MPI data
+type(rng_type),intent(inout) :: rng                                         ! Random number generator
+type(nam_type),intent(in) :: nam                                            ! Namelist
+type(geom_type),intent(in) :: geom                                          ! Geometry
+integer,intent(in) :: ntest                                                 ! Number of vectors
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest) ! Field
 
 ! Local variables
 integer :: ic0dir(ntest),il0dir(ntest),ivdir(ntest),itsdir(ntest)

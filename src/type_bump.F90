@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_bump
-!> Purpose: BUMP derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: BUMP derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_bump
 
@@ -79,7 +76,7 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_online
-!> Purpose: online setup
+! Purpose: online setup
 !----------------------------------------------------------------------
 subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
                            & nobs,lonobs,latobs,namelname,lunit)
@@ -87,25 +84,25 @@ subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask,ens1_
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                 !< BUMP
-integer,intent(in) :: nmga                             !< Halo A size
-integer,intent(in) :: nl0                              !< Number of levels in subset Sl0
-integer,intent(in) :: nv                               !< Number of variables
-integer,intent(in) :: nts                              !< Number of time slots
-real(kind_real),intent(in) :: lon(nmga)                !< Longitude (in degrees: -180 to 180)
-real(kind_real),intent(in) :: lat(nmga)                !< Latitude (in degrees: -90 to 90)
-real(kind_real),intent(in) :: area(nmga)               !< Area (in m^2)
-real(kind_real),intent(in) :: vunit(nmga,nl0)          !< Vertical unit
-logical,intent(in) :: lmask(nmga,nl0)                  !< Mask
-integer,intent(in),optional :: ens1_ne                 !< Ensemble 1 size
-integer,intent(in),optional :: ens1_nsub               !< Ensemble 1 number of sub-ensembles
-integer,intent(in),optional :: ens2_ne                 !< Ensemble 2 size
-integer,intent(in),optional :: ens2_nsub               !< Ensemble 2 size of sub-ensembles
-integer,intent(in),optional :: nobs                    !< Number of observations
-real(kind_real),intent(in),optional :: lonobs(:)       !< Observations longitude (in degrees: -180 to 180)
-real(kind_real),intent(in),optional :: latobs(:)       !< Observations latitude (in degrees: -90 to 90)
-character(len=*),intent(in),optional :: namelname      !< Namelist name
-integer,intent(in),optional :: lunit                   !< Listing unit
+class(bump_type),intent(inout) :: bump            ! BUMP
+integer,intent(in) :: nmga                        ! Halo A size
+integer,intent(in) :: nl0                         ! Number of levels in subset Sl0
+integer,intent(in) :: nv                          ! Number of variables
+integer,intent(in) :: nts                         ! Number of time slots
+real(kind_real),intent(in) :: lon(nmga)           ! Longitude (in degrees: -180 to 180)
+real(kind_real),intent(in) :: lat(nmga)           ! Latitude (in degrees: -90 to 90)
+real(kind_real),intent(in) :: area(nmga)          ! Area (in m^2)
+real(kind_real),intent(in) :: vunit(nmga,nl0)     ! Vertical unit
+logical,intent(in) :: lmask(nmga,nl0)             ! Mask
+integer,intent(in),optional :: ens1_ne            ! Ensemble 1 size
+integer,intent(in),optional :: ens1_nsub          ! Ensemble 1 number of sub-ensembles
+integer,intent(in),optional :: ens2_ne            ! Ensemble 2 size
+integer,intent(in),optional :: ens2_nsub          ! Ensemble 2 size of sub-ensembles
+integer,intent(in),optional :: nobs               ! Number of observations
+real(kind_real),intent(in),optional :: lonobs(:)  ! Observations longitude (in degrees: -180 to 180)
+real(kind_real),intent(in),optional :: latobs(:)  ! Observations latitude (in degrees: -90 to 90)
+character(len=*),intent(in),optional :: namelname ! Namelist name
+integer,intent(in),optional :: lunit              ! Listing unit
 
 ! Local variables
 integer :: lens1_ne,lens1_nsub,lens2_ne,lens2_nsub
@@ -211,15 +208,15 @@ end subroutine bump_setup_online
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_offline
-!> Purpose: offline setup
+! Purpose: offline setup
 !----------------------------------------------------------------------
 subroutine bump_setup_offline(bump,namelname)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump   !< BUMP
-character(len=*),intent(in) :: namelname !< Namelist name
+class(bump_type),intent(inout) :: bump   ! BUMP
+character(len=*),intent(in) :: namelname ! Namelist name
 
 ! Local variables
 type(timer_type) :: timer
@@ -305,24 +302,27 @@ close(unit=bump%mpl%info)
 call flush(bump%mpl%test)
 close(unit=bump%mpl%test)
 
+! Finalize MPL
+call bump%mpl%final
+
 end subroutine bump_setup_offline
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_generic
-!> Purpose: generic setup
+! Purpose: generic setup
 !----------------------------------------------------------------------
 subroutine bump_setup_generic(bump)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump !< BUMP
+class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Header
 write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-write(bump%mpl%info,'(a)') '--- You are running bump ------------------------------------------'
+write(bump%mpl%info,'(a)') '--- You are running BUMP ------------------------------------------'
 write(bump%mpl%info,'(a)') '--- Author: Benjamin Menetrier ------------------------------------'
-write(bump%mpl%info,'(a)') '--- Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE -----------'
+write(bump%mpl%info,'(a)') '--- Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT -----'
 call flush(bump%mpl%info)
 
 ! Check namelist parameters
@@ -352,14 +352,14 @@ end subroutine bump_setup_generic
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_run_drivers
-!> Purpose: run drivers
+! Purpose: run drivers
 !----------------------------------------------------------------------
 subroutine bump_run_drivers(bump)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump !< BUMP
+class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Reset seed
 if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
@@ -542,17 +542,17 @@ end subroutine bump_run_drivers
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_add_member
-!> Purpose: add member into bump%ens[1,2]
+! Purpose: add member into bump%ens[1,2]
 !----------------------------------------------------------------------
 subroutine bump_add_member(bump,fld,ie,iens)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                                                      !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
-integer,intent(in) :: ie                                                                    !< Member index
-integer,intent(in) :: iens                                                                  !< Ensemble number
+class(bump_type),intent(inout) :: bump                                                      ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+integer,intent(in) :: ie                                                                    ! Member index
+integer,intent(in) :: iens                                                                  ! Ensemble number
 
 ! Local variables
 integer :: its,iv
@@ -580,15 +580,15 @@ end subroutine bump_add_member
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_vbal
-!> Purpose: vertical balance application
+! Purpose: vertical balance application
 !----------------------------------------------------------------------
 subroutine bump_apply_vbal(bump,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
 integer :: its
@@ -602,15 +602,15 @@ end subroutine bump_apply_vbal
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_vbal_inv
-!> Purpose: vertical balance application, inverse
+! Purpose: vertical balance application, inverse
 !----------------------------------------------------------------------
 subroutine bump_apply_vbal_inv(bump,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
 integer :: its
@@ -624,15 +624,15 @@ end subroutine bump_apply_vbal_inv
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_vbal_ad
-!> Purpose: vertical balance application, adjoint
+! Purpose: vertical balance application, adjoint
 !----------------------------------------------------------------------
 subroutine bump_apply_vbal_ad(bump,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
 integer :: its
@@ -646,15 +646,15 @@ end subroutine bump_apply_vbal_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_vbal_inv_ad
-!> Purpose: vertical balance application, inverse adjoint
+! Purpose: vertical balance application, inverse adjoint
 !----------------------------------------------------------------------
 subroutine bump_apply_vbal_inv_ad(bump,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
 integer :: its
@@ -668,15 +668,15 @@ end subroutine bump_apply_vbal_inv_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_nicas
-!> Purpose: NICAS application
+! Purpose: NICAS application
 !----------------------------------------------------------------------
 subroutine bump_apply_nicas(bump,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Apply NICAS
 if (bump%nam%lsqrt) then
@@ -689,15 +689,15 @@ end subroutine bump_apply_nicas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_get_cv_size
-!> Purpose: get control variable size
+! Purpose: get control variable size
 !----------------------------------------------------------------------
 subroutine bump_get_cv_size(bump,n)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump !< BUMP
-integer,intent(out) :: n            !< Control variable size
+class(bump_type),intent(in) :: bump ! BUMP
+integer,intent(out) :: n            ! Control variable size
 
 ! Local variables
 type(cv_type) :: cv
@@ -712,16 +712,16 @@ end subroutine bump_get_cv_size
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_nicas_sqrt
-!> Purpose: NICAS square-root application
+! Purpose: NICAS square-root application
 !----------------------------------------------------------------------
 subroutine bump_apply_nicas_sqrt(bump,pcv,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         !< BUMP
-real(kind_real),intent(in) :: pcv(:)                                                        !< Packed control variable
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(in) :: pcv(:)                                                        ! Packed control variable
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variables
 type(cv_type) :: cv
@@ -744,16 +744,16 @@ end subroutine bump_apply_nicas_sqrt
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_nicas_sqrt_ad
-!> Purpose: NICAS square-root adjoint application
+! Purpose: NICAS square-root adjoint application
 !----------------------------------------------------------------------
 subroutine bump_apply_nicas_sqrt_ad(bump,fld,pcv)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                      !< BUMP
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
-real(kind_real),intent(inout) :: pcv(:)                                                  !< Packed control variable
+class(bump_type),intent(in) :: bump                                                      ! BUMP
+real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+real(kind_real),intent(inout) :: pcv(:)                                                  ! Packed control variable
 
 ! Local variables
 type(cv_type) :: cv
@@ -773,16 +773,16 @@ end subroutine bump_apply_nicas_sqrt_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_obsop
-!> Purpose: observation operator application
+! Purpose: observation operator application
 !----------------------------------------------------------------------
 subroutine bump_apply_obsop(bump,fld,obs)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                !< BUMP
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0)    !< Field
-real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) !< Observations columns
+class(bump_type),intent(in) :: bump                                ! BUMP
+real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0)    ! Field
+real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
 
 ! Apply observation operator
 call bump%obsop%apply(bump%mpl,bump%geom,fld,obs)
@@ -791,16 +791,16 @@ end subroutine bump_apply_obsop
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_obsop_ad
-!> Purpose: observation operator adjoint application
+! Purpose: observation operator adjoint application
 !----------------------------------------------------------------------
 subroutine bump_apply_obsop_ad(bump,obs,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                               !< BUMP
-real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) !< Observations columns
-real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0)  !< Field
+class(bump_type),intent(in) :: bump                               ! BUMP
+real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
+real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0)  ! Field
 
 ! Apply observation operator adjoint
 call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld)
@@ -809,16 +809,16 @@ end subroutine bump_apply_obsop_ad
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_get_parameter
-!> Purpose: get a parameter
+! Purpose: get a parameter
 !----------------------------------------------------------------------
 subroutine bump_get_parameter(bump,param,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                       !< BUMP
-character(len=*),intent(in) :: param                                                      !< Parameter
-real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(in) :: bump                                                       ! BUMP
+character(len=*),intent(in) :: param                                                      ! Parameter
+real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variables
 integer :: ib,iv,jv,its,jts
@@ -865,17 +865,17 @@ end subroutine bump_get_parameter
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_copy_to_field
-!> Purpose: copy to field
+! Purpose: copy to field
 !----------------------------------------------------------------------
 subroutine bump_copy_to_field(bump,param,ib,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                              !< BUMP
-character(len=*),intent(in) :: param                             !< Parameter
-integer,intent(in) :: ib                                         !< Block index
-real(kind_real),intent(out) :: fld(bump%geom%nmga,bump%geom%nl0) !< Field
+class(bump_type),intent(in) :: bump                              ! BUMP
+character(len=*),intent(in) :: param                             ! Parameter
+integer,intent(in) :: ib                                         ! Block index
+real(kind_real),intent(out) :: fld(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Local variables
 integer :: iscales,ie,iv,its
@@ -942,16 +942,16 @@ end subroutine bump_copy_to_field
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_set_parameter
-!> Purpose: set a parameter
+! Purpose: set a parameter
 !----------------------------------------------------------------------
 subroutine bump_set_parameter(bump,param,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                                                   !< BUMP
-character(len=*),intent(in) :: param                                                     !< Parameter
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) !< Field
+class(bump_type),intent(inout) :: bump                                                   ! BUMP
+character(len=*),intent(in) :: param                                                     ! Parameter
+real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variables
 integer :: ib,iv,jv,its,jts
@@ -998,17 +998,17 @@ end subroutine bump_set_parameter
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_copy_from_field
-!> Purpose: copy from field
+! Purpose: copy from field
 !----------------------------------------------------------------------
 subroutine bump_copy_from_field(bump,param,ib,fld)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                          !< BUMP
-character(len=*),intent(in) :: param                            !< Parameter
-integer,intent(in) :: ib                                        !< Block index
-real(kind_real),intent(in) :: fld(bump%geom%nmga,bump%geom%nl0) !< Field
+class(bump_type),intent(inout) :: bump                          ! BUMP
+character(len=*),intent(in) :: param                            ! Parameter
+integer,intent(in) :: ib                                        ! Block index
+real(kind_real),intent(in) :: fld(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Allocation
 if (.not.allocated(bump%cmat%blk)) allocate(bump%cmat%blk(bump%bpar%nbe))
@@ -1052,14 +1052,14 @@ end subroutine bump_copy_from_field
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_dealloc
-!> Purpose: deallocation of BUMP fields
+! Purpose: deallocation of BUMP fields
 !----------------------------------------------------------------------
 subroutine bump_dealloc(bump)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump !< BUMP
+class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Release memory
 call bump%cmat%dealloc(bump%bpar)

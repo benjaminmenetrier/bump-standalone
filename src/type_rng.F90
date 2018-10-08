@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_rng
-!> Purpose: random numbers generator derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: random numbers generator derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_rng
 
@@ -23,11 +20,11 @@ use type_nam, only: nam_type
 
 implicit none
 
-integer,parameter :: default_seed = 140587            !< Default seed
-integer(kind=int64),parameter :: a = 1103515245_int64 !< Linear congruential multiplier
-integer(kind=int64),parameter :: c = 12345_int64      !< Linear congruential offset
-integer(kind=int64),parameter :: m = 2147483648_int64 !< Linear congruential modulo
-logical,parameter :: nn_stats = .false.               !< Compute and print subsampling statistics
+integer,parameter :: default_seed = 140587            ! Default seed
+integer(kind=int64),parameter :: a = 1103515245_int64 ! Linear congruential multiplier
+integer(kind=int64),parameter :: c = 12345_int64      ! Linear congruential offset
+integer(kind=int64),parameter :: m = 2147483648_int64 ! Linear congruential modulo
+logical,parameter :: nn_stats = .false.               ! Compute and print subsampling statistics
 
 type rng_type
    integer(kind=int64) :: seed
@@ -35,20 +32,20 @@ contains
    procedure :: init => rng_init
    procedure :: reseed => rng_reseed
    procedure :: lcg => rng_lcg
-   procedure :: rand_integer_0d
-   procedure :: rand_integer_1d
-   generic :: rand_integer => rand_integer_0d,rand_integer_1d
-   procedure :: rand_real_0d
-   procedure :: rand_real_1d
-   procedure :: rand_real_2d
-   procedure :: rand_real_3d
-   procedure :: rand_real_4d
-   procedure :: rand_real_5d
-   generic :: rand_real => rand_real_0d,rand_real_1d,rand_real_2d,rand_real_3d,rand_real_4d,rand_real_5d
-   procedure :: rand_gau_1d
-   procedure :: rand_gau_5d
-   generic :: rand_gau => rand_gau_1d,rand_gau_5d
-   procedure :: initialize_sampling
+   procedure :: rng_rand_integer_0d
+   procedure :: rng_rand_integer_1d
+   generic :: rand_integer => rng_rand_integer_0d,rng_rand_integer_1d
+   procedure :: rng_rand_real_0d
+   procedure :: rng_rand_real_1d
+   procedure :: rng_rand_real_2d
+   procedure :: rng_rand_real_3d
+   procedure :: rng_rand_real_4d
+   procedure :: rng_rand_real_5d
+   generic :: rand_real => rng_rand_real_0d,rng_rand_real_1d,rng_rand_real_2d,rng_rand_real_3d,rng_rand_real_4d,rng_rand_real_5d
+   procedure :: rng_rand_gau_1d
+   procedure :: rng_rand_gau_5d
+   generic :: rand_gau => rng_rand_gau_1d,rng_rand_gau_5d
+   procedure :: initialize_sampling => rng_initialize_sampling
 end type rng_type
 
 private
@@ -58,16 +55,16 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: rng_init
-!> Purpose: initialize the random number generator
+! Purpose: initialize the random number generator
 !----------------------------------------------------------------------
 subroutine rng_init(rng,mpl,nam)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-type(mpl_type),intent(in) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist variables
+class(rng_type),intent(inout) :: rng ! Random number generator
+type(mpl_type),intent(in) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist variables
 
 ! Local variable
 integer :: seed
@@ -99,15 +96,15 @@ end subroutine rng_init
 
 !----------------------------------------------------------------------
 ! Subroutine: rng_reseed
-!> Purpose: re-seed the random number generator
+! Purpose: re-seed the random number generator
 !----------------------------------------------------------------------
 subroutine rng_reseed(rng,mpl)
 
 implicit none
 
 ! Passed variable
-class(rng_type),intent(inout) :: rng !< Random number generator
-type(mpl_type),intent(in) :: mpl     !< MPI data
+class(rng_type),intent(inout) :: rng ! Random number generator
+type(mpl_type),intent(in) :: mpl     ! MPI data
 
 ! Local variable
 integer :: seed
@@ -125,15 +122,15 @@ end subroutine rng_reseed
 
 !----------------------------------------------------------------------
 ! Subroutine: rng_lcg
-!> Purpose: linear congruential generator
+! Purpose: linear congruential generator
 !----------------------------------------------------------------------
 subroutine rng_lcg(rng,x)
 
 implicit none
 
 ! Passed variable
-class(rng_type),intent(inout) :: rng !< Random number generator
-real(kind_real),intent(out) :: x             !< Random number between 0 and 1
+class(rng_type),intent(inout) :: rng ! Random number generator
+real(kind_real),intent(out) :: x             ! Random number between 0 and 1
 
 ! Update seed
 rng%seed = mod(a*rng%seed+c,m)
@@ -144,18 +141,18 @@ x = real(rng%seed,kind_real)/real(m-1,kind_real)
 end subroutine rng_lcg
 
 !----------------------------------------------------------------------
-! Subroutine: rand_integer_0d
-!> Purpose: generate a random integer, 0d
+! Subroutine: rng_rand_integer_0d
+! Purpose: generate a random integer, 0d
 !----------------------------------------------------------------------
-subroutine rand_integer_0d(rng,binf,bsup,ir)
+subroutine rng_rand_integer_0d(rng,binf,bsup,ir)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-integer,intent(in) :: binf           !< Lower bound
-integer,intent(in) :: bsup           !< Upper bound
-integer,intent(out) :: ir            !< Random integer
+class(rng_type),intent(inout) :: rng ! Random number generator
+integer,intent(in) :: binf           ! Lower bound
+integer,intent(in) :: bsup           ! Upper bound
+integer,intent(out) :: ir            ! Random integer
 
 ! Local variables
 real(kind_real) :: x
@@ -169,21 +166,21 @@ x = x*real(bsup-binf+1,kind_real)
 ! Add offset
 ir = binf+int(x)
 
-end subroutine rand_integer_0d
+end subroutine rng_rand_integer_0d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_integer_1d
-!> Purpose: generate a random integer, 1d
+! Subroutine: rng_rand_integer_1d
+! Purpose: generate a random integer, 1d
 !----------------------------------------------------------------------
-subroutine rand_integer_1d(rng,binf,bsup,ir)
+subroutine rng_rand_integer_1d(rng,binf,bsup,ir)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-integer,intent(in) :: binf           !< Lower bound
-integer,intent(in) :: bsup           !< Upper bound
-integer,intent(out) :: ir(:)         !< Random integer
+class(rng_type),intent(inout) :: rng ! Random number generator
+integer,intent(in) :: binf           ! Lower bound
+integer,intent(in) :: bsup           ! Upper bound
+integer,intent(out) :: ir(:)         ! Random integer
 
 ! Local variables
 integer :: i
@@ -192,21 +189,21 @@ do i=1,size(ir)
    call rng%rand_integer(binf,bsup,ir(i))
 end do
 
-end subroutine rand_integer_1d
+end subroutine rng_rand_integer_1d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_0d
-!> Purpose: generate a random real, 0d
+! Subroutine: rng_rand_real_0d
+! Purpose: generate a random real, 0d
 !----------------------------------------------------------------------
-subroutine rand_real_0d(rng,binf,bsup,rr)
+subroutine rng_rand_real_0d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-real(kind_real),intent(in) :: binf   !< Lower bound
-real(kind_real),intent(in) :: bsup   !< Upper bound
-real(kind_real),intent(out) :: rr    !< Random integer
+class(rng_type),intent(inout) :: rng ! Random number generator
+real(kind_real),intent(in) :: binf   ! Lower bound
+real(kind_real),intent(in) :: bsup   ! Upper bound
+real(kind_real),intent(out) :: rr    ! Random integer
 
 ! Local variables
 real(kind_real) :: x
@@ -220,21 +217,21 @@ x = x*(bsup-binf)
 ! Add offset
 rr = binf+x
 
-end subroutine rand_real_0d
+end subroutine rng_rand_real_0d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_1d
-!> Purpose: generate a random real, 1d
+! Subroutine: rng_rand_real_1d
+! Purpose: generate a random real, 1d
 !----------------------------------------------------------------------
-subroutine rand_real_1d(rng,binf,bsup,rr)
+subroutine rng_rand_real_1d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-real(kind_real),intent(in) :: binf   !< Lower bound
-real(kind_real),intent(in) :: bsup   !< Upper bound
-real(kind_real),intent(out) :: rr(:) !< Random integer
+class(rng_type),intent(inout) :: rng ! Random number generator
+real(kind_real),intent(in) :: binf   ! Lower bound
+real(kind_real),intent(in) :: bsup   ! Upper bound
+real(kind_real),intent(out) :: rr(:) ! Random integer
 
 ! Local variables
 integer :: i
@@ -243,21 +240,21 @@ do i=1,size(rr)
    call rng%rand_real(binf,bsup,rr(i))
 end do
 
-end subroutine rand_real_1d
+end subroutine rng_rand_real_1d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_2d
-!> Purpose: generate a random real, 2d
+! Subroutine: rng_rand_real_2d
+! Purpose: generate a random real, 2d
 !----------------------------------------------------------------------
-subroutine rand_real_2d(rng,binf,bsup,rr)
+subroutine rng_rand_real_2d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng    !< Random number generator
-real(kind_real),intent(in) :: binf      !< Lower bound
-real(kind_real),intent(in) :: bsup      !< Upper bound
-real(kind_real),intent(out) :: rr(:,:)  !< Random integer
+class(rng_type),intent(inout) :: rng    ! Random number generator
+real(kind_real),intent(in) :: binf      ! Lower bound
+real(kind_real),intent(in) :: bsup      ! Upper bound
+real(kind_real),intent(out) :: rr(:,:)  ! Random integer
 
 ! Local variables
 integer :: i,j
@@ -268,21 +265,21 @@ do i=1,size(rr,2)
    end do
 end do
 
-end subroutine rand_real_2d
+end subroutine rng_rand_real_2d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_3d
-!> Purpose: generate a random real, 3d
+! Subroutine: rng_rand_real_3d
+! Purpose: generate a random real, 3d
 !----------------------------------------------------------------------
-subroutine rand_real_3d(rng,binf,bsup,rr)
+subroutine rng_rand_real_3d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng     !< Random number generator
-real(kind_real),intent(in) :: binf       !< Lower bound
-real(kind_real),intent(in) :: bsup       !< Upper bound
-real(kind_real),intent(out) :: rr(:,:,:) !< Random integer
+class(rng_type),intent(inout) :: rng     ! Random number generator
+real(kind_real),intent(in) :: binf       ! Lower bound
+real(kind_real),intent(in) :: bsup       ! Upper bound
+real(kind_real),intent(out) :: rr(:,:,:) ! Random integer
 
 ! Local variables
 integer :: i,j,k
@@ -295,21 +292,21 @@ do i=1,size(rr,3)
    end do
 end do
 
-end subroutine rand_real_3d
+end subroutine rng_rand_real_3d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_4d
-!> Purpose: generate a random real, 4d
+! Subroutine: rng_rand_real_4d
+! Purpose: generate a random real, 4d
 !----------------------------------------------------------------------
-subroutine rand_real_4d(rng,binf,bsup,rr)
+subroutine rng_rand_real_4d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng       !< Random number generator
-real(kind_real),intent(in) :: binf         !< Lower bound
-real(kind_real),intent(in) :: bsup         !< Upper bound
-real(kind_real),intent(out) :: rr(:,:,:,:) !< Random integer
+class(rng_type),intent(inout) :: rng       ! Random number generator
+real(kind_real),intent(in) :: binf         ! Lower bound
+real(kind_real),intent(in) :: bsup         ! Upper bound
+real(kind_real),intent(out) :: rr(:,:,:,:) ! Random integer
 
 ! Local variables
 integer :: i,j,k,l
@@ -324,21 +321,21 @@ do i=1,size(rr,4)
    end do
 end do
 
-end subroutine rand_real_4d
+end subroutine rng_rand_real_4d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_real_5d
-!> Purpose: generate a random real, 5d
+! Subroutine: rng_rand_real_5d
+! Purpose: generate a random real, 5d
 !----------------------------------------------------------------------
-subroutine rand_real_5d(rng,binf,bsup,rr)
+subroutine rng_rand_real_5d(rng,binf,bsup,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng         !< Random number generator
-real(kind_real),intent(in) :: binf           !< Lower bound
-real(kind_real),intent(in) :: bsup           !< Upper bound
-real(kind_real),intent(out) :: rr(:,:,:,:,:) !< Random integer
+class(rng_type),intent(inout) :: rng         ! Random number generator
+real(kind_real),intent(in) :: binf           ! Lower bound
+real(kind_real),intent(in) :: bsup           ! Upper bound
+real(kind_real),intent(out) :: rr(:,:,:,:,:) ! Random integer
 
 ! Local variables
 integer :: i,j,k,l,m
@@ -355,19 +352,19 @@ do i=1,size(rr,5)
    end do
 end do
 
-end subroutine rand_real_5d
+end subroutine rng_rand_real_5d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_gau_1d
-!> Purpose: generate random Gaussian deviates, 1d
+! Subroutine: rng_rand_gau_1d
+! Purpose: generate random Gaussian deviates, 1d
 !----------------------------------------------------------------------
-subroutine rand_gau_1d(rng,rr)
+subroutine rng_rand_gau_1d(rng,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-real(kind_real),intent(out) :: rr(:) !< Random integer
+class(rng_type),intent(inout) :: rng ! Random number generator
+real(kind_real),intent(out) :: rr(:) ! Random integer
 
 ! Local variables
 integer :: i,iset
@@ -396,19 +393,19 @@ do i=1,size(rr,1)
    rr(i) = gasdev
 end do
 
-end subroutine rand_gau_1d
+end subroutine rng_rand_gau_1d
 
 !----------------------------------------------------------------------
-! Subroutine: rand_gau_5d
-!> Purpose: generate random Gaussian deviates, 5d
+! Subroutine: rng_rand_gau_5d
+! Purpose: generate random Gaussian deviates, 5d
 !----------------------------------------------------------------------
-subroutine rand_gau_5d(rng,rr)
+subroutine rng_rand_gau_5d(rng,rr)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng         !< Random number generator
-real(kind_real),intent(out) :: rr(:,:,:,:,:) !< Random integer
+class(rng_type),intent(inout) :: rng         ! Random number generator
+real(kind_real),intent(out) :: rr(:,:,:,:,:) ! Random integer
 
 ! Local variables
 integer :: i,j,k,l
@@ -423,29 +420,29 @@ do i=1,size(rr,5)
    end do
 end do
 
-end subroutine rand_gau_5d
+end subroutine rng_rand_gau_5d
 
 !----------------------------------------------------------------------
-! Subroutine: initialize_sampling
-!> Purpose: intialize sampling
+! Subroutine: rng_initialize_sampling
+! Purpose: intialize sampling
 !----------------------------------------------------------------------
-subroutine initialize_sampling(rng,mpl,n,lon,lat,mask,rh,ntry,nrep,ns,ihor,fast)
+subroutine rng_initialize_sampling(rng,mpl,n,lon,lat,mask,rh,ntry,nrep,ns,ihor,fast)
 
 implicit none
 
 ! Passed variables
-class(rng_type),intent(inout) :: rng !< Random number generator
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-integer,intent(in) :: n              !< Number of points
-real(kind_real),intent(in) :: lon(n) !< Longitudes
-real(kind_real),intent(in) :: lat(n) !< Latitudes
-logical,intent(in) :: mask(n)        !< Mask
-real(kind_real),intent(in) :: rh(n)  !< Horizontal support radius
-integer,intent(in) :: ntry           !< Number of tries
-integer,intent(in) :: nrep           !< Number of replacements
-integer,intent(in) :: ns             !< Number of samplings points
-integer,intent(out) :: ihor(ns)      !< Horizontal sampling index
-logical,intent(in),optional :: fast  !< Fast sampling flag
+class(rng_type),intent(inout) :: rng ! Random number generator
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+integer,intent(in) :: n              ! Number of points
+real(kind_real),intent(in) :: lon(n) ! Longitudes
+real(kind_real),intent(in) :: lat(n) ! Latitudes
+logical,intent(in) :: mask(n)        ! Mask
+real(kind_real),intent(in) :: rh(n)  ! Horizontal support radius
+integer,intent(in) :: ntry           ! Number of tries
+integer,intent(in) :: nrep           ! Number of replacements
+integer,intent(in) :: ns             ! Number of samplings points
+integer,intent(out) :: ihor(ns)      ! Horizontal sampling index
+logical,intent(in),optional :: fast  ! Fast sampling flag
 
 ! Local variables
 integer :: system_clock_start,system_clock_end,count_rate,count_max
@@ -458,7 +455,7 @@ real(kind_real) :: cdf_norm,rr
 real(kind_real),allocatable :: cdf(:)
 real(kind_real),allocatable :: lon_rep(:),lat_rep(:),dist(:)
 real(kind_real),allocatable :: sdist(:,:),nn_sdist(:)
-logical :: lfast,converged
+logical :: lfast
 logical,allocatable :: lmask(:),smask(:),rmask(:)
 type(kdtree_type) :: kdtree
 
@@ -749,6 +746,6 @@ end if
 ! Broadcast
 call mpl%f_comm%broadcast(ihor,mpl%ioproc-1)
 
-end subroutine initialize_sampling
+end subroutine rng_initialize_sampling
 
 end module type_rng

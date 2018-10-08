@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_lct
-!> Purpose: LCT data derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: LCT data derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_lct
 
@@ -28,12 +25,12 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 
 implicit none
 
-logical,parameter :: write_cor = .true. !< Write raw and fitted correlations
+logical,parameter :: write_cor = .true. ! Write raw and fitted correlations
 
 ! LCT data derived type
 type lct_type
-   type(lct_blk_type),allocatable :: blk(:) !< LCT blocks
-   logical :: allocated                     !< Allocation flag
+   type(lct_blk_type),allocatable :: blk(:) ! LCT blocks
+   logical :: allocated                     ! Allocation flag
 contains
    procedure :: alloc => lct_alloc
    procedure :: dealloc => lct_dealloc
@@ -52,18 +49,18 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_alloc
-!> Purpose: LCT data allocation
+! Purpose: LCT data allocation
 !----------------------------------------------------------------------
 subroutine lct_alloc(lct,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct !< LCT
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
+class(lct_type),intent(inout) :: lct ! LCT
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: ib
@@ -81,15 +78,15 @@ end subroutine lct_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_dealloc
-!> Purpose: LCT data deallocation
+! Purpose: LCT data deallocation
 !----------------------------------------------------------------------
 subroutine lct_dealloc(lct,bpar)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct !< LCT
-type(bpar_type),intent(in) :: bpar   !< Block parameters
+class(lct_type),intent(inout) :: lct ! LCT
+type(bpar_type),intent(in) :: bpar   ! Block parameters
 
 ! Local variables
 integer :: ib
@@ -109,21 +106,21 @@ end subroutine lct_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_run_lct
-!> Purpose: LCT driver
+! Purpose: LCT driver
 !----------------------------------------------------------------------
 subroutine lct_run_lct(lct,mpl,rng,nam,geom,bpar,io,ens)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct !< LCT
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(rng_type),intent(inout) :: rng  !< Random number generator
-type(nam_type),intent(inout) :: nam  !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(io_type),intent(in) :: io       !< I/O
-type(ens_type),intent(in) :: ens     !< Ensemble
+class(lct_type),intent(inout) :: lct ! LCT
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(rng_type),intent(inout) :: rng  ! Random number generator
+type(nam_type),intent(inout) :: nam  ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(io_type),intent(in) :: io       ! I/O
+type(ens_type),intent(in) :: ens     ! Ensemble
 
 ! Local variables
 type(hdata_type) :: hdata
@@ -208,20 +205,20 @@ end subroutine lct_run_lct
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_compute
-!> Purpose: compute LCT
+! Purpose: compute LCT
 !----------------------------------------------------------------------
 subroutine lct_compute(lct,mpl,nam,geom,bpar,hdata,mom)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct !< LCT
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
-type(mom_type),intent(in) :: mom     !< Moments
+class(lct_type),intent(inout) :: lct ! LCT
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
+type(mom_type),intent(in) :: mom     ! Moments
 
 ! Local variables
 integer :: ib
@@ -248,19 +245,19 @@ end subroutine lct_compute
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_filter
-!> Purpose: filter LCT
+! Purpose: filter LCT
 !----------------------------------------------------------------------
 subroutine lct_filter(lct,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct    !< LCT
-type(mpl_type),intent(inout) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
-type(hdata_type),intent(inout) :: hdata !< HDIAG data
+class(lct_type),intent(inout) :: lct    ! LCT
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
+type(hdata_type),intent(inout) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: ib,il0,jl0,jl0r,ic1a,ic1,ic0,jc3,jc0,icomp,iscales,nmsr,nmsr_tot
@@ -407,19 +404,19 @@ end subroutine lct_filter
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_rmse
-!> Purpose: compute LCT fit RMSE
+! Purpose: compute LCT fit RMSE
 !----------------------------------------------------------------------
 subroutine lct_rmse(lct,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(in) :: lct       !< LCT
-type(mpl_type),intent(in) :: mpl        !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
-type(hdata_type),intent(inout) :: hdata !< HDIAG data
+class(lct_type),intent(in) :: lct       ! LCT
+type(mpl_type),intent(in) :: mpl        ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
+type(hdata_type),intent(inout) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: ib,il0,jl0r,jl0,ic1a,ic1,jc3
@@ -477,20 +474,20 @@ end subroutine lct_rmse
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_write
-!> Purpose: interpolate and write LCT
+! Purpose: interpolate and write LCT
 !----------------------------------------------------------------------
 subroutine lct_write(lct,mpl,nam,geom,bpar,io,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(inout) :: lct    !< LCT
-type(mpl_type),intent(inout) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
-type(io_type),intent(in) :: io          !< I/O
-type(hdata_type),intent(inout) :: hdata !< HDIAG data
+class(lct_type),intent(inout) :: lct    ! LCT
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
+type(io_type),intent(in) :: io          ! I/O
+type(hdata_type),intent(inout) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: ib,iv,il0,il0i,ic1a,ic1,icomp,ic0a,iscales
@@ -669,20 +666,20 @@ end subroutine lct_write
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_write_cor
-!> Purpose: write correlation and LCT fit
+! Purpose: write correlation and LCT fit
 !----------------------------------------------------------------------
 subroutine lct_write_cor(lct,mpl,nam,geom,bpar,io,hdata)
 
 implicit none
 
 ! Passed variables
-class(lct_type),intent(in) :: lct       !< LCT
-type(mpl_type),intent(inout) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
-type(io_type),intent(in) :: io          !< I/O
-type(hdata_type),intent(inout) :: hdata !< HDIAG data
+class(lct_type),intent(in) :: lct       ! LCT
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
+type(io_type),intent(in) :: io          ! I/O
+type(hdata_type),intent(inout) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: ib,iv,il0,jl0r,jl0,ic1a,ic1,jc3,i,iproc,ic0,nf

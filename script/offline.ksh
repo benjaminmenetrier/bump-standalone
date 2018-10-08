@@ -3,7 +3,7 @@
 # Korn shell script: offline
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Parameters
 repo="https://github.com/JCSDA/oops.git"
@@ -43,8 +43,7 @@ rsync -rtv --delete ${src_oops}/"type_bump.F90" ${src_oops}/"type_ens.F90" ${src
 # Modify type_bump.F90
 filename="type_bump.F90"
 rm -f ${src_tmp}/${filename}"_tmp"
-while IFS= read -r line
-do
+while IFS= read -r line ; do
    # Insert "   procedure :: setup_offline => bump_setup_offline" before "   procedure :: setup_generic => bump_setup_generic"
    add="   procedure :: setup_offline => bump_setup_offline"
    tag="   procedure :: setup_generic => bump_setup_generic"
@@ -83,8 +82,7 @@ fi
 # Modify type_ens.F90
 filename="type_ens.F90"
 rm -f ${src_tmp}/${filename}"_tmp"
-while IFS= read -r line
-do
+while IFS= read -r line ; do
    # Insert "use model_interface, only: model_read" before "use tools_kinds"
    add="use model_interface, only: model_read"
    tag="use tools_kinds"
@@ -115,9 +113,8 @@ else
    fi
 fi
 
-
-# Add fckit_mpi_module.F90
-rsync -rtv --delete ${offline}/fckit_mpi_module.F90 ${src}
+# Add type_fckit_mpi_comm.F90
+rsync -rtv --delete ${offline}/type_fckit_mpi_comm.F90 ${src}
 
 # Add main.F90
 rsync -rtv --delete ${offline}/main.F90 ${src}

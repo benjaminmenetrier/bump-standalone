@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_io
-!> Purpose: I/O derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: I/O derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
 !----------------------------------------------------------------------
 module type_io
 
@@ -28,25 +25,25 @@ implicit none
 
 ! I/O derived type
 type io_type
-   integer :: nlon                        !< Number of output grid longitudes
-   integer :: nlat                        !< Number of output grid latitudes
-   real(kind_real),allocatable :: lon(:)  !< Output grid longitudes
-   real(kind_real),allocatable :: lat(:)  !< Output grid latitudes
-   integer,allocatable :: og_to_lon(:)    !< Output grid to longitude index
-   integer,allocatable :: og_to_lat(:)    !< Output grid to latitude index
-   integer :: nog                         !< Output grid size
-   integer :: noga                        !< Output grid size, halo A
-   integer :: nc0b                        !< Subset Sc0 size, halo B
-   integer,allocatable :: og_to_proc(:)   !< Output grid to processor
-   integer,allocatable :: proc_to_noga(:) !< Number of points in output grid, halo A, for each processor
-   integer,allocatable :: oga_to_og(:)    !< Output grid, halo A to global
-   integer,allocatable :: og_to_oga(:)    !< Output grid, global to halo A
-   integer,allocatable :: c0b_to_c0(:)    !< Subset Sc0, halo B to global
-   integer,allocatable :: c0_to_c0b(:)    !< Subset Sc0, global to halo B
-   integer,allocatable :: c0a_to_c0b(:)   !< Subset Sc0, halo A to halo B
-   type(linop_type) :: og                 !< Subset Sc0 to grid interpolation
-   type(com_type) :: com_AB               !< Communication between halos A and B
-   logical,allocatable :: mask(:,:)       !< Mask on output grid
+   integer :: nlon                        ! Number of output grid longitudes
+   integer :: nlat                        ! Number of output grid latitudes
+   real(kind_real),allocatable :: lon(:)  ! Output grid longitudes
+   real(kind_real),allocatable :: lat(:)  ! Output grid latitudes
+   integer,allocatable :: og_to_lon(:)    ! Output grid to longitude index
+   integer,allocatable :: og_to_lat(:)    ! Output grid to latitude index
+   integer :: nog                         ! Output grid size
+   integer :: noga                        ! Output grid size, halo A
+   integer :: nc0b                        ! Subset Sc0 size, halo B
+   integer,allocatable :: og_to_proc(:)   ! Output grid to processor
+   integer,allocatable :: proc_to_noga(:) ! Number of points in output grid, halo A, for each processor
+   integer,allocatable :: oga_to_og(:)    ! Output grid, halo A to global
+   integer,allocatable :: og_to_oga(:)    ! Output grid, global to halo A
+   integer,allocatable :: c0b_to_c0(:)    ! Subset Sc0, halo B to global
+   integer,allocatable :: c0_to_c0b(:)    ! Subset Sc0, global to halo B
+   integer,allocatable :: c0a_to_c0b(:)   ! Subset Sc0, halo A to halo B
+   type(linop_type) :: og                 ! Subset Sc0 to grid interpolation
+   type(com_type) :: com_AB               ! Communication between halos A and B
+   logical,allocatable :: mask(:,:)       ! Mask on output grid
 contains
    procedure :: dealloc => io_dealloc
    procedure :: fld_read => io_fld_read
@@ -62,14 +59,14 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: io_dealloc
-!> Purpose: deallocate I/O
+! Purpose: deallocate I/O
 !----------------------------------------------------------------------
 subroutine io_dealloc(io)
 
 implicit none
 
 ! Passed variables
-class(io_type),intent(inout) :: io !< I/O
+class(io_type),intent(inout) :: io ! I/O
 
 ! Release memory
 if (allocated(io%lon)) deallocate(io%lon)
@@ -91,20 +88,20 @@ end subroutine io_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: io_fld_read
-!> Purpose: write field
+! Purpose: write field
 !----------------------------------------------------------------------
 subroutine io_fld_read(io,mpl,nam,geom,filename,varname,fld)
 
 implicit none
 
 ! Passed variables
-class(io_type),intent(in) :: io                        !< I/O
-type(mpl_type),intent(inout) :: mpl                    !< MPI data
-type(nam_type),intent(in) :: nam                       !< Namelist
-type(geom_type),intent(in) :: geom                     !< Geometry
-character(len=*),intent(in) :: filename                !< File name
-character(len=*),intent(in) :: varname                 !< Variable name
-real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0) !< Field
+class(io_type),intent(in) :: io                        ! I/O
+type(mpl_type),intent(inout) :: mpl                    ! MPI data
+type(nam_type),intent(in) :: nam                       ! Namelist
+type(geom_type),intent(in) :: geom                     ! Geometry
+character(len=*),intent(in) :: filename                ! File name
+character(len=*),intent(in) :: varname                 ! Variable name
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
 integer :: ncid,fld_id,dum
@@ -156,20 +153,20 @@ end subroutine io_fld_read
 
 !----------------------------------------------------------------------
 ! Subroutine: io_fld_write
-!> Purpose: write field
+! Purpose: write field
 !----------------------------------------------------------------------
 subroutine io_fld_write(io,mpl,nam,geom,filename,varname,fld)
 
 implicit none
 
 ! Passed variables
-class(io_type),intent(in) :: io                       !< I/O
-type(mpl_type),intent(inout) :: mpl                   !< MPI data
-type(nam_type),intent(in) :: nam                      !< Namelist
-type(geom_type),intent(in) :: geom                    !< Geometry
-character(len=*),intent(in) :: filename               !< File name
-character(len=*),intent(in) :: varname                !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
+class(io_type),intent(in) :: io                       ! I/O
+type(mpl_type),intent(inout) :: mpl                   ! MPI data
+type(nam_type),intent(in) :: nam                      ! Namelist
+type(geom_type),intent(in) :: geom                    ! Geometry
+character(len=*),intent(in) :: filename               ! File name
+character(len=*),intent(in) :: varname                ! Variable name
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
 integer :: ic0a,ic0,il0,info
@@ -330,18 +327,18 @@ end subroutine io_fld_write
 
 !----------------------------------------------------------------------
 ! Subroutine: io_grid_init
-!> Purpose: initialize fields regridding
+! Purpose: initialize fields regridding
 !----------------------------------------------------------------------
 subroutine io_grid_init(io,mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(io_type),intent(inout) :: io  !< I/O
-type(mpl_type),intent(inout) :: mpl !< MPI data
-type(rng_type),intent(inout) :: rng !< Random number generator
-type(nam_type),intent(in) :: nam    !< Namelist
-type(geom_type),intent(in) :: geom  !< Geometry
+class(io_type),intent(inout) :: io  ! I/O
+type(mpl_type),intent(inout) :: mpl ! MPI data
+type(rng_type),intent(inout) :: rng ! Random number generator
+type(nam_type),intent(in) :: nam    ! Namelist
+type(geom_type),intent(in) :: geom  ! Geometry
 
 ! Local variables
 integer ::ilon,ilat,i_s,i_s_loc,iog,iproc,ic0,ic0a,ic0b,ioga,il0
@@ -547,20 +544,20 @@ end subroutine io_grid_init
 
 !----------------------------------------------------------------------
 ! Subroutine: io_grid_write
-!> Purpose: interpolate and write field
+! Purpose: interpolate and write field
 !----------------------------------------------------------------------
 subroutine io_grid_write(io,mpl,nam,geom,filename,varname,fld)
 
 implicit none
 
 ! Passed variables
-class(io_type),intent(in) :: io                       !< I/O
-type(mpl_type),intent(inout) :: mpl                   !< MPI data
-type(nam_type),intent(in) :: nam                      !< Namelist
-type(geom_type),intent(in) :: geom                    !< Geometry
-character(len=*),intent(in) :: filename               !< File name
-character(len=*),intent(in) :: varname                !< Variable name
-real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) !< Field
+class(io_type),intent(in) :: io                       ! I/O
+type(mpl_type),intent(inout) :: mpl                   ! MPI data
+type(nam_type),intent(in) :: nam                      ! Namelist
+type(geom_type),intent(in) :: geom                    ! Geometry
+character(len=*),intent(in) :: filename               ! File name
+character(len=*),intent(in) :: varname                ! Variable name
+real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
 integer :: il0,info,ilon,ilat,iog,ioga,i,iproc

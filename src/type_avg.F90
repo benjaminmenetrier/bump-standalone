@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_avg
-!> Purpose: average routines
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: average routines
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_avg
 
@@ -29,9 +26,9 @@ implicit none
 
 ! Averaged statistics derived type
 type avg_type
-   integer :: ne                              !< Ensemble size
-   integer :: nsub                            !< Number of sub-ensembles
-   type(avg_blk_type),allocatable :: blk(:,:) !< Averaged statistics blocks
+   integer :: ne                              ! Ensemble size
+   integer :: nsub                            ! Number of sub-ensembles
+   type(avg_blk_type),allocatable :: blk(:,:) ! Averaged statistics blocks
 contains
    procedure :: alloc => avg_alloc
    procedure :: dealloc => avg_dealloc
@@ -54,19 +51,19 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_alloc
-!> Purpose: averaged statistics allocation
+! Purpose: averaged statistics allocation
 !----------------------------------------------------------------------
 subroutine avg_alloc(avg,nam,geom,bpar,ne,nsub)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-integer,intent(in) :: ne             !< Ensemble size
-integer,intent(in) :: nsub           !< Number of sub-ensembles
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+integer,intent(in) :: ne             ! Ensemble size
+integer,intent(in) :: nsub           ! Number of sub-ensembles
 
 ! Local variables
 integer :: ib,ic2
@@ -89,16 +86,16 @@ end subroutine avg_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_dealloc
-!> Purpose: averaged statistics deallocation
+! Purpose: averaged statistics deallocation
 !----------------------------------------------------------------------
 subroutine avg_dealloc(avg,nam,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(nam_type),intent(in) :: nam     !< Namelist
-type(bpar_type),intent(in) :: bpar   !< Block parameters
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(nam_type),intent(in) :: nam     ! Namelist
+type(bpar_type),intent(in) :: bpar   ! Block parameters
 
 ! Local variables
 integer :: ib,ic2
@@ -119,17 +116,17 @@ end subroutine avg_dealloc
 
 !----------------------------------------------------------------------
 ! Function: avg_copy
-!> Purpose: averaged statistics copy
+! Purpose: averaged statistics copy
 !----------------------------------------------------------------------
 type(avg_type) function avg_copy(avg,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(in) :: avg !< Averaged statistics
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
+class(avg_type),intent(in) :: avg ! Averaged statistics
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
 
 ! Local variables
 integer :: ib,ic2
@@ -153,18 +150,18 @@ end function avg_copy
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_gather
-!> Purpose: gather averaged statistics data
+! Purpose: gather averaged statistics data
 !----------------------------------------------------------------------
 subroutine avg_gather(avg,mpl,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(mpl_type),intent(in) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(mpl_type),intent(in) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
 
 ! Local variables
 integer :: npack,offset,ib,ic2
@@ -290,17 +287,17 @@ end subroutine avg_gather
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_normalize
-!> Purpose: normalize averaged statistics data
+! Purpose: normalize averaged statistics data
 !----------------------------------------------------------------------
 subroutine avg_normalize(avg,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
 
 ! Local variables
 integer :: ib,ic2,il0,jl0r,jc3,isub,jsub
@@ -355,18 +352,18 @@ end subroutine avg_normalize
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_gather_lr
-!> Purpose: gather low-resolution averaged statistics data
+! Purpose: gather low-resolution averaged statistics data
 !----------------------------------------------------------------------
 subroutine avg_gather_lr(avg_lr,mpl,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg_lr !< Averaged statistics, low resolution
-type(mpl_type),intent(in) :: mpl        !< MPI data
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
+class(avg_type),intent(inout) :: avg_lr ! Averaged statistics, low resolution
+type(mpl_type),intent(in) :: mpl        ! MPI data
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
 
 ! Local variables
 integer :: npack,offset,ib,ic2
@@ -433,17 +430,17 @@ end subroutine avg_gather_lr
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_normalize_lr
-!> Purpose: normalize low-resolution averaged statistics data
+! Purpose: normalize low-resolution averaged statistics data
 !----------------------------------------------------------------------
 subroutine avg_normalize_lr(avg_lr,nam,geom,bpar)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg_lr !< Averaged statistics, low resolution
-type(nam_type),intent(in) :: nam        !< Namelist
-type(geom_type),intent(in) :: geom      !< Geometry
-type(bpar_type),intent(in) :: bpar      !< Block parameters
+class(avg_type),intent(inout) :: avg_lr ! Averaged statistics, low resolution
+type(nam_type),intent(in) :: nam        ! Namelist
+type(geom_type),intent(in) :: geom      ! Geometry
+type(bpar_type),intent(in) :: bpar      ! Block parameters
 
 ! Local variables
 integer :: ib,ic2,il0,jl0r,jc3,isub,jsub
@@ -486,19 +483,19 @@ end subroutine avg_normalize_lr
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_var_filter
-!> Purpose: filter variance
+! Purpose: filter variance
 !----------------------------------------------------------------------
 subroutine avg_var_filter(avg,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
 
 ! Local variables
 integer :: n,ib,il0,ic2a,ic2,iter
@@ -611,21 +608,21 @@ end subroutine avg_var_filter
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_compute
-!> Purpose: compute averaged statistics
+! Purpose: compute averaged statistics
 !----------------------------------------------------------------------
 subroutine avg_compute(avg,mpl,nam,geom,bpar,hdata,mom,ne)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
-type(mom_type),intent(in) :: mom     !< Moments
-integer,intent(in) :: ne             !< Ensemble size
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
+type(mom_type),intent(in) :: mom     ! Moments
+integer,intent(in) :: ne             ! Ensemble size
 
 ! Local variables
 integer :: ib,ic2
@@ -690,22 +687,22 @@ end subroutine avg_compute
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_compute_hyb
-!> Purpose: compute hybrid averaged statistics
+! Purpose: compute hybrid averaged statistics
 !----------------------------------------------------------------------
 subroutine avg_compute_hyb(avg_2,mpl,nam,geom,bpar,hdata,mom_1,mom_2,avg_1)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg_2 !< Ensemble 2 averaged statistics
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(nam_type),intent(in) :: nam       !< Namelist
-type(geom_type),intent(in) :: geom     !< Geometry
-type(bpar_type),intent(in) :: bpar     !< Block parameters
-type(hdata_type),intent(in) :: hdata   !< HDIAG data
-type(mom_type),intent(in) :: mom_1     !< Ensemble 2 moments
-type(mom_type),intent(in) :: mom_2     !< Ensemble 1 moments
-class(avg_type),intent(inout) :: avg_1 !< Ensemble 1 averaged statistics
+class(avg_type),intent(inout) :: avg_2 ! Ensemble 2 averaged statistics
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(mom_type),intent(in) :: mom_1     ! Ensemble 2 moments
+type(mom_type),intent(in) :: mom_2     ! Ensemble 1 moments
+class(avg_type),intent(inout) :: avg_1 ! Ensemble 1 averaged statistics
 
 ! Local variables
 integer :: ib,ic2
@@ -778,16 +775,16 @@ end subroutine avg_compute_hyb
 
 !----------------------------------------------------------------------
 ! Function: avg_copy_wgt
-!> Purpose: averaged statistics data copy for weight definition
+! Purpose: averaged statistics data copy for weight definition
 !----------------------------------------------------------------------
 type(avg_type) function avg_copy_wgt(avg,geom,bpar)
 
 implicit none
 
 ! Passed variables
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-class(avg_type),intent(inout) :: avg !< Averaged statistics
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+class(avg_type),intent(inout) :: avg ! Averaged statistics
 
 ! Local variables
 integer :: ib
@@ -811,19 +808,19 @@ end function avg_copy_wgt
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_compute_bwavg
-!> Purpose: compute block-averaged statistics
+! Purpose: compute block-averaged statistics
 !----------------------------------------------------------------------
 subroutine avg_compute_bwavg(avg,mpl,nam,geom,bpar,avg_wgt)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg !< Averaged statistics
-type(mpl_type),intent(inout) :: mpl  !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(avg_type),intent(in) :: avg_wgt !< Averaged statistics for weights
+class(avg_type),intent(inout) :: avg ! Averaged statistics
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(avg_type),intent(in) :: avg_wgt ! Averaged statistics for weights
 
 ! Local variables
 integer :: ib,ic2,il0,jl0r,jc3

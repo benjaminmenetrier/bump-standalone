@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_mom
-!> Purpose: moments derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: moments derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_mom
 
@@ -29,7 +26,7 @@ implicit none
 type mom_type
    integer :: ne
    integer :: nsub
-   type(mom_blk_type),allocatable :: blk(:) !< Moments blocks
+   type(mom_blk_type),allocatable :: blk(:) ! Moments blocks
 contains
    procedure :: alloc => mom_alloc
    procedure :: compute => mom_compute
@@ -42,20 +39,20 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: mom_alloc
-!> Purpose: allocate moments
+! Purpose: allocate moments
 !----------------------------------------------------------------------
 subroutine mom_alloc(mom,nam,geom,bpar,hdata,ne,nsub)
 
 implicit none
 
 ! Passed variables
-class(mom_type),intent(inout) :: mom !< Moments
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
-integer,intent(in) :: ne             !< Ensemble size
-integer,intent(in) :: nsub           !< Number of sub-ensembles
+class(mom_type),intent(inout) :: mom ! Moments
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
+integer,intent(in) :: ne             ! Ensemble size
+integer,intent(in) :: nsub           ! Number of sub-ensembles
 
 ! Local variables
 integer :: ib
@@ -91,20 +88,20 @@ end subroutine mom_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: mom_compute
-!> Purpose: compute centered moments (iterative formulae)
+! Purpose: compute centered moments (iterative formulae)
 !----------------------------------------------------------------------
 subroutine mom_compute(mom,mpl,nam,geom,bpar,hdata,ens)
 
 implicit none
 
 ! Passed variables
-class(mom_type),intent(inout) :: mom !< Moments
-type(mpl_type),intent(in) :: mpl     !< MPI data
-type(nam_type),intent(in) :: nam     !< Namelist
-type(geom_type),intent(in) :: geom   !< Geometry
-type(bpar_type),intent(in) :: bpar   !< Block parameters
-type(hdata_type),intent(in) :: hdata !< HDIAG data
-type(ens_type), intent(in) :: ens    !< Ensemble
+class(mom_type),intent(inout) :: mom ! Moments
+type(mpl_type),intent(in) :: mpl     ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+type(hdata_type),intent(in) :: hdata ! HDIAG data
+type(ens_type), intent(in) :: ens    ! Ensemble
 
 ! Local variables
 integer :: ie,ie_sub,jc0,ic0c,jc0c,ic0,jl0r,jl0,il0,isub,jc3,ic1,ic1a,ib,jv,iv,jts,its

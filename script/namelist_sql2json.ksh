@@ -3,7 +3,7 @@
 # Korn shell script: namelist_sql2json
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Function to generate a namelist
 generate_namelist() {

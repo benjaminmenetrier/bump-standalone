@@ -3,7 +3,7 @@
 # Korn shell script: namelist_sql2nam
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Function to save a namelist
 save_namelist() {
@@ -22,8 +22,7 @@ save_namelist() {
 
       # While loop over lines
       i=1
-      while IFS= read -r line
-      do
+      while IFS= read -r line ; do
          # Check line type
          test=`echo ${line} | cut -c -1`
          if test "${test}" = "&" ; then

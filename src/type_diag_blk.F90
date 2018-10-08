@@ -1,12 +1,9 @@
 !----------------------------------------------------------------------
 ! Module: type_diag_blk
-!> Purpose: diagnostic block derived type
-!> <br>
-!> Author: Benjamin Menetrier
-!> <br>
-!> Licensing: this code is distributed under the CeCILL-C license
-!> <br>
-!> Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+! Purpose: diagnostic block derived type
+! Author: Benjamin Menetrier
+! Licensing: this code is distributed under the CeCILL-C license
+! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module type_diag_blk
 
@@ -29,26 +26,26 @@ use type_nam, only: nam_type
 
 implicit none
 
-integer,parameter :: nsc = 50                          !< Number of iterations for the scaling optimization
-logical :: lprt = .false.                              !< Optimization print
-real(kind_real),parameter :: maxfactor = 2.0_kind_real !< Maximum factor for diagnostics with respect to the origin
+integer,parameter :: nsc = 50                          ! Number of iterations for the scaling optimization
+logical :: lprt = .false.                              ! Optimization print
+real(kind_real),parameter :: maxfactor = 2.0_kind_real ! Maximum factor for diagnostics with respect to the origin
 
 ! Diagnostic block derived type
 type diag_blk_type
-   integer :: ic2a                                !< Local index
-   integer :: ib                                  !< Block index
-   character(len=1024) :: name                    !< Name
-   logical :: double_fit                          !< Double fit flag
+   integer :: ic2a                                ! Local index
+   integer :: ib                                  ! Block index
+   character(len=1024) :: name                    ! Name
+   logical :: double_fit                          ! Double fit flag
 
-   real(kind_real),allocatable :: raw(:,:,:)      !< Raw diagnostic
-   real(kind_real),allocatable :: raw_coef_ens(:) !< Raw ensemble coefficient
-   real(kind_real) :: raw_coef_sta                !< Raw static coefficient
-   real(kind_real),allocatable :: fit(:,:,:)      !< Fit
-   real(kind_real),allocatable :: fit_rh(:)       !< Horizontal fit support radius
-   real(kind_real),allocatable :: fit_rv(:)       !< Vertical fit support radius
-   real(kind_real),allocatable :: fit_rv_rfac(:)  !< Vertical fit support radius ratio for the positive component (for double-radius fit)
-   real(kind_real),allocatable :: fit_rv_coef(:)  !< Vertical fit coefficient (for double-radius fit)
-   real(kind_real),allocatable :: distv(:,:)      !< Reduced vertical distance
+   real(kind_real),allocatable :: raw(:,:,:)      ! Raw diagnostic
+   real(kind_real),allocatable :: raw_coef_ens(:) ! Raw ensemble coefficient
+   real(kind_real) :: raw_coef_sta                ! Raw static coefficient
+   real(kind_real),allocatable :: fit(:,:,:)      ! Fit
+   real(kind_real),allocatable :: fit_rh(:)       ! Horizontal fit support radius
+   real(kind_real),allocatable :: fit_rv(:)       ! Vertical fit support radius
+   real(kind_real),allocatable :: fit_rv_rfac(:)  ! Vertical fit support radius ratio for the positive component (for double-radius fit)
+   real(kind_real),allocatable :: fit_rv_coef(:)  ! Vertical fit coefficient (for double-radius fit)
+   real(kind_real),allocatable :: distv(:,:)      ! Reduced vertical distance
 contains
    procedure :: alloc => diag_blk_alloc
    procedure :: dealloc => diag_blk_dealloc
@@ -67,22 +64,22 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_alloc
-!> Purpose: diagnostic block data allocation
+! Purpose: diagnostic block data allocation
 !----------------------------------------------------------------------
 subroutine diag_blk_alloc(diag_blk,nam,geom,bpar,hdata,ic2a,ib,prefix,double_fit)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block
-type(nam_type),intent(in) :: nam               !< Namelist
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-type(hdata_type),intent(in) :: hdata           !< HDIAG data
-integer,intent(in) :: ic2a                     !< Local index
-integer,intent(in) :: ib                       !< Block index
-character(len=*),intent(in) :: prefix          !< Block prefix
-logical,intent(in) :: double_fit               !< Double fit
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
+type(nam_type),intent(in) :: nam               ! Namelist
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+type(hdata_type),intent(in) :: hdata           ! HDIAG data
+integer,intent(in) :: ic2a                     ! Local index
+integer,intent(in) :: ib                       ! Block index
+character(len=*),intent(in) :: prefix          ! Block prefix
+logical,intent(in) :: double_fit               ! Double fit
 
 ! Local variables
 integer :: ic0,ic2,il0,jl0
@@ -147,14 +144,14 @@ end subroutine diag_blk_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_dealloc
-!> Purpose: diagnostic block data deallocation
+! Purpose: diagnostic block data deallocation
 !----------------------------------------------------------------------
 subroutine diag_blk_dealloc(diag_blk)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
 
 ! Release memory
 if (allocated(diag_blk%raw)) deallocate(diag_blk%raw)
@@ -170,19 +167,19 @@ end subroutine diag_blk_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_write
-!> Purpose: write a diagnostic
+! Purpose: write a diagnostic
 !----------------------------------------------------------------------
 subroutine diag_blk_write(diag_blk,mpl,nam,geom,bpar,filename)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block
-type(mpl_type),intent(in) :: mpl               !< MPI data
-type(nam_type),intent(in) :: nam               !< Namelist
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-character(len=*),intent(in) :: filename        !< File name
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
+type(mpl_type),intent(in) :: mpl               ! MPI data
+type(nam_type),intent(in) :: nam               ! Namelist
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+character(len=*),intent(in) :: filename        ! File name
 
 ! Local variables
 integer :: info,ncid,one_id,nc3_id,nl0r_id,nl0_1_id,nl0_2_id,disth_id,vunit_id
@@ -340,17 +337,17 @@ end subroutine diag_blk_write
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_normalization
-!> Purpose: compute diagnostic block normalization
+! Purpose: compute diagnostic block normalization
 !----------------------------------------------------------------------
 subroutine diag_blk_normalization(diag_blk,geom,bpar,remove_max)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-logical,intent(in),optional :: remove_max      !< Remove excessive values
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+logical,intent(in),optional :: remove_max      ! Remove excessive values
 
 ! Local variables
 integer :: il0,jl0r,jl0,jc3
@@ -402,19 +399,19 @@ end subroutine diag_blk_normalization
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_fitting
-!> Purpose: compute a semi-positive definite fit of a raw function
+! Purpose: compute a semi-positive definite fit of a raw function
 !----------------------------------------------------------------------
 subroutine diag_blk_fitting(diag_blk,mpl,nam,geom,bpar,hdata)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block
-type(mpl_type),intent(in) :: mpl               !< MPI data
-type(nam_type),intent(in) :: nam               !< Namelist
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-type(hdata_type),intent(in) :: hdata           !< HDIAG data
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
+type(mpl_type),intent(in) :: mpl               ! MPI data
+type(nam_type),intent(in) :: nam               ! Namelist
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+type(hdata_type),intent(in) :: hdata           ! HDIAG data
 
 ! Local variables
 integer :: ic2,ic0,il0,jl0r,offset,isc
@@ -642,17 +639,17 @@ end subroutine diag_blk_fitting
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_localization
-!> Purpose: diag_blk localization
+! Purpose: diag_blk localization
 !----------------------------------------------------------------------
 subroutine diag_blk_localization(diag_blk,geom,bpar,avg_blk)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block (localization)
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-type(avg_blk_type),intent(in) :: avg_blk       !< Averaged statistics block
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block (localization)
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+type(avg_blk_type),intent(in) :: avg_blk       ! Averaged statistics block
 
 ! Local variables
 integer :: il0,jl0r,jc3
@@ -678,18 +675,18 @@ end subroutine diag_blk_localization
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_hybridization
-!> Purpose: diag_blk hybridization
+! Purpose: diag_blk hybridization
 !----------------------------------------------------------------------
 subroutine diag_blk_hybridization(diag_blk,geom,bpar,avg_blk,avg_sta_blk)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk !< Diagnostic block (localization)
-type(geom_type),intent(in) :: geom             !< Geometry
-type(bpar_type),intent(in) :: bpar             !< Block parameters
-type(avg_blk_type),intent(in) :: avg_blk       !< Averaged statistics block
-type(avg_blk_type),intent(in) :: avg_sta_blk   !< Static averaged statistics block
+class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block (localization)
+type(geom_type),intent(in) :: geom             ! Geometry
+type(bpar_type),intent(in) :: bpar             ! Block parameters
+type(avg_blk_type),intent(in) :: avg_blk       ! Averaged statistics block
+type(avg_blk_type),intent(in) :: avg_sta_blk   ! Static averaged statistics block
 
 ! Local variables
 integer :: il0,jl0r,jc3
@@ -744,19 +741,19 @@ end subroutine diag_blk_hybridization
 
 !----------------------------------------------------------------------
 ! Subroutine: diag_blk_dualens
-!> Purpose: diag_blk dualens
+! Purpose: diag_blk dualens
 !----------------------------------------------------------------------
 subroutine diag_blk_dualens(diag_blk,geom,bpar,avg_blk,avg_lr_blk,diag_lr_blk)
 
 implicit none
 
 ! Passed variables
-class(diag_blk_type),intent(inout) :: diag_blk   !< Diagnostic block (localization)
-type(geom_type),intent(in) :: geom               !< Geometry
-type(bpar_type),intent(in) :: bpar               !< Block parameters
-type(avg_blk_type),intent(in) :: avg_blk         !< Averaged statistics block
-type(avg_blk_type),intent(in) :: avg_lr_blk      !< LR averaged statistics block
-type(diag_blk_type),intent(inout) :: diag_lr_blk !< Diagnostic block (LR localization)
+class(diag_blk_type),intent(inout) :: diag_blk   ! Diagnostic block (localization)
+type(geom_type),intent(in) :: geom               ! Geometry
+type(bpar_type),intent(in) :: bpar               ! Block parameters
+type(avg_blk_type),intent(in) :: avg_blk         ! Averaged statistics block
+type(avg_blk_type),intent(in) :: avg_lr_blk      ! LR averaged statistics block
+type(diag_blk_type),intent(inout) :: diag_lr_blk ! Diagnostic block (LR localization)
 
 ! Local variables
 integer :: il0,jl0r,jc3

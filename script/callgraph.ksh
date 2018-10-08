@@ -3,7 +3,7 @@
 # Korn shell script: callgraph
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
-# Copyright © 2015-... UCAR, CERFACS and METEO-FRANCE
+# Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Compile in DEBUG mode
 echo '--- Compile in DEBUG mode'
@@ -37,7 +37,7 @@ module=type_bump
 for subroutine in "bump_setup_offline" "bump_setup_online" "bump_dealloc" ; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -46,7 +46,7 @@ module=type_cmat
 for subroutine in "cmat_run_hdiag" ; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -55,7 +55,7 @@ module=type_lct
 for subroutine in "lct_run_lct" ; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -64,7 +64,7 @@ module=type_nicas
 for subroutine in "nicas_run_nicas" "nicas_run_nicas_tests"; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -73,7 +73,7 @@ module=type_obsop
 for subroutine in "obsop_run_obsop"; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -82,7 +82,7 @@ module=type_vbal
 for subroutine in "vbal_run_vbal" "vbal_run_vbal_tests"; do
    echo '--- Call FortranCallGraph for '${subroutine}' in module '${module}
    FortranCallGraph.py -p dot ${module} ${subroutine} > ../doc/FortranCallGraph/${module}_${subroutine}.txt
-   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
+   sed -i -e s/"__"/"\""/g -e s/"_MOD_"/"%"/g -e s/" ->"/"\" ->"/g -e s/";"/"\";"/g -e "/netcdf/d" -e "/-> \"model_interface/p;/model_/d" -e "/tools_/d" -e "/type_mpl/d" -e "/fckit_mpi_module/d" -e "/rand_/d" -e "/destroy_node/d" ../doc/FortranCallGraph/${module}_${subroutine}.txt
    cat ../doc/FortranCallGraph/${module}_${subroutine}.txt | dot -Nshape="box" -Grankdir="LR" -Tps -Tcmapx > ../doc/FortranCallGraph/${module}_${subroutine}.ps
    epstopdf ../doc/FortranCallGraph/${module}_${subroutine}.ps
    rm -f ../doc/FortranCallGraph/${module}_${subroutine}.ps ../doc/FortranCallGraph/${module}_${subroutine}.txt
@@ -93,5 +93,5 @@ rm -f config_fortrancallgraph.py
 
 # Remove build directory
 cd ..
-rm -fr build
+#rm -fr build
 
