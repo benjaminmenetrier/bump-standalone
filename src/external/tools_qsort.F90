@@ -1,5 +1,5 @@
 !----------------------------------------------------------------------
-! Module: tools_qsort.f90
+! Module: tools_qsort
 ! Purpose: qsort routines
 ! Source: http://jblevins.org/mirror/amiller/qsort.f90
 ! Author: Brainerd, W.S., Goldberg, C.H. & Adams, J.C. (1990) "Programmer's Guide to Fortran 90", McGraw-Hill  ISBN 0-07-000248-7, pages 149-150.

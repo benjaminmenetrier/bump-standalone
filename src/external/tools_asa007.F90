@@ -1,5 +1,5 @@
 !----------------------------------------------------------------------
-! Module: tools_asa007.f90
+! Module: tools_asa007
 ! Purpose: inverse of symmetric positive definite matrix routines
 ! Source: https://people.sc.fsu.edu/~jburkardt/f_src/asa007/asa007.html
 ! Author: Michael Healy

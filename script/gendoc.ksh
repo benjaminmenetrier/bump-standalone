@@ -76,7 +76,7 @@ for filename in ${list} ; do
          new_subfunc=true
       fi
       if test "${word}" = "! Function" ; then
-         subfunc=`echo ${line} | cut -c 11-`
+         subfunc=`echo ${line} | cut -c 13-`
          subfunc_type=function
          new_subfunc=true
       fi
@@ -136,7 +136,7 @@ for filename in ${list} ; do
          new_subfunc=true
       fi
       if test "${word}" = "! Function" ; then
-         subfunc=`echo ${line} | cut -c 11-`
+         subfunc=`echo ${line} | cut -c 13-`
          subfunc=${subfunc/"${class}_"/"${class}%"}
          subfunc_type=function
          new_subfunc=true
@@ -194,7 +194,7 @@ for filename in ${list} ; do
          new_subfunc=true
       fi
       if test "${word}" = "! Function" ; then
-         subfunc=`echo ${line} | cut -c 11-`
+         subfunc=`echo ${line} | cut -c 13-`
          subfunc_type=function
          new_subfunc=true
       fi
@@ -251,7 +251,7 @@ for filename in ${list} ; do
          new_subfunc=true
       fi
       if test "${word}" = "! Function" ; then
-         subfunc=`echo ${line} | cut -c 11-`
+         subfunc=`echo ${line} | cut -c 13-`
          subfunc_type=function
          new_subfunc=true
       fi
