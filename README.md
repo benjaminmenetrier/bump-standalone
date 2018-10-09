@@ -26,5 +26,3 @@ Code documentation:
  - [NCL plots](doc/ncl_plots.md)
  - [Test](doc/test.md)
  - [Adding a new model](doc/adding_a_new_model.md)
-
-Code browser with the [Doxygen documentation](http://benjaminmenetrier.free.fr/bump/index.html).
