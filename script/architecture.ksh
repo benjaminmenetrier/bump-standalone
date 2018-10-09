@@ -193,44 +193,56 @@ cat<<EOFMD > ${doc}/code_architecture.md
     + [Apply NICAS](#apply_nicas)
     + [Apply observation operator](#apply_observation_operator)
   * [Deallocate](#deallocate)
+- [Drivers](#drivers)
+
 
 ## Offline run
 
 ![](architecture/run_offline.svg)
 
+
 ## Online run
 
-#### Setup
+
+#### Setup
 
 ![](architecture/setup_online.svg)
 
-#### Run
+
+#### Run
 
 ![](architecture/run_online.svg)
 
+
 #### Apply
+
 
 ###### Get parameters
 
 ![](architecture/get_parameter.svg)
 
+
 ###### Apply vertical balance operator
 
 ![](architecture/apply_vbal.svg)
+
 
 ###### Apply NICAS
 
 ![](architecture/apply_nicas.svg)
 
+
 ###### Apply observation operator
 
 ![](architecture/apply_obsop.svg)
+
 
 #### Deallocate
 
 ![](architecture/deallocation.svg)
 
-# Drivers
+
+## Drivers
 
 ![](architecture/drivers.svg)
 EOFMD
