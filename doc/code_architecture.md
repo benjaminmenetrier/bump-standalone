@@ -2,14 +2,14 @@
 
 - [Offline run](#offline-run)
 - [Online run](#online-run)
-  * [Setup](#setup)
-  * [Run](#run)
-  * [Apply](#apply)
-    + [Get parameters](#get-parameters)
-    + [Apply vertical balance operator](#apply-vertical-balance-operator)
-    + [Apply NICAS](#apply-nicas)
-    + [Apply observation operator](#apply-observation-operator)
-  * [Deallocate](#deallocate)
+  - [Setup](#setup)
+  - [Run](#run)
+  - [Apply](#apply)
+    - [Get parameters](#get-parameters)
+    - [Apply vertical balance operator](#apply-vertical-balance-operator)
+    - [Apply NICAS](#apply-nicas)
+    - [Apply observation operator](#apply-observation-operator)
+  - [Deallocate](#deallocate)
 - [Drivers](#drivers)
 
 
@@ -62,5 +62,3 @@
 ## Drivers
 
 ![](architecture/drivers.svg)
-
-
