@@ -667,27 +667,6 @@ end do
 end subroutine bump_apply_vbal_inv_ad
 
 !----------------------------------------------------------------------
-! Subroutine: bump_apply_nicas
-! Purpose: NICAS application
-!----------------------------------------------------------------------
-subroutine bump_apply_nicas(bump,fld)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
-
-! Apply NICAS
-if (bump%nam%lsqrt) then
-   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
-else
-   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
-end if
-
-end subroutine bump_apply_nicas
-
-!----------------------------------------------------------------------
 ! Subroutine: bump_get_cv_size
 ! Purpose: get control variable size
 !----------------------------------------------------------------------
@@ -770,6 +749,27 @@ else
 end if
 
 end subroutine bump_apply_nicas_sqrt_ad
+
+!----------------------------------------------------------------------
+! Subroutine: bump_apply_nicas
+! Purpose: NICAS application
+!----------------------------------------------------------------------
+subroutine bump_apply_nicas(bump,fld)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+
+! Apply NICAS
+if (bump%nam%lsqrt) then
+   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+else
+   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+end if
+
+end subroutine bump_apply_nicas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_obsop

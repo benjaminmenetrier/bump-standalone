@@ -30,8 +30,8 @@ else
    call flush(output_unit)
 end if
 
-! Offline setup
-call bump%setup_offline(namelname)
+! Offline run
+call bump%run_offline(namelname)
 
 ! Stop
 stop

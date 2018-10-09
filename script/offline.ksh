@@ -44,8 +44,8 @@ rsync -rtv --delete ${src_oops}/"type_bump.F90" ${src_oops}/"type_ens.F90" ${src
 filename="type_bump.F90"
 rm -f ${src_tmp}/${filename}"_tmp"
 while IFS= read -r line ; do
-   # Insert "   procedure :: setup_offline => bump_setup_offline" before "   procedure :: setup_generic => bump_setup_generic"
-   add="   procedure :: setup_offline => bump_setup_offline"
+   # Insert "   procedure :: run_offline => bump_run_offline" before "   procedure :: setup_generic => bump_setup_generic"
+   add="   procedure :: run_offline => bump_run_offline"
    tag="   procedure :: setup_generic => bump_setup_generic"
    test "${line#*$tag}" != "$line" && echo "${add}" >> ${src_tmp}/${filename}"_tmp"
 
@@ -62,8 +62,8 @@ while IFS= read -r line ; do
    tag="use type_rng, only: rng_type"
    test "${line#*$tag}" != "$line" && echo "${add}" >> ${src_tmp}/${filename}"_tmp"
 
-   # Insert bump_setup_offline.F90 after "end subroutine bump_setup_online"
-   add=bump_setup_offline.F90
+   # Insert bump_run_offline.F90 after "end subroutine bump_setup_online"
+   add=bump_run_offline.F90
    tag="end subroutine bump_setup_online"
    test "${line#*$tag}" != "$line" && cat ${offline}/${add} >> ${src_tmp}/${filename}"_tmp"
 done < ${src_oops}/${filename}
