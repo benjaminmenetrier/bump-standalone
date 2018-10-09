@@ -183,15 +183,15 @@ rm -f ${architecture}/${filename}.txt
 cat<<EOFMD > ${doc}/code_architecture.md
 # Code architecture
 
-- [Offline run](#offline_run)
-- [Online run](#online_run)
+- [Offline run](#offline-run)
+- [Online run](#online-run)
   * [Setup](#setup)
   * [Run](#run)
   * [Apply](#apply)
-    + [Get parameters](#get_parameters)
-    + [Apply vertical balance operator](apply_vertical_balance_operator)
-    + [Apply NICAS](#apply_nicas)
-    + [Apply observation operator](#apply_observation_operator)
+    + [Get parameters](#get-parameters)
+    + [Apply vertical balance operator](#apply-vertical-balance-operator)
+    + [Apply NICAS](#apply-nicas)
+    + [Apply observation operator](#apply-observation-operator)
   * [Deallocate](#deallocate)
 - [Drivers](#drivers)
 
@@ -245,4 +245,6 @@ cat<<EOFMD > ${doc}/code_architecture.md
 ## Drivers
 
 ![](architecture/drivers.svg)
+
+
 EOFMD
