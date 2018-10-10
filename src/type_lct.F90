@@ -349,7 +349,7 @@ do ib=1,bpar%nb
          do ic1a=1,lct%samp%nc1a
             ! Global index
             ic1 = lct%samp%c1a_to_c1(ic1a)
-   
+
             if (lct%samp%c1l0_log(ic1,il0)) then
                ! Compute deltas
                ic0 = lct%samp%c1_to_c0(ic1)
@@ -363,7 +363,7 @@ do ib=1,bpar%nb
                      end if
                   end do
                end do
-   
+
                ! Check positive-definiteness and coefficients values
                spd = .true.
                do iscales=1,lct%blk(ib)%nscales
@@ -604,7 +604,7 @@ do ib=1,bpar%nb
          end do
          call mpl%f_comm%allreduce(sum(fld(:,il0,2*4+2),isnotmsr(fld(:,il0,2*3+2))),Lavg_tot,fckit_mpi_sum())
          call mpl%f_comm%allreduce(real(count(isnotmsr(fld(:,il0,2*4+2))),kind_real),norm_tot,fckit_mpi_sum())
-         if (norm_tot>0.0) write(mpl%info,'(a16,a,i3,a,f10.2,a,f10.2,a)') '','Level',nam%levs(il0),' ~> ', & 
+         if (norm_tot>0.0) write(mpl%info,'(a16,a,i3,a,f10.2,a,f10.2,a)') '','Level',nam%levs(il0),' ~> ', &
        & Lavg_tot/norm_tot*reqkm,' km / ',Lavg_tot/norm_tot*gau2gc*reqkm,' km'
       end do
 

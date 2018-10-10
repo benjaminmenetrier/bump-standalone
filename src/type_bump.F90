@@ -959,14 +959,14 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
          jv = bump%bpar%b_to_v2(ib)
          its = bump%bpar%b_to_ts1(ib)
          jts = bump%bpar%b_to_ts2(ib)
-   
+
          ! Copy to field
          if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld(:,:,iv,its))
       end do
    case ('common','common_univariate','common_weighted')
       ! Set common index
       ib = bump%bpar%nbe
-   
+
       do its=1,bump%nam%nts
          do iv=1,bump%nam%nv
             ! Copy to field

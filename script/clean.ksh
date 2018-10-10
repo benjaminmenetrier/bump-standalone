@@ -5,6 +5,8 @@
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
+
+
 # Clean temporary files
 echo '--- Clean temporary files'
 cd ..
@@ -24,6 +26,12 @@ for file in ${source} ; do
    sed -i 's/ *$//' ${file}
 done
 cd ../ncl/script
+source=`find . -type f -exec egrep -l " +$" {} \;`
+for file in ${source} ; do
+   sed -i 's/ *$//' ${file}
+done
+
+cd ${HOME}/bump
 source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
    sed -i 's/ *$//' ${file}
