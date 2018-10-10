@@ -30,7 +30,6 @@ source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
    sed -i 's/ *$//' ${file}
 done
-
 cd ${HOME}/bump
 source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do

@@ -70,12 +70,13 @@ contains
    generic :: dot_prod => mpl_dot_prod_1d,mpl_dot_prod_2d,mpl_dot_prod_3d,mpl_dot_prod_4d
    procedure :: split => mpl_split
    procedure :: glb_to_loc_index => mpl_glb_to_loc_index
-   procedure :: mpl_glb_to_loc_1d
-   procedure :: mpl_glb_to_loc_2d
-   generic :: glb_to_loc => mpl_glb_to_loc_1d,mpl_glb_to_loc_2d
-   procedure :: mpl_loc_to_glb_1d
-   procedure :: mpl_loc_to_glb_2d
-   generic :: loc_to_glb => mpl_loc_to_glb_1d,mpl_loc_to_glb_2d
+   procedure :: mpl_glb_to_loc_real_1d
+   procedure :: mpl_glb_to_loc_real_2d
+   generic :: glb_to_loc => mpl_glb_to_loc_real_1d,mpl_glb_to_loc_real_2d
+   procedure :: mpl_loc_to_glb_real_1d
+   procedure :: mpl_loc_to_glb_real_2d
+   procedure :: mpl_loc_to_glb_logical_2d
+   generic :: loc_to_glb => mpl_loc_to_glb_real_1d,mpl_loc_to_glb_real_2d,mpl_loc_to_glb_logical_2d
 end type mpl_type
 
 private
@@ -637,10 +638,10 @@ call mpl%f_comm%broadcast(glb_to_loc,mpl%ioproc-1)
 end subroutine mpl_glb_to_loc_index
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_glb_to_loc_1d
+! Subroutine: mpl_glb_to_loc_real_1d
 ! Purpose: global to local, 1d array
 !----------------------------------------------------------------------
-subroutine mpl_glb_to_loc_1d(mpl,n_glb,glb_to_proc,glb_to_loc,glb,n_loc,loc)
+subroutine mpl_glb_to_loc_real_1d(mpl,n_glb,glb_to_proc,glb_to_loc,glb,n_loc,loc)
 
 implicit none
 
@@ -660,7 +661,7 @@ real(kind_real),allocatable :: sbuf(:)
 
 ! Check global array size
 if (mpl%main) then
-   if (size(glb)/=n_glb) call mpl%abort('wrong dimension for the global array in mpl_glb_to_loc_1d')
+   if (size(glb)/=n_glb) call mpl%abort('wrong dimension for the global array in mpl_glb_to_loc_real_1d')
 end if
 
 if (mpl%main) then
@@ -695,13 +696,13 @@ else
 end if
 call mpl%update_tag(1)
 
-end subroutine mpl_glb_to_loc_1d
+end subroutine mpl_glb_to_loc_real_1d
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_glb_to_loc_2d
+! Subroutine: mpl_glb_to_loc_real_2d
 ! Purpose: global to local, 2d array
 !----------------------------------------------------------------------
-subroutine mpl_glb_to_loc_2d(mpl,nl,n_glb,glb_to_proc,glb_to_loc,glb,n_loc,loc)
+subroutine mpl_glb_to_loc_real_2d(mpl,nl,n_glb,glb_to_proc,glb_to_loc,glb,n_loc,loc)
 
 implicit none
 
@@ -722,8 +723,8 @@ type(fckit_mpi_status) :: status
 
 ! Check global array size
 if (mpl%main) then
-   if (size(glb,1)/=n_glb) call mpl%abort('wrong first dimension for the global array in mpl_glb_to_loc_2d')
-   if (size(glb,2)/=nl) call mpl%abort('wrong second dimension for the global array in mpl_glb_to_loc_2d')
+   if (size(glb,1)/=n_glb) call mpl%abort('wrong first dimension for the global array in mpl_glb_to_loc_real_2d')
+   if (size(glb,2)/=nl) call mpl%abort('wrong second dimension for the global array in mpl_glb_to_loc_real_2d')
 end if
 
 ! Allocation
@@ -769,13 +770,13 @@ do il=1,nl
    end do
 end do
 
-end subroutine mpl_glb_to_loc_2d
+end subroutine mpl_glb_to_loc_real_2d
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_loc_to_glb_1d
+! Subroutine: mpl_loc_to_glb_real_1d
 ! Purpose: local to global, 1d array
 !----------------------------------------------------------------------
-subroutine mpl_loc_to_glb_1d(mpl,n_loc,loc,n_glb,glb_to_proc,glb_to_loc,bcast,glb)
+subroutine mpl_loc_to_glb_real_1d(mpl,n_loc,loc,n_glb,glb_to_proc,glb_to_loc,bcast,glb)
 
 implicit none
 
@@ -796,7 +797,7 @@ real(kind_real),allocatable :: rbuf(:)
 
 ! Check global array size
 if (mpl%main.or.bcast) then
-   if (size(glb)/=n_glb) call mpl%abort('wrong dimension for the global array in mpl_loc_to_glb_1d')
+   if (size(glb)/=n_glb) call mpl%abort('wrong dimension for the global array in mpl_loc_to_glb_real_1d')
 end if
 
 if (mpl%main) then
@@ -834,13 +835,13 @@ call mpl%update_tag(1)
 ! Broadcast
 if (bcast) call mpl%f_comm%broadcast(glb,mpl%ioproc-1)
 
-end subroutine mpl_loc_to_glb_1d
+end subroutine mpl_loc_to_glb_real_1d
 
 !----------------------------------------------------------------------
-! Subroutine: mpl_loc_to_glb_2d
+! Subroutine: mpl_loc_to_glb_real_2d
 ! Purpose: local to global, 2d array
 !----------------------------------------------------------------------
-subroutine mpl_loc_to_glb_2d(mpl,nl,n_loc,loc,n_glb,glb_to_proc,glb_to_loc,bcast,glb)
+subroutine mpl_loc_to_glb_real_2d(mpl,nl,n_loc,loc,n_glb,glb_to_proc,glb_to_loc,bcast,glb)
 
 implicit none
 
@@ -862,8 +863,8 @@ type(fckit_mpi_status) :: status
 
 ! Check global array size
 if (mpl%main.or.bcast) then
-   if (size(glb,1)/=n_glb) call mpl%abort('wrong first dimension for the global array in mpl_loc_to_glb_2d')
-   if (size(glb,2)/=nl) call mpl%abort('wrong second dimension for the global array in mpl_loc_to_glb_1d')
+   if (size(glb,1)/=n_glb) call mpl%abort('wrong first dimension for the global array in mpl_loc_to_glb_real_2d')
+   if (size(glb,2)/=nl) call mpl%abort('wrong second dimension for the global array in mpl_loc_to_glb_real_1d')
 end if
 
 ! Allocation
@@ -913,6 +914,85 @@ call mpl%update_tag(1)
 ! Broadcast
 if (bcast) call mpl%f_comm%broadcast(glb,mpl%ioproc-1)
 
-end subroutine mpl_loc_to_glb_2d
+end subroutine mpl_loc_to_glb_real_2d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_loc_to_glb_logical_2d
+! Purpose: local to global for a logical, 2d array
+!----------------------------------------------------------------------
+subroutine mpl_loc_to_glb_logical_2d(mpl,nl,n_loc,loc,n_glb,glb_to_proc,glb_to_loc,bcast,glb)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl     ! MPI data
+integer,intent(in) :: nl                 ! Number of levels
+integer,intent(in) :: n_loc              ! Local array size
+logical,intent(in) :: loc(n_loc,nl)      ! Local array
+integer,intent(in) :: n_glb              ! Global array size
+integer,intent(in) :: glb_to_proc(n_glb) ! Global index to task index
+integer,intent(in) :: glb_to_loc(n_glb)  ! Global index to local index
+logical,intent(in) :: bcast              ! Broadcast option
+logical,intent(out) :: glb(:,:)          ! Global array
+
+! Local variables
+integer :: iproc,jproc,i_glb,i_loc,n_loc_tmp,il
+logical,allocatable :: rbuf(:),sbuf(:)
+type(fckit_mpi_status) :: status
+
+! Check global array size
+if (mpl%main.or.bcast) then
+   if (size(glb,1)/=n_glb) call mpl%abort('wrong first dimension for the global array in mpl_loc_to_glb_real_2d')
+   if (size(glb,2)/=nl) call mpl%abort('wrong second dimension for the global array in mpl_loc_to_glb_real_1d')
+end if
+
+! Allocation
+allocate(sbuf(n_loc*nl))
+
+! Prepare buffer
+do il=1,nl
+   do i_loc=1,n_loc
+      sbuf((il-1)*n_loc+i_loc) = loc(i_loc,il)
+   end do
+end do
+
+if (mpl%main) then
+   do iproc=1,mpl%nproc
+      ! Allocation
+      n_loc_tmp = count(glb_to_proc==iproc)
+      allocate(rbuf(n_loc_tmp*nl))
+
+      if (iproc==mpl%ioproc) then
+          ! Copy data
+          rbuf = sbuf
+      else
+          ! Receive data from iproc
+          call mpl%f_comm%receive(rbuf,iproc-1,mpl%tag,status)
+      end if
+
+      ! Add data to glb
+      do i_glb=1,n_glb
+         jproc = glb_to_proc(i_glb)
+         if (iproc==jproc) then
+            i_loc = glb_to_loc(i_glb)
+            do il=1,nl
+               glb(i_glb,il) = rbuf((il-1)*n_loc_tmp+i_loc)
+            end do
+         end if
+      end do
+
+      ! Release memory
+      deallocate(rbuf)
+   end do
+else
+   ! Send data to ioproc
+   call mpl%f_comm%send(sbuf,mpl%ioproc-1,mpl%tag)
+end if
+call mpl%update_tag(1)
+
+! Broadcast
+if (bcast) call mpl%f_comm%broadcast(glb,mpl%ioproc-1)
+
+end subroutine mpl_loc_to_glb_logical_2d
 
 end module type_mpl
