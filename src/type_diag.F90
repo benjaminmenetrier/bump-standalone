@@ -7,6 +7,7 @@
 !----------------------------------------------------------------------
 module type_diag
 
+use fckit_mpi_module, only: fckit_mpi_sum
 use netcdf
 use tools_const, only: reqkm,rad2deg,pi
 use tools_fit, only: ver_smooth
@@ -18,11 +19,10 @@ use type_avg, only: avg_type
 use type_bpar, only: bpar_type
 use type_diag_blk, only: diag_blk_type
 use type_geom, only: geom_type
-use type_hdata, only: hdata_type
 use type_io, only: io_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
-use fckit_mpi_module, only: fckit_mpi_sum
+use type_samp, only: samp_type
 
 implicit none
 
@@ -53,7 +53,7 @@ contains
 ! Subroutine: diag_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine diag_alloc(diag,nam,geom,bpar,hdata,prefix,double_fit)
+subroutine diag_alloc(diag,nam,geom,bpar,samp,prefix,double_fit)
 
 implicit none
 
@@ -62,7 +62,7 @@ class(diag_type),intent(inout) :: diag ! Diagnostic
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 character(len=*),intent(in) :: prefix  ! Block prefix
 logical,intent(in) :: double_fit       ! Double fit
 
@@ -71,7 +71,7 @@ integer :: ib,ic2a
 
 ! Number of local points
 if (nam%var_diag.or.nam%local_diag) then
-   diag%nc2a = hdata%nc2a
+   diag%nc2a = samp%nc2a
 else
    diag%nc2a = 0
 end if
@@ -84,7 +84,7 @@ allocate(diag%blk(0:diag%nc2a,bpar%nbe))
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
       do ic2a=0,diag%nc2a
-         call diag%blk(ic2a,ib)%alloc(nam,geom,bpar,hdata,ic2a,ib,prefix,double_fit.and.nam%double_fit(bpar%b_to_v1(ib)))
+         call diag%blk(ic2a,ib)%alloc(nam,geom,bpar,samp,ic2a,ib,prefix,double_fit.and.nam%double_fit(bpar%b_to_v1(ib)))
       end do
    end if
 end do
@@ -95,7 +95,7 @@ end subroutine diag_alloc
 ! Subroutine: diag_fit_filter
 ! Purpose: filter fit diagnostics
 !----------------------------------------------------------------------
-subroutine diag_fit_filter(diag,mpl,nam,geom,bpar,hdata)
+subroutine diag_fit_filter(diag,mpl,nam,geom,bpar,samp)
 
 implicit none
 
@@ -105,12 +105,12 @@ type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 
 ! Local variables
 integer :: ib,il0,ic2a
 real(kind_real) :: rmse,norm,rmse_tot,norm_tot
-real(kind_real) :: rh_c2a(hdata%nc2a,geom%nl0),rv_c2a(hdata%nc2a,geom%nl0)
+real(kind_real) :: rh_c2a(samp%nc2a,geom%nl0),rv_c2a(samp%nc2a,geom%nl0)
 real(kind_real),allocatable :: rv_rfac_c2a(:,:),rv_coef_c2a(:,:)
 
 do ib=1,bpar%nbe
@@ -120,8 +120,8 @@ do ib=1,bpar%nbe
 
          ! Allocation
          if (diag%blk(0,ib)%double_fit) then
-            allocate(rv_rfac_c2a(hdata%nc2a,geom%nl0))
-            allocate(rv_coef_c2a(hdata%nc2a,geom%nl0))
+            allocate(rv_rfac_c2a(samp%nc2a,geom%nl0))
+            allocate(rv_coef_c2a(samp%nc2a,geom%nl0))
          end if
 
          ! Initialization
@@ -133,7 +133,7 @@ do ib=1,bpar%nbe
          end if
 
          do il0=1,geom%nl0
-            do ic2a=1,hdata%nc2a
+            do ic2a=1,samp%nc2a
                ! Copy data
                rh_c2a(ic2a,il0) = diag%blk(ic2a,ib)%fit_rh(il0)
                rv_c2a(ic2a,il0) = diag%blk(ic2a,ib)%fit_rv(il0)
@@ -154,31 +154,31 @@ do ib=1,bpar%nbe
             end do
 
             ! Median filter to remove extreme values
-            call hdata%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rh_c2a(:,il0))
-            call hdata%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rh_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call hdata%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_rfac_c2a(:,il0))
-               call hdata%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_coef_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_rfac_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_coef_c2a(:,il0))
             end if
 
             ! Average filter to smooth support radii
-            call hdata%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rh_c2a(:,il0))
-            call hdata%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rh_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call hdata%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_rfac_c2a(:,il0))
-               call hdata%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_coef_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_rfac_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_coef_c2a(:,il0))
             end if
 
             ! Fill missing values
-            call hdata%diag_fill(mpl,nam,geom,il0,rh_c2a(:,il0))
-            call hdata%diag_fill(mpl,nam,geom,il0,rv_c2a(:,il0))
+            call samp%diag_fill(mpl,nam,geom,il0,rh_c2a(:,il0))
+            call samp%diag_fill(mpl,nam,geom,il0,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call hdata%diag_fill(mpl,nam,geom,il0,rv_rfac_c2a(:,il0))
-               call hdata%diag_fill(mpl,nam,geom,il0,rv_coef_c2a(:,il0))
+               call samp%diag_fill(mpl,nam,geom,il0,rv_rfac_c2a(:,il0))
+               call samp%diag_fill(mpl,nam,geom,il0,rv_coef_c2a(:,il0))
             end if
 
             ! Copy data
-            do ic2a=1,hdata%nc2a
+            do ic2a=1,samp%nc2a
                diag%blk(ic2a,ib)%fit_rh(il0) = rh_c2a(ic2a,il0)
                diag%blk(ic2a,ib)%fit_rv(il0) = rv_c2a(ic2a,il0)
                if (diag%blk(0,ib)%double_fit) then
@@ -238,7 +238,7 @@ end subroutine diag_fit_filter
 ! Subroutine: diag_write
 ! Purpose: write all diagnostics
 !----------------------------------------------------------------------
-subroutine diag_write(diag,mpl,nam,geom,bpar,io,hdata)
+subroutine diag_write(diag,mpl,nam,geom,bpar,io,samp)
 
 implicit none
 
@@ -249,11 +249,11 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 
 ! Local variables
 integer :: ib,i,ic2,il0,il0i,iproc,ic2a,ildw,n
-real(kind_real) :: fld_c2a(hdata%nc2a,geom%nl0),fld_c2b(hdata%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
+real(kind_real) :: fld_c2a(samp%nc2a,geom%nl0),fld_c2b(samp%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
 character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
 
@@ -277,7 +277,7 @@ if ((trim(diag%prefix)/='cov').and.(nam%var_diag.or.nam%local_diag)) then
          end if
          do i=1,n
             ! Copy data
-            do ic2a=1,hdata%nc2a
+            do ic2a=1,samp%nc2a
                if (i==1) then
                   fld_c2a(ic2a,:) = diag%blk(ic2a,ib)%raw_coef_ens
                elseif (i==2) then
@@ -292,10 +292,10 @@ if ((trim(diag%prefix)/='cov').and.(nam%var_diag.or.nam%local_diag)) then
             end do
 
             ! Interpolation
-            call hdata%com_AB%ext(mpl,geom%nl0,fld_c2a,fld_c2b)
+            call samp%com_AB%ext(mpl,geom%nl0,fld_c2a,fld_c2b)
             do il0=1,geom%nl0
                il0i = min(il0,geom%nl0i)
-               call hdata%h(il0i)%apply(mpl,fld_c2b(:,il0),fld_c0a(:,il0))
+               call samp%h(il0i)%apply(mpl,fld_c2b(:,il0),fld_c0a(:,il0))
             end do
 
             ! Write fields
@@ -316,9 +316,9 @@ if ((trim(diag%prefix)/='cov').and.(nam%var_diag.or.nam%local_diag)) then
 end if
 
 do ildw=1,nam%nldwv
-   if (isnotmsi(hdata%nn_ldwv_index(ildw))) then
-      ic2 = hdata%nn_ldwv_index(ildw)
-      iproc = hdata%c2_to_proc(ic2)
+   if (isnotmsi(samp%nn_ldwv_index(ildw))) then
+      ic2 = samp%nn_ldwv_index(ildw)
+      iproc = samp%c2_to_proc(ic2)
       if (mpl%myproc==iproc) then
          ! Build file name
          write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)*rad2deg
@@ -326,7 +326,7 @@ do ildw=1,nam%nldwv
          filename = trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc'
 
          ! Find diagnostic point task
-         ic2a = hdata%c2_to_c2a(ic2)
+         ic2a = samp%c2_to_c2a(ic2)
          do ib=1,bpar%nbe
             if (bpar%diag_block(ib)) call diag%blk(ic2a,ib)%write(mpl,nam,geom,bpar,filename)
          end do
@@ -342,7 +342,7 @@ end subroutine diag_write
 ! Subroutine: diag_covariance
 ! Purpose: compute covariance
 !----------------------------------------------------------------------
-subroutine diag_covariance(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
+subroutine diag_covariance(diag,mpl,nam,geom,bpar,io,samp,avg,prefix)
 
 implicit none
 
@@ -353,7 +353,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
@@ -361,7 +361,7 @@ character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 integer :: ib,ic2a,ic2,il0
 
 ! Allocation
-call diag%alloc(nam,geom,bpar,hdata,prefix,.false.)
+call diag%alloc(nam,geom,bpar,samp,prefix,.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -371,7 +371,7 @@ do ib=1,bpar%nbe
       do ic2a=0,diag%nc2a
          ! Copy
          if (ic2a>0) then
-            ic2 = hdata%c2a_to_c2(ic2a)
+            ic2 = samp%c2a_to_c2(ic2a)
          else
             ic2 = 0
          end if
@@ -390,7 +390,7 @@ do ib=1,bpar%nbe
 end do
 
 ! Write
-call diag%write(mpl,nam,geom,bpar,io,hdata)
+call diag%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_covariance
 
@@ -398,7 +398,7 @@ end subroutine diag_covariance
 ! Subroutine: diag_correlation
 ! Purpose: compute correlation
 !----------------------------------------------------------------------
-subroutine diag_correlation(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
+subroutine diag_correlation(diag,mpl,nam,geom,bpar,io,samp,avg,prefix)
 
 implicit none
 
@@ -409,7 +409,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
@@ -418,8 +418,8 @@ integer :: ib,ic2a,ic2,il0
 type(diag_type) :: ndiag
 
 ! Allocation
-call diag%alloc(nam,geom,bpar,hdata,prefix,.true.)
-call ndiag%alloc(nam,geom,bpar,hdata,'n'//trim(prefix),.false.)
+call diag%alloc(nam,geom,bpar,samp,prefix,.true.)
+call ndiag%alloc(nam,geom,bpar,samp,'n'//trim(prefix),.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -431,7 +431,7 @@ do ib=1,bpar%nbe
          if (nam%var_diag) then
             ! Global index
             if (ic2a>0) then
-               ic2 = hdata%c2a_to_c2(ic2a)
+               ic2 = samp%c2a_to_c2(ic2a)
             else
                ic2 = 0
             end if
@@ -453,7 +453,7 @@ do ib=1,bpar%nbe
       do ic2a=0,diag%nc2a
          ! Global index
          if (ic2a>0) then
-            ic2 = hdata%c2a_to_c2(ic2a)
+            ic2 = samp%c2a_to_c2(ic2a)
          else
             ic2 = 0
          end if
@@ -462,7 +462,7 @@ do ib=1,bpar%nbe
          diag%blk(ic2a,ib)%raw = avg%blk(ic2,ib)%cor
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,hdata)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
 
          ! Update
          call mpl%prog_print(ic2a+1)
@@ -490,11 +490,11 @@ do ib=1,bpar%nbe
 end do
 
 ! Filtering
-call diag%fit_filter(mpl,nam,geom,bpar,hdata)
+call diag%fit_filter(mpl,nam,geom,bpar,samp)
 
 ! Write
-call diag%write(mpl,nam,geom,bpar,io,hdata)
-call ndiag%write(mpl,nam,geom,bpar,io,hdata)
+call diag%write(mpl,nam,geom,bpar,io,samp)
+call ndiag%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_correlation
 
@@ -502,7 +502,7 @@ end subroutine diag_correlation
 ! Subroutine: diag_localization
 ! Purpose: compute diagnostic localization
 !----------------------------------------------------------------------
-subroutine diag_localization(diag,mpl,nam,geom,bpar,io,hdata,avg,prefix)
+subroutine diag_localization(diag,mpl,nam,geom,bpar,io,samp,avg,prefix)
 
 implicit none
 
@@ -513,7 +513,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Block prefix
 
@@ -521,7 +521,7 @@ character(len=*),intent(in) :: prefix  ! Block prefix
 integer :: ib,ic2a,ic2,il0
 
 ! Allocation
-call diag%alloc(nam,geom,bpar,hdata,prefix,.false.)
+call diag%alloc(nam,geom,bpar,samp,prefix,.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -534,7 +534,7 @@ do ib=1,bpar%nbe
       do ic2a=0,diag%nc2a
          ! Compute localization
          if (ic2a>0) then
-            ic2 = hdata%c2a_to_c2(ic2a)
+            ic2 = samp%c2a_to_c2(ic2a)
          else
             ic2 = 0
          end if
@@ -545,7 +545,7 @@ do ib=1,bpar%nbe
          if (trim(nam%method)=='loc_norm') diag%blk(ic2a,ib)%raw_coef_ens = 1.0
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,hdata)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
 
          ! Update
          call mpl%prog_print(ic2a+1)
@@ -581,10 +581,10 @@ do ib=1,bpar%nbe
 end do
 
 ! Filtering
-call diag%fit_filter(mpl,nam,geom,bpar,hdata)
+call diag%fit_filter(mpl,nam,geom,bpar,samp)
 
 ! Write
-call diag%write(mpl,nam,geom,bpar,io,hdata)
+call diag%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_localization
 
@@ -592,7 +592,7 @@ end subroutine diag_localization
 ! Subroutine: diag_hybridization
 ! Purpose: compute diagnostic hybridization
 !----------------------------------------------------------------------
-subroutine diag_hybridization(diag,mpl,nam,geom,bpar,io,hdata,avg,avg_sta,prefix)
+subroutine diag_hybridization(diag,mpl,nam,geom,bpar,io,samp,avg,avg_sta,prefix)
 
 implicit none
 
@@ -603,7 +603,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 type(avg_type),intent(in) :: avg       ! Averaged statistics
 type(avg_type),intent(in) :: avg_sta   ! Static averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
@@ -612,7 +612,7 @@ character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 integer :: ib,ic2a,ic2,il0
 
 ! Allocation
-call diag%alloc(nam,geom,bpar,hdata,prefix,.false.)
+call diag%alloc(nam,geom,bpar,samp,prefix,.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -625,7 +625,7 @@ do ib=1,bpar%nbe
       do ic2a=0,diag%nc2a
          ! Compute hybridization
          if (ic2a>0) then
-            ic2 = hdata%c2a_to_c2(ic2a)
+            ic2 = samp%c2a_to_c2(ic2a)
          else
             ic2 = 0
          end if
@@ -635,7 +635,7 @@ do ib=1,bpar%nbe
          call diag%blk(ic2a,ib)%normalization(geom,bpar,.true.)
 
          ! Fitting
-         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,hdata)
+         if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
 
          ! Update
          call mpl%prog_print(ic2a+1)
@@ -664,10 +664,10 @@ do ib=1,bpar%nbe
 end do
 
 ! Filtering
-call diag%fit_filter(mpl,nam,geom,bpar,hdata)
+call diag%fit_filter(mpl,nam,geom,bpar,samp)
 
 ! Write
-call diag%write(mpl,nam,geom,bpar,io,hdata)
+call diag%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_hybridization
 
@@ -675,7 +675,7 @@ end subroutine diag_hybridization
 ! Subroutine: diag_dualens
 ! Purpose: compute diagnostic dualens
 !----------------------------------------------------------------------
-subroutine diag_dualens(diag,mpl,nam,geom,bpar,io,hdata,avg,avg_lr,diag_lr,prefix,prefix_lr)
+subroutine diag_dualens(diag,mpl,nam,geom,bpar,io,samp,avg,avg_lr,diag_lr,prefix,prefix_lr)
 
 implicit none
 
@@ -686,7 +686,7 @@ type(nam_type),intent(in) :: nam         ! Namelist
 type(geom_type),intent(in) :: geom       ! Geometry
 type(bpar_type),intent(in) :: bpar       ! Block parameters
 type(io_type),intent(in) :: io           ! I/O
-type(hdata_type),intent(in) :: hdata     ! HDIAG data
+type(samp_type),intent(in) :: samp       ! Sampling
 type(avg_type),intent(in) :: avg         ! Averaged statistics
 type(avg_type),intent(in) :: avg_lr      ! LR averaged statistics
 type(diag_type),intent(inout) :: diag_lr ! Diagnostic (LR localization)
@@ -697,8 +697,8 @@ character(len=*),intent(in) :: prefix_lr ! LR diagnostic prefix
 integer :: ib,ic2a,ic2,il0
 
 ! Allocation
-call diag%alloc(nam,geom,bpar,hdata,prefix,.false.)
-call diag_lr%alloc(nam,geom,bpar,hdata,prefix_lr,.false.)
+call diag%alloc(nam,geom,bpar,samp,prefix,.false.)
+call diag_lr%alloc(nam,geom,bpar,samp,prefix_lr,.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -711,7 +711,7 @@ do ib=1,bpar%nbe
       do ic2a=0,diag%nc2a
          ! Compute dualens
          if (ic2a>0) then
-            ic2 = hdata%c2a_to_c2(ic2a)
+            ic2 = samp%c2a_to_c2(ic2a)
          else
             ic2 = 0
          end if
@@ -723,8 +723,8 @@ do ib=1,bpar%nbe
 
          ! Fitting
          if (bpar%fit_block(ib)) then
-            call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,hdata)
-            call diag_lr%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,hdata)
+            call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
+            call diag_lr%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
          end if
 
          ! Update
@@ -764,12 +764,12 @@ do ib=1,bpar%nbe
 end do
 
 ! Filtering
-call diag%fit_filter(mpl,nam,geom,bpar,hdata)
-call diag_lr%fit_filter(mpl,nam,geom,bpar,hdata)
+call diag%fit_filter(mpl,nam,geom,bpar,samp)
+call diag_lr%fit_filter(mpl,nam,geom,bpar,samp)
 
 ! Write
-call diag%write(mpl,nam,geom,bpar,io,hdata)
-call diag_lr%write(mpl,nam,geom,bpar,io,hdata)
+call diag%write(mpl,nam,geom,bpar,io,samp)
+call diag_lr%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_dualens
 

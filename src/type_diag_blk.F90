@@ -19,10 +19,10 @@ use tools_repro, only: sup
 use type_avg_blk, only: avg_blk_type
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
-use type_hdata, only: hdata_type
 use type_minim, only: minim_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_samp, only: samp_type
 
 implicit none
 
@@ -66,7 +66,7 @@ contains
 ! Subroutine: diag_blk_alloc
 ! Purpose: diagnostic block data allocation
 !----------------------------------------------------------------------
-subroutine diag_blk_alloc(diag_blk,nam,geom,bpar,hdata,ic2a,ib,prefix,double_fit)
+subroutine diag_blk_alloc(diag_blk,nam,geom,bpar,samp,ic2a,ib,prefix,double_fit)
 
 implicit none
 
@@ -75,7 +75,7 @@ class(diag_blk_type),intent(inout) :: diag_blk ! Diagnostic block
 type(nam_type),intent(in) :: nam               ! Namelist
 type(geom_type),intent(in) :: geom             ! Geometry
 type(bpar_type),intent(in) :: bpar             ! Block parameters
-type(hdata_type),intent(in) :: hdata           ! HDIAG data
+type(samp_type),intent(in) :: samp             ! Sampling
 integer,intent(in) :: ic2a                     ! Local index
 integer,intent(in) :: ib                       ! Block index
 character(len=*),intent(in) :: prefix          ! Block prefix
@@ -127,8 +127,8 @@ if (((ic2a==0).or.nam%local_diag).and.(trim(nam%minim_algo)/='none')) then
    if (ic2a==0) then
       vunit = geom%vunitavg
    else
-      ic2 = hdata%c2a_to_c2(ic2a)
-      ic0 = hdata%c2_to_c0(ic2)
+      ic2 = samp%c2a_to_c2(ic2a)
+      ic0 = samp%c2_to_c0(ic2)
       vunit = geom%vunit(ic0,:)
    end if
 
@@ -401,7 +401,7 @@ end subroutine diag_blk_normalization
 ! Subroutine: diag_blk_fitting
 ! Purpose: compute a semi-positive definite fit of a raw function
 !----------------------------------------------------------------------
-subroutine diag_blk_fitting(diag_blk,mpl,nam,geom,bpar,hdata)
+subroutine diag_blk_fitting(diag_blk,mpl,nam,geom,bpar,samp)
 
 implicit none
 
@@ -411,7 +411,7 @@ type(mpl_type),intent(in) :: mpl               ! MPI data
 type(nam_type),intent(in) :: nam               ! Namelist
 type(geom_type),intent(in) :: geom             ! Geometry
 type(bpar_type),intent(in) :: bpar             ! Block parameters
-type(hdata_type),intent(in) :: hdata           ! HDIAG data
+type(samp_type),intent(in) :: samp             ! Sampling
 
 ! Local variables
 integer :: ic2,ic0,il0,jl0r,offset,isc
@@ -436,8 +436,8 @@ call msr(diag_blk%fit)
 if (ic2a==0) then
    vunit = geom%vunitavg
 else
-   ic2 = hdata%c2a_to_c2(ic2a)
-   ic0 = hdata%c2_to_c0(ic2)
+   ic2 = samp%c2a_to_c2(ic2a)
+   ic0 = samp%c2_to_c0(ic2)
    vunit = geom%vunit(ic0,:)
 end if
 

@@ -7,7 +7,7 @@
 !----------------------------------------------------------------------
 module type_vbal
 
-use,intrinsic :: iso_c_binding
+use fckit_mpi_module, only: fckit_mpi_sum
 !$ use omp_lib
 use netcdf
 use tools_const, only: msvali,msvalr
@@ -21,16 +21,16 @@ use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_io, only: io_type
 use type_mpl, only: mpl_type
-use type_hdata, only: hdata_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
+use type_samp, only: samp_type
 use type_vbal_blk, only: vbal_blk_type
-use fckit_mpi_module, only: fckit_mpi_sum
 
 implicit none
 
 ! Vertical balance derived type
 type vbal_type
+   type(samp_type) :: samp                     ! Sampling
    integer :: np                               ! Maximum number of neighbors
    integer :: nc2b                             ! Subset Sc2 size, halo B
    logical :: allocated                        ! Allocation flag
@@ -65,7 +65,7 @@ contains
 ! Subroutine: vbal_alloc
 ! Purpose: allocate vertical balance
 !----------------------------------------------------------------------
-subroutine vbal_alloc(vbal,mpl,nam,geom,bpar,nc2b)
+subroutine vbal_alloc(vbal,mpl,nam,geom,bpar)
 
 implicit none
 
@@ -75,7 +75,6 @@ type(mpl_type),intent(in) :: mpl       ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-integer,intent(in) :: nc2b             ! Subset Sc2 size, halo B
 
 ! Local variables
 integer :: iv,jv
@@ -91,7 +90,6 @@ elseif (trim(nam%diag_interp)=='natural') then
 else
    call mpl%abort('wrong interpolation type')
 end if
-vbal%nc2b = nc2b
 
 ! Allocation
 allocate(vbal%h_n_s(geom%nc0a,geom%nl0i))
@@ -101,7 +99,7 @@ allocate(vbal%blk(nam%nv,nam%nv))
 do iv=1,nam%nv
    do jv=1,nam%nv
       if (bpar%vbal_block(iv,jv)) then
-         call vbal%blk(iv,jv)%alloc(nam,geom,vbal%nc2b,iv,jv)
+         call vbal%blk(iv,jv)%alloc(nam,geom,vbal%samp%nc2b,iv,jv)
       end if
    end do
 end do
@@ -177,7 +175,7 @@ call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=nc0a_test))
 if (nc0a_test/=geom%nc0a) call mpl%abort('wrong dimension when reading vbal')
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc2b',nc2b_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2b_id,len=vbal%nc2b))
+call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2b_id,len=vbal%samp%nc2b))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nl0i',nl0i_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nl0i_id,len=nl0i_test))
 if (nl0i_test/=geom%nl0i) call mpl%abort('wrong dimension when reading vbal')
@@ -196,7 +194,7 @@ allocate(vbal%blk(nam%nv,nam%nv))
 do iv=1,nam%nv
    do jv=1,nam%nv
       if (bpar%vbal_block(iv,jv)) then
-         call vbal%blk(iv,jv)%alloc(nam,geom,vbal%nc2b,iv,jv)
+         call vbal%blk(iv,jv)%alloc(nam,geom,vbal%samp%nc2b,iv,jv)
       end if
    end do
 end do
@@ -258,7 +256,7 @@ call nam%ncwrite(mpl,ncid)
 ! Define dimensions
 call mpl%ncerr(subr,nf90_def_dim(ncid,'np',vbal%np,np_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
-call mpl%ncerr(subr,nf90_def_dim(ncid,'nc2b',vbal%nc2b,nc2b_id))
+call mpl%ncerr(subr,nf90_def_dim(ncid,'nc2b',vbal%samp%nc2b,nc2b_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0i',geom%nl0i,nl0i_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0_1',geom%nl0,nl0_1_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
@@ -335,36 +333,35 @@ real(kind_real) :: sbuf(2*nam%nc2*geom%nl0**2),rbuf(2*nam%nc2*geom%nl0**2)
 real(kind_real),allocatable :: list_auto(:),list_cross(:),auto_avg_tmp(:,:)
 real(kind_real),allocatable :: fld_1(:,:),fld_2(:,:),auto(:,:,:,:),cross(:,:,:,:)
 logical :: valid,mask_unpack(geom%nl0,geom%nl0)
-type(hdata_type) :: hdata
 
 ! Setup sampling
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
 call flush(mpl%info)
-call hdata%setup_sampling(mpl,rng,nam,geom,io)
+call vbal%samp%setup_sampling(mpl,rng,nam,geom,io)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 write(mpl%info,'(a)') '--- Compute MPI distribution, halos A'
 call flush(mpl%info)
-call hdata%compute_mpi_a(mpl,nam,geom)
+call vbal%samp%compute_mpi_a(mpl,nam,geom)
 
 ! Compute MPI distribution, halos A-B
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 write(mpl%info,'(a)') '--- Compute MPI distribution, halos A-B'
 call flush(mpl%info)
-call hdata%compute_mpi_ab(mpl,nam,geom)
+call vbal%samp%compute_mpi_ab(mpl,nam,geom)
 
 ! Copy ensemble
 call ensu%copy(ens)
 
 ! Allocation
-allocate(fld_1(hdata%nc1a,geom%nl0))
-allocate(fld_2(hdata%nc1a,geom%nl0))
-allocate(auto(hdata%nc1a,geom%nl0,geom%nl0,ens%nsub))
-allocate(cross(hdata%nc1a,geom%nl0,geom%nl0,ens%nsub))
+allocate(fld_1(vbal%samp%nc1a,geom%nl0))
+allocate(fld_2(vbal%samp%nc1a,geom%nl0))
+allocate(auto(vbal%samp%nc1a,geom%nl0,geom%nl0,ens%nsub))
+allocate(cross(vbal%samp%nc1a,geom%nl0,geom%nl0,ens%nsub))
 if (.not.diag_auto) allocate(auto_avg_tmp(geom%nl0,geom%nl0))
-call vbal%alloc(mpl,nam,geom,bpar,hdata%nc2b)
+call vbal%alloc(mpl,nam,geom,bpar)
 
 ! Initialization
 mask_unpack = .true.
@@ -374,11 +371,11 @@ call msr(vbal%h_S)
 
 ! Get interpolation coefficients
 do il0i=1,geom%nl0i
-   do i_s=1,hdata%h(il0i)%n_s
-      ic0a = hdata%h(il0i)%row(i_s)
+   do i_s=1,vbal%samp%h(il0i)%n_s
+      ic0a = vbal%samp%h(il0i)%row(i_s)
       vbal%h_n_s(ic0a,il0i) = vbal%h_n_s(ic0a,il0i)+1
-      vbal%h_c2b(vbal%h_n_s(ic0a,il0i),ic0a,il0i) = hdata%h(il0i)%col(i_s)
-      vbal%h_S(vbal%h_n_s(ic0a,il0i),ic0a,il0i) = hdata%h(il0i)%S(i_s)
+      vbal%h_c2b(vbal%h_n_s(ic0a,il0i),ic0a,il0i) = vbal%samp%h(il0i)%col(i_s)
+      vbal%h_S(vbal%h_n_s(ic0a,il0i),ic0a,il0i) = vbal%samp%h(il0i)%S(i_s)
    end do
 end do
 
@@ -410,13 +407,13 @@ do iv=1,nam%nv
                ! Copy all separations points
                !$omp parallel do schedule(static) private(il0,ic1a,ic1,ic0,ic0a)
                do il0=1,geom%nl0
-                  do ic1a=1,hdata%nc1a
+                  do ic1a=1,vbal%samp%nc1a
                      ! Indice
-                     ic1 = hdata%c1a_to_c1(ic1a)
+                     ic1 = vbal%samp%c1a_to_c1(ic1a)
 
-                     if (hdata%c1l0_log(ic1,il0)) then
+                     if (vbal%samp%c1l0_log(ic1,il0)) then
                         ! Indice
-                        ic0 = hdata%c1_to_c0(ic1)
+                        ic0 = vbal%samp%c1_to_c0(ic1)
                         ic0a = geom%c0_to_c0a(ic0)
 
                         ! Copy points
@@ -451,17 +448,17 @@ do iv=1,nam%nv
             do il0=1,geom%nl0
                do jl0=1,geom%nl0
                   ! Allocation
-                  allocate(list_auto(hdata%nc1a))
-                  allocate(list_cross(hdata%nc1a))
+                  allocate(list_auto(vbal%samp%nc1a))
+                  allocate(list_cross(vbal%samp%nc1a))
 
                   ! Fill lists
                   nc1a = 0
-                  do ic1a=1,hdata%nc1a
+                  do ic1a=1,vbal%samp%nc1a
                      ! Index
-                     ic1 = hdata%c1a_to_c1(ic1a)
+                     ic1 = vbal%samp%c1a_to_c1(ic1a)
 
                      ! Check validity
-                     valid = hdata%c1l0_log(ic1,il0).and.hdata%c1l0_log(ic1,jl0).and.hdata%vbal_mask(ic1,ic2)
+                     valid = vbal%samp%c1l0_log(ic1,il0).and.vbal%samp%c1l0_log(ic1,jl0).and.vbal%samp%vbal_mask(ic1,ic2)
 
                      if (valid) then
                         ! Update
@@ -524,10 +521,10 @@ do iv=1,nam%nv
          ! Compute regressions
          write(mpl%info,'(a10,a)',advance='no') '','Compute regressions: '
          call flush(mpl%info)
-         call mpl%prog_init(hdata%nc2b)
-         do ic2b=1,hdata%nc2b
+         call mpl%prog_init(vbal%samp%nc2b)
+         do ic2b=1,vbal%samp%nc2b
             ! Global index
-            ic2 = hdata%c2b_to_c2(ic2b)
+            ic2 = vbal%samp%c2b_to_c2(ic2b)
 
             if (diag_auto) then
                ! Diagonal inversion

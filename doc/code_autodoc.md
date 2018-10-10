@@ -34,7 +34,7 @@ The source code is organized in five categories:
 | derived_type | [type_ens](autodoc/type_ens.md) | ensemble derived type |
 | derived_type | [type_fckit_mpi_comm](autodoc/type_fckit_mpi_comm.md) | FCKIT emulator for offline execution |
 | derived_type | [type_geom](autodoc/type_geom.md) | geometry derived type |
-| derived_type | [type_hdata](autodoc/type_hdata.md) | sample data derived type |
+| derived_type | [type_hdiag](autodoc/type_hdiag.md) | hybrid diagnostics derived type |
 | derived_type | [type_io](autodoc/type_io.md) | I/O derived type |
 | derived_type | [type_kdtree](autodoc/type_kdtree.md) | KD-tree derived type |
 | derived_type | [type_lct_blk](autodoc/type_lct_blk.md) | LCT data derived type |
@@ -50,6 +50,7 @@ The source code is organized in five categories:
 | derived_type | [type_nicas](autodoc/type_nicas.md) | NICAS data derived type |
 | derived_type | [type_obsop](autodoc/type_obsop.md) | observation operator data derived type |
 | derived_type | [type_rng](autodoc/type_rng.md) | random numbers generator derived type |
+| derived_type | [type_samp](autodoc/type_samp.md) | sampling derived type |
 | derived_type | [type_timer](autodoc/type_timer.md) | timer data derived type |
 | derived_type | [type_vbal_blk](autodoc/type_vbal_blk.md) | vertical balance block derived type |
 | derived_type | [type_vbal](autodoc/type_vbal.md) | vertical balance derived type |

@@ -13,11 +13,11 @@ use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
-use type_hdata, only: hdata_type
 use type_minim, only: minim_type
 use type_mom_blk, only: mom_blk_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_samp, only: samp_type
 
 implicit none
 
@@ -71,7 +71,7 @@ contains
 ! Subroutine: lct_blk_alloc
 ! Purpose: LCT block data allocation
 !----------------------------------------------------------------------
-subroutine lct_blk_alloc(lct_blk,nam,geom,bpar,hdata,ib)
+subroutine lct_blk_alloc(lct_blk,nam,geom,bpar,samp,ib)
 
 implicit none
 
@@ -80,7 +80,7 @@ class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
 type(nam_type),intent(in) :: nam             ! Namelist
 type(geom_type),intent(in) :: geom           ! Geometry
 type(bpar_type),intent(in) :: bpar           ! Block parameters
-type(hdata_type),intent(in) :: hdata         ! HDIAG data
+type(samp_type),intent(in) :: samp           ! Sampling
 integer,intent(in) :: ib                     ! Block index
 
 ! Attributes
@@ -88,14 +88,14 @@ lct_blk%ib = ib
 lct_blk%nscales = nam%lct_nscales
 
 ! Allocation
-allocate(lct_blk%raw(nam%nc3,bpar%nl0r(ib),hdata%nc1a,geom%nl0))
-allocate(lct_blk%D(4,lct_blk%nscales,hdata%nc1a,geom%nl0))
-allocate(lct_blk%coef(lct_blk%nscales,hdata%nc1a,geom%nl0))
-allocate(lct_blk%fit(nam%nc3,bpar%nl0r(ib),hdata%nc1a,geom%nl0))
+allocate(lct_blk%raw(nam%nc3,bpar%nl0r(ib),samp%nc1a,geom%nl0))
+allocate(lct_blk%D(4,lct_blk%nscales,samp%nc1a,geom%nl0))
+allocate(lct_blk%coef(lct_blk%nscales,samp%nc1a,geom%nl0))
+allocate(lct_blk%fit(nam%nc3,bpar%nl0r(ib),samp%nc1a,geom%nl0))
 if (nam%diag_rhflt>0) then
-   allocate(lct_blk%D_filt(4,lct_blk%nscales,hdata%nc1a,geom%nl0))
-   allocate(lct_blk%coef_filt(lct_blk%nscales,hdata%nc1a,geom%nl0))
-   allocate(lct_blk%fit_filt(nam%nc3,bpar%nl0r(ib),hdata%nc1a,geom%nl0))
+   allocate(lct_blk%D_filt(4,lct_blk%nscales,samp%nc1a,geom%nl0))
+   allocate(lct_blk%coef_filt(lct_blk%nscales,samp%nc1a,geom%nl0))
+   allocate(lct_blk%fit_filt(nam%nc3,bpar%nl0r(ib),samp%nc1a,geom%nl0))
 end if
 allocate(lct_blk%D11(geom%nc0a,geom%nl0,lct_blk%nscales))
 allocate(lct_blk%D22(geom%nc0a,geom%nl0,lct_blk%nscales))
@@ -167,7 +167,7 @@ end subroutine lct_blk_dealloc
 ! Subroutine: lct_blk_correlation
 ! Purpose: compute raw correlation
 !----------------------------------------------------------------------
-subroutine lct_blk_correlation(lct_blk,nam,geom,bpar,hdata,mom_blk)
+subroutine lct_blk_correlation(lct_blk,nam,geom,bpar,samp,mom_blk)
 
 implicit none
 
@@ -176,7 +176,7 @@ class(lct_blk_type),intent(inout) :: lct_blk ! LCT block
 type(nam_type),intent(in) :: nam             ! Namelist
 type(geom_type),intent(in) :: geom           ! Geometry
 type(bpar_type),intent(in) :: bpar           ! Block parameters
-type(hdata_type),intent(in) :: hdata         ! HDIAG data
+type(samp_type),intent(in) :: samp           ! Sampling
 type(mom_blk_type),intent(in) :: mom_blk     ! Moments block
 
 ! Local variables
@@ -188,7 +188,7 @@ real(kind_real),allocatable :: norm(:,:,:,:)
 associate(ib=>lct_blk%ib)
 
 ! Allocation
-allocate(norm(nam%nc3,bpar%nl0r(ib),hdata%nc1a,geom%nl0))
+allocate(norm(nam%nc3,bpar%nl0r(ib),samp%nc1a,geom%nl0))
 
 ! Initialize
 lct_blk%raw = 0.0
@@ -200,9 +200,9 @@ do jsub=1,mom_blk%nsub
       do jl0r=1,bpar%nl0r(ib)
          jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
          do jc3=1,nam%nc3
-            do ic1a=1,hdata%nc1a
-               ic1 = hdata%c1a_to_c1(ic1a)
-               if (hdata%c1l0_log(ic1,il0)) then
+            do ic1a=1,samp%nc1a
+               ic1 = samp%c1a_to_c1(ic1a)
+               if (samp%c1l0_log(ic1,il0)) then
                   den = mom_blk%m2_1(ic1a,jc3,il0,jsub)*mom_blk%m2_2(ic1a,jc3,jl0,jsub)
                   if (den>0.0) then
                      lct_blk%raw(jc3,jl0r,ic1a,il0) = lct_blk%raw(jc3,jl0r,ic1a,il0)+mom_blk%m11(ic1a,jc3,jl0r,il0,jsub)/sqrt(den)
@@ -219,9 +219,9 @@ end do
 do il0=1,geom%nl0
    do jl0r=1,bpar%nl0r(ib)
       do jc3=1,nam%nc3
-         do ic1a=1,hdata%nc1a
-            ic1 = hdata%c1a_to_c1(ic1a)
-            if (hdata%c1l0_log(ic1,il0)) then
+         do ic1a=1,samp%nc1a
+            ic1 = samp%c1a_to_c1(ic1a)
+            if (samp%c1l0_log(ic1,il0)) then
                if (norm(jc3,jl0r,ic1a,il0)>0.0) lct_blk%raw(jc3,jl0r,ic1a,il0) = lct_blk%raw(jc3,jl0r,ic1a,il0) &
              & /norm(jc3,jl0r,ic1a,il0)
             end if
@@ -239,7 +239,7 @@ end subroutine lct_blk_correlation
 ! Subroutine: lct_blk_fitting
 ! Purpose: fitting LCT
 !----------------------------------------------------------------------
-subroutine lct_blk_fitting(lct_blk,mpl,nam,geom,bpar,hdata)
+subroutine lct_blk_fitting(lct_blk,mpl,nam,geom,bpar,samp)
 
 implicit none
 
@@ -249,7 +249,7 @@ type(mpl_type),intent(inout) :: mpl          ! MPI data
 type(nam_type),intent(in) :: nam             ! Namelist
 type(geom_type),intent(in) :: geom           ! Geometry
 type(bpar_type),intent(in) :: bpar           ! Block parameters
-type(hdata_type),intent(in) :: hdata         ! HDIAG data
+type(samp_type),intent(in) :: samp           ! Sampling
 
 ! Local variables
 integer :: il0,jl0r,jl0,ic1a,ic1,ic0,jc3,jc0,iscales,icomp
@@ -287,21 +287,21 @@ do il0=1,geom%nl0
    call flush(mpl%info)
 
    ! Initialization
-   call mpl%prog_init(hdata%nc1a)
+   call mpl%prog_init(samp%nc1a)
 
-   do ic1a=1,hdata%nc1a
+   do ic1a=1,samp%nc1a
       ! Global index
-      ic1 = hdata%c1a_to_c1(ic1a)
+      ic1 = samp%c1a_to_c1(ic1a)
 
-      if (hdata%c1l0_log(ic1,il0)) then
+      if (samp%c1l0_log(ic1,il0)) then
          ! Compute deltas
-         ic0 = hdata%c1_to_c0(ic1)
+         ic0 = samp%c1_to_c0(ic1)
          do jl0r=1,bpar%nl0r(ib)
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
             do jc3=1,nam%nc3
-               dmask(jc3,jl0r) = hdata%c1l0_log(ic1,il0).and.hdata%c1c3l0_log(ic1,jc3,jl0)
+               dmask(jc3,jl0r) = samp%c1l0_log(ic1,il0).and.samp%c1c3l0_log(ic1,jc3,jl0)
                if (dmask(jc3,jl0r)) then
-                  jc0 = hdata%c1c3_to_c0(ic1,jc3)
+                  jc0 = samp%c1c3_to_c0(ic1,jc3)
                   call geom%compute_deltas(ic0,il0,jc0,jl0,dx(jc3,jl0r),dy(jc3,jl0r),dz(jc3,jl0r))
                end if
             end do

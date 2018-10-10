@@ -191,6 +191,7 @@ real(kind_real),allocatable :: lonobs(:),latobs(:),list(:)
 if (nam%nobs<1) call mpl%abort('nobs should be positive for offline observation operator')
 
 ! Allocation
+write(mpl%info,*) 'TEST',nam%nobs
 allocate(lonobs(nam%nobs))
 allocate(latobs(nam%nobs))
 allocate(obs_to_proc(nam%nobs))
@@ -210,8 +211,9 @@ if (mpl%main) then
 end if
 
 ! Broadcast data
-call mpl%f_comm%broadcast(obsop%lonobs,mpl%ioproc-1)
-call mpl%f_comm%broadcast(obsop%latobs,mpl%ioproc-1)
+write(mpl%info,*) 'TEST',allocated(lonobs),size(lonobs),mpl%ioproc-1
+call mpl%f_comm%broadcast(lonobs,mpl%ioproc-1)
+call mpl%f_comm%broadcast(latobs,mpl%ioproc-1)
 
 ! Split observations between processors
 if (test_no_obs.and.(mpl%nproc==1)) call mpl%abort('at least 2 MPI tasks required for test_no_obs')
@@ -439,7 +441,6 @@ case('random')
       do iobs=1,obsop%nobs
          jobs = order(iobs)
          obs_to_proc(jobs) = iproc
-         write(mpl%info,*) 'TOUST',iobs,jobs,iproc
          iproc = iproc+1
          if (iproc>mpl%nproc) iproc = 1
       end do
