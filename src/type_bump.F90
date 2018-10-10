@@ -17,6 +17,7 @@ use type_cmat, only: cmat_type
 use type_cv, only: cv_type
 use type_ens, only: ens_type
 use type_geom, only: geom_type
+use type_hdiag, only: hdiag_type
 use type_io, only: io_type
 use type_lct, only: lct_type
 use type_mpl, only: mpl_type
@@ -37,6 +38,7 @@ type bump_type
    type(ens_type) :: ens1u
    type(ens_type) :: ens2
    type(geom_type) :: geom
+   type(hdiag_type) :: hdiag
    type(io_type) :: io
    type(lct_type) :: lct
    type(mpl_type) :: mpl
@@ -48,7 +50,7 @@ type bump_type
    logical :: close_listing
 contains
    procedure :: setup_online => bump_setup_online
-   procedure :: setup_offline => bump_setup_offline
+   procedure :: run_offline => bump_run_offline
    procedure :: setup_generic => bump_setup_generic
    procedure :: run_drivers => bump_run_drivers
    procedure :: add_member => bump_add_member
@@ -159,12 +161,12 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Initialize block parameters'
 call bump%bpar%alloc(bump%nam,bump%geom)
 
-! Initialize ensemble 1 setup
+! Initialize ensemble 1
 write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
 write(bump%mpl%info,'(a)') '--- Initialize ensemble 1'
 call bump%ens1%alloc(bump%nam,bump%geom,bump%nam%ens1_ne,bump%nam%ens1_nsub)
 
-! Initialize ensemble 2 setup
+! Initialize ensemble 2
 write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
 write(bump%mpl%info,'(a)') '--- Initialize ensemble 2'
 call bump%ens2%alloc(bump%nam,bump%geom,bump%nam%ens2_ne,bump%nam%ens2_nsub)
@@ -182,21 +184,6 @@ if (present(nobs)) then
    write(bump%mpl%info,'(a)') '--- Initialize observations locations'
    call flush(bump%mpl%info)
    call bump%obsop%from(nobs,lonobs,latobs)
-
-   ! Run drivers
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Run drivers'
-   call flush(bump%mpl%info)
-   call bump%run_drivers
-
-   ! Close listings
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Close listings'
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call flush(bump%mpl%info)
-   close(unit=bump%mpl%info)
-   call flush(bump%mpl%test)
-   close(unit=bump%mpl%test)
 end if
 
 if ((bump%nam%ens1_ne>0).or.(bump%nam%ens2_ne>0)) then
@@ -207,10 +194,10 @@ end if
 end subroutine bump_setup_online
 
 !----------------------------------------------------------------------
-! Subroutine: bump_setup_offline
-! Purpose: offline setup
+! Subroutine: bump_run_offline
+! Purpose: offline run
 !----------------------------------------------------------------------
-subroutine bump_setup_offline(bump,namelname)
+subroutine bump_run_offline(bump,namelname)
 
 implicit none
 
@@ -235,7 +222,7 @@ call bump%nam%bcast(bump%mpl)
 ! Initialize listing
 call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%colorlog,bump%nam%logpres)
 
-! Generic setup, first step
+! Generic setup
 call bump%setup_generic
 
 ! Initialize geometry
@@ -305,7 +292,7 @@ close(unit=bump%mpl%test)
 ! Finalize MPL
 call bump%mpl%final
 
-end subroutine bump_setup_offline
+end subroutine bump_run_offline
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_generic
@@ -386,9 +373,9 @@ if (bump%nam%new_vbal) then
    call flush(bump%mpl%info)
    call bump%vbal%run_vbal(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,bump%ens1u)
 elseif (bump%nam%load_vbal) then
-   ! Read vertical balance data
+   ! Read vertical balance
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Read vertical balance data'
+   write(bump%mpl%info,'(a)') '--- Read vertical balance'
    call flush(bump%mpl%info)
    call bump%vbal%read(bump%mpl,bump%nam,bump%geom,bump%bpar)
 end if
@@ -413,10 +400,16 @@ if (bump%nam%new_hdiag) then
    write(bump%mpl%info,'(a)') '--- Run HDIAG driver'
    call flush(bump%mpl%info)
    if ((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens')) then
-      call bump%cmat%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,bump%ens2)
+      call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,bump%ens2)
    else
-      call bump%cmat%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1)
+      call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1)
    end if
+
+   ! Copy HDIAG into C matrix
+   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(bump%mpl%info,'(a)') '--- Copy HDIAG into C matrix'
+   call flush(bump%mpl%info)
+   call bump%cmat%from_hdiag(bump%mpl,bump%nam,bump%geom,bump%bpar,bump%hdiag)
 end if
 
 if (bump%nam%new_lct) then
@@ -437,9 +430,9 @@ if (bump%nam%new_lct) then
 end if
 
 if (bump%nam%load_cmat) then
-   ! Read C matrix data
+   ! Read C matrix
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Read C matrix data'
+   write(bump%mpl%info,'(a)') '--- Read C matrix'
    call flush(bump%mpl%info)
    call bump%cmat%read(bump%mpl,bump%nam,bump%geom,bump%bpar,bump%io)
 else
@@ -453,9 +446,9 @@ else
 end if
 
 if (allocated(bump%cmat%blk)) then
-   ! Get C matrix data from OOPS
+   ! Get C matrix from OOPS
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Get C matrix data from OOPS'
+   write(bump%mpl%info,'(a)') '--- Get C matrix from OOPS'
    call bump%cmat%from_oops(bump%mpl,bump%geom,bump%bpar)
 
    ! Setup C matrix sampling
@@ -463,9 +456,9 @@ if (allocated(bump%cmat%blk)) then
    write(bump%mpl%info,'(a)') '--- Setup C matrix sampling'
    call bump%cmat%setup_sampling(bump%nam,bump%geom,bump%bpar)
 
-   ! Write C matrix data
+   ! Write C matrix
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   write(bump%mpl%info,'(a)') '--- Write C matrix data'
+   write(bump%mpl%info,'(a)') '--- Write C matrix'
    call flush(bump%mpl%info)
    call bump%cmat%write(bump%mpl,bump%nam,bump%geom,bump%bpar,bump%io)
 end if
@@ -667,6 +660,27 @@ end do
 end subroutine bump_apply_vbal_inv_ad
 
 !----------------------------------------------------------------------
+! Subroutine: bump_apply_nicas
+! Purpose: NICAS application
+!----------------------------------------------------------------------
+subroutine bump_apply_nicas(bump,fld)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(in) :: bump                                                         ! BUMP
+real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+
+! Apply NICAS
+if (bump%nam%lsqrt) then
+   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+else
+   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+end if
+
+end subroutine bump_apply_nicas
+
+!----------------------------------------------------------------------
 ! Subroutine: bump_get_cv_size
 ! Purpose: get control variable size
 !----------------------------------------------------------------------
@@ -749,27 +763,6 @@ else
 end if
 
 end subroutine bump_apply_nicas_sqrt_ad
-
-!----------------------------------------------------------------------
-! Subroutine: bump_apply_nicas
-! Purpose: NICAS application
-!----------------------------------------------------------------------
-subroutine bump_apply_nicas(bump,fld)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
-
-! Apply NICAS
-if (bump%nam%lsqrt) then
-   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
-else
-   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
-end if
-
-end subroutine bump_apply_nicas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_obsop

@@ -29,7 +29,7 @@ The source code is organized in five categories:
 EOFINTRO
 
 
-for category in "main" "tools" "derived_type" "external_tools" "model" ; do  
+for category in "main" "tools" "derived_type" "external_tools" "model" ; do
    echo "Category: "${category}
    if test "${category}" = "main" ; then
       list=${src}/main.F90
@@ -94,7 +94,7 @@ for category in "main" "tools" "derived_type" "external_tools" "model" ; do
 
          # Increment line index
          let i=i+1
- 
+
          if test "${new_purpose}" = "true" ; then
             if test "${category}" = "main" ; then
                # New program
@@ -113,7 +113,7 @@ for category in "main" "tools" "derived_type" "external_tools" "model" ; do
 EOFMOD
                   new_module=false
                fi
-   
+
                # New subroutine/function
                if test "${new_subfunc}" = "true" ; then
                   if test "${type_bound}" = "true" ; then
@@ -125,7 +125,7 @@ EOFMOD
                   type_bound=false
                fi
             fi
-   
+
             # Reset
             new_purpose=false
          fi

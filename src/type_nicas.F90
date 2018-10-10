@@ -20,6 +20,7 @@ use type_com, only: com_type
 use type_cv, only: cv_type
 use type_ens, only: ens_type
 use type_geom, only: geom_type
+use type_hdiag, only: hdiag_type
 use type_io, only: io_type
 use type_linop, only: linop_type
 use type_nicas_blk, only: nicas_blk_type
@@ -2038,6 +2039,7 @@ integer :: ens1_ne,ens1_ne_offset,ens1_nsub,ib,il0
 real(kind_real) :: rh_c0_sum,rv_c0_sum,norm
 character(len=1024) :: prefix,method
 type(cmat_type) :: cmat_test
+type(hdiag_type) :: hdiag_test
 type(ens_type) :: ens
 
 ! Randomize ensemble
@@ -2065,7 +2067,10 @@ nam%ens1_ne_offset = 0
 nam%ens1_nsub = 1
 
 ! Call hdiag driver
-call cmat_test%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+call hdiag_test%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+
+! Copy into C matrix
+call cmat_test%from_hdiag(mpl,nam,geom,bpar,hdiag_test)
 
 ! Print scores
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -2121,6 +2126,7 @@ real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geo
 real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),fac(nfac),mse(ntest,nfac)
 character(len=1024) :: prefix,method
 type(cmat_type) :: cmat_save,cmat_test
+type(hdiag_type) :: hdiag_save
 type(ens_type) :: ens
 type(nicas_type) :: nicas_test
 
@@ -2159,7 +2165,10 @@ nam%method = 'loc_norm'
 call nicas_test%alloc(mpl,nam,bpar,'nicas_test')
 
 ! Call hdiag driver
-call cmat_save%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+call hdiag_save%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+
+! Copy into C matrix
+call cmat_save%from_hdiag(mpl,nam,geom,bpar,hdiag_save)
 
 ! Copy cmat
 cmat_test = cmat_save%copy(nam,geom,bpar)

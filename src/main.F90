@@ -31,7 +31,7 @@ else
 end if
 
 ! Offline run
-call bump%setup_offline(namelname)
+call bump%run_offline(namelname)
 
 ! Stop
 stop

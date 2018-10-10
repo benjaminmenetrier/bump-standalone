@@ -1040,7 +1040,7 @@ deallocate(mask_extra)
 end subroutine linop_interp_grid
 
 !----------------------------------------------------------------------
-! Subroutine: interp_check_mask
+! Subroutine: linop_interp_check_mask
 ! Purpose: check mask boundaries for interpolations
 !----------------------------------------------------------------------
 subroutine linop_interp_check_mask(linop,mpl,geom,valid,il0,row_to_ic0,col_to_ic0)

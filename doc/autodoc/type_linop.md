@@ -16,5 +16,5 @@
 | subroutine | [linop%] [interp_from_lat_lon](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L628) | compute horizontal interpolation from source latitude/longitude |
 | subroutine | [linop%] [interp_from_mesh_kdtree](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L697) | compute horizontal interpolation from source mesh and kdtree |
 | subroutine | [linop%] [interp_grid](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L916) | compute horizontal grid interpolation |
-| subroutine | [interp_check_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1042) | check mask boundaries for interpolations |
+| subroutine | [linop%] [interp_check_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1042) | check mask boundaries for interpolations |
 | subroutine | [linop%] [interp_missing](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1120) | deal with missing interpolation points |

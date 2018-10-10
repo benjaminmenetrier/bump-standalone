@@ -7,6 +7,7 @@
 !----------------------------------------------------------------------
 module type_avg
 
+use fckit_mpi_module, only: fckit_mpi_sum
 !$ use omp_lib
 use tools_const,only: reqkm
 use tools_func, only: add,divide
@@ -16,11 +17,10 @@ use tools_qsort, only: qsort
 use type_avg_blk, only: avg_blk_type
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
-use type_hdata, only: hdata_type
 use type_mom, only: mom_type
 use type_mpl, only: mpl_type
-use fckit_mpi_module, only: fckit_mpi_sum
 use type_nam, only: nam_type
+use type_samp, only: samp_type
 
 implicit none
 
@@ -485,7 +485,7 @@ end subroutine avg_normalize_lr
 ! Subroutine: avg_var_filter
 ! Purpose: filter variance
 !----------------------------------------------------------------------
-subroutine avg_var_filter(avg,mpl,nam,geom,bpar,hdata)
+subroutine avg_var_filter(avg,mpl,nam,geom,bpar,samp)
 
 implicit none
 
@@ -495,13 +495,13 @@ type(mpl_type),intent(inout) :: mpl  ! MPI data
 type(nam_type),intent(in) :: nam     ! Namelist
 type(geom_type),intent(in) :: geom   ! Geometry
 type(bpar_type),intent(in) :: bpar   ! Block parameters
-type(hdata_type),intent(in) :: hdata ! HDIAG data
+type(samp_type),intent(in) :: samp   ! Sampling
 
 ! Local variables
 integer :: n,ib,il0,ic2a,ic2,iter
 real(kind_real) :: P9,P20,P21
 real(kind_real) :: m2sq,m4,m2sqasy,rhflt,drhflt
-real(kind_real) :: m2_ini(hdata%nc2a),m2(hdata%nc2a),m2prod,m2prod_tot
+real(kind_real) :: m2_ini(samp%nc2a),m2(samp%nc2a),m2prod,m2prod_tot
 logical :: dichotomy,convergence
 
 ! Ensemble/sub-ensemble size-dependent coefficients
@@ -537,8 +537,8 @@ do ib=1,bpar%nb
          end if
 
          ! Dichotomy initialization
-         do ic2a=1,hdata%nc2a
-            ic2 = hdata%c2a_to_c2(ic2a)
+         do ic2a=1,samp%nc2a
+            ic2 = samp%c2a_to_c2(ic2a)
             m2_ini(ic2a) = sum(avg%blk(ic2,ib)%m2(il0,:))/real(avg%nsub,kind_real)
          end do
          convergence = .true.
@@ -551,10 +551,10 @@ do ib=1,bpar%nb
             m2 = m2_ini
 
             ! Median filter to remove extreme values
-            call hdata%diag_filter(mpl,nam,geom,il0,'median',rhflt,m2)
+            call samp%diag_filter(mpl,nam,geom,il0,'median',rhflt,m2)
 
             ! Average filter to smooth displacement
-            call hdata%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,m2)
+            call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,m2)
 
             ! Compute product
             m2prod = sum(m2*m2_ini)
@@ -596,8 +596,8 @@ do ib=1,bpar%nb
 
          ! Copy final result
          avg%blk(0,ib)%m2flt(il0) = sum(avg%blk(0,ib)%m2(il0,:))/real(avg%nsub,kind_real)
-         do ic2a=1,hdata%nc2a
-            ic2 = hdata%c2a_to_c2(ic2a)
+         do ic2a=1,samp%nc2a
+            ic2 = samp%c2a_to_c2(ic2a)
             avg%blk(ic2,ib)%m2flt(il0) = m2(ic2a)
          end do
       end do
@@ -610,7 +610,7 @@ end subroutine avg_var_filter
 ! Subroutine: avg_compute
 ! Purpose: compute averaged statistics
 !----------------------------------------------------------------------
-subroutine avg_compute(avg,mpl,nam,geom,bpar,hdata,mom,ne)
+subroutine avg_compute(avg,mpl,nam,geom,bpar,samp,mom,ne)
 
 implicit none
 
@@ -620,7 +620,7 @@ type(mpl_type),intent(inout) :: mpl  ! MPI data
 type(nam_type),intent(in) :: nam     ! Namelist
 type(geom_type),intent(in) :: geom   ! Geometry
 type(bpar_type),intent(in) :: bpar   ! Block parameters
-type(hdata_type),intent(in) :: hdata ! HDIAG data
+type(samp_type),intent(in) :: samp   ! Sampling
 type(mom_type),intent(in) :: mom     ! Moments
 integer,intent(in) :: ne             ! Ensemble size
 
@@ -639,7 +639,7 @@ do ib=1,bpar%nb
       call flush(mpl%info)
       call mpl%prog_init(nam%nc2+1)
       do ic2=0,nam%nc2
-         if ((ic2==0).or.nam%local_diag) call avg%blk(ic2,ib)%compute(nam,geom,bpar,hdata,mom%blk(ib))
+         if ((ic2==0).or.nam%local_diag) call avg%blk(ic2,ib)%compute(nam,geom,bpar,samp,mom%blk(ib))
          call mpl%prog_print(ic2+1)
       end do
       write(mpl%info,'(a)') '100%'
@@ -663,7 +663,7 @@ if (nam%var_filter) then
    ! Filter variance
    write(mpl%info,'(a10,a)') '','Filter variance'
    call flush(mpl%info)
-   call avg%var_filter(mpl,nam,geom,bpar,hdata)
+   call avg%var_filter(mpl,nam,geom,bpar,samp)
 end if
 
 ! Compute asymptotic statistics
@@ -689,7 +689,7 @@ end subroutine avg_compute
 ! Subroutine: avg_compute_hyb
 ! Purpose: compute hybrid averaged statistics
 !----------------------------------------------------------------------
-subroutine avg_compute_hyb(avg_2,mpl,nam,geom,bpar,hdata,mom_1,mom_2,avg_1)
+subroutine avg_compute_hyb(avg_2,mpl,nam,geom,bpar,samp,mom_1,mom_2,avg_1)
 
 implicit none
 
@@ -699,7 +699,7 @@ type(mpl_type),intent(inout) :: mpl  ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-type(hdata_type),intent(in) :: hdata   ! HDIAG data
+type(samp_type),intent(in) :: samp     ! Sampling
 type(mom_type),intent(in) :: mom_1     ! Ensemble 2 moments
 type(mom_type),intent(in) :: mom_2     ! Ensemble 1 moments
 class(avg_type),intent(inout) :: avg_1 ! Ensemble 1 averaged statistics
@@ -732,7 +732,7 @@ do ib=1,bpar%nb
                avg_2%blk(ic2,ib)%stasq = avg_2%blk(ic2,ib)%m11**2
             case ('dual-ens')
                ! LR covariance/HR covariance product average
-               call avg_2%blk(ic2,ib)%compute_lr(mpl,nam,geom,bpar,hdata,mom_1%blk(ib),mom_2%blk(ib))
+               call avg_2%blk(ic2,ib)%compute_lr(mpl,nam,geom,bpar,samp,mom_1%blk(ib),mom_2%blk(ib))
             end select
          end if
          call mpl%prog_print(ic2+1)
