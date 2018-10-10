@@ -723,7 +723,7 @@ type(io_type),intent(in) :: io         ! I/O
 type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: ios,ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,nc2_eff
+integer :: ios,ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1
 integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:)
 real(kind_real) :: lon_c1(nam%nc1),lat_c1(nam%nc1)
 real(kind_real) :: lon_c2(nam%nc2),lat_c2(nam%nc2)
@@ -770,7 +770,7 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
       allocate(rh_c1(nam%nc1))
       lon_c1 = geom%lon(samp%c1_to_c0)
       lat_c1 = geom%lat(samp%c1_to_c0)
-      mask_c1 = .true.
+      mask_c1 = all(samp%c1l0_log(:,:),dim=2)
       rh_c1 = 1.0
       call rng%initialize_sampling(mpl,nam%nc1,lon_c1,lat_c1,mask_c1,rh_c1,nam%ntry,nam%nrep,nam%nc2,samp%c2_to_c1)
       samp%c2_to_c0 = samp%c1_to_c0(samp%c2_to_c1)
@@ -785,20 +785,17 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
          if ((il0==1).or.(geom%nl0i>1)) then
             write(mpl%info,'(a10,a,i3)') '','Level ',nam%levs(il0)
             call flush(mpl%info)
-            mask_c2 = samp%c1l0_log(samp%c2_to_c1,il0)
-            if (any(mask_c2)) then
-               lon_c2 = geom%lon(samp%c2_to_c0)
-               lat_c2 = geom%lat(samp%c2_to_c0)
-               call kdtree%create(mpl,nam%nc2,lon_c2,lat_c2,mask=mask_c2)
-               do ic2=1,nam%nc2
-                  ic1 = samp%c2_to_c1(ic2)
-                  ic0 = samp%c2_to_c0(ic2)
-                  nc2_eff = min(nam%nc2,count(samp%c1l0_log(samp%c2_to_c1,il0)))
-                  if (samp%c1l0_log(ic1,il0)) call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0), &
-                   & nc2_eff,samp%nn_c2_index(1:nc2_eff,ic2,il0),samp%nn_c2_dist(1:nc2_eff,ic2,il0))
-               end do
-               call kdtree%dealloc
-            end if
+            lon_c2 = geom%lon(samp%c2_to_c0)
+            lat_c2 = geom%lat(samp%c2_to_c0)
+            mask_c2 = .true.
+            call kdtree%create(mpl,nam%nc2,lon_c2,lat_c2,mask=mask_c2)
+            do ic2=1,nam%nc2
+               ic1 = samp%c2_to_c1(ic2)
+               ic0 = samp%c2_to_c0(ic2)
+               call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nam%nc2,samp%nn_c2_index(:,ic2,il0), &
+             & samp%nn_c2_dist(:,ic2,il0))
+            end do
+            call kdtree%dealloc
          end if
       end do
    end if
@@ -901,8 +898,7 @@ if (nam%local_diag.and.(nam%nldwv>0)) then
    write(mpl%info,'(a7,a)') '','Compute nearest neighbors for local diagnostics output'
    call flush(mpl%info)
    allocate(samp%nn_ldwv_index(nam%nldwv))
-   call kdtree%create(mpl,nam%nc2,geom%lon(samp%c2_to_c0), &
-                geom%lat(samp%c2_to_c0),mask=samp%c1l0_log(samp%c2_to_c1,1))
+   call kdtree%create(mpl,nam%nc2,geom%lon(samp%c2_to_c0),geom%lat(samp%c2_to_c0),mask=samp%c1l0_log(samp%c2_to_c1,1))
    do ildw=1,nam%nldwv
       call kdtree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),1,samp%nn_ldwv_index(ildw:ildw),nn_dist)
    end do
@@ -1343,7 +1339,7 @@ type(geom_type),intent(in) :: geom     ! Geometry
 type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: jc3,ic1,ic0,jc0,il0,iv,its,ie,ic0a
+integer :: jc3,ic1,ic0,jc0,il0,iv,its,ie,isub,ie_sub,ic0a
 real(kind_real),allocatable :: var(:,:,:,:)
 logical :: valid,mask_c0a(geom%nc0a,geom%nl0),mask_c0(geom%nc0,geom%nl0)
 
@@ -1375,7 +1371,14 @@ case ('all_members')
       do iv=1,nam%nv
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.all(ens%fld(ic0a,il0,iv,its,:)>nam%mask_th)
+               valid = .true.
+               do isub=1,ens%nsub
+                  do ie_sub=1,ens%ne/ens%nsub
+                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
+                     valid = valid.and.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
+                  end do
+               end do
+               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
             end do
          end do
       end do
@@ -1386,7 +1389,14 @@ case ('any_member')
       do iv=1,nam%nv
          do il0=1,geom%nl0
             do ic0a=1,geom%nc0a
-               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.any(ens%fld(ic0a,il0,iv,its,:)>nam%mask_th)
+               valid = .false.
+               do isub=1,ens%nsub
+                  do ie_sub=1,ens%ne/ens%nsub
+                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
+                     valid = valid.or.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
+                  end do
+               end do
+               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
             end do
          end do
       end do
@@ -1395,6 +1405,16 @@ end select
 
 ! Local to global
 call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,mask_c0)
+
+! Print results
+select case (trim(nam%mask_type))
+case ('stddev','all_members','any_member')
+   write(mpl%info,'(a10,a)') '','Number of points excluded from HDIAG sampling:'
+   do il0=1,geom%nl0
+      write(mpl%info,'(a10,a,i3,a,i8,a,i8)') '','Level',nam%levs(il0),': ',count(geom%mask_c0(:,il0))-count(mask_c0(:,il0)), &
+    & ' of ',count(geom%mask_c0(:,il0))
+   end do
+end select
 
 ! First point
 do il0=1,geom%nl0
@@ -1669,14 +1689,12 @@ samp%lcheck_c0d = samp%lcheck_c0a
 do ic2a=1,samp%nc2a
    ic2 = samp%c2a_to_c2(ic2a)
    ic1 = samp%c2_to_c1(ic2)
-   if (any(samp%c1l0_log(ic1,:))) then
-      do jc1=1,nam%nc1
-         if (samp%displ_mask(jc1,ic2)) then
-            jc0 = samp%c1_to_c0(jc1)
-            samp%lcheck_c0d(jc0) = .true.
-         end if
-      end do
-   end if
+   do jc1=1,nam%nc1
+      if (samp%displ_mask(jc1,ic2)) then
+         jc0 = samp%c1_to_c0(jc1)
+         samp%lcheck_c0d(jc0) = .true.
+      end if
+   end do
 end do
 samp%nc0d = count(samp%lcheck_c0d)
 
@@ -1911,8 +1929,7 @@ do il0=1,geom%nl0
       ic2 = samp%c2a_to_c2(ic2a)
       ic1 = samp%c2_to_c1(ic2)
       jc2 = 1
-      do while (isnotmsi(samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))) &
-    & .and.(samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<nam%diag_rhflt))
+      do while (samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<nam%diag_rhflt)
           kc2 = samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))
           samp%lcheck_c2f(kc2) = .true.
           jc2 = jc2+1
@@ -2001,72 +2018,72 @@ if (rflt>0.0) then
 
    !$omp parallel do schedule(static) private(ic2a,ic2,ic1,nc2eff,jc2,distnorm,norm,wgt) firstprivate(diag_eff,diag_eff_dist,order)
    do ic2a=1,samp%nc2a
+      ! Indices
       ic2 = samp%c2a_to_c2(ic2a)
       ic1 = samp%c2_to_c1(ic2)
-      if (samp%c1l0_log(ic1,il0)) then
-         ! Allocation
-         allocate(diag_eff(nam%nc2))
-         allocate(diag_eff_dist(nam%nc2))
 
-         ! Build diag_eff of valid points
-         nc2eff = 0
-         jc2 = 1
-         do while (isnotmsi(samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))).and.(samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<rflt))
-            ! Check the point validity
-            kc2 = samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))
-            if (nam_rad) then
-               kc2_glb = samp%c2_to_c2f(kc2)
-            else
-               kc2_glb = kc2
-            end if
-            if (isnotmsr(diag_glb(kc2_glb))) then
-               nc2eff = nc2eff+1
-               diag_eff(nc2eff) = diag_glb(kc2_glb)
-               diag_eff_dist(nc2eff) = samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))
-            end if
-            jc2 = jc2+1
-            if (jc2>nam%nc2) exit
-         end do
+      ! Allocation
+      allocate(diag_eff(nam%nc2))
+      allocate(diag_eff_dist(nam%nc2))
 
-         ! Apply filter
-         if (nc2eff>0) then
-            select case (trim(filter_type))
-            case ('average')
-               ! Compute average
-               diag(ic2a) = sum(diag_eff(1:nc2eff))/real(nc2eff,kind_real)
-            case ('gc99')
-               ! Gaspari-Cohn (1999) kernel
-               diag(ic2a) = 0.0
-               norm = 0.0
-               do jc2=1,nc2eff
-                  distnorm = diag_eff_dist(jc2)/rflt
-                  wgt = gc99(mpl,distnorm)
-                  diag(ic2a) = diag(ic2a)+wgt*diag_eff(jc2)
-                  norm = norm+wgt
-               end do
-               diag(ic2a) = diag(ic2a)/norm
-            case ('median')
-               ! Compute median
-               allocate(order(nc2eff))
-               call qsort(nc2eff,diag_eff(1:nc2eff),order)
-               if (mod(nc2eff,2)==0) then
-                  diag(ic2a) = 0.5*(diag_eff(nc2eff/2)+diag_eff(nc2eff/2+1))
-               else
-                  diag(ic2a) = diag_eff((nc2eff+1)/2)
-               end if
-               deallocate(order)
-            case default
-               ! Wrong filter
-               call mpl%abort('wrong filter type')
-            end select
+      ! Build diag_eff of valid points
+      nc2eff = 0
+      jc2 = 1
+      do while (samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<rflt)
+         ! Check the point validity
+         kc2 = samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))
+         if (nam_rad) then
+            kc2_glb = samp%c2_to_c2f(kc2)
          else
-            call msr(diag(ic2a))
+            kc2_glb = kc2
          end if
+         if (isnotmsr(diag_glb(kc2_glb))) then
+            nc2eff = nc2eff+1
+            diag_eff(nc2eff) = diag_glb(kc2_glb)
+            diag_eff_dist(nc2eff) = samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))
+         end if
+         jc2 = jc2+1
+         if (jc2>nam%nc2) exit
+      end do
 
-         ! Release memory
-         deallocate(diag_eff)
-         deallocate(diag_eff_dist)
+      ! Apply filter
+      if (nc2eff>0) then
+         select case (trim(filter_type))
+         case ('average')
+            ! Compute average
+            diag(ic2a) = sum(diag_eff(1:nc2eff))/real(nc2eff,kind_real)
+         case ('gc99')
+            ! Gaspari-Cohn (1999) kernel
+            diag(ic2a) = 0.0
+            norm = 0.0
+            do jc2=1,nc2eff
+               distnorm = diag_eff_dist(jc2)/rflt
+               wgt = gc99(mpl,distnorm)
+               diag(ic2a) = diag(ic2a)+wgt*diag_eff(jc2)
+               norm = norm+wgt
+            end do
+            diag(ic2a) = diag(ic2a)/norm
+         case ('median')
+            ! Compute median
+            allocate(order(nc2eff))
+            call qsort(nc2eff,diag_eff(1:nc2eff),order)
+            if (mod(nc2eff,2)==0) then
+               diag(ic2a) = 0.5*(diag_eff(nc2eff/2)+diag_eff(nc2eff/2+1))
+            else
+               diag(ic2a) = diag_eff((nc2eff+1)/2)
+            end if
+            deallocate(order)
+         case default
+            ! Wrong filter
+            call mpl%abort('wrong filter type')
+         end select
+      else
+         call msr(diag(ic2a))
       end if
+
+      ! Release memory
+      deallocate(diag_eff)
+      deallocate(diag_eff_dist)
    end do
    !$omp end parallel do
 end if
