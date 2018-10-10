@@ -34,7 +34,7 @@ type mpl_type
    integer :: nthread               ! Number of OpenMP threads
 
    type(fckit_mpi_comm) :: f_comm   ! Interface to fckit
-   
+
    ! Progression print
    integer :: nprog                 ! Progression array size
    integer :: progint               ! Progression integer
@@ -868,7 +868,7 @@ end if
 
 ! Allocation
 allocate(sbuf(n_loc*nl))
-   
+
 ! Prepare buffer
 do il=1,nl
    do i_loc=1,n_loc

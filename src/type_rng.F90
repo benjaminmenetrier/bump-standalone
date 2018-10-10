@@ -486,7 +486,7 @@ if (mpl%main) then
       allocate(ihor_tmp(ns+nrep_eff))
       allocate(lmask(n))
       allocate(val_to_full(nval))
-   
+
       ! Initialization
       call msi(ihor_tmp)
       lmask = mask
@@ -535,7 +535,7 @@ if (mpl%main) then
             ir = val_to_full(irval)
             ihor_tmp(is) = ir
             lmask(ir) = .false.
-      
+
             ! Shift valid points array
             if (irval<nval) then
                cdf(irval:nval-1) = cdf(irval+1:nval)
@@ -546,7 +546,7 @@ if (mpl%main) then
             ! Renormalize cdf
             cdf_norm = 1.0/cdf(nval)
             cdf(1:nval) = cdf(1:nval)*cdf_norm
-   
+
             ! Update
             call mpl%prog_print(is)
          end do
@@ -561,19 +561,19 @@ if (mpl%main) then
          do is=1,ns+nrep_eff
             ! Create KD-tree (unsorted)
             if (is>2) call kdtree%create(mpl,n,lon,lat,mask=smask,sort=.false.)
-      
+
             ! Initialization
             distmax = 0.0
             irmax = 0
             irvalmax = 0
             itry = 1
-      
+
             ! Find a new point
             do itry=1,ntry
                ! Generate a random index among valid points
                call rng%rand_integer(1,nval,irval)
                ir = val_to_full(irval)
-      
+
                ! Check point validity
                if (is==1) then
                   ! Accept point
@@ -588,7 +588,7 @@ if (mpl%main) then
                      call kdtree%find_nearest_neighbors(lon(ir),lat(ir),1,nn_index(1:1),nn_dist(1:1))
                      d = nn_dist(1)**2/(rh(ir)**2+rh(nn_index(1))**2)
                   end if
-      
+
                   ! Check distance
                   if (sup(d,distmax)) then
                      distmax = d
@@ -597,22 +597,22 @@ if (mpl%main) then
                   end if
                end if
             end do
-      
+
             ! Delete kdtree
             if (is>2) call kdtree%dealloc
-      
+
             ! Add point to sampling
             if (irmax>0) then
                ! New sampling point
                ihor_tmp(is) = irmax
                lmask(irmax) = .false.
                smask(irmax) = .true.
-      
+
                ! Shift valid points array
                if (irvalmax<nval) val_to_full(irvalmax:nval-1) = val_to_full(irvalmax+1:nval)
                nval = nval-1
             end if
-   
+
             ! Update
             call mpl%prog_print(is)
          end do
@@ -641,7 +641,7 @@ if (mpl%main) then
          do irep=1,nrep_eff
             ! Create KD-tree (unsorted)
             call kdtree%create(mpl,ns+nrep_eff,lon_rep,lat_rep,mask=rmask,sort=.false.)
-   
+
             ! Get minimum distance
             do is=1,ns+nrep_eff
                if (rmask(is)) then
@@ -657,10 +657,10 @@ if (mpl%main) then
                   dist(is) = dist(is)**2/(rh(ihor_tmp(nn_index(1)))**2+rh(ihor_tmp(nn_index(2)))**2)
                end if
             end do
-   
+
             ! Delete kdtree
             call kdtree%dealloc
-   
+
             ! Remove worst point
             distmin = huge(1.0)
             call msi(ismin)
@@ -688,7 +688,7 @@ if (mpl%main) then
          end do
       else
          ! Copy ihor
-         ihor = ihor_tmp  
+         ihor = ihor_tmp
       end if
       write(mpl%info,'(a)') '100%'
       call flush(mpl%info)
@@ -704,11 +704,11 @@ if (mpl%main) then
             elapsed = real(system_clock_end-system_clock_start,kind_real) &
                     & /real(count_rate,kind_real)
          end if
-   
+
          ! Allocation
          allocate(sdist(ns,ns))
          allocate(nn_sdist(ns))
-   
+
          ! Compute normalized distances between sampling points
          do is=1,ns
             sdist(is,is) = huge(1.0)
@@ -718,18 +718,18 @@ if (mpl%main) then
                sdist(js,is) = sdist(is,js)
             end do
          end do
-   
+
          ! Find nearest neighbor normalized distance
          do is=1,ns
             nn_sdist(is) = minval(sdist(:,is))
          end do
-   
+
          ! Compute statistics
          nn_sdist_min = minval(nn_sdist)
          nn_sdist_max = maxval(nn_sdist)
          nn_sdist_avg = sum(nn_sdist)/real(ns,kind_real)
          nn_sdist_std = sqrt(sum((nn_sdist-nn_sdist_avg)**2)/real(ns-1,kind_real))
-   
+
          ! Print statistics
          write(mpl%info,'(a10,a)') '','Nearest neighbor normalized distance statistics:'
          write(mpl%info,'(a13,a,e9.2)') '','Minimum: ',nn_sdist_min
