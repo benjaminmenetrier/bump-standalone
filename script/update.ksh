@@ -11,7 +11,7 @@ echo '--- Clean'
 
 # Compile in DEBUG mode
 echo '--- Compile in DEBUG mode'
-cd ../..
+cd ..
 mkdir -p build
 cd build
 rm -fr CMakeCache.txt CMakeFiles cmake_install.cmake Makefile *.mod
@@ -50,18 +50,12 @@ cd ../script
 
 # Recompile documentation
 echo '--- Recompile documentation'
-cd ../doc
-rm -fr html
-doxygen Doxyfile
+./autodoc.ksh
+./architecture.ksh
 
 # Remove build directory
 cd ..
 rm -fr build
-
-# Copy doc directory on ftp
-echo '--- Copy doc directory on ftp'
-lftp ftp://$1:$2@ftpperso.free.fr -e "mirror -e -R doc/html bump;quit"
-cd script
 
 # Git commands
 echo 'git status'

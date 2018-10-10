@@ -168,7 +168,7 @@ do ib=1,bpar%nbe
       cmat_copy%blk(ib)%anisotropic = cmat%blk(ib)%anisotropic
    end if
 end do
-   
+
 ! Allocation
 call cmat_copy%alloc(nam,geom,bpar)
 
@@ -226,7 +226,7 @@ do ib=1,bpar%nbe
          ! Read attributes
          call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
          call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'double_fit',double_fit))
-         if (double_fit==1) then   
+         if (double_fit==1) then
             cmat%blk(ib)%double_fit = .true.
          else
             cmat%blk(ib)%double_fit = .false.
@@ -394,7 +394,7 @@ do ib=1,bpar%nbe
       cmat%blk(ib)%anisotropic = .false.
    end if
 end do
-   
+
 ! Allocation
 call cmat%alloc(nam,geom,bpar)
 
@@ -422,7 +422,7 @@ do ib=1,bpar%nbe
                   fld_c2a(ic2a,:,2) = 0.0
                   fld_c2a(ic2a,:,3) = hdiag%loc_1%blk(ic2a,ib)%fit_rh
                   fld_c2a(ic2a,:,4) = hdiag%loc_1%blk(ic2a,ib)%fit_rv
-                  if (cmat%blk(ib)%double_fit) then 
+                  if (cmat%blk(ib)%double_fit) then
                      fld_c2a(ic2a,:,5) = hdiag%loc_1%blk(ic2a,ib)%fit_rv_rfac
                      fld_c2a(ic2a,:,6) = hdiag%loc_1%blk(ic2a,ib)%fit_rv_coef
                   end if
@@ -650,7 +650,7 @@ call cmat%alloc(bpar,'cmat')
 
 ! Copy attributes
 do ib=1,bpar%nbe
-   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then    
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       cmat%blk(ib)%double_fit = .false.
       cmat%blk(ib)%anisotropic = .false.
    end if

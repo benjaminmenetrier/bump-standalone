@@ -15,6 +15,7 @@ local_diag_loc
 local_diag_ncor
 nicas-2-sqrt_0001-0001_01_01_01_01
 nicas-2-sqrt_0001-0001_01_01_01_01_summary
+obs_0001-0001
 sampling_001
 sampling'
 

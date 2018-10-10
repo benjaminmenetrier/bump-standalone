@@ -13,14 +13,11 @@ mkdir pack
 # Copy files in the main folder
 cp -f .gitignore pack
 cp -f CMakeLists.txt pack
-cp -f LICENSE pack
 cp -f README.md pack
 
 # Copy doc
 mkdir pack/doc
-cp -f doc/*.dox pack/doc
-cp -f doc/Doxyfile pack/doc
-cp -f doc/mainpage.h pack/doc
+cp -fr doc/* pack/doc
 
 # Copy ncl
 mkdir pack/ncl
@@ -29,7 +26,7 @@ cp -f ncl/script/*.ncl pack/ncl/script
 
 # Copy offline
 mkdir pack/offline
-cp -rf offline/* pack/offline
+cp -fr offline/* pack/offline
 
 # Copy run
 mkdir pack/run

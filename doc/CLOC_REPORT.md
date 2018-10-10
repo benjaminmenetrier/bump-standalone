@@ -2,14 +2,14 @@
 
 Code report obtained with [CLOC](https://github.com/AlDanial/cloc).
 
-## BUMP code
+**BUMP code:** 
 
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| Fortran 90 | 54 | 5492 | 8591 | 19644 | 43 |
+| Fortran 90 | 55 | 5451 | 8372 | 19735 | 42 |
 
-## External code 
+**External code:** 
 
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| Fortran 90 | 5 | 645 | 2864 | 2857 | 100 |
+| Fortran 90 | 5 | 664 | 2804 | 2846 | 98 |

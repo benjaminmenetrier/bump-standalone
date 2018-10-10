@@ -497,7 +497,7 @@ integer,intent(in),optional :: ivec               ! Index of the vector of linea
 ! Local variables
 integer :: i_s,ithread
 real(kind_real) :: fld_arr(linop%n_dst,mpl%nthread)
-   
+
 if (check_data) then
    ! Check linear operation
    if (minval(linop%col)<1) call mpl%abort('col<1 for symmetric linear operation '//trim(linop%prefix))
