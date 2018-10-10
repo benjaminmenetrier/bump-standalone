@@ -191,7 +191,6 @@ real(kind_real),allocatable :: lonobs(:),latobs(:),list(:)
 if (nam%nobs<1) call mpl%abort('nobs should be positive for offline observation operator')
 
 ! Allocation
-write(mpl%info,*) 'TEST',nam%nobs
 allocate(lonobs(nam%nobs))
 allocate(latobs(nam%nobs))
 allocate(obs_to_proc(nam%nobs))
@@ -211,7 +210,6 @@ if (mpl%main) then
 end if
 
 ! Broadcast data
-write(mpl%info,*) 'TEST',allocated(lonobs),size(lonobs),mpl%ioproc-1
 call mpl%f_comm%broadcast(lonobs,mpl%ioproc-1)
 call mpl%f_comm%broadcast(latobs,mpl%ioproc-1)
 
