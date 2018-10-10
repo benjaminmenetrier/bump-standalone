@@ -820,46 +820,56 @@ elseif (mpl%nproc>1) then
    else
       ! Generate a distribution
       if (nam%use_metis) then
-         write(mpl%info,'(a7,a,i4,a)') '','Try to use METIS for ',mpl%nproc,' MPI tasks'
-         call flush(mpl%info)
-
-         ! Compute graph
-         call mesh%create(mpl,rng,geom%nc0,geom%lon,geom%lat)
-         call mesh%bnodes
-
+         ! Check METIS existence
          if (mpl%main) then
-            ! Open file
-            filename_metis = trim(nam%prefix)//'_metis'
-            call mpl%newunit(lunit)
-            open(unit=lunit,file=trim(nam%datadir)//'/'//trim(filename_metis),status='replace')
-
-            ! Write header
-            write(lunit,*) mesh%n,mesh%na-mesh%nb/2
-
-            ! Write connectivity
-            do i=1,mesh%n
-               iend = mesh%lend(i)
-               init = .true.
-               do while ((iend/=mesh%lend(i)).or.init)
-                  j = mesh%list(iend)
-                  if (j>0) write(lunit,'(i7)',advance='no') j
-                  iend = mesh%lptr(iend)
-                  init = .false.
-               end do
-               write(lunit,*) ''
-            end do
-
-            ! Close file
-            close(unit=lunit)
-
-            ! Call METIS
-            write(nprocchar,'(i4)') mpl%nproc
-            call execute_command_line('gpmetis '//trim(nam%datadir)//'/'//trim(filename_metis)//' '//adjustl(nprocchar)//' > '// &
-          & trim(nam%datadir)//'/'//trim(filename_metis)//'.out',cmdstat=info)
+            call execute_command_line('gpmetis --help',cmdstat=info)
             ismetis = (info==0)
-            if (.not.ismetis) call mpl%warning('METIS not available to generate the local distribution')
          end if
          call mpl%f_comm%broadcast(ismetis,mpl%ioproc-1)
+
+         if (ismetis) then
+            ! Build METIS graph
+            write(mpl%info,'(a7,a,i4,a)') '','Build METIS graph for ',mpl%nproc,' MPI tasks'
+            call flush(mpl%info)
+
+            ! Compute graph
+            call mesh%create(mpl,rng,geom%nc0,geom%lon,geom%lat)
+            call mesh%bnodes
+
+            if (mpl%main) then
+               ! Open file
+               filename_metis = trim(nam%prefix)//'_metis'
+               call mpl%newunit(lunit)
+               open(unit=lunit,file=trim(nam%datadir)//'/'//trim(filename_metis),status='replace')
+
+               ! Write header
+               write(lunit,*) mesh%n,mesh%na-mesh%nb/2
+
+               ! Write connectivity
+               do i=1,mesh%n
+                  iend = mesh%lend(i)
+                  init = .true.
+                  do while ((iend/=mesh%lend(i)).or.init)
+                     j = mesh%list(iend)
+                     if (j>0) write(lunit,'(i7)',advance='no') j
+                     iend = mesh%lptr(iend)
+                     init = .false.
+                  end do
+                  write(lunit,*) ''
+               end do
+
+               ! Close file
+               close(unit=lunit)
+
+               ! Call METIS
+               write(nprocchar,'(i4)') mpl%nproc
+               call execute_command_line('gpmetis '//trim(nam%datadir)//'/'//trim(filename_metis)//' '//adjustl(nprocchar) &
+             & //' > '//trim(nam%datadir)//'/'//trim(filename_metis)//'.out',cmdstat=info)
+            end if
+            call mpl%f_comm%barrier
+         else
+            call mpl%warning('METIS has been required but is not available to generate the local distribution')
+         end if
       else
          ! No METIS
          ismetis = .false.

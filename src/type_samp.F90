@@ -18,6 +18,7 @@ use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use tools_stripack, only: trans
 use type_com, only: com_type
+use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_io, only: io_type
 use type_kdtree, only: kdtree_type
@@ -708,7 +709,7 @@ end subroutine samp_write
 ! Subroutine: samp_setup_sampling
 ! Purpose: setup sampling
 !----------------------------------------------------------------------
-subroutine samp_setup_sampling(samp,mpl,rng,nam,geom,io)
+subroutine samp_setup_sampling(samp,mpl,rng,nam,geom,io,ens)
 
 implicit none
 
@@ -719,6 +720,7 @@ type(rng_type),intent(inout) :: rng    ! Random number generator
 type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(io_type),intent(in) :: io         ! I/O
+type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
 integer :: ios,ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,nc2_eff
@@ -757,7 +759,7 @@ if (ios==1) then
    end if
 
    ! Compute sampling mask
-   call samp%compute_sampling_mask(nam,geom)
+   call samp%compute_sampling_mask(mpl,nam,geom,ens)
 end if
 
 if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
@@ -1329,22 +1331,74 @@ end subroutine samp_compute_sampling_lct
 ! Subroutine: samp_compute_sampling_mask
 ! Purpose: compute sampling mask
 !----------------------------------------------------------------------
-subroutine samp_compute_sampling_mask(samp,nam,geom)
+subroutine samp_compute_sampling_mask(samp,mpl,nam,geom,ens)
 
 implicit none
 
 ! Passed variables
 class(samp_type),intent(inout) :: samp ! Sampling
+type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
+type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: jc3,ic1,ic0,jc0,il0
-logical :: valid
+integer :: jc3,ic1,ic0,jc0,il0,iv,its,ie,ic0a
+real(kind_real),allocatable :: var(:,:,:,:)
+logical :: valid,mask_c0a(geom%nc0a,geom%nl0),mask_c0(geom%nc0,geom%nl0)
+
+! Copy geometry mask
+mask_c0a = geom%mask_c0a
+
+! Ensemble-based mask
+select case (trim(nam%mask_type))
+case ('stddev')
+   ! Allocation
+   allocate(var(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+
+   ! Compute variances
+   var = 0.0
+   do ie=1,ens%ne
+      var = var +ens%fld(:,:,:,:,ie)**2
+   end do
+   var = var/real(ens%ne-ens%nsub,kind_real)
+
+   ! Check whether standard-deviation is over the threshold
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
+      end do
+   end do
+case ('all_members')
+   ! Check whether all members are over the threshold
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         do il0=1,geom%nl0
+            do ic0a=1,geom%nc0a
+               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.all(ens%fld(ic0a,il0,iv,its,:)>nam%mask_th)
+            end do
+         end do
+      end do
+   end do
+case ('any_member')
+   ! Check whether any member is over the threshold
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         do il0=1,geom%nl0
+            do ic0a=1,geom%nc0a
+               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.any(ens%fld(ic0a,il0,iv,its,:)>nam%mask_th)
+            end do
+         end do
+      end do
+   end do
+end select
+
+! Local to global
+call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,mask_c0)
 
 ! First point
 do il0=1,geom%nl0
-   samp%c1l0_log(:,il0) = geom%mask_c0(samp%c1_to_c0,il0)
+   samp%c1l0_log(:,il0) = mask_c0(samp%c1_to_c0,il0)
 end do
 
 ! Second point
@@ -1360,7 +1414,7 @@ do il0=1,geom%nl0
 
          if (valid) then
             ! Check mask
-            valid = geom%mask_c0(ic0,il0).and.geom%mask_c0(jc0,il0)
+            valid = mask_c0(ic0,il0).and.mask_c0(jc0,il0)
 
             ! Check mask bounds
             if (nam%mask_check.and.valid) call geom%check_arc(il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),valid)
