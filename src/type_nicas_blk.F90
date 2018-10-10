@@ -1707,7 +1707,7 @@ do isbb=1,nicas_blk%nsbb
          coef(ic1,il1) = sqrt(rv_coef_c1(ic1,il1)*rv_coef_c1(jc1,jl1))
       end if
       if (nicas_blk%anisotropic) Hcoef(ic1,il1) = sqrt(Hcoef_c1(ic1,il1)*Hcoef_c1(jc1,jl1))
-   end do      
+   end do
 
    ! Pack data
    if (nicas_blk%double_fit) then
