@@ -855,10 +855,8 @@ elseif (mpl%nproc>1) then
             ! Call METIS
             write(nprocchar,'(i4)') mpl%nproc
             call execute_command_line('gpmetis '//trim(nam%datadir)//'/'//trim(filename_metis)//' '//adjustl(nprocchar)//' > '// &
-          & trim(nam%datadir)//'/'//trim(filename_metis)//'.out')
-
-            ! Check for METIS output
-            inquire(file=trim(nam%datadir)//'/'//trim(filename_metis)//'.part.'//adjustl(nprocchar),exist=ismetis)
+          & trim(nam%datadir)//'/'//trim(filename_metis)//'.out',cmdstat=info)
+            ismetis = (info==0) 
             if (.not.ismetis) call mpl%warning('METIS not available to generate the local distribution')
          end if
          call mpl%f_comm%broadcast(ismetis,mpl%ioproc-1)
