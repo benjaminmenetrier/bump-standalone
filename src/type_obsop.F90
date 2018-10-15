@@ -241,11 +241,14 @@ end if
 
 ! Broadcast
 call mpl%f_comm%broadcast(obs_to_proc,mpl%ioproc-1)
-obsop%nobs = count(obs_to_proc==mpl%myproc)
+obsop%nobsa = count(obs_to_proc==mpl%myproc)
+
+! Release memory
+call obsop%dealloc
 
 ! Allocation
-allocate(obsop%lonobs(obsop%nobs))
-allocate(obsop%latobs(obsop%nobs))
+allocate(obsop%lonobs(obsop%nobsa))
+allocate(obsop%latobs(obsop%nobsa))
 
 ! Copy local observations
 iobsa = 0
@@ -264,24 +267,27 @@ end subroutine obsop_generate
 ! Subroutine: obsop_from
 ! Purpose: copy observation operator data
 !----------------------------------------------------------------------
-subroutine obsop_from(obsop,nobs,lonobs,latobs)
+subroutine obsop_from(obsop,nobsa,lonobs,latobs)
 
 implicit none
 
 ! Passed variables
-class(obsop_type),intent(inout) :: obsop   ! Observation operator data
-integer,intent(in) :: nobs                 ! Number of observations
-real(kind_real),intent(in) :: lonobs(nobs) ! Observations longitudes (in degrees)
-real(kind_real),intent(in) :: latobs(nobs) ! Observations latitudes (in degrees)
+class(obsop_type),intent(inout) :: obsop    ! Observation operator data
+integer,intent(in) :: nobsa                 ! Number of observations
+real(kind_real),intent(in) :: lonobs(nobsa) ! Observations longitudes (in degrees)
+real(kind_real),intent(in) :: latobs(nobsa) ! Observations latitudes (in degrees)
 
 ! Get size
-obsop%nobs = nobs
+obsop%nobsa = nobsa
+
+! Release memory
+call obsop%dealloc
 
 ! Allocation
-allocate(obsop%lonobs(obsop%nobs))
-allocate(obsop%latobs(obsop%nobs))
+allocate(obsop%lonobs(obsop%nobsa))
+allocate(obsop%latobs(obsop%nobsa))
 
-if (obsop%nobs>0) then
+if (obsop%nobsa>0) then
    ! Copy
    obsop%lonobs = lonobs*deg2rad
    obsop%latobs = latobs*deg2rad
@@ -319,8 +325,7 @@ type(linop_type) :: hfull
 allocate(proc_to_nobsa(mpl%nproc))
 
 ! Get global number of observations
-call mpl%f_comm%allgather(obsop%nobs,proc_to_nobsa)
-obsop%nobsa = obsop%nobs
+call mpl%f_comm%allgather(obsop%nobsa,proc_to_nobsa)
 obsop%nobs = sum(proc_to_nobsa)
 
 ! Print input
@@ -536,8 +541,8 @@ end select
 
 ! Allocation
 obsop%nobsa = count(obs_to_proc==mpl%myproc)
-
 allocate(obsop%obsa_to_obs(obsop%nobsa))
+
 ! Fill proc_to_nobsa, obs_to_obsa and obsa_to_obs
 proc_to_nobsa = 0
 do iobs=1,obsop%nobs
