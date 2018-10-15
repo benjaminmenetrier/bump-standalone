@@ -217,7 +217,7 @@ do iv=1,nam%nv
             ilat = geom%c0_to_lat(ic0)
             fld_c0(ic0,il0) = fld_tmp(ilon,ilat,il0)
          end do
-      end do 
+      end do
    end if
    call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld(:,:,iv))
 end do

@@ -37,7 +37,10 @@ real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to 
 ! Sampling derived type
 type samp_type
    ! Sampling
-   real(kind_real),allocatable :: rh_c0(:,:)        ! Sampling radius
+   real(kind_real),allocatable :: rh_c0(:,:)        ! Sampling radius on subset Sc0
+   logical,allocatable :: mask_c0(:,:)              ! Mask on subset Sc0
+   logical,allocatable :: mask_hor_c0(:)            ! Union of horizontal masks on subset Sc0, global
+   integer,allocatable :: nc0_mask(:)               ! Horizontal mask size on subset Sc0
    integer,allocatable :: c1_to_c0(:)               ! First sampling index
    logical,allocatable :: c1l0_log(:,:)             ! Log for the first sampling index
    integer,allocatable :: c1c3_to_c0(:,:)           ! Second horizontal sampling index
@@ -109,6 +112,7 @@ contains
    procedure :: read => samp_read
    procedure :: write => samp_write
    procedure :: setup_sampling => samp_setup_sampling
+   procedure :: compute_mask => samp_compute_mask
    procedure :: compute_sampling_zs => samp_compute_sampling_zs
    procedure :: compute_sampling_ps => samp_compute_sampling_ps
    procedure :: compute_sampling_lct => samp_compute_sampling_lct
@@ -142,6 +146,9 @@ type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Allocation
 allocate(samp%rh_c0(geom%nc0,geom%nl0))
+allocate(samp%mask_c0(geom%nc0,geom%nl0))
+allocate(samp%mask_hor_c0(geom%nc0))
+allocate(samp%nc0_mask(geom%nl0))
 allocate(samp%c1_to_c0(nam%nc1))
 allocate(samp%c1l0_log(nam%nc1,geom%nl0))
 allocate(samp%c1c3_to_c0(nam%nc1,nam%nc3))
@@ -163,6 +170,9 @@ end if
 
 ! Initialization
 call msr(samp%rh_c0)
+samp%mask_c0 = .false.
+samp%mask_hor_c0 = .false.
+call msi(samp%nc0_mask)
 call msi(samp%c1_to_c0)
 samp%c1l0_log = .false.
 call msi(samp%c1c3_to_c0)
@@ -200,6 +210,9 @@ integer :: il0
 
 ! Release memory
 if (allocated(samp%rh_c0)) deallocate(samp%rh_c0)
+if (allocated(samp%mask_c0)) deallocate(samp%mask_c0)
+if (allocated(samp%mask_hor_c0)) deallocate(samp%mask_hor_c0)
+if (allocated(samp%nc0_mask)) deallocate(samp%nc0_mask)
 if (allocated(samp%c1_to_c0)) deallocate(samp%c1_to_c0)
 if (allocated(samp%c1l0_log)) deallocate(samp%c1l0_log)
 if (allocated(samp%c1c3_to_c0)) deallocate(samp%c1c3_to_c0)
@@ -747,6 +760,9 @@ call samp%alloc(nam,geom)
 ios = 1
 if (nam%sam_read) call samp%read(mpl,nam,geom,ios)
 if (ios==1) then
+   ! Compute mask
+   call samp%compute_mask(mpl,nam,geom,ens)
+
    ! Compute zero-separation sampling
    call samp%compute_sampling_zs(mpl,rng,nam,geom)
 
@@ -759,7 +775,7 @@ if (ios==1) then
    end if
 
    ! Compute sampling mask
-   call samp%compute_sampling_mask(mpl,nam,geom,ens)
+   call samp%compute_sampling_mask(mpl,nam,geom)
 end if
 
 if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
@@ -928,6 +944,87 @@ call flush(mpl%info)
 end subroutine samp_setup_sampling
 
 !----------------------------------------------------------------------
+! Subroutine: samp_compute_mask
+! Purpose: compute mask
+!----------------------------------------------------------------------
+subroutine samp_compute_mask(samp,mpl,nam,geom,ens)
+
+implicit none
+
+! Passed variables
+class(samp_type),intent(inout) :: samp ! Sampling
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(ens_type),intent(in) :: ens       ! Ensemble
+
+! Local variables
+integer :: ic0a,il0,iv,its,ie,isub,ie_sub
+real(kind_real),allocatable :: var(:,:,:,:)
+logical :: valid,mask_c0a(geom%nc0a,geom%nl0)
+
+! Copy geometry mask
+mask_c0a = geom%mask_c0a
+
+! Ensemble-based mask
+select case (trim(nam%mask_type))
+case ('stddev')
+   ! Allocation
+   allocate(var(geom%nc0a,geom%nl0,nam%nv,nam%nts))
+
+   ! Compute variances
+   var = 0.0
+   do ie=1,ens%ne
+      var = var +ens%fld(:,:,:,:,ie)**2
+   end do
+   var = var/real(ens%ne-ens%nsub,kind_real)
+
+   ! Check whether standard-deviation is over the threshold
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
+      end do
+   end do
+case ('all_members')
+   ! Check whether all members are over the threshold
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         do il0=1,geom%nl0
+            do ic0a=1,geom%nc0a
+               valid = .true.
+               do isub=1,ens%nsub
+                  do ie_sub=1,ens%ne/ens%nsub
+                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
+                     valid = valid.and.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
+                  end do
+               end do
+               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
+            end do
+         end do
+      end do
+   end do
+end select
+
+! Local to global
+call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,samp%mask_c0)
+
+! Other masks
+samp%mask_hor_c0 = any(samp%mask_c0,dim=2)
+samp%nc0_mask = count(samp%mask_c0,dim=1)
+
+! Print results
+select case (trim(nam%mask_type))
+case ('stddev','all_members','any_member')
+   write(mpl%info,'(a7,a)') '','Number of points excluded from HDIAG sampling:'
+   do il0=1,geom%nl0
+      write(mpl%info,'(a10,a,i3,a,i8,a,i8)') '','Level',nam%levs(il0),': ',count(geom%mask_c0(:,il0))-count(samp%mask_c0(:,il0)), &
+    & ' of ',count(geom%mask_c0(:,il0))
+   end do
+end select
+
+end subroutine samp_compute_mask
+
+!----------------------------------------------------------------------
 ! Subroutine: samp_compute_sampling_zs
 ! Purpose: compute zero-separation sampling
 !----------------------------------------------------------------------
@@ -949,24 +1046,24 @@ real(kind_real) :: nn_dist(1)
 type(kdtree_type) :: kdtree
 
 ! Compute subset
-if (nam%nc1<maxval(geom%nc0_mask)) then
+if (nam%nc1<maxval(samp%nc0_mask)) then
    write(mpl%info,'(a7,a)',advance='no') '','Compute horizontal subset C1: '
    call flush(mpl%info)
    select case (trim(nam%draw_type))
    case ('random_uniform')
       ! Random draw
       do ic0=1,geom%nc0
-         if (geom%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 1.0
+         if (samp%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 1.0
       end do
    case ('random_coast')
       ! More points around coasts
       do ic0=1,geom%nc0
-         if (geom%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 0.0
+         if (samp%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 0.0
       end do
       do il0=1,geom%nl0
-         call kdtree%create(mpl,geom%nc0,geom%lon,geom%lat,mask=.not.geom%mask_c0(:,il0))
+         call kdtree%create(mpl,geom%nc0,geom%lon,geom%lat,mask=.not.samp%mask_c0(:,il0))
          do ic0=1,geom%nc0
-            if (geom%mask_c0(ic0,il0)) then
+            if (samp%mask_c0(ic0,il0)) then
                call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)
                samp%rh_c0(ic0,1) = samp%rh_c0(ic0,1)+exp(-nn_dist(1)/Lcoast)
             else
@@ -979,12 +1076,12 @@ if (nam%nc1<maxval(geom%nc0_mask)) then
    end select
 
    ! Initialize sampling
-   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,geom%mask_hor_c0,samp%rh_c0(:,1),nam%ntry,nam%nrep, &
+   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,samp%rh_c0(:,1),nam%ntry,nam%nrep, &
  & nam%nc1,samp%c1_to_c0)
 else
    ic1 = 0
    do ic0=1,geom%nc0
-      if (geom%mask_hor_c0(ic0)) then
+      if (samp%mask_hor_c0(ic0)) then
          ic1 = ic1+1
          samp%c1_to_c0(ic1) = ic0
       end if
@@ -1028,11 +1125,11 @@ if (nam%nc3>1) then
    end do
 
    ! Define valid nodes vector
-   nvc0 = count(geom%mask_hor_c0)
+   nvc0 = count(samp%mask_hor_c0)
    allocate(vic0(nvc0))
    ivc0 = 0
    do ic0=1,geom%nc0
-      if (geom%mask_hor_c0(ic0)) then
+      if (samp%mask_hor_c0(ic0)) then
          ivc0 = ivc0+1
          vic0(ivc0) = ic0
       end if
@@ -1174,7 +1271,7 @@ do ic1_loc=1,nc1_loc(mpl%myproc)
          jc0 = nn_index(ic3)
          samp%c1c3_to_c0(ic1,ic3) = nn_index(ic3)
          do il0=1,geom%nl0
-            samp%c1c3l0_log(ic1,ic3,il0) = geom%mask_c0(jc0,il0)
+            samp%c1c3l0_log(ic1,ic3,il0) = samp%mask_c0(jc0,il0)
          end do
       end do
 
@@ -1327,7 +1424,7 @@ end subroutine samp_compute_sampling_lct
 ! Subroutine: samp_compute_sampling_mask
 ! Purpose: compute sampling mask
 !----------------------------------------------------------------------
-subroutine samp_compute_sampling_mask(samp,mpl,nam,geom,ens)
+subroutine samp_compute_sampling_mask(samp,mpl,nam,geom)
 
 implicit none
 
@@ -1336,89 +1433,14 @@ class(samp_type),intent(inout) :: samp ! Sampling
 type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
-type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: jc3,ic1,ic0,jc0,il0,iv,its,ie,isub,ie_sub,ic0a
-real(kind_real),allocatable :: var(:,:,:,:)
-logical :: valid,mask_c0a(geom%nc0a,geom%nl0),mask_c0(geom%nc0,geom%nl0)
-
-! Copy geometry mask
-mask_c0a = geom%mask_c0a
-
-! Ensemble-based mask
-select case (trim(nam%mask_type))
-case ('stddev')
-   ! Allocation
-   allocate(var(geom%nc0a,geom%nl0,nam%nv,nam%nts))
-
-   ! Compute variances
-   var = 0.0
-   do ie=1,ens%ne
-      var = var +ens%fld(:,:,:,:,ie)**2
-   end do
-   var = var/real(ens%ne-ens%nsub,kind_real)
-
-   ! Check whether standard-deviation is over the threshold
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
-      end do
-   end do
-case ('all_members')
-   ! Check whether all members are over the threshold
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         do il0=1,geom%nl0
-            do ic0a=1,geom%nc0a
-               valid = .true.
-               do isub=1,ens%nsub
-                  do ie_sub=1,ens%ne/ens%nsub
-                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
-                     valid = valid.and.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
-                  end do
-               end do
-               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
-            end do
-         end do
-      end do
-   end do
-case ('any_member')
-   ! Check whether any member is over the threshold
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         do il0=1,geom%nl0
-            do ic0a=1,geom%nc0a
-               valid = .false.
-               do isub=1,ens%nsub
-                  do ie_sub=1,ens%ne/ens%nsub
-                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
-                     valid = valid.or.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
-                  end do
-               end do
-               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
-            end do
-         end do
-      end do
-   end do
-end select
-
-! Local to global
-call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,mask_c0)
-
-! Print results
-select case (trim(nam%mask_type))
-case ('stddev','all_members','any_member')
-   write(mpl%info,'(a10,a)') '','Number of points excluded from HDIAG sampling:'
-   do il0=1,geom%nl0
-      write(mpl%info,'(a10,a,i3,a,i8,a,i8)') '','Level',nam%levs(il0),': ',count(geom%mask_c0(:,il0))-count(mask_c0(:,il0)), &
-    & ' of ',count(geom%mask_c0(:,il0))
-   end do
-end select
+integer :: il0,jc3,ic1,ic0,jc0
+logical :: valid
 
 ! First point
 do il0=1,geom%nl0
-   samp%c1l0_log(:,il0) = mask_c0(samp%c1_to_c0,il0)
+   samp%c1l0_log(:,il0) = samp%mask_c0(samp%c1_to_c0,il0)
 end do
 
 ! Second point
@@ -1434,7 +1456,7 @@ do il0=1,geom%nl0
 
          if (valid) then
             ! Check mask
-            valid = mask_c0(ic0,il0).and.mask_c0(jc0,il0)
+            valid = samp%mask_c0(ic0,il0).and.samp%mask_c0(jc0,il0)
 
             ! Check mask bounds
             if (nam%mask_check.and.valid) call geom%check_arc(il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),valid)

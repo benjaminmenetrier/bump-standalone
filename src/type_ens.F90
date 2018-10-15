@@ -160,9 +160,6 @@ do isub=1,ens%nsub
    call flush(mpl%info)
 end do
 
-! Remove mean
-call ens%remove_mean
-
 end subroutine ens_load
 
 !----------------------------------------------------------------------
