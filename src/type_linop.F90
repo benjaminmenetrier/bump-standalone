@@ -938,7 +938,7 @@ type(linop_type),intent(inout) :: interp_base ! Linear operator (base interpolat
 ! Local variables
 integer :: ic0,ic1,jc0,jc1,i_s
 real(kind_real) :: renorm(geom%nc0)
-real(kind_real),allocatable :: lon_c1(:),lat_c1(:)
+real(kind_real),allocatable :: lon_c1(:),lat_c1(:),lon_col(:),lat_col(:)
 logical :: test_c0(geom%nc0)
 logical,allocatable :: mask_c1(:),mask_extra(:),valid(:)
 
@@ -969,11 +969,20 @@ do i_s=1,interp_base%n_s
    valid(i_s) = geom%mask_c0(ic0,il0i).and.geom%mask_c0(jc0,il0i)
 end do
 
-! Check mask boundaries
 if (mask_check) then
    write(mpl%info,'(a10,a,i3,a)',advance='no') '','Sublevel ',il0i,': '
    call flush(mpl%info)
-   call interp_base%interp_check_mask(mpl,geom,valid,il0i,col_to_ic0=c1_to_c0)
+
+   ! Allocation
+   allocate(lon_col(nc1))
+   allocate(lat_col(nc1))
+
+   ! Initialization
+   lon_col = geom%lon(c1_to_c0)
+   lat_col = geom%lat(c1_to_c0)
+
+   ! Check mask boundaries
+   call interp_base%interp_check_mask(mpl,geom,valid,il0i,lon_col=lon_col,lat_col=lat_col)
 end if
 
 if (geom%nl0i>1) then
@@ -1043,21 +1052,24 @@ end subroutine linop_interp_grid
 ! Subroutine: linop_interp_check_mask
 ! Purpose: check mask boundaries for interpolations
 !----------------------------------------------------------------------
-subroutine linop_interp_check_mask(linop,mpl,geom,valid,il0,row_to_ic0,col_to_ic0)
+subroutine linop_interp_check_mask(linop,mpl,geom,valid,il0,lon_row,lat_row,lon_col,lat_col)
 
 implicit none
 
 ! Passed variables
-class(linop_type),intent(inout) :: linop               ! Linear operator
-type(mpl_type),intent(inout) :: mpl                    ! MPI data
-type(geom_type),intent(in) :: geom                     ! Geometry
-logical,intent(inout) :: valid(linop%n_s)              ! Valid points
-integer,intent(in),optional :: row_to_ic0(linop%n_dst) ! Conversion from row to ic0 (identity if missing)
-integer,intent(in),optional :: col_to_ic0(linop%n_src) ! Conversion from col to ic0 (identity if missing)
+class(linop_type),intent(inout) :: linop                    ! Linear operator
+type(mpl_type),intent(inout) :: mpl                         ! MPI data
+type(geom_type),intent(in) :: geom                          ! Geometry
+logical,intent(inout) :: valid(linop%n_s)                   ! Valid points
+real(kind_real),intent(in),optional :: lon_row(linop%n_dst) ! Row longitude (Sc0 longitude if missing)
+real(kind_real),intent(in),optional :: lat_row(linop%n_dst) ! Row latitude (Sc0 latitude if missing)
+real(kind_real),intent(in),optional :: lon_col(linop%n_src) ! Column longitude (Sc0 longitude if missing)
+real(kind_real),intent(in),optional :: lat_col(linop%n_src) ! Column latitude (Sc0 latitude if missing)
 
 ! Local variables
-integer :: ic0,i_s,jc0,il0,iproc
+integer :: i_s,il0,iproc
 integer :: i_s_s(mpl%nproc),i_s_e(mpl%nproc),n_s_loc(mpl%nproc),i_s_loc
+real(kind_real) :: llon_row,llat_row,llon_col,llat_col
 type(fckit_mpi_status) :: status
 
 ! MPI splitting
@@ -1065,26 +1077,32 @@ call mpl%split(linop%n_s,i_s_s,i_s_e,n_s_loc)
 
 ! Check that interpolations are not crossing mask boundaries
 call mpl%prog_init(n_s_loc(mpl%myproc))
-!$omp parallel do schedule(static) private(i_s_loc,i_s,ic0,jc0)
+!$omp parallel do schedule(static) private(i_s_loc,i_s,llon_row,llat_row,llon_col,llat_col)
 do i_s_loc=1,n_s_loc(mpl%myproc)
    ! Indices
    i_s = i_s_s(mpl%myproc)+i_s_loc-1
 
    if (valid(i_s)) then
-      ! Indices
-      if (present(row_to_ic0)) then
-         ic0 = row_to_ic0(linop%row(i_s))
+      ! Row lon/lat
+      if (present(lon_row).and.present(lat_row)) then
+         llon_row = lon_row(linop%row(i_s))
+         llat_row = lat_row(linop%row(i_s))
       else
-         ic0 = linop%row(i_s)
+         llon_row = geom%lon(linop%row(i_s))
+         llat_row = geom%lat(linop%row(i_s))
       end if
-      if (present(col_to_ic0)) then
-         jc0 = col_to_ic0(linop%col(i_s))
+
+      ! Column lon/lat
+      if (present(lon_col).and.present(lat_col)) then
+         llon_col = lon_col(linop%col(i_s))
+         llat_col = lat_col(linop%col(i_s))
       else
-         jc0 = linop%col(i_s)
+         llon_col = geom%lon(linop%col(i_s))
+         llat_col = geom%lat(linop%col(i_s))
       end if
 
       ! Check if arc is crossing boundary arcs
-      call geom%check_arc(il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),valid(i_s))
+      call geom%check_arc(il0,llon_row,llat_row,llon_col,llat_col,valid(i_s))
    end if
 
    ! Update

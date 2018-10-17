@@ -13,7 +13,6 @@ use tools_func, only: cholesky
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
 use tools_nc, only: ncfloat
-use tools_test, only: define_dirac,define_test_vectors
 use type_bpar, only: bpar_type
 use type_cmat, only: cmat_type
 use type_com, only: com_type
@@ -1865,7 +1864,7 @@ type(io_type),intent(in) :: io            ! I/O
 type(ens_type),intent(in) :: ens          ! Ensemble
 
 ! Local variables
-integer :: iprocdir(nam%ndir),ic0adir(nam%ndir),il0dir(nam%ndir),idir,iv,its
+integer :: idir,iv,its
 real(kind_real),allocatable :: fld(:,:,:,:),fld_loc(:,:,:,:),fld_bens(:,:,:,:)
 character(len=2) :: itschar
 character(len=1024) :: filename
@@ -1873,13 +1872,10 @@ character(len=1024) :: filename
 ! Allocation
 allocate(fld(geom%nc0a,geom%nl0,nam%nv,nam%nts))
 
-! Find gridpoint and level indices
-call define_dirac(nam,geom,iprocdir,ic0adir,il0dir)
-
 ! Generate dirac field
 fld = 0.0
-do idir=1,nam%ndir
-   if (iprocdir(idir)==mpl%myproc) fld(ic0adir(idir),il0dir(idir),nam%ivdir(idir),nam%itsdir(idir)) = 1.0
+do idir=1,geom%ndir
+   if (geom%iprocdir(idir)==mpl%myproc) fld(geom%ic0adir(idir),geom%il0dir(idir),geom%ivdir(idir),geom%itsdir(idir)) = 1.0
 end do
 
 ! Allocation
@@ -2234,5 +2230,46 @@ nam%prefix = prefix
 nam%method = method
 
 end subroutine nicas_test_optimality
+
+!----------------------------------------------------------------------
+! Subroutine: define_test_vectors
+! Purpose: define test vectors
+!----------------------------------------------------------------------
+subroutine define_test_vectors(mpl,rng,nam,geom,ntest,fld)
+
+! Passed variables
+type(mpl_type),intent(in) :: mpl                                            ! MPI data
+type(rng_type),intent(inout) :: rng                                         ! Random number generator
+type(nam_type),intent(in) :: nam                                            ! Namelist
+type(geom_type),intent(in) :: geom                                          ! Geometry
+integer,intent(in) :: ntest                                                 ! Number of vectors
+real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest) ! Field
+
+! Local variables
+integer :: ic0dir(ntest),il0dir(ntest),ivdir(ntest),itsdir(ntest)
+integer :: itest,ic0,iproc,ic0a
+
+! Define random dirac locations
+if (mpl%main) then
+   call rng%rand_integer(1,geom%nc0,ic0dir)
+   call rng%rand_integer(1,geom%nl0,il0dir)
+end if
+call mpl%f_comm%broadcast(ic0dir,mpl%ioproc-1)
+call mpl%f_comm%broadcast(il0dir,mpl%ioproc-1)
+ivdir = 1
+itsdir = 1
+
+! Define test vectors
+do itest=1,ntest
+   fld(:,:,:,:,itest) = 0.0
+   ic0 = ic0dir(itest)
+   iproc = geom%c0_to_proc(ic0)
+   if (iproc==mpl%myproc) then
+      ic0a = geom%c0_to_c0a(ic0)
+      fld(ic0a,il0dir(itest),ivdir(itest),itsdir(itest),itest) = 1.0
+   end if
+end do
+
+end subroutine define_test_vectors
 
 end module type_nicas

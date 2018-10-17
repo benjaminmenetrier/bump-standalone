@@ -341,9 +341,9 @@ type(nam_type),intent(in) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom  ! Geometry
 
 ! Local variables
-integer ::ilon,ilat,i_s,i_s_loc,iog,iproc,ic0,ic0a,ic0b,ioga,il0
+integer ::ilon,ilat,i_s,i_s_loc,iog,iproc,ic0,ic0a,ic0b,ioga,il0,nn_index(1)
 integer,allocatable :: order(:),order_inv(:),interpg_lg(:)
-real(kind_real) :: dlon,dlat
+real(kind_real) :: dlon,dlat,nn_dist(1)
 real(kind_real),allocatable :: lon_og(:),lat_og(:)
 logical :: mask_c0(geom%nc0)
 logical,allocatable :: mask_lonlat(:,:),mask_og(:),lcheck_og(:),lcheck_c0b(:)
@@ -361,14 +361,31 @@ allocate(io%lat(io%nlat))
 allocate(mask_lonlat(io%nlon,io%nlat))
 
 ! Setup output grid
+write(mpl%info,'(a7,a)',advance='no') '','Setup output grid: '
+call mpl%prog_init(io%nlon*io%nlat)
 do ilat=1,io%nlat
    do ilon=1,io%nlon
+      ! Define lon/lat
       io%lon(ilon) = (-pi+dlon/2)+real(ilon-1,kind_real)*dlon
       io%lat(ilat) = (-pi/2+dlat/2)+real(ilat-1,kind_real)*dlat
+
+      ! Check that the interpolation point is inside the domain
       call geom%mesh%inside(io%lon(ilon),io%lat(ilat),mask_lonlat(ilon,ilat))
+
+      if (mask_lonlat(ilon,ilat).and.(nam%mask_check.or.geom%mask_del)) then
+         ! Find the nearest Sc0 point
+         call geom%kdtree%find_nearest_neighbors(io%lon(ilon),io%lat(ilat),1,nn_index,nn_dist)
+
+         ! Check arc
+         call geom%check_arc(1,io%lon(ilon),io%lat(ilat),geom%lon(nn_index(1)),geom%lat(nn_index(1)),mask_lonlat(ilon,ilat))
+      end if
+
+      ! Update
+      call mpl%prog_print((ilat-1)*io%nlon+ilon)
    end do
 end do
-io%nog = count(mask_lonlat)
+write(mpl%info,'(a)') '100%'
+call flush(mpl%info)
 
 ! Print results
 write(mpl%info,'(a7,a)') '','Output grid:'
@@ -377,6 +394,7 @@ write(mpl%info,'(a10,a,f7.2,a,f5.2,a)') '','Effective resolution: ',0.5*(dlon+dl
 write(mpl%info,'(a10,a,i4,a,i4)') '',      'Size (nlon x nlat):   ',io%nlon,' x ',io%nlat
 
 ! Allocation
+io%nog = count(mask_lonlat)
 allocate(io%og_to_lon(io%nog))
 allocate(io%og_to_lat(io%nog))
 allocate(lon_og(io%nog))

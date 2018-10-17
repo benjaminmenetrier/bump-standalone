@@ -10,6 +10,6 @@
 | subroutine | [cmat%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L285) | write C matrix |
 | subroutine | [cmat%] [from_hdiag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L356) | transform HDIAG into C matrix |
 | subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L540) | copy LCT into C matrix |
-| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L626) | copy radii into C matrix |
-| subroutine | [cmat%] [from_oops](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L687) | copy C matrix from OOPS |
-| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L737) | setup C matrix sampling |
+| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L633) | copy radii into C matrix |
+| subroutine | [cmat%] [from_oops](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L694) | copy C matrix from OOPS |
+| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L744) | setup C matrix sampling |

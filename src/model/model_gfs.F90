@@ -15,6 +15,7 @@ use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_rng, only: rng_type
 
 implicit none
 
@@ -27,19 +28,23 @@ contains
 ! Subroutine: model_gfs_coord
 ! Purpose: get GFS coordinates
 !----------------------------------------------------------------------
-subroutine model_gfs_coord(mpl,nam,geom)
+subroutine model_gfs_coord(mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(in) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
-integer :: ilon,ilat,ic0
+integer :: img,il0,ilon,ilat,ic0
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,a_id,b_id
+integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 real(kind_real),allocatable :: lon(:),lat(:),a(:),b(:)
+real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
+logical,allocatable :: lmask_mg(:,:)
 character(len=1024) :: subr = 'model_gfs_coord'
 
 ! Open file and get dimensions
@@ -57,6 +62,12 @@ allocate(lon(geom%nlon))
 allocate(lat(geom%nlat))
 allocate(a(geom%nlev+1))
 allocate(b(geom%nlev+1))
+allocate(mg_to_lon(geom%nmg))
+allocate(mg_to_lat(geom%nmg))
+allocate(lon_mg(geom%nmg))
+allocate(lat_mg(geom%nmg))
+allocate(area_mg(geom%nmg))
+allocate(lmask_mg(geom%nmg,geom%nl0))
 
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
@@ -73,25 +84,33 @@ call mpl%ncerr(subr,nf90_close(ncid))
 lon = lon*deg2rad
 lat = lat*deg2rad
 
-! Not redundant grid
-call geom%find_redundant(mpl)
+! Model grid
+img = 0
+do ilon=1,geom%nlon
+   do ilat=1,geom%nlat
+      img = img+1
+      mg_to_lon(img) = ilon
+      mg_to_lat(img) = ilat
+      lon_mg(img) = lon(ilon)
+      lat_mg(img) = lat(ilat)
+   end do
+end do
+area_mg = 4.0*pi/real(geom%nmg,kind_real)
+lmask_mg = .true.
+
+! Sc0 subset
+call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.false.,nam%mask_check,.false.)
 
 ! Pack
 call geom%alloc
-ic0 = 0
-do ilon=1,geom%nlon
-   do ilat=1,geom%nlat
-      ic0 = ic0+1
-      geom%c0_to_lon(ic0) = ilon
-      geom%c0_to_lat(ic0) = ilat
-      geom%lon(ic0) = lon(ilon)
-      geom%lat(ic0) = lat(ilat)
-      geom%mask_c0(ic0,:) = .true.
-   end do
+geom%c0_to_lon = mg_to_lon(geom%c0_to_mg)
+geom%c0_to_lat = mg_to_lat(geom%c0_to_mg)
+geom%lon = lon_mg(geom%c0_to_mg)
+geom%lat = lat_mg(geom%c0_to_mg)
+do il0=1,geom%nl0
+   geom%mask_c0(:,il0) = lmask_mg(geom%c0_to_mg,il0)
+   geom%area(il0) = sum(area_mg(geom%c0_to_mg),geom%mask_c0(:,il0))
 end do
-
-! Compute normalized area
-geom%area = 4.0*pi
 
 ! Vertical unit
 do ic0=1,geom%nc0
@@ -116,7 +135,7 @@ end subroutine model_gfs_coord
 ! Subroutine: model_gfs_read
 ! Purpose: read GFS field
 !----------------------------------------------------------------------
-subroutine model_gfs_read(mpl,nam,geom,filename,fld)
+subroutine model_gfs_read(mpl,nam,geom,filename,its,fld)
 
 implicit none
 
@@ -125,6 +144,7 @@ type(mpl_type),intent(inout) :: mpl                           ! MPI data
 type(nam_type),intent(in) :: nam                              ! Namelist
 type(geom_type),intent(in) :: geom                            ! Geometry
 character(len=*),intent(in) :: filename                       ! File name
+integer,intent(in) :: its                                     ! Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Field
 
 ! Local variables

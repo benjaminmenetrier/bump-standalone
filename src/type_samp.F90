@@ -1343,6 +1343,8 @@ write(mpl%info,'(a)') '100%'
 call flush(mpl%info)
 
 ! Communication
+write(mpl%info,'(a7,a)') '','Communication'
+call flush(mpl%info)
 if (mpl%main) then
    do iproc=1,mpl%nproc
       if (iproc/=mpl%ioproc) then
@@ -1413,8 +1415,6 @@ else
    deallocate(sbufl)
 end if
 call mpl%update_tag(2)
-
-! Broadcast data
 call mpl%f_comm%broadcast(samp%c1c3_to_c0,mpl%ioproc-1)
 call mpl%f_comm%broadcast(samp%c1c3l0_log,mpl%ioproc-1)
 
@@ -1435,7 +1435,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: il0,jc3,ic1,ic0,jc0
+integer :: il0,jc3,ic1,ic0,jc0,i
 logical :: valid
 
 ! First point
@@ -1444,6 +1444,11 @@ do il0=1,geom%nl0
 end do
 
 ! Second point
+if (nam%mask_check) then
+   write(mpl%info,'(a7,a)',advance='no') '','Check mask boundaries: '
+   call mpl%prog_init(geom%nl0*nam%nc3*nam%nc1)
+   i = 0
+end if
 do il0=1,geom%nl0
    do jc3=1,nam%nc3
       do ic1=1,nam%nc1
@@ -1459,12 +1464,20 @@ do il0=1,geom%nl0
             valid = samp%mask_c0(ic0,il0).and.samp%mask_c0(jc0,il0)
 
             ! Check mask bounds
-            if (nam%mask_check.and.valid) call geom%check_arc(il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),valid)
+            if (nam%mask_check) then
+               if (valid) call geom%check_arc(il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),valid)
+               i = i+1
+               call mpl%prog_print(i)
+            end if
          end if
          samp%c1c3l0_log(ic1,jc3,il0) = valid
       end do
    end do
 end do
+if (nam%mask_check) then
+   write(mpl%info,'(a)') '100%'
+   call flush(mpl%info)
+end if
 
 end subroutine samp_compute_sampling_mask
 
@@ -2084,7 +2097,7 @@ if (rflt>0.0) then
                diag(ic2a) = diag(ic2a)+wgt*diag_eff(jc2)
                norm = norm+wgt
             end do
-            diag(ic2a) = diag(ic2a)/norm
+            if (norm>0.0) diag(ic2a) = diag(ic2a)/norm
          case ('median')
             ! Compute median
             allocate(order(nc2eff))

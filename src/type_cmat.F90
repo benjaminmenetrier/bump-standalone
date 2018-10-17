@@ -581,7 +581,7 @@ do ib=1,bpar%nbe
       jts = bpar%b_to_ts2(ib)
       if ((iv/=jv).or.(its/=jts)) call mpl%abort('only diagonal blocks for cmat_from_lct')
 
-      if (lct%blk(ib)%nscales>1) call mpl%abort('only one scale to define cmat from LCT')
+      if (lct%blk(ib)%nscales>1) call mpl%warning('only the first scale is used to define cmat from LCT')
       iscales = 1
 
       do il0=1,geom%nl0
@@ -599,11 +599,18 @@ do ib=1,bpar%nbe
                ! Compute support radii from the largest scale
                tr = cmat%blk(ib)%H11(ic0a,il0)+cmat%blk(ib)%H22(ic0a,il0)
                det = cmat%blk(ib)%H11(ic0a,il0)*cmat%blk(ib)%H22(ic0a,il0)-cmat%blk(ib)%H12(ic0a,il0)**2
-               diff = 0.25*tr**2-det
-               if (0.5*tr>sqrt(diff)) then
-                  cmat%blk(ib)%rh(ic0a,il0) = gau2gc/(sqrt(0.5*tr-sqrt(diff)))
+               diff = 0.25*(cmat%blk(ib)%H11(ic0a,il0)-cmat%blk(ib)%H22(ic0a,il0))**2+cmat%blk(ib)%H12(ic0a,il0)**2
+               if ((det>0.0).and..not.(diff<0.0)) then
+                  if (0.5*tr>sqrt(diff)) then
+                     cmat%blk(ib)%rh(ic0a,il0) = gau2gc/(sqrt(0.5*tr-sqrt(diff)))
+                  else
+                     write(mpl%info,*) 0.5*tr,sqrt(diff)
+                     call mpl%abort('non positive-definite LCT in cmat_from_lct (eigenvalue)')
+                  end if
                else
-                  call mpl%abort('non positive-definite LCT in cmat_from_lct')
+                  write(mpl%info,*) cmat%blk(ib)%H11(ic0a,il0),cmat%blk(ib)%H22(ic0a,il0), &
+ & cmat%blk(ib)%H12(ic0a,il0)
+                  call mpl%abort('non positive-definite LCT in cmat_from_lct (determinant)')
                end if
                if (cmat%blk(ib)%H33(ic0a,il0)>0.0) then
                   cmat%blk(ib)%rv(ic0a,il0) = gau2gc/(sqrt(cmat%blk(ib)%H33(ic0a,il0)))

@@ -9,7 +9,7 @@ module type_lct
 
 use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use tools_const, only: reqkm,pi
-use tools_func, only: gau2gc,fit_lct,lct_d2h
+use tools_func, only: gau2gc,fit_lct,lct_d2h,check_cond,Dmin
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr,isallnotmsr
 use type_bpar, only: bpar_type
@@ -255,9 +255,8 @@ type(bpar_type),intent(in) :: bpar      ! Block parameters
 
 ! Local variables
 integer :: ib,il0,jl0,jl0r,ic1a,ic1,ic0,jc3,jc0,icomp,iscales,nmsr,nmsr_tot
-real(kind_real) :: det
 real(kind_real),allocatable :: fld_c1a(:),fld_filt_c1a(:),dx(:,:),dy(:,:),dz(:,:)
-logical :: spd
+logical :: valid
 logical,allocatable :: mask_c1a(:,:),dmask(:,:)
 
 ! Allocation
@@ -364,17 +363,18 @@ do ib=1,bpar%nb
                   end do
                end do
 
-               ! Check positive-definiteness and coefficients values
-               spd = .true.
+               ! Check tensor validity
+               valid = .true.
                do iscales=1,lct%blk(ib)%nscales
-                  ! Check D determinant
-                  det = lct%blk(ib)%D_filt(1,iscales,ic1a,il0)*lct%blk(ib)%D_filt(2,iscales,ic1a,il0) &
-                      & *(1.0-lct%blk(ib)%D_filt(4,iscales,ic1a,il0)**2)
-                  if (bpar%nl0r(ib)>1) det = det*lct%blk(ib)%D_filt(3,iscales,ic1a,il0)
-                  spd = spd.and.(det>0.0).and.(lct%blk(ib)%coef_filt(iscales,ic1a,il0)>0.0)
-                  if (lct%blk(ib)%nscales>1) spd = spd.and.(lct%blk(ib)%coef_filt(iscales,ic1a,il0)<1.0)
+                  if (valid) then
+                     call check_cond(lct%blk(ib)%D_filt(1,iscales,ic1a,il0),lct%blk(ib)%D_filt(2,iscales,ic1a,il0), &
+                   & lct%blk(ib)%D_filt(4,iscales,ic1a,il0),valid)
+                     if (bpar%nl0r(ib)>1) valid = valid.and.(lct%blk(ib)%D_filt(3,iscales,ic1a,il0)>0.0)
+                     valid = valid.and.(lct%blk(ib)%coef_filt(iscales,ic1a,il0)>0.0)
+                     if (lct%blk(ib)%nscales>1) valid = valid.and.(lct%blk(ib)%coef_filt(iscales,ic1a,il0)<1.0)
+                  end if
                end do
-               if (spd) then
+               if (valid) then
                   ! Rebuild fit
                   call fit_lct(mpl,nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct%blk(ib)%nscales, &
                 & lct%blk(ib)%D_filt(:,:,ic1a,il0),lct%blk(ib)%coef_filt(:,ic1a,il0),lct%blk(ib)%fit_filt(:,:,ic1a,il0))
@@ -388,10 +388,12 @@ do ib=1,bpar%nb
    end do
 
    ! Release memory
-   deallocate(dx)
-   deallocate(dy)
-   deallocate(dz)
-   deallocate(dmask)
+   if (nam%diag_rhflt>0) then
+      deallocate(dx)
+      deallocate(dy)
+      deallocate(dz)
+      deallocate(dmask)
+   end if
 end do
 
 end subroutine lct_filter
@@ -485,7 +487,7 @@ type(io_type),intent(in) :: io          ! I/O
 integer :: ib,iv,il0,il0i,ic1a,ic1,icomp,ic0a,iscales
 real(kind_real) :: det,Lavg_tot,norm_tot
 real(kind_real),allocatable :: D(:,:,:,:),coef(:,:,:),fld_c1a(:,:,:),fld_c1b(:,:),fld(:,:,:)
-logical :: valid_coef,mask_c1a(lct%samp%nc1a,geom%nl0)
+logical :: mask_c1a(lct%samp%nc1a,geom%nl0)
 character(len=1) :: iscaleschar
 character(len=1024) :: filename
 
@@ -526,45 +528,34 @@ do ib=1,bpar%nb
       call msr(fld_c1a)
       call msr(fld)
 
-      ! Check and copy diffustion tensor
-      write(mpl%info,'(a13,a)') '','Check, copy  and inverse diffusion tensor'
+      ! Copy and inverse diffusion tensor
+      write(mpl%info,'(a13,a)') '','Copy and inverse diffusion tensor'
       call flush(mpl%info)
       do il0=1,geom%nl0
          do ic1a=1,lct%samp%nc1a
             ic1 = lct%samp%c1a_to_c1(ic1a)
             if (mask_c1a(ic1a,il0)) then
-               ! Check D determinant
-               det = D(1,iscales,ic1a,il0)*D(2,iscales,ic1a,il0)*(1.0-D(4,iscales,ic1a,il0)**2)
-               if (bpar%nl0r(ib)>1) det = det*D(3,iscales,ic1a,il0)
+               ! Ensure positive-definiteness of D
+               D(1,iscales,ic1a,il0) = max(Dmin,D(1,iscales,ic1a,il0))
+               D(2,iscales,ic1a,il0) = max(Dmin,D(2,iscales,ic1a,il0))
+               if (bpar%nl0r(ib)>1) D(3,iscales,ic1a,il0) = max(Dmin,D(3,iscales,ic1a,il0))
+               D(4,iscales,ic1a,il0) = max(-1.0_kind_real+Dmin,min(D(4,iscales,ic1a,il0),1.0_kind_real-Dmin))
 
-               ! Check coefficient
-               valid_coef = (coef(iscales,ic1a,il0)>0.0)
-               if (lct%blk(ib)%nscales>1) valid_coef = valid_coef.and.(coef(iscales,ic1a,il0)<1.0)
+               ! Copy diffusion tensor
+               fld_c1a(ic1a,il0,1) = D(1,iscales,ic1a,il0)
+               fld_c1a(ic1a,il0,2) = D(2,iscales,ic1a,il0)
+               fld_c1a(ic1a,il0,3) = D(3,iscales,ic1a,il0)
+               fld_c1a(ic1a,il0,4) = sqrt(D(1,iscales,ic1a,il0)*D(2,iscales,ic1a,il0))*D(4,iscales,ic1a,il0)
 
-               if ((det>0.0).and.valid_coef) then
-                  ! Copy diffusion tensor
-                  fld_c1a(ic1a,il0,1) = D(1,iscales,ic1a,il0)
-                  fld_c1a(ic1a,il0,2) = D(2,iscales,ic1a,il0)
-                  fld_c1a(ic1a,il0,3) = D(3,iscales,ic1a,il0)
-                  fld_c1a(ic1a,il0,4) = sqrt(D(1,iscales,ic1a,il0)*D(2,iscales,ic1a,il0))*D(4,iscales,ic1a,il0)
+               ! Inverse diffusion tensor
+               call lct_d2h(mpl,fld_c1a(ic1a,il0,1),fld_c1a(ic1a,il0,2),fld_c1a(ic1a,il0,3),fld_c1a(ic1a,il0,4), &
+             & fld_c1a(ic1a,il0,4+1),fld_c1a(ic1a,il0,4+2),fld_c1a(ic1a,il0,4+3),fld_c1a(ic1a,il0,4+4))
 
-                  ! Inverse diffusion tensor
-                  call lct_d2h(mpl,fld_c1a(ic1a,il0,1),fld_c1a(ic1a,il0,2),fld_c1a(ic1a,il0,3),fld_c1a(ic1a,il0,4), &
-                             & fld_c1a(ic1a,il0,4+1),fld_c1a(ic1a,il0,4+2),fld_c1a(ic1a,il0,4+3),fld_c1a(ic1a,il0,4+4))
-
-                  ! Copy coefficient
-                  fld_c1a(ic1a,il0,2*4+1) = coef(iscales,ic1a,il0)
-               else
-                  call mpl%abort('non-valid LCT, grid c1')
-               end if
+               ! Copy coefficient
+               fld_c1a(ic1a,il0,2*4+1) = coef(iscales,ic1a,il0)
             end if
          end do
       end do
-
-      if (nam%lct_diag(iscales)) then
-         ! Optimize for diagonal representation
-         call mpl%warning('diagonal LCT optimization not implemented yet')
-      end if
 
       ! Interpolate components
       write(mpl%info,'(a13,a)') '','Interpolate components'
@@ -583,23 +574,13 @@ do ib=1,bpar%nb
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
             if (geom%mask_c0a(ic0a,il0)) then
-               ! Check determinant
+               ! Length-scale = D determinant^{1/4}
                det = fld(ic0a,il0,1)*fld(ic0a,il0,2)-fld(ic0a,il0,4)**2
                if (det>0.0) then
-                  ! Length-scale = D determinant^{1/4}
                   fld(ic0a,il0,2*4+2) = sqrt(sqrt(det))
                else
                   call mpl%abort('non-valid horizontal diffusion tensor determinant, grid c0')
                end if
-
-               ! Check determinant
-               det = fld(ic0a,il0,4+1)*fld(ic0a,il0,4+2)-fld(ic0a,il0,4+4)**2
-               if (.not.(det>0.0)) call mpl%abort('non-valid horizontal LCT determinant, grid c0')
-
-               ! Check coefficient
-               valid_coef = (fld(ic0a,il0,2*4+1)>0.0)
-               if (lct%blk(ib)%nscales>1) valid_coef = valid_coef.and.(fld(ic0a,il0,2*4+1)<1.0)
-               if (.not.valid_coef) call mpl%abort('non-valid LCT coefficient, grid c0')
             end if
          end do
          call mpl%f_comm%allreduce(sum(fld(:,il0,2*4+2),isnotmsr(fld(:,il0,2*3+2))),Lavg_tot,fckit_mpi_sum())
