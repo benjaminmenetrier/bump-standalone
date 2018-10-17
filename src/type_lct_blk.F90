@@ -8,7 +8,7 @@
 module type_lct_blk
 
 !$ use omp_lib
-use tools_func, only: lonlatmod,fit_lct
+use tools_func, only: lonlatmod,fit_lct,check_cond
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isnotmsr
 use type_bpar, only: bpar_type
@@ -253,9 +253,9 @@ type(samp_type),intent(in) :: samp           ! Sampling
 
 ! Local variables
 integer :: il0,jl0r,jl0,ic1a,ic1,ic0,jc3,jc0,iscales,icomp
-real(kind_real) :: distsq,Dhbar,Dvbar,det
+real(kind_real) :: distsq,Dhbar,Dvbar,diag_rescale
 real(kind_real),allocatable :: Dh(:),Dv(:),dx(:,:),dy(:,:),dz(:,:)
-logical :: spd
+logical :: valid
 logical,allocatable :: dmask(:,:)
 type(minim_type) :: minim
 
@@ -315,7 +315,7 @@ do il0=1,geom%nl0
                do jc3=1,nam%nc3
                   if (dmask(jc3,jl0r)) then
                      distsq = dx(jc3,jl0r)**2+dy(jc3,jl0r)**2
-                     if ((lct_blk%raw(jc3,jl0r,ic1a,il0)>cor_min).and.(distsq>0.0))  &
+                     if ((lct_blk%raw(jc3,jl0r,ic1a,il0)>cor_min).and.(lct_blk%raw(jc3,jl0r,ic1a,il0)<1.0).and.(distsq>0.0))  &
                    & Dh(jc3) = -distsq/(2.0*log(lct_blk%raw(jc3,jl0r,ic1a,il0)))
                   end if
                end do
@@ -392,16 +392,27 @@ do il0=1,geom%nl0
             ! Set vertical value at zero for the 2D case
             if (bpar%nl0r(ib)==1) lct_blk%D(3,:,ic1a,il0) = 0.0
 
-            ! Check positive-definiteness and coefficients values
-            spd = .true.
+            ! Check tensor validity
+            valid = .true.
             do iscales=1,lct_blk%nscales
-               ! Check D determinant
-               det = lct_blk%D(1,iscales,ic1a,il0)*lct_blk%D(2,iscales,ic1a,il0)*(1.0-lct_blk%D(4,iscales,ic1a,il0)**2)
-               if (bpar%nl0r(ib)>1) det = det*lct_blk%D(3,iscales,ic1a,il0)
-               spd = spd.and.(det>0.0).and.(lct_blk%coef(iscales,ic1a,il0)>0.0)
-               if (lct_blk%nscales>1) spd = spd.and.(lct_blk%coef(iscales,ic1a,il0)<1.0)
+               if (valid) then
+                  call check_cond(lct_blk%D(1,iscales,ic1a,il0),lct_blk%D(2,iscales,ic1a,il0),lct_blk%D(4,iscales,ic1a,il0),valid)
+                  if (bpar%nl0r(ib)>1) valid = valid.and.(lct_blk%D(3,iscales,ic1a,il0)>0.0)
+                  valid = valid.and.(lct_blk%coef(iscales,ic1a,il0)>0.0)
+                  if (lct_blk%nscales>1) valid = valid.and.(lct_blk%coef(iscales,ic1a,il0)<1.0)
+               end if
             end do
-            if (spd) then
+            if (valid) then
+               do iscales=1,lct_blk%nscales
+                  if (nam%lct_diag(iscales)) then
+                     ! Rescale diagonal tensor
+                     diag_rescale = sqrt(1.0-lct_blk%D(4,iscales,ic1a,il0)**2)
+                     lct_blk%D(1,iscales,ic1a,il0) = lct_blk%D(1,iscales,ic1a,il0)*diag_rescale
+                     lct_blk%D(2,iscales,ic1a,il0) = lct_blk%D(2,iscales,ic1a,il0)*diag_rescale
+                     lct_blk%D(4,iscales,ic1a,il0) = 0.0
+                  end if
+               end do
+
                ! Rebuild fit
                call fit_lct(mpl,nam%nc3,bpar%nl0r(ib),dx,dy,dz,dmask,lct_blk%nscales, &
              & lct_blk%D(:,:,ic1a,il0),lct_blk%coef(:,ic1a,il0),lct_blk%fit(:,:,ic1a,il0))

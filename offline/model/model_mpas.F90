@@ -15,6 +15,7 @@ use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_rng, only: rng_type
 
 implicit none
 
@@ -27,19 +28,22 @@ contains
 ! Subroutine: model_mpas_coord
 ! Purpose: get MPAS coordinates
 !----------------------------------------------------------------------
-subroutine model_mpas_coord(mpl,nam,geom)
+subroutine model_mpas_coord(mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(in) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
+integer :: ic0,il0
 integer :: ncid,ng_id,nlev_id,lon_id,lat_id,pres_id
-integer :: ic0
 real(kind=4),allocatable :: lon(:),lat(:),pres(:)
+real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
+logical,allocatable :: lmask_mg(:,:)
 character(len=1024) :: subr = 'model_mpas_coord'
 
 ! Open file and get dimensions
@@ -55,6 +59,10 @@ call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 allocate(lon(geom%nmg))
 allocate(lat(geom%nmg))
 allocate(pres(geom%nlev))
+allocate(lon_mg(geom%nmg))
+allocate(lat_mg(geom%nmg))
+allocate(area_mg(geom%nmg))
+allocate(lmask_mg(geom%nmg,geom%nl0))
 
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'lonCell',lon_id))
@@ -65,17 +73,23 @@ call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call mpl%ncerr(subr,nf90_get_var(ncid,pres_id,pres))
 call mpl%ncerr(subr,nf90_close(ncid))
 
-! Not redundant grid
-call geom%find_redundant(mpl)
+! Model grid
+lon_mg = lon
+lat_mg = lat
+area_mg = 4.0*pi/real(geom%nmg,kind_real)
+lmask_mg = .true.
+
+! Sc0 subset
+call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.false.,nam%mask_check,.false.)
 
 ! Pack
 call geom%alloc
-geom%lon = lon
-geom%lat = lat
-geom%mask_c0 = .true.
-
-! Compute normalized area
-geom%area = 4.0*pi
+geom%lon = lon_mg(geom%c0_to_mg)
+geom%lat = lat_mg(geom%c0_to_mg)
+do il0=1,geom%nl0
+   geom%mask_c0(:,il0) = lmask_mg(geom%c0_to_mg,il0)
+   geom%area(il0) = sum(area_mg(geom%c0_to_mg),geom%mask_c0(:,il0))
+end do
 
 ! Vertical unit
 do ic0=1,geom%nc0

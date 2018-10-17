@@ -8,8 +8,8 @@
 | subroutine | [obsop%] [generate](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L170) | generate observations locations |
 | subroutine | [obsop%] [from](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L266) | copy observation operator data |
 | subroutine | [obsop%] [run_obsop](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L298) | observation operator driver |
-| subroutine | [obsop%] [run_obsop_tests](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L663) | observation operator tests driver |
-| subroutine | [obsop%] [apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L693) | observation operator interpolation |
-| subroutine | [obsop%] [apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L726) | observation operator interpolation adjoint |
-| subroutine | [obsop%] [test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L762) | test observation operator adjoints accuracy |
-| subroutine | [obsop%] [test_accuracy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L809) | test observation operator accuracy |
+| subroutine | [obsop%] [run_obsop_tests](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L662) | observation operator tests driver |
+| subroutine | [obsop%] [apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L692) | observation operator interpolation |
+| subroutine | [obsop%] [apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L725) | observation operator interpolation adjoint |
+| subroutine | [obsop%] [test_adjoint](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L761) | test observation operator adjoints accuracy |
+| subroutine | [obsop%] [test_accuracy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_obsop.F90#L808) | test observation operator accuracy |

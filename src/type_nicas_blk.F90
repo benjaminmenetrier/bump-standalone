@@ -16,7 +16,6 @@ use tools_missing, only: msi,msr,isnotmsr,isnotmsi
 use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use tools_repro, only: supeq
-use tools_test, only: define_dirac
 use type_bpar, only: bpar_type
 use type_cmat_blk, only: cmat_blk_type
 use type_com, only: com_type
@@ -993,6 +992,7 @@ type(geom_type),intent(in) :: geom               ! Geometry
 integer :: il1,i_s
 real(kind_real) :: renorm(nicas_blk%nc1)
 real(kind_real) :: lon_c1(nicas_blk%nc1),lat_c1(nicas_blk%nc1)
+real(kind_real),allocatable :: lon_row(:),lat_row(:),lon_col(:),lat_col(:)
 logical :: mask_src(nicas_blk%nc1),mask_dst(nicas_blk%nc1)
 logical,allocatable :: valid(:)
 type(linop_type) :: stmp
@@ -1029,12 +1029,31 @@ do il1=1,nicas_blk%nl1
       allocate(valid(stmp%n_s))
       valid = .true.
 
-      ! Check mask boundaries
       if (nam%mask_check) then
          write(mpl%info,'(a10,a,i3,a)',advance='no') '','Sublevel ',il1,': '
          call flush(mpl%info)
-         call stmp%interp_check_mask(mpl,geom,valid,nicas_blk%l1_to_l0(il1),row_to_ic0=nicas_blk%c1_to_c0, &
-       & col_to_ic0=nicas_blk%c1_to_c0)
+
+         ! Allocation
+         allocate(lon_row(nicas_blk%nc1))
+         allocate(lat_row(nicas_blk%nc1))
+         allocate(lon_col(nicas_blk%nc1))
+         allocate(lat_col(nicas_blk%nc1))
+
+         ! Initialization
+         lon_row = geom%lon(nicas_blk%c1_to_c0)
+         lat_row = geom%lat(nicas_blk%c1_to_c0)
+         lon_col = geom%lon(nicas_blk%c1_to_c0)
+         lat_col = geom%lat(nicas_blk%c1_to_c0)
+
+         ! Check mask boundaries
+         call stmp%interp_check_mask(mpl,geom,valid,nicas_blk%l1_to_l0(il1),lon_row=lon_row,lat_row=lat_row, &
+       & lon_col=lon_col,lat_col=lat_col)
+
+         ! Release memory
+         deallocate(lon_row)
+         deallocate(lat_row)
+         deallocate(lon_col)
+         deallocate(lat_col)
       else
          write(mpl%info,'(a10,a,i3)') '','Sublevel ',il1
          call flush(mpl%info)
@@ -3883,8 +3902,7 @@ type(bpar_type),intent(in) :: bpar            ! Block parameters
 type(io_type),intent(in) :: io                ! I/O
 
 ! Local variables
-integer :: il0
-integer :: ic0adir(nam%ndir),iprocdir(nam%ndir),il0dir(nam%ndir),idir
+integer :: il0,idir
 real(kind_real) :: val,valmin_tot,valmax_tot
 real(kind_real) :: fld(geom%nc0a,geom%nl0)
 character(len=1024) :: suffix,filename
@@ -3892,13 +3910,10 @@ character(len=1024) :: suffix,filename
 ! Associate
 associate(ib=>nicas_blk%ib)
 
-! Find processor, gridpoint and level indices
-call define_dirac(nam,geom,iprocdir,ic0adir,il0dir)
-
 ! Generate dirac field
 fld = 0.0
-do idir=1,nam%ndir
-   if (iprocdir(idir)==mpl%myproc) fld(ic0adir(idir),il0dir(idir)) = 1.0
+do idir=1,geom%ndir
+   if (geom%iprocdir(idir)==mpl%myproc) fld(geom%ic0adir(idir),geom%il0dir(idir)) = 1.0
 end do
 
 ! Apply NICAS method
@@ -3921,10 +3936,10 @@ call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_dirac'//trim
 ! Print results
 write(mpl%info,'(a7,a)') '','Values at dirac points:'
 call flush(mpl%info)
-do idir=1,nam%ndir
-   if (iprocdir(idir)==mpl%myproc) val = fld(ic0adir(idir),il0dir(idir))
-   call mpl%f_comm%broadcast(val,iprocdir(idir)-1)
-   write(mpl%info,'(a10,f6.1,a,f6.1,a,f10.7)') '',nam%londir(idir)*rad2deg,' / ',nam%latdir(idir)*rad2deg,': ',val
+do idir=1,geom%ndir
+   if (geom%iprocdir(idir)==mpl%myproc) val = fld(geom%ic0adir(idir),geom%il0dir(idir))
+   call mpl%f_comm%broadcast(val,geom%iprocdir(idir)-1)
+   write(mpl%info,'(a10,f6.1,a,f6.1,a,f10.7)') '',geom%londir(idir)*rad2deg,' / ',geom%latdir(idir)*rad2deg,': ',val
    call flush(mpl%info)
 end do
 write(mpl%info,'(a7,a)') '','Min - max: '

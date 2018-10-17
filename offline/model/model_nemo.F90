@@ -17,6 +17,7 @@ use tools_qsort, only: qsort
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_rng, only: rng_type
 
 implicit none
 
@@ -29,12 +30,13 @@ contains
 ! Subroutine: model_nemo_coord
 ! Purpose: get NEMO coordinates
 !----------------------------------------------------------------------
-subroutine model_nemo_coord(mpl,nam,geom)
+subroutine model_nemo_coord(mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(in) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
@@ -90,7 +92,7 @@ call mpl%ncerr(subr,nf90_close(ncid))
 lon = lon*deg2rad
 lat = lat*deg2rad
 
-! Redundant grid
+! Model grid
 img = 0
 do ilon=1,geom%nlon
    do ilat=1,geom%nlat
@@ -105,7 +107,9 @@ do ilon=1,geom%nlon
       end do
    end do
 end do
-call geom%find_redundant(mpl,lon_mg,lat_mg)
+
+! Sc0 subset
+call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.true.,nam%mask_check,.false.)
 
 ! Pack
 call geom%alloc

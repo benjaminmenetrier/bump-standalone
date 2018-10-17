@@ -99,15 +99,27 @@ type(fckit_mpi_comm) :: f_comm
 
 ! Local variables
 integer :: len,info,info_loc
+logical :: init
 character(len=mpi_max_error_string) :: message
 
-! Initialize MPI
-call mpi_init(info)
+! Check if MPI is already initialized
+call mpi_initialized(init,info)
 if (info/=mpi_success) then
    call mpi_error_string(info,message,len,info_loc)
    write(output_unit,'(a)') '!!! Error:',trim(message)
    call flush(output_unit)
    call mpi_abort(mpi_comm_world,1,info)
+end if
+
+if (.not.init) then
+   ! Initialize MPI
+   call mpi_init(info)
+   if (info/=mpi_success) then
+      call mpi_error_string(info,message,len,info_loc)
+      write(output_unit,'(a)') '!!! Error:',trim(message)
+      call flush(output_unit)
+      call mpi_abort(mpi_comm_world,1,info)
+   end if
 end if
 
 end function fckit_mpi_comm_init

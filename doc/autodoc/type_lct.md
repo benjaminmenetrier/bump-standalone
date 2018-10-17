@@ -7,6 +7,6 @@
 | subroutine | [lct%] [run_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L108) | LCT driver |
 | subroutine | [lct%] [compute](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L203) | compute LCT |
 | subroutine | [lct%] [filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L241) | filter LCT |
-| subroutine | [lct%] [rmse](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L399) | compute LCT fit RMSE |
-| subroutine | [lct%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L468) | interpolate and write LCT |
-| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L659) | write correlation and LCT fit |
+| subroutine | [lct%] [rmse](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L401) | compute LCT fit RMSE |
+| subroutine | [lct%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L470) | interpolate and write LCT |
+| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L640) | write correlation and LCT fit |

@@ -383,8 +383,7 @@ hfull%prefix = 'o'
 write(mpl%info,'(a7,a)') '','Single level:'
 call flush(mpl%info)
 maskobs = .true.
-call hfull%interp(mpl,geom%mesh,geom%kdtree,geom%nc0,any(geom%mask_c0,dim=2),obsop%nobs,lonobs,latobs,maskobs, &
- & nam%obsop_interp)
+call hfull%interp(mpl,geom%mesh,geom%kdtree,geom%nc0,geom%mask_hor_c0,obsop%nobs,lonobs,latobs,maskobs,nam%obsop_interp)
 
 ! Count interpolation points
 nop = 0

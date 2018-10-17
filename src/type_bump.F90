@@ -145,7 +145,7 @@ call bump%setup_generic
 write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
 write(bump%mpl%info,'(a)') '--- Initialize geometry'
 call flush(bump%mpl%info)
-call bump%geom%setup_online(bump%mpl,nmga,nl0,lon,lat,area,vunit,lmask)
+call bump%geom%setup_online(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,lmask)
 call bump%geom%init(bump%mpl,bump%rng,bump%nam)
 
 if (bump%nam%grid_output) then
@@ -537,35 +537,44 @@ end subroutine bump_run_drivers
 ! Subroutine: bump_add_member
 ! Purpose: add member into bump%ens[1,2]
 !----------------------------------------------------------------------
-subroutine bump_add_member(bump,fld,ie,iens)
+subroutine bump_add_member(bump,fld_mga,ie,iens)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                                                      ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
-integer,intent(in) :: ie                                                                    ! Member index
-integer,intent(in) :: iens                                                                  ! Ensemble number
+class(bump_type),intent(inout) :: bump                                                          ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+integer,intent(in) :: ie                                                                        ! Member index
+integer,intent(in) :: iens                                                                      ! Ensemble number
 
 ! Local variables
-integer :: its,iv
-real(kind_real) :: norm
+integer :: its,iv,nnonzero,nzero,nmask
+real(kind_real) :: norm,fld_c0a(bump%geom%nc0a,bump%geom%nl0)
 
 ! Add member
-if (iens==1) then
-   bump%ens1%fld(:,:,:,:,ie) = fld
-elseif (iens==2) then
-   bump%ens2%fld(:,:,:,:,ie) = fld
-else
-   call bump%mpl%abort('wrong ensemble number')
-end if
-
-! Print norm
 write(bump%mpl%info,'(a7,a,i3,a,i1)') '','Member ',ie,' added to ensemble ',iens
 do its=1,bump%nam%nts
    do iv=1,bump%nam%nv
-      norm = sum(fld(:,:,iv,its)**2)
+      ! Model grid to subset Sc0
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a)
+
+      ! Copy to ensemble structure
+      if (iens==1) then
+         bump%ens1%fld(:,:,iv,its,ie) = fld_c0a
+      elseif (iens==2) then
+         bump%ens2%fld(:,:,iv,its,ie) = fld_c0a
+      else
+         call bump%mpl%abort('wrong ensemble number')
+      end if
+
+      ! Print norm
+      norm = sum(fld_c0a**2,mask=bump%geom%mask_c0a)
       write(bump%mpl%info,'(a10,a,i2,a,i2,a,e9.2)') '','Local norm for variable ',iv,' and timeslot ',its,': ',norm
+      nnonzero = count((abs(fld_c0a)>0.0).and.bump%geom%mask_c0a)
+      nzero = count((.not.(abs(fld_c0a)>0.0)).and.bump%geom%mask_c0a)
+      nmask = count(.not.bump%geom%mask_c0a)
+      write(bump%mpl%info,'(a10,a,i8,a,i8,a,i8,a,i8)') '','Total / non-zero / zero / masked points: ',bump%geom%nc0a,' / ', &
+    & nnonzero,' / ',nzero,' / ',nmask
    end do
 end do
 

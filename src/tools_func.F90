@@ -11,6 +11,7 @@ use tools_asa007, only: asa007_cholesky,asa007_syminv
 use tools_const, only: pi
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsr
+use tools_repro, only: inf
 use type_mpl, only: mpl_type
 
 implicit none
@@ -18,12 +19,13 @@ implicit none
 real(kind_real),parameter :: gc2gau = 0.28            ! GC99 support radius to Gaussian Daley length-scale (empirical)
 real(kind_real),parameter :: gau2gc = 3.57            ! Gaussian Daley length-scale to GC99 support radius (empirical)
 real(kind_real),parameter :: Dmin = 1.0e-12_kind_real ! Minimum tensor diagonal value
+real(kind_real),parameter :: condmax = 1.0e2          ! Maximum tensor conditioning number
 integer,parameter :: M = 0                            ! Number of implicit itteration for the Matern function (Gaussian function if M = 0)
 
 private
 public :: gc2gau,gau2gc,Dmin,M
 public :: lonlatmod,sphere_dist,reduce_arc,vector_product,vector_triple_product,add,divide, &
-        & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,cholesky,syminv
+        & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,check_cond,cholesky,syminv
 
 contains
 
@@ -636,7 +638,7 @@ real(kind_real) :: det
 det = D11*D22-D12**2
 
 ! Inverse D to get H
-if (det>0) then
+if (det>0.0) then
    H11 = D22/det
    H22 = D11/det
    H12 = -D12/det
@@ -650,6 +652,47 @@ else
 end if
 
 end subroutine lct_d2h
+
+!----------------------------------------------------------------------
+! Subroutine: check_cond
+! Purpose: check tensor conditioning
+!----------------------------------------------------------------------
+subroutine check_cond(d1,d2,nod,valid)
+
+implicit none
+
+! Passed variables
+real(kind_real),intent(in) :: d1  ! First diagonal coefficient
+real(kind_real),intent(in) :: d2  ! Second diagonal coefficient
+real(kind_real),intent(in) :: nod ! Normalized off-diagonal coefficient
+logical,intent(out) :: valid      ! Conditioning validity
+
+! Local variables
+real(kind_real) :: det,tr,diff,ev1,ev2
+
+! Compute trace and determinant
+tr = d1+d2
+det = d1*d2*(1.0-nod**2)
+diff = 0.25*(d1-d2)**2+d1*d2*nod**2
+
+if ((det>0.0).and..not.(diff<0.0)) then
+   ! Compute eigenvalues
+   ev1 = 0.5*tr+sqrt(diff)
+   ev2 = 0.5*tr-sqrt(diff)
+
+   if (ev2>0.0) then
+      ! Check conditioning
+      valid = inf(ev1,condmax*ev2)
+   else
+      ! Lowest negative eigenvalue is negative
+      valid = .false.
+   end if
+else
+   ! Non-positive definite tensor
+   valid = .false.
+end if
+
+end subroutine check_cond
 
 !----------------------------------------------------------------------
 ! Function: matern

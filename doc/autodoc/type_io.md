@@ -6,4 +6,4 @@
 | subroutine | [io%] [fld_read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L89) | write field |
 | subroutine | [io%] [fld_write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L154) | write field |
 | subroutine | [io%] [grid_init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L328) | initialize fields regridding |
-| subroutine | [io%] [grid_write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L545) | interpolate and write field |
+| subroutine | [io%] [grid_write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_io.F90#L563) | interpolate and write field |

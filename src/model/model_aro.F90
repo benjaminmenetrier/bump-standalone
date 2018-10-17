@@ -15,6 +15,7 @@ use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
+use type_rng, only: rng_type
 
 implicit none
 
@@ -29,21 +30,24 @@ contains
 ! Subroutine: model_aro_coord
 ! Purpose: load AROME coordinates
 !----------------------------------------------------------------------
-subroutine model_aro_coord(mpl,nam,geom)
+subroutine model_aro_coord(mpl,rng,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(in) :: mpl      ! MPI data
+type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
+integer :: img,il0,ic0,ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,pp_id,lon_id,lat_id,cmask_id,a_id,b_id
-integer :: il0,ic0,ilon,ilat
+integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 real(kind_real) :: dx,dy
 real(kind_real),allocatable :: lon(:,:),lat(:,:),cmask(:,:),a(:),b(:)
-logical,allocatable :: cmask_pack(:)
+real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
+logical,allocatable :: lmask_mg(:,:),cmask_pack(:)
 character(len=1024) :: subr = 'model_aro_coord'
 
 ! Open file and get dimensions
@@ -63,6 +67,12 @@ allocate(cmask(geom%nlon,geom%nlat))
 allocate(cmask_pack(geom%nmg))
 allocate(a(geom%nlev+1))
 allocate(b(geom%nlev+1))
+allocate(mg_to_lon(geom%nmg))
+allocate(mg_to_lat(geom%nmg))
+allocate(lon_mg(geom%nmg))
+allocate(lat_mg(geom%nmg))
+allocate(area_mg(geom%nmg))
+allocate(lmask_mg(geom%nmg,geom%nl0))
 
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
@@ -84,35 +94,41 @@ call mpl%ncerr(subr,nf90_close(ncid))
 lon = lon*deg2rad
 lat = lat*deg2rad
 
-! Not redundant grid
-call geom%find_redundant(mpl)
-
-! Pack
-call geom%alloc
-ic0 = 0
+! Model grid
+img = 0
 do ilon=1,geom%nlon
    do ilat=1,geom%nlat
-      ic0 = ic0+1
-      geom%c0_to_lon(ic0) = ilon
-      geom%c0_to_lat(ic0) = ilat
-      geom%lon(ic0) = lon(ilon,ilat)
-      geom%lat(ic0) = lat(ilon,ilat)
+      img = img+1
+      mg_to_lon(img) = ilon
+      mg_to_lat(img) = ilat
+      lon_mg(img) = lon(ilon,ilat)
+      lat_mg(img) = lat(ilon,ilat)
       select case (trim(zone))
       case ('C')
-         geom%mask_c0(ic0,:) = (cmask(ilon,ilat)>0.75)
+         lmask_mg(img,:) = (cmask(ilon,ilat)>0.75)
       case ('C+I')
-         geom%mask_c0(ic0,:) = (cmask(ilon,ilat)>0.25)
+         lmask_mg(img,:) = (cmask(ilon,ilat)>0.25)
       case ('C+I+E')
-         geom%mask_c0(ic0,:) = .true.
+         lmask_mg(img,:) = .true.
       case default
          call mpl%abort('wrong AROME zone')
       end select
    end do
 end do
+area_mg = dx*dy/req**2
 
-! Compute normalized area
+! Sc0 subset
+call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.false.,nam%mask_check,.false.)
+
+! Pack
+call geom%alloc
+geom%c0_to_lon = mg_to_lon(geom%c0_to_mg)
+geom%c0_to_lat = mg_to_lat(geom%c0_to_mg)
+geom%lon = lon_mg(geom%c0_to_mg)
+geom%lat = lat_mg(geom%c0_to_mg)
 do il0=1,geom%nl0
-   geom%area(il0) = real(geom%nc0_mask(il0),kind_real)*dx*dy/req**2
+   geom%mask_c0(:,il0) = lmask_mg(geom%c0_to_mg,il0)
+   geom%area(il0) = sum(area_mg(geom%c0_to_mg),geom%mask_c0(:,il0))
 end do
 
 ! Vertical unit
@@ -139,7 +155,7 @@ end subroutine model_aro_coord
 ! Subroutine: model_aro_read
 ! Purpose: read AROME field
 !----------------------------------------------------------------------
-subroutine model_aro_read(mpl,nam,geom,filename,fld)
+subroutine model_aro_read(mpl,nam,geom,filename,its,fld)
 
 implicit none
 
@@ -148,6 +164,7 @@ type(mpl_type),intent(inout) :: mpl                           ! MPI data
 type(nam_type),intent(in) :: nam                              ! Namelist
 type(geom_type),intent(in) :: geom                            ! Geometry
 character(len=*),intent(in) :: filename                       ! File name
+integer,intent(in) :: its                                     ! Timeslot index
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv) ! Field
 
 ! Local variables
