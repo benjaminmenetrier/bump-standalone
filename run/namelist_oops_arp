@@ -4,7 +4,6 @@ prefix = "bump_${XPID}",
 model = NULL,
 colorlog = NULL,
 default_seed = .true.,
-use_metis = NULL,
 /
 
 &driver_param

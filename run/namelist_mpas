@@ -4,7 +4,6 @@ prefix = "mpas",
 model = "mpas",
 colorlog = .true.,
 default_seed = .true.,
-use_metis = .true.,
 /
 
 &driver_param

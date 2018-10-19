@@ -132,7 +132,7 @@ call flush(mpl%info)
 nam%local_rad = 1.0e-12
 
 ! Setup sampling
-call lct%samp%setup_sampling(mpl,rng,nam,geom,io,ens)
+call lct%samp%setup_sampling(mpl,rng,nam,geom,bpar,io,ens)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

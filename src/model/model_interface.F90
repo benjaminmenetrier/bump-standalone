@@ -41,7 +41,7 @@ subroutine model_coord(mpl,rng,nam,geom)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      ! MPI data
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist variables
 type(geom_type),intent(inout) :: geom ! Geometry

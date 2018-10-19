@@ -7,8 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "~/data/bump/arp/877D/proc_2"
-prefix = "arp_877D"
+datadir = "~/data/bump/aro/7G0N"
+prefix = "aro_7G0N"
 nproc = 2
 
 ; Resources:

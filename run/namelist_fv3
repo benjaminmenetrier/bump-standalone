@@ -4,7 +4,6 @@ prefix = "fv3",
 model = "fv3",
 colorlog = .true.,
 default_seed = .true.,
-use_metis = .true.,
 /
 
 &driver_param

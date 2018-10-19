@@ -17,6 +17,7 @@ use tools_missing, only: msi,msr,isnotmsi,isnotmsr,ismsi,ismsr
 use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use tools_stripack, only: trans
+use type_bpar, only: bpar_type
 use type_com, only: com_type
 use type_ens, only: ens_type
 use type_geom, only: geom_type
@@ -248,7 +249,7 @@ end subroutine samp_dealloc
 ! Subroutine: samp_read
 ! Purpose: read sampling
 !----------------------------------------------------------------------
-subroutine samp_read(samp,mpl,nam,geom,ios)
+subroutine samp_read(samp,mpl,nam,geom,bpar,ios)
 
 implicit none
 
@@ -257,6 +258,7 @@ class(samp_type),intent(inout) :: samp ! Sampling
 type(mpl_type),intent(in) :: mpl       ! MPI data
 type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 integer,intent(out) :: ios             ! Status flag
 
 ! Local variables
@@ -300,7 +302,7 @@ if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
       ios = 2
    end if
 end if
-if ((geom%nl0/=nl0_test).or.(nam%nl0r/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%nc1/=nc1_test)) then
+if ((geom%nl0/=nl0_test).or.(bpar%nl0rmax/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%nc1/=nc1_test)) then
    call mpl%warning('wrong dimension when reading sampling, recomputing sampling')
    nam%sam_write = .true.
    call mpl%ncerr(subr,nf90_close(ncid))
@@ -478,7 +480,7 @@ end subroutine samp_read
 ! Subroutine: samp_write
 ! Purpose: write sampling
 !----------------------------------------------------------------------
-subroutine samp_write(samp,mpl,nam,geom)
+subroutine samp_write(samp,mpl,nam,geom,bpar)
 
 implicit none
 
@@ -487,6 +489,7 @@ class(samp_type),intent(in) :: samp ! Sampling
 type(mpl_type),intent(in) :: mpl    ! MPI data
 type(nam_type),intent(in) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom  ! Geometry
+type(bpar_type),intent(in) :: bpar  ! Block parameters
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
@@ -512,7 +515,7 @@ call nam%ncwrite(mpl,ncid)
 
 ! Define dimensions
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
-call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0r',nam%nl0r))
+call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0r',bpar%nl0rmax))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc3',nam%nc3,nc3_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
 if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) &
@@ -722,7 +725,7 @@ end subroutine samp_write
 ! Subroutine: samp_setup_sampling
 ! Purpose: setup sampling
 !----------------------------------------------------------------------
-subroutine samp_setup_sampling(samp,mpl,rng,nam,geom,io,ens)
+subroutine samp_setup_sampling(samp,mpl,rng,nam,geom,bpar,io,ens)
 
 implicit none
 
@@ -732,6 +735,7 @@ type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(rng_type),intent(inout) :: rng    ! Random number generator
 type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
 type(ens_type),intent(in) :: ens       ! Ensemble
 
@@ -758,7 +762,7 @@ call samp%alloc(nam,geom)
 
 ! Read or compute sampling data
 ios = 1
-if (nam%sam_read) call samp%read(mpl,nam,geom,ios)
+if (nam%sam_read) call samp%read(mpl,nam,geom,bpar,ios)
 if (ios==1) then
    ! Compute mask
    call samp%compute_mask(mpl,nam,geom,ens)
@@ -899,7 +903,7 @@ end if
 
 ! Write sampling data
 if (nam%sam_write) then
-   if (mpl%main) call samp%write(mpl,nam,geom)
+   if (mpl%main) call samp%write(mpl,nam,geom,bpar)
 
    ! Write rh_c0
    if (trim(nam%draw_type)=='random_coast') then

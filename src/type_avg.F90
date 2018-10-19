@@ -830,16 +830,16 @@ real(kind_real),allocatable :: m11sta(:,:,:),stasq(:,:,:)
 real(kind_real),allocatable :: m11lrm11(:,:,:),m11lrm11asy(:,:,:)
 
 ! Allocation
-allocate(cor(nam%nc3,nam%nl0r,geom%nl0))
-allocate(m11asysq(nam%nc3,nam%nl0r,geom%nl0))
-allocate(m11sq(nam%nc3,nam%nl0r,geom%nl0))
+allocate(cor(nam%nc3,bpar%nl0rmax,geom%nl0))
+allocate(m11asysq(nam%nc3,bpar%nl0rmax,geom%nl0))
+allocate(m11sq(nam%nc3,bpar%nl0rmax,geom%nl0))
 select case (trim(nam%method))
 case ('hyb-avg','hyb-rnd')
-   allocate(m11sta(nam%nc3,nam%nl0r,geom%nl0))
-   allocate(stasq(nam%nc3,nam%nl0r,geom%nl0))
+   allocate(m11sta(nam%nc3,bpar%nl0rmax,geom%nl0))
+   allocate(stasq(nam%nc3,bpar%nl0rmax,geom%nl0))
 case ('dual-ens')
-   allocate(m11lrm11(nam%nc3,nam%nl0r,geom%nl0))
-   allocate(m11lrm11asy(nam%nc3,nam%nl0r,geom%nl0))
+   allocate(m11lrm11(nam%nc3,bpar%nl0rmax,geom%nl0))
+   allocate(m11lrm11asy(nam%nc3,bpar%nl0rmax,geom%nl0))
 end select
 
 write(mpl%info,'(a10,a,a,a)',advance='no') '','Block ',trim(bpar%blockname(bpar%nbe)),':'
@@ -879,7 +879,7 @@ do ic2=0,nam%nc2
          if (bpar%avg_block(ib)) then
             !$omp parallel do schedule(static) private(il0,jl0r,bwgtsq,jc3)
             do il0=1,geom%nl0
-               do jl0r=1,nam%nl0r
+               do jl0r=1,bpar%nl0r(ib)
                   ! Weight
                   if (avg_wgt%blk(0,ib)%m2m2asy(1,jl0r,il0)>0.0) then
                      bwgtsq = 1.0/avg_wgt%blk(0,ib)%m2m2asy(1,jl0r,il0)
@@ -916,7 +916,7 @@ do ic2=0,nam%nc2
       ! Normalization
       !$omp parallel do schedule(static) private(il0,jl0r,jc3)
       do il0=1,geom%nl0
-         do jl0r=1,nam%nl0r
+         do jl0r=1,bpar%nl0r(ib)
             do jc3=1,nam%nc3
                call divide(avg%blk(ic2,bpar%nbe)%cor(jc3,jl0r,il0),cor(jc3,jl0r,il0))
                call divide(avg%blk(ic2,bpar%nbe)%m11asysq(jc3,jl0r,il0),m11asysq(jc3,jl0r,il0))

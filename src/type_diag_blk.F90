@@ -210,10 +210,10 @@ if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'one',1,one_id))
 info = nf90_inq_dimid(ncid,'nc3',nc3_id)
 if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nc3',nam%nc3,nc3_id))
 info = nf90_inq_dimid(ncid,'nl0r',nl0r_id)
-if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0r',nam%nl0r,nl0r_id))
+if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0r',bpar%nl0rmax,nl0r_id))
 info = nf90_inq_dimid(ncid,'nl0_1',nl0_1_id)
 if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0_1',geom%nl0,nl0_1_id))
-if (nam%nl0r/=geom%nl0) then
+if (bpar%nl0rmax/=geom%nl0) then
    info = nf90_inq_dimid(ncid,'nl0_2',nl0_2_id)
    if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0_2',geom%nl0,nl0_2_id))
 end if
@@ -232,7 +232,7 @@ if ((ic2a==0).or.nam%local_diag) then
       call mpl%ncerr(subr,nf90_def_var(ncid,trim(diag_blk%name)//'_raw',ncfloat,(/nc3_id,nl0r_id,nl0_1_id/),raw_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,raw_id,'_FillValue',msvalr))
    end if
-   if (nam%nl0r/=geom%nl0) then
+   if (bpar%nl0rmax/=geom%nl0) then
       info = nf90_inq_varid(ncid,trim(diag_blk%name)//'_raw_zs',raw_zs_id)
       if (info/=nf90_noerr) then
          call mpl%ncerr(subr,nf90_def_var(ncid,trim(diag_blk%name)//'_raw_zs',ncfloat,(/nl0_2_id,nl0_1_id/),raw_zs_id))
@@ -252,7 +252,7 @@ if ((ic2a==0).or.nam%local_diag) then
          call mpl%ncerr(subr,nf90_def_var(ncid,trim(diag_blk%name)//'_fit',ncfloat,(/nc3_id,nl0r_id,nl0_1_id/),fit_id))
          call mpl%ncerr(subr,nf90_put_att(ncid,fit_id,'_FillValue',msvalr))
       end if
-      if (nam%nl0r/=geom%nl0) then
+      if (bpar%nl0rmax/=geom%nl0) then
          info = nf90_inq_varid(ncid,trim(diag_blk%name)//'_fit_zs',fit_zs_id)
          if (info/=nf90_noerr) then
             call mpl%ncerr(subr,nf90_def_var(ncid,trim(diag_blk%name)//'_fit_zs',ncfloat,(/nl0_2_id,nl0_1_id/),fit_zs_id))
@@ -298,9 +298,9 @@ call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,sum(geom%vunit,mask=geom%mask_c0,
 call mpl%ncerr(subr,nf90_put_var(ncid,raw_coef_ens_id,diag_blk%raw_coef_ens))
 if ((ic2a==0).or.nam%local_diag) then
    call mpl%ncerr(subr,nf90_put_var(ncid,raw_id,diag_blk%raw))
-   if (nam%nl0r/=geom%nl0) then
+   if (bpar%nl0rmax/=geom%nl0) then
       do il0=1,geom%nl0
-         do jl0r=1,nam%nl0r
+         do jl0r=1,bpar%nl0rmax
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
             call mpl%ncerr(subr,nf90_put_var(ncid,raw_zs_id,diag_blk%raw(1,jl0r,il0),(/jl0,il0/)))
          end do
@@ -309,9 +309,9 @@ if ((ic2a==0).or.nam%local_diag) then
    if (isnotmsr(diag_blk%raw_coef_sta)) call mpl%ncerr(subr,nf90_put_var(ncid,raw_coef_sta_id,diag_blk%raw_coef_sta))
    if ((trim(nam%minim_algo)/='none').and.(isanynotmsr(diag_blk%fit))) then
       call mpl%ncerr(subr,nf90_put_var(ncid,fit_id,diag_blk%fit))
-      if (nam%nl0r/=geom%nl0) then
+      if (bpar%nl0rmax/=geom%nl0) then
          do il0=1,geom%nl0
-            do jl0r=1,nam%nl0r
+            do jl0r=1,bpar%nl0rmax
                jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
                call mpl%ncerr(subr,nf90_put_var(ncid,fit_zs_id,diag_blk%fit(1,jl0r,il0),(/jl0,il0/)))
             end do
@@ -415,10 +415,9 @@ type(samp_type),intent(in) :: samp             ! Sampling
 
 ! Local variables
 integer :: ic2,ic0,il0,jl0r,offset,isc
-real(kind_real) :: vunit(geom%nl0),rawv(nam%nl0r),distv(nam%nl0r)
 real(kind_real) :: alpha,alpha_opt,mse,mse_opt
-real(kind_real) :: fit_rh(geom%nl0),fit_rv(geom%nl0)
-real(kind_real) :: fit(nam%nc3,nam%nl0r,geom%nl0)
+real(kind_real) :: vunit(geom%nl0),fit_rh(geom%nl0),fit_rv(geom%nl0)
+real(kind_real),allocatable :: rawv(:),distv(:),fit(:,:,:)
 type(minim_type) :: minim
 
 ! Associate
@@ -426,6 +425,11 @@ associate(ic2a=>diag_blk%ic2a,ib=>diag_blk%ib)
 
 ! Check
 if (trim(nam%minim_algo)=='none') call mpl%abort('cannot compute fit if minim_algo = none')
+
+! Allocation
+allocate(rawv(bpar%nl0r(ib)))
+allocate(distv(bpar%nl0r(ib)))
+allocate(fit(nam%nc3,bpar%nl0r(ib),geom%nl0))
 
 ! Initialization
 call msr(diag_blk%fit_rh)
@@ -452,7 +456,7 @@ do il0=1,geom%nl0
    ! Vertical fast fit
    rawv = diag_blk%raw(1,:,il0)
    distv = diag_blk%distv(bpar%l0rl0b_to_l0(:,il0,ib),il0)
-   call fast_fit(mpl,nam%nl0r,jl0r,distv,rawv,diag_blk%fit_rv(il0))
+   call fast_fit(mpl,bpar%nl0r(ib),jl0r,distv,rawv,diag_blk%fit_rv(il0))
 end do
 
 if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
@@ -486,10 +490,10 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
 
          ! Define fit
          if (diag_blk%double_fit) then
-            call fit_diag_dble(mpl,nam%nc3,nam%nl0r,geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv,fit_rh,fit_rv, &
-          & diag_blk%fit_rv_rfac,diag_blk%fit_rv_coef,fit)
+            call fit_diag_dble(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv, &
+          & fit_rh,fit_rv,diag_blk%fit_rv_rfac,diag_blk%fit_rv_coef,fit)
          else
-            call fit_diag(mpl,nam%nc3,nam%nl0r,geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv,fit_rh,fit_rv,fit)
+            call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv,fit_rh,fit_rv,fit)
          end if
 
          ! MSE
@@ -525,13 +529,13 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
          minim%nx = minim%nx+geom%nl0
          if (diag_blk%double_fit) minim%nx = minim%nx+2*geom%nl0
       end if
-      minim%ny = nam%nc3*nam%nl0r*geom%nl0
+      minim%ny = nam%nc3*bpar%nl0r(ib)*geom%nl0
       allocate(minim%x(minim%nx))
       allocate(minim%guess(minim%nx))
       allocate(minim%binf(minim%nx))
       allocate(minim%bsup(minim%nx))
       allocate(minim%obs(minim%ny))
-      allocate(minim%l0rl0_to_l0(nam%nl0r,geom%nl0))
+      allocate(minim%l0rl0_to_l0(bpar%nl0r(ib),geom%nl0))
       allocate(minim%disth(nam%nc3))
       allocate(minim%distv(geom%nl0,geom%nl0))
 
@@ -587,7 +591,7 @@ if (any(isnotmsr(diag_blk%fit_rh)).and.any(isnotmsr(diag_blk%fit_rv))) then
       end if
       minim%algo = nam%minim_algo
       minim%nc3 = nam%nc3
-      minim%nl0r = nam%nl0r
+      minim%nl0r = bpar%nl0r(ib)
       minim%nl0 = geom%nl0
       minim%lhomh = nam%lhomh
       minim%lhomv = nam%lhomv
