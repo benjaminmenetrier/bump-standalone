@@ -75,7 +75,7 @@ character(len=1024) :: filename
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
 call flush(mpl%info)
-call hdiag%samp%setup_sampling(mpl,rng,nam,geom,io,ens1)
+call hdiag%samp%setup_sampling(mpl,rng,nam,geom,bpar,io,ens1)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

@@ -338,7 +338,7 @@ logical :: valid,mask_unpack(geom%nl0,geom%nl0)
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
 call flush(mpl%info)
-call vbal%samp%setup_sampling(mpl,rng,nam,geom,io,ens)
+call vbal%samp%setup_sampling(mpl,rng,nam,geom,bpar,io,ens)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

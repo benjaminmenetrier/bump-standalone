@@ -4,7 +4,6 @@ prefix = "aro_7H8H_tq",
 model = "aro",
 colorlog = .true.,
 default_seed = .true.,
-use_metis = .true.,
 /
 
 &driver_param

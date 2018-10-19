@@ -4,7 +4,6 @@ prefix = "arp_86SV",
 model = "arp",
 colorlog = .true.,
 default_seed = .true.,
-use_metis = .true.,
 /
 
 &driver_param

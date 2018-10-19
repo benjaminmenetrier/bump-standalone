@@ -4,7 +4,6 @@ prefix = "gfs",
 model = "gfs",
 colorlog = .true.,
 default_seed = .true.,
-use_metis = .true.,
 /
 
 &driver_param

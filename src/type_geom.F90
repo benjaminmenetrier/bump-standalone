@@ -11,7 +11,7 @@ use netcdf
 use tools_const, only: pi,req,deg2rad,rad2deg,reqkm
 use tools_func, only: lonlatmod,sphere_dist,vector_product,vector_triple_product
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,msr,isnotmsi,ismsi,ismsr
+use tools_missing, only: msi,msr,isnotmsi,ismsi,ismsr,isanynotmsr
 use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use tools_stripack, only: areas,trans
@@ -666,7 +666,7 @@ call geom%mesh%create(mpl,rng,geom%nc0,geom%lon,geom%lat)
 call geom%mesh%bnodes
 
 ! Compute area
-if ((.not.any(geom%area>0.0))) call geom%compute_area
+if (.not.isanynotmsr(geom%area)) call geom%compute_area(mpl)
 
 ! Check whether the mask is the same for all levels
 same_mask = .true.
@@ -785,16 +785,19 @@ end subroutine geom_define_mask
 ! Subroutine: geom_compute_area
 ! Purpose: compute domain area
 !----------------------------------------------------------------------
-subroutine geom_compute_area(geom)
+subroutine geom_compute_area(geom,mpl)
 
 implicit none
 
 ! Passed variables
 class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
 
 ! Local variables
 integer :: il0,it
 real(kind_real) :: area,frac
+
+write(mpl%info,'(a7,a)') '','Compute area (might take a long time)'
 
 ! Create triangles list
 if (.not.allocated(geom%mesh%ltri)) call geom%mesh%trlist
@@ -883,19 +886,23 @@ implicit none
 
 ! Passed variables
 class(geom_type),intent(inout) :: geom ! Geometry
-type(mpl_type),intent(in) :: mpl       ! MPI data
+type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 type(rng_type),intent(inout) :: rng    ! Random number generator
 
 ! Local variables
-integer :: ic0,il0,i,j,iend,info,iproc,ic0a,nc0amax,lunit,nc0a
+integer :: ic0,il0,i,j,iend,info,iproc,ic0a,nc0amax,lunit,nc0a,ny,nres,iy,delta,ix
 integer :: ncid,nc0_id,c0_to_proc_id,c0_to_c0a_id,lon_id,lat_id
-integer :: c0_reorder(geom%nc0)
-integer,allocatable :: nr_to_proc(:),ic0a_arr(:)
-logical :: init,ismetis
+integer :: c0_reorder(geom%nc0),nn_index(1)
+integer,allocatable :: center_to_c0(:),nx(:),ic0a_arr(:)
+real(kind_real) :: nn_dist(1),dlat,dlon
+real(kind_real),allocatable :: rh_c0(:),lon_center(:),lat_center(:)
+logical :: init
+logical,allocatable :: mask_hor_c0(:)
 character(len=4) :: nprocchar
-character(len=1024) :: filename_nc,filename_metis
+character(len=1024) :: filename_nc
 character(len=1024) :: subr = 'geom_define_distribution'
+type(kdtree_type) :: kdtree
 type(mesh_type) :: mesh
 
 if (mpl%nproc==1) then
@@ -939,117 +946,82 @@ elseif (mpl%nproc>1) then
       if (maxval(geom%c0_to_proc)>mpl%nproc) call mpl%abort('wrong distribution')
    else
       ! Generate a distribution
-      if (nam%use_metis) then
-         ! Check METIS existence
-         if (mpl%main) then
-            call execute_command_line('gpmetis --help',cmdstat=info)
-            ismetis = (info==0)
-         end if
-         call mpl%f_comm%broadcast(ismetis,mpl%ioproc-1)
 
-         if (ismetis) then
-            ! Build METIS graph
-            write(mpl%info,'(a7,a,i4,a)') '','Build METIS graph for ',mpl%nproc,' MPI tasks'
-            call flush(mpl%info)
+      ! Allocation
+      allocate(lon_center(mpl%nproc))
+      allocate(lat_center(mpl%nproc))
+      allocate(ic0a_arr(mpl%nproc))
 
-            ! Compute graph
-            call mesh%create(mpl,rng,geom%nc0,geom%lon,geom%lat)
-            call mesh%bnodes
+      ! Define distribution centers
+      if (.false.) then
+         ! Using a random sampling
 
-            if (mpl%main) then
-               ! Open file
-               filename_metis = trim(nam%prefix)//'_metis'
-               call mpl%newunit(lunit)
-               open(unit=lunit,file=trim(nam%datadir)//'/'//trim(filename_metis),status='replace')
+         ! Allocation
+         allocate(mask_hor_c0(geom%nc0))
+         allocate(rh_c0(geom%nc0))
+         allocate(center_to_c0(mpl%nproc))
 
-               ! Write header
-               write(lunit,*) mesh%n,mesh%na-mesh%nb/2
+         ! Initialization
+         mask_hor_c0 = any(geom%mask_c0,dim=2)
+         rh_c0 = 1.0
 
-               ! Write connectivity
-               do i=1,mesh%n
-                  iend = mesh%lend(i)
-                  init = .true.
-                  do while ((iend/=mesh%lend(i)).or.init)
-                     j = mesh%list(iend)
-                     if (j>0) write(lunit,'(i7)',advance='no') j
-                     iend = mesh%lptr(iend)
-                     init = .false.
-                  end do
-                  write(lunit,*) ''
-               end do
+         ! Compute sampling
+         write(mpl%info,'(a7,a)',advance='no') '','Define distribution centers:'
+         call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,mask_hor_c0,rh_c0,nam%ntry,nam%nrep,mpl%nproc,center_to_c0)
 
-               ! Close file
-               close(unit=lunit)
-
-               ! Call METIS
-               write(nprocchar,'(i4)') mpl%nproc
-               call execute_command_line('gpmetis '//trim(nam%datadir)//'/'//trim(filename_metis)//' '//adjustl(nprocchar) &
-             & //' > '//trim(nam%datadir)//'/'//trim(filename_metis)//'.out',cmdstat=info)
-            end if
-            call mpl%f_comm%barrier
-         else
-            call mpl%warning('METIS has been required but is not available to generate the local distribution')
-         end if
+         ! Define centers coordinates
+         lon_center = geom%lon(center_to_c0)
+         lat_center = geom%lat(center_to_c0)
       else
-         ! No METIS
-         ismetis = .false.
-      end if
+         ! Using a regular splitting
 
-      if (ismetis) then
-         write(mpl%info,'(a7,a)') '','Use METIS to generate the local distribution'
-         call flush(mpl%info)
-
-         if (mpl%main) then
-            ! Allocation
-            allocate(nr_to_proc(mesh%n))
-            allocate(ic0a_arr(mpl%nproc))
-
-            ! Read METIS file
-            call mpl%newunit(lunit)
-            open(unit=lunit,file=trim(nam%datadir)//'/'//trim(filename_metis)//'.part.'//adjustl(nprocchar),status='old')
-            do i=1,mesh%n
-               read(lunit,*) nr_to_proc(i)
-            end do
-            close(unit=lunit)
-
-            ! Reorder and offset
-            do ic0=1,geom%nc0
-               i = mesh%order_inv(ic0)
-               geom%c0_to_proc(ic0) = nr_to_proc(i)+1
-            end do
-
-            ! Local index
-            ic0a_arr = 0
-            do ic0=1,geom%nc0
-               iproc = geom%c0_to_proc(ic0)
-               ic0a_arr(iproc) = ic0a_arr(iproc)+1
-               geom%c0_to_c0a(ic0) = ic0a_arr(iproc)
-            end do
-         end if
-
-         ! Broadcast distribution
-         call mpl%f_comm%broadcast(geom%c0_to_proc,mpl%ioproc-1)
-         call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
-      else
-         write(mpl%info,'(a7,a)') '','Define a basic local distribution'
-         call flush(mpl%info)
-
-         ! Basic distribution
-         nc0amax = geom%nc0/mpl%nproc
-         if (nc0amax*mpl%nproc<geom%nc0) nc0amax = nc0amax+1
-         iproc = 1
-         ic0a = 1
-         do ic0=1,geom%nc0
-            geom%c0_to_proc(ic0) = iproc
-            geom%c0_to_c0a(ic0) = ic0a
-            ic0a = ic0a+1
-            if (ic0a>nc0amax) then
-               ! Change proc
+         ! Allocation
+         ny = sqrt(real(mpl%nproc,kind_real))
+         if (ny**2<mpl%nproc) ny = ny+1
+         allocate(nx(ny))
+         nres = mpl%nproc
+         do iy=1,ny
+            delta = mpl%nproc/ny
+            if (nres>(ny-iy+1)*delta) delta = delta+1
+            nx(iy) = delta
+            nres = nres-delta
+         end do
+         if (sum(nx)/=mpl%nproc) call mpl%abort('wrong number of tiles in define_distribution')
+         dlat = (maxval(geom%lat)-minval(geom%lat))/ny
+         iproc = 0
+         do iy=1,ny
+            dlon = (maxval(geom%lon)-minval(geom%lon))/nx(iy)
+            do ix=1,nx(iy)
                iproc = iproc+1
-               ic0a = 1
-            end if
+               lat_center(iproc) = minval(geom%lat)+(real(iy,kind_real)-0.5)*dlat
+               lon_center(iproc) = minval(geom%lon)+(real(ix,kind_real)-0.5)*dlon
+            end do
          end do
       end if
+
+      if (mpl%main) then
+         ! Define kdtree
+         call kdtree%create(mpl,mpl%nproc,lon_center,lat_center)
+   
+         ! Local processor
+         do ic0=1,geom%nc0
+            call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)
+            geom%c0_to_proc(ic0) = nn_index(1)
+         end do
+   
+         ! Local index
+         ic0a_arr = 0
+         do ic0=1,geom%nc0
+            iproc = geom%c0_to_proc(ic0)
+            ic0a_arr(iproc) = ic0a_arr(iproc)+1
+            geom%c0_to_c0a(ic0) = ic0a_arr(iproc)
+         end do
+      end if
+   
+      ! Broadcast distribution
+      call mpl%f_comm%broadcast(geom%c0_to_proc,mpl%ioproc-1)
+      call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
+
 
       if (test_no_point) then
          ! Count points on the penultimate processor
@@ -1103,12 +1075,6 @@ do iproc=1,mpl%nproc
    geom%proc_to_nc0a(iproc) = count(geom%c0_to_proc==iproc)
 end do
 geom%nc0a = geom%proc_to_nc0a(mpl%myproc)
-
-
-
-
-
-
 
 ! Conversion
 allocate(geom%c0a_to_c0(geom%nc0a))

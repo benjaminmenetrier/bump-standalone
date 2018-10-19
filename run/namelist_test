@@ -4,7 +4,6 @@ prefix = "test",
 model = "gem",
 colorlog = .false.,
 default_seed = .true.,
-use_metis = .false.,
 /
 
 &driver_param
