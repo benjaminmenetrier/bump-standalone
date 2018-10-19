@@ -891,19 +891,17 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(rng_type),intent(inout) :: rng    ! Random number generator
 
 ! Local variables
-integer :: ic0,il0,i,j,iend,info,iproc,ic0a,nc0amax,lunit,nc0a,ny,nres,iy,delta,ix
+integer :: ic0,il0,info,iproc,ic0a,nc0a,ny,nres,iy,delta,ix
 integer :: ncid,nc0_id,c0_to_proc_id,c0_to_c0a_id,lon_id,lat_id
 integer :: c0_reorder(geom%nc0),nn_index(1)
 integer,allocatable :: center_to_c0(:),nx(:),ic0a_arr(:)
 real(kind_real) :: nn_dist(1),dlat,dlon
 real(kind_real),allocatable :: rh_c0(:),lon_center(:),lat_center(:)
-logical :: init
 logical,allocatable :: mask_hor_c0(:)
 character(len=4) :: nprocchar
 character(len=1024) :: filename_nc
 character(len=1024) :: subr = 'geom_define_distribution'
 type(kdtree_type) :: kdtree
-type(mesh_type) :: mesh
 
 if (mpl%nproc==1) then
    ! All points on a single processor
@@ -976,7 +974,7 @@ elseif (mpl%nproc>1) then
          ! Using a regular splitting
 
          ! Allocation
-         ny = sqrt(real(mpl%nproc,kind_real))
+         ny = nint(sqrt(real(mpl%nproc,kind_real)))
          if (ny**2<mpl%nproc) ny = ny+1
          allocate(nx(ny))
          nres = mpl%nproc
@@ -1002,13 +1000,13 @@ elseif (mpl%nproc>1) then
       if (mpl%main) then
          ! Define kdtree
          call kdtree%create(mpl,mpl%nproc,lon_center,lat_center)
-   
+
          ! Local processor
          do ic0=1,geom%nc0
             call kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)
             geom%c0_to_proc(ic0) = nn_index(1)
          end do
-   
+
          ! Local index
          ic0a_arr = 0
          do ic0=1,geom%nc0
@@ -1017,7 +1015,7 @@ elseif (mpl%nproc>1) then
             geom%c0_to_c0a(ic0) = ic0a_arr(iproc)
          end do
       end if
-   
+
       ! Broadcast distribution
       call mpl%f_comm%broadcast(geom%c0_to_proc,mpl%ioproc-1)
       call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
