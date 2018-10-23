@@ -103,6 +103,7 @@ type geom_type
    integer,allocatable :: c0a_to_c0(:)        ! Subset Sc0, halo A to global
    integer,allocatable :: proc_to_nc0a(:)     ! Halo A size for each proc
    integer,allocatable :: c0a_to_mga(:)       ! Subset Sc0 to model grid, halo A
+   integer,allocatable :: mga_to_c0a(:)       ! Model grid to subset Sc0, halo A
    type(com_type) :: com_mg                   ! Communication between subset Sc0 and model grid
 contains
    procedure :: alloc => geom_alloc
@@ -216,6 +217,7 @@ if (allocated(geom%c0_to_c0a)) deallocate(geom%c0_to_c0a)
 if (allocated(geom%c0a_to_c0)) deallocate(geom%c0a_to_c0)
 if (allocated(geom%proc_to_nc0a)) deallocate(geom%proc_to_nc0a)
 if (allocated(geom%c0a_to_mga)) deallocate(geom%c0a_to_mga)
+if (allocated(geom%mga_to_c0a)) deallocate(geom%mga_to_c0a)
 call geom%com_mg%dealloc
 
 end subroutine geom_dealloc
@@ -364,11 +366,18 @@ call mpl%glb_to_loc_index(geom%nc0a,geom%c0a_to_c0,geom%nc0,geom%c0_to_c0a)
 
 ! Inter-halo conversions
 allocate(geom%c0a_to_mga(geom%nc0a))
+allocate(geom%mga_to_c0a(geom%nmga))
 do ic0a=1,geom%nc0a
    ic0 = geom%c0a_to_c0(ic0a)
    img = geom%c0_to_mg(ic0)
    imga = geom%mg_to_mga(img)
    geom%c0a_to_mga(ic0a) = imga
+end do
+do imga=1,geom%nmga
+   img = geom%mga_to_mg(imga)
+   ic0 = geom%mg_to_c0(img)
+   ic0a = geom%c0_to_c0a(ic0)
+   geom%mga_to_c0a(imga) = ic0a
 end do
 
 ! Setup communications
@@ -1267,11 +1276,14 @@ real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) ! Field on subset Sc0
 ! Local variables
 integer :: ic0a,il0,imga
 
+! Initialization
+fld_c0a = 0.0
+
 do il0=1,geom%nl0
    ! Copy non-redundant points
-   do ic0a=1,geom%nc0a
-      imga = geom%c0a_to_mga(ic0a)
-      fld_c0a(ic0a,il0) = fld_mga(imga,il0)
+   do imga=1,geom%nmga
+      ic0a = geom%mga_to_c0a(imga)
+      if (.not.(abs(fld_c0a(ic0a,il0))>0.0)) fld_c0a(ic0a,il0) = fld_mga(imga,il0)
    end do
 end do
 
