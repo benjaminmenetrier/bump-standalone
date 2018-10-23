@@ -584,20 +584,31 @@ end subroutine bump_add_member
 ! Subroutine: bump_apply_vbal
 ! Purpose: vertical balance application
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal(bump,fld)
+subroutine bump_apply_vbal(bump,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
-integer :: its
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! Apply vertical balance
 do its=1,bump%nam%nts
-   call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld(:,:,:,its))
+   ! Model grid to subset Sc0
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+   end do
+
+   ! Apply vertical balance
+   call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_c0a)
+
+   ! Subset Sc0 to model grid
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+   end do
 end do
 
 end subroutine bump_apply_vbal
@@ -606,20 +617,36 @@ end subroutine bump_apply_vbal
 ! Subroutine: bump_apply_vbal_inv
 ! Purpose: vertical balance application, inverse
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_inv(bump,fld)
+subroutine bump_apply_vbal_inv(bump,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
-integer :: its
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! Apply vertical balance, inverse
 do its=1,bump%nam%nts
-   call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld(:,:,:,its))
+   ! Model grid to subset Sc0
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+   end do
+
+   ! Apply vertical balance, inverse
+   call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_c0a)
+
+   ! Subset Sc0 to model grid
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+   end do
+end do
+
+
+do its=1,bump%nam%nts
+
 end do
 
 end subroutine bump_apply_vbal_inv
@@ -628,20 +655,31 @@ end subroutine bump_apply_vbal_inv
 ! Subroutine: bump_apply_vbal_ad
 ! Purpose: vertical balance application, adjoint
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_ad(bump,fld)
+subroutine bump_apply_vbal_ad(bump,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
-integer :: its
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! Apply vertical balance, adjoint
 do its=1,bump%nam%nts
-   call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld(:,:,:,its))
+   ! Model grid to subset Sc0
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+   end do
+
+   ! Apply vertical balance, adjoint
+   call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+
+   ! Subset Sc0 to model grid
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+   end do
 end do
 
 end subroutine bump_apply_vbal_ad
@@ -650,20 +688,31 @@ end subroutine bump_apply_vbal_ad
 ! Subroutine: bump_apply_vbal_inv_ad
 ! Purpose: vertical balance application, inverse adjoint
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_inv_ad(bump,fld)
+subroutine bump_apply_vbal_inv_ad(bump,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variable
-integer :: its
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! Apply vertical balance, inverse adjoint
 do its=1,bump%nam%nts
-   call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld(:,:,:,its))
+   ! Model grid to subset Sc0
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+   end do
+
+   ! Apply vertical balance, inverse adjoint
+   call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+
+   ! Subset Sc0 to model grid
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+   end do
 end do
 
 end subroutine bump_apply_vbal_inv_ad
@@ -672,20 +721,38 @@ end subroutine bump_apply_vbal_inv_ad
 ! Subroutine: bump_apply_nicas
 ! Purpose: NICAS application
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas(bump,fld)
+subroutine bump_apply_nicas(bump,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+
+! Local variable
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+
+! Model grid to subset Sc0
+do its=1,bump%nam%nts
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
+   end do
+end do
 
 ! Apply NICAS
 if (bump%nam%lsqrt) then
-   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
 else
-   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld)
+   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
 end if
+
+! Subset Sc0 to model grid
+do its=1,bump%nam%nts
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+   end do
+end do
 
 end subroutine bump_apply_nicas
 
@@ -716,16 +783,18 @@ end subroutine bump_get_cv_size
 ! Subroutine: bump_apply_nicas_sqrt
 ! Purpose: NICAS square-root application
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas_sqrt(bump,pcv,fld)
+subroutine bump_apply_nicas_sqrt(bump,pcv,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                         ! BUMP
-real(kind_real),intent(in) :: pcv(:)                                                        ! Packed control variable
-real(kind_real),intent(inout) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                             ! BUMP
+real(kind_real),intent(in) :: pcv(:)                                                            ! Packed control variable
+real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
-! Local variables
+! Local variable
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 type(cv_type) :: cv
 
 ! Allocation
@@ -740,7 +809,14 @@ else
 end if
 
 ! Apply NICAS square-root
-call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld)
+call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
+
+! Subset Sc0 to model grid
+do its=1,bump%nam%nts
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+   end do
+end do
 
 end subroutine bump_apply_nicas_sqrt
 
@@ -748,20 +824,29 @@ end subroutine bump_apply_nicas_sqrt
 ! Subroutine: bump_apply_nicas_sqrt_ad
 ! Purpose: NICAS square-root adjoint application
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas_sqrt_ad(bump,fld,pcv)
+subroutine bump_apply_nicas_sqrt_ad(bump,fld_mga,pcv)
 
 implicit none
 
 ! Passed variables
 class(bump_type),intent(in) :: bump                                                      ! BUMP
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 real(kind_real),intent(inout) :: pcv(:)                                                  ! Packed control variable
 
 ! Local variables
+integer :: its,iv
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 type(cv_type) :: cv
 
+! Model grid to subset Sc0
+do its=1,bump%nam%nts
+   do iv=1,bump%nam%nv
+      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
+   end do
+end do
+
 ! Apply NICAS square-root adjoint
-call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld,cv)
+call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a,cv)
 
 ! Check dimension
 if (size(pcv)==cv%n) then
@@ -777,17 +862,23 @@ end subroutine bump_apply_nicas_sqrt_ad
 ! Subroutine: bump_apply_obsop
 ! Purpose: observation operator application
 !----------------------------------------------------------------------
-subroutine bump_apply_obsop(bump,fld,obs)
+subroutine bump_apply_obsop(bump,fld_mga,obs)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                ! BUMP
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0)    ! Field
-real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
+class(bump_type),intent(in) :: bump                                 ! BUMP
+real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
+real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0)  ! Observations columns
+
+! Local variables
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
+
+! Model grid to subset Sc0
+call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,fld_c0a)
 
 ! Apply observation operator
-call bump%obsop%apply(bump%mpl,bump%geom,fld,obs)
+call bump%obsop%apply(bump%mpl,bump%geom,fld_c0a,obs)
 
 end subroutine bump_apply_obsop
 
@@ -795,17 +886,23 @@ end subroutine bump_apply_obsop
 ! Subroutine: bump_apply_obsop_ad
 ! Purpose: observation operator adjoint application
 !----------------------------------------------------------------------
-subroutine bump_apply_obsop_ad(bump,obs,fld)
+subroutine bump_apply_obsop_ad(bump,obs,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                               ! BUMP
-real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
-real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0)  ! Field
+class(bump_type),intent(in) :: bump                                  ! BUMP
+real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0)    ! Observations columns
+real(kind_real),intent(out) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
+
+! Local variables
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
 
 ! Apply observation operator adjoint
-call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld)
+call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_c0a)
+
+! Subset Sc0 to model grid
+call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a,fld_mga)
 
 end subroutine bump_apply_obsop_ad
 
@@ -813,14 +910,14 @@ end subroutine bump_apply_obsop_ad
 ! Subroutine: bump_get_parameter
 ! Purpose: get a parameter
 !----------------------------------------------------------------------
-subroutine bump_get_parameter(bump,param,fld)
+subroutine bump_get_parameter(bump,param,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                                                       ! BUMP
-character(len=*),intent(in) :: param                                                      ! Parameter
-real(kind_real),intent(out) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(in) :: bump                                                           ! BUMP
+character(len=*),intent(in) :: param                                                          ! Parameter
+real(kind_real),intent(out) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variables
 integer :: ib,iv,jv,its,jts
@@ -837,7 +934,7 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
          jts = bump%bpar%b_to_ts2(ib)
 
          ! Copy to field
-         if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld(:,:,iv,its))
+         if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
       end do
    case ('common','common_univariate','common_weighted')
       ! Set common index
@@ -846,7 +943,7 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
       do its=1,bump%nam%nts
          do iv=1,bump%nam%nv
             ! Copy to field
-            call bump%copy_to_field(param,ib,fld(:,:,iv,its))
+            call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
          end do
       end do
    end select
@@ -859,7 +956,7 @@ case default
       jts = bump%bpar%b_to_ts2(ib)
 
       ! Copy to field
-      if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld(:,:,iv,its))
+      if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
    end do
 end select
 
@@ -869,15 +966,15 @@ end subroutine bump_get_parameter
 ! Subroutine: bump_copy_to_field
 ! Purpose: copy to field
 !----------------------------------------------------------------------
-subroutine bump_copy_to_field(bump,param,ib,fld)
+subroutine bump_copy_to_field(bump,param,ib,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(in) :: bump                              ! BUMP
-character(len=*),intent(in) :: param                             ! Parameter
-integer,intent(in) :: ib                                         ! Block index
-real(kind_real),intent(out) :: fld(bump%geom%nmga,bump%geom%nl0) ! Field
+class(bump_type),intent(in) :: bump                                  ! BUMP
+character(len=*),intent(in) :: param                                 ! Parameter
+integer,intent(in) :: ib                                             ! Block index
+real(kind_real),intent(out) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Local variables
 integer :: iscales,ie,iv,its
@@ -885,55 +982,55 @@ integer :: iscales,ie,iv,its
 ! Select parameter
 select case (trim(param))
 case ('var')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_ens,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_ens,fld_mga)
 case ('cor_rh')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld)
-   fld = fld*req
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
+   fld_mga = fld_mga*req
 case ('cor_rv')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld_mga)
 case ('cor_rv_rfac')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv_rfac,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv_rfac,fld_mga)
 case ('cor_rv_coef')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv_coef,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv_coef,fld_mga)
 case ('loc_coef')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_ens,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_ens,fld_mga)
 case ('loc_rh')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld)
-   fld = fld*req
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
+   fld_mga = fld_mga*req
 case ('loc_rv')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld_mga)
 case ('hyb_coef')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_sta,fld)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%coef_sta,fld_mga)
 case default
    select case (param(1:4))
    case ('D11_')
       read(param(5:5),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D11(:,:,iscales),fld)
-      fld = fld*req**2
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D11(:,:,iscales),fld_mga)
+      fld_mga = fld_mga*req**2
    case ('D22_')
       read(param(5:5),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D22(:,:,iscales),fld)
-      fld = fld*req**2
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D22(:,:,iscales),fld_mga)
+      fld_mga = fld_mga*req**2
    case ('D33_')
       read(param(5:5),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D33(:,:,iscales),fld)
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D33(:,:,iscales),fld_mga)
    case ('D12_')
       read(param(5:5),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D12(:,:,iscales),fld)
-      fld = fld*req**2
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D12(:,:,iscales),fld_mga)
+      fld_mga = fld_mga*req**2
    case ('Dcoe')
       read(param(7:7),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%Dcoef(:,:,iscales),fld)
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%Dcoef(:,:,iscales),fld_mga)
    case ('DLh_')
       read(param(5:5),'(i1)') iscales
-      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%DLh(:,:,iscales),fld)
-      fld = fld*req
+      call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%DLh(:,:,iscales),fld_mga)
+      fld_mga = fld_mga*req
    case default
       if (param(1:6)=='ens1u_') then
          read(param(7:10),'(i4.4)') ie
          iv = bump%bpar%b_to_v1(ib)
          its = bump%bpar%b_to_ts1(ib)
-         call bump%geom%copy_c0a_to_mga(bump%mpl,bump%ens1u%fld(:,:,iv,its,ie),fld)
+         call bump%geom%copy_c0a_to_mga(bump%mpl,bump%ens1u%fld(:,:,iv,its,ie),fld_mga)
       else
          call bump%mpl%abort('parameter '//trim(param)//' not yet implemented in get_parameter')
       end if
@@ -946,14 +1043,14 @@ end subroutine bump_copy_to_field
 ! Subroutine: bump_set_parameter
 ! Purpose: set a parameter
 !----------------------------------------------------------------------
-subroutine bump_set_parameter(bump,param,fld)
+subroutine bump_set_parameter(bump,param,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                                                   ! BUMP
-character(len=*),intent(in) :: param                                                     ! Parameter
-real(kind_real),intent(in) :: fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
+class(bump_type),intent(inout) :: bump                                                       ! BUMP
+character(len=*),intent(in) :: param                                                         ! Parameter
+real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts) ! Field
 
 ! Local variables
 integer :: ib,iv,jv,its,jts
@@ -970,7 +1067,7 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
          jts = bump%bpar%b_to_ts2(ib)
 
          ! Copy to field
-         if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld(:,:,iv,its))
+         if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
       end do
    case ('common','common_univariate','common_weighted')
       ! Set common index
@@ -979,7 +1076,7 @@ case ('var','cor_rh','cor_rv','cor_rv_rfac','cor_rv_coef','loc_coef','loc_rh','l
       do its=1,bump%nam%nts
          do iv=1,bump%nam%nv
             ! Copy to field
-            call bump%copy_from_field(param,ib,fld(:,:,iv,its))
+            call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
          end do
       end do
    end select
@@ -992,7 +1089,7 @@ case default
       jts = bump%bpar%b_to_ts2(ib)
 
       ! Copy to field
-      if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld(:,:,iv,its))
+      if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
    end do
 end select
 
@@ -1002,15 +1099,15 @@ end subroutine bump_set_parameter
 ! Subroutine: bump_copy_from_field
 ! Purpose: copy from field
 !----------------------------------------------------------------------
-subroutine bump_copy_from_field(bump,param,ib,fld)
+subroutine bump_copy_from_field(bump,param,ib,fld_mga)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump                          ! BUMP
-character(len=*),intent(in) :: param                            ! Parameter
-integer,intent(in) :: ib                                        ! Block index
-real(kind_real),intent(in) :: fld(bump%geom%nmga,bump%geom%nl0) ! Field
+class(bump_type),intent(inout) :: bump                              ! BUMP
+character(len=*),intent(in) :: param                                ! Parameter
+integer,intent(in) :: ib                                            ! Block index
+real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Allocation
 if (.not.allocated(bump%cmat%blk)) allocate(bump%cmat%blk(bump%bpar%nbe))
@@ -1019,33 +1116,33 @@ if (.not.allocated(bump%cmat%blk)) allocate(bump%cmat%blk(bump%bpar%nbe))
 select case (trim(param))
 case ('var')
    if (.not.allocated(bump%cmat%blk(ib)%oops_coef_ens)) allocate(bump%cmat%blk(ib)%oops_coef_ens(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_coef_ens)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_coef_ens)
 case ('cor_rh')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rh)) allocate(bump%cmat%blk(ib)%oops_rh(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rh)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rh)
    bump%cmat%blk(ib)%oops_rh = bump%cmat%blk(ib)%oops_rh/req
 case ('cor_rv')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rv)) allocate(bump%cmat%blk(ib)%oops_rv(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rv)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rv)
 case ('cor_rv_rfac')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rv_rfac)) allocate(bump%cmat%blk(ib)%oops_rv_rfac(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rv_rfac)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rv_rfac)
 case ('cor_rv_coef')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rv_coef)) allocate(bump%cmat%blk(ib)%oops_rv_coef(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rv_coef)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rv_coef)
 case ('loc_coef')
    if (.not.allocated(bump%cmat%blk(ib)%oops_coef_ens)) allocate(bump%cmat%blk(ib)%oops_coef_ens(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_coef_ens)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_coef_ens)
 case ('loc_rh')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rh)) allocate(bump%cmat%blk(ib)%oops_rh(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rh)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rh)
    bump%cmat%blk(ib)%oops_rh = bump%cmat%blk(ib)%oops_rh/req
 case ('loc_rv')
    if (.not.allocated(bump%cmat%blk(ib)%oops_rv)) allocate(bump%cmat%blk(ib)%oops_rv(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_rv)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_rv)
 case ('hyb_coef')
    if (.not.allocated(bump%cmat%blk(ib)%oops_coef_sta)) allocate(bump%cmat%blk(ib)%oops_coef_sta(bump%geom%nc0a,bump%geom%nl0))
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld,bump%cmat%blk(ib)%oops_coef_sta)
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%oops_coef_sta)
 case default
    call bump%mpl%abort('parameter '//trim(param)//' not yet implemented in set_parameter')
 end select
