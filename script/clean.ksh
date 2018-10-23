@@ -20,6 +20,11 @@ source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
    sed -i 's/ *$//' ${file}
 done
+cd ../offline
+source=`find . -type f -exec egrep -l " +$" {} \;`
+for file in ${source} ; do
+   sed -i 's/ *$//' ${file}
+done
 cd ../script
 source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
