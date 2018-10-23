@@ -33,7 +33,6 @@ type nam_type
    character(len=1024) :: model                     ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
    logical :: colorlog                              ! Add colors to the log (for display on terminal)
    logical :: default_seed                          ! Default seed for random numbers
-   logical :: use_metis                             ! Use METIS to split the domain between processors
 
    ! driver_param
    character(len=1024) :: method                    ! Localization/hybridization to compute ('cor', 'loc_norm', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
@@ -191,7 +190,6 @@ nam%prefix = ''
 nam%model = ''
 nam%colorlog = .false.
 nam%default_seed = .false.
-nam%use_metis = .false.
 
 ! driver_param default
 nam%method = ''
@@ -344,7 +342,7 @@ integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 integer :: nc1,nc2,ntry,nrep,nc3,nl0r,ne,var_niter,displ_niter,lct_nscales,mpicom,advmode,ndir,levdir(ndirmax),ivdir(ndirmax)
 integer :: itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv
-logical :: colorlog,default_seed,use_metis
+logical :: colorlog,default_seed
 logical :: new_vbal,load_vbal,new_hdiag,new_lct,load_cmat,new_nicas,load_nicas,new_obsop,load_obsop
 logical :: check_vbal,check_adjoints,check_pos_def,check_sqrt,check_dirac,check_randomization,check_consistency,check_optimality
 logical :: check_obsop,logpres,sam_write,sam_read,mask_check
@@ -357,7 +355,7 @@ character(len=1024) :: obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
 
 ! Namelist blocks
-namelist/general_param/datadir,prefix,model,colorlog,default_seed,use_metis
+namelist/general_param/datadir,prefix,model,colorlog,default_seed
 namelist/driver_param/method,strategy,new_vbal,load_vbal,new_hdiag,new_lct,load_cmat,new_nicas,load_nicas,new_obsop,load_obsop, &
                     & check_vbal,check_adjoints,check_pos_def,check_sqrt,check_dirac,check_randomization,check_consistency, &
                     & check_optimality,check_obsop
@@ -381,7 +379,6 @@ if (mpl%main) then
    model = ''
    colorlog = .false.
    default_seed = .false.
-   use_metis = .false.
 
    ! driver_param default
    method = ''
@@ -521,7 +518,6 @@ if (mpl%main) then
    nam%model = model
    nam%colorlog = colorlog
    nam%default_seed = default_seed
-   nam%use_metis = use_metis
 
    ! driver_param
    read(lunit,nml=driver_param)
@@ -687,7 +683,6 @@ call mpl%f_comm%broadcast(nam%prefix,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%model,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%colorlog,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%default_seed,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%use_metis,mpl%ioproc-1)
 
 ! driver_param
 call mpl%f_comm%broadcast(nam%method,mpl%ioproc-1)
@@ -837,7 +832,6 @@ integer :: il,iv
 if (trim(nam%datadir)=='') nam%datadir = '.'
 nam%model = 'online'
 nam%colorlog = .false.
-nam%use_metis = .false.
 nam%nl = nl0
 do il=1,nam%nl
    nam%levs(il) = il
@@ -1218,7 +1212,6 @@ call put_att(mpl,ncid,'prefix',trim(nam%prefix))
 call put_att(mpl,ncid,'model',trim(nam%model))
 call put_att(mpl,ncid,'colorlog',nam%colorlog)
 call put_att(mpl,ncid,'default_seed',nam%default_seed)
-call put_att(mpl,ncid,'use_metis',nam%use_metis)
 
 ! driver_param
 call put_att(mpl,ncid,'method',trim(nam%method))

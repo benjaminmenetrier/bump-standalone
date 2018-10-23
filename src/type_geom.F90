@@ -21,7 +21,7 @@ use type_mesh, only: mesh_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
-use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
+use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max,fckit_mpi_status
 
 implicit none
 
@@ -372,11 +372,6 @@ do ic0a=1,geom%nc0a
    img = geom%c0_to_mg(ic0)
    imga = geom%mg_to_mga(img)
    geom%c0a_to_mga(ic0a) = imga
-end do
-do imga=1,geom%nmga
-   img = geom%mga_to_mg(imga)
-   ic0 = geom%mg_to_c0(img)
-   ic0a = geom%c0_to_c0a(ic0)
    geom%mga_to_c0a(imga) = ic0a
 end do
 
@@ -1197,7 +1192,7 @@ real(kind_real),intent(out) :: fld_mga(geom%nmga,geom%nl0) ! Field on model grid
 ! Local variables
 integer :: ic0a,imga,nred,ired,img,jmg,jmga
 integer,allocatable :: red_img(:),red_jmg(:)
-real(kind_real),allocatable :: red_val(:,:),red_val_pack(:),red_val_tot(:,:),red_val_pack_tot(:)
+real(kind_real),allocatable :: red_val(:,:),red_val_pack(:),red_val_sum(:,:),red_val_pack_sum(:)
 logical,allocatable :: mask_unpack(:,:)
 
 ! Initialization
@@ -1216,8 +1211,8 @@ if (nred>0) then
    allocate(red_jmg(nred))
    allocate(red_val(nred,geom%nl0))
    allocate(red_val_pack(nred*geom%nl0))
-   allocate(red_val_tot(nred,geom%nl0))
-   allocate(red_val_pack_tot(nred*geom%nl0))
+   allocate(red_val_sum(nred,geom%nl0))
+   allocate(red_val_pack_sum(nred*geom%nl0))
    allocate(mask_unpack(nred,geom%nl0))
 
    ! Find redundant points indices
@@ -1244,15 +1239,15 @@ if (nred>0) then
    ! Communicate redundant values
    mask_unpack = .true.
    red_val_pack = pack(red_val,.true.)
-   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_tot,fckit_mpi_sum())
-   red_val_tot = unpack(red_val_pack_tot,mask_unpack,red_val_tot)
+   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_sum,fckit_mpi_sum())
+   red_val_sum = unpack(red_val_pack_sum,mask_unpack,red_val_sum)
 
    ! Copy values
    do ired=1,nred
       img = red_img(ired)
       if (mpl%myproc==geom%mg_to_proc(img)) then
          imga = geom%mg_to_mga(img)
-         fld_mga(imga,:) = red_val_tot(ired,:)
+         fld_mga(imga,:) = red_val_sum(ired,:)
       end if
    end do
 end if
@@ -1274,21 +1269,103 @@ real(kind_real),intent(in) :: fld_mga(geom%nmga,geom%nl0)  ! Field on model grid
 real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) ! Field on subset Sc0, halo A
 
 ! Local variables
-integer :: ic0a,il0,imga
+integer :: ic0a,imga,nred,ired,img,jmg,jmga,il0,ic0
+integer,allocatable :: red_img(:),red_jmg(:)
+real(kind_real),allocatable :: red_val(:,:),red_val_pack(:),red_val_min(:,:),red_val_max(:,:)
+real(kind_real),allocatable :: red_val_pack_min(:),red_val_pack_max(:)
+logical,allocatable :: mask_unpack(:,:)
 
 ! Initialization
-fld_c0a = 0.0
+call msr(fld_c0a)
 
-do il0=1,geom%nl0
-   ! Copy non-redundant points
-   do imga=1,geom%nmga
-      ic0a = geom%mga_to_c0a(imga)
-      if (.not.(abs(fld_c0a(ic0a,il0))>0.0)) fld_c0a(ic0a,il0) = fld_mga(imga,il0)
-   end do
+! Copy non-redundant points
+do ic0a=1,geom%nc0a
+   imga = geom%c0a_to_mga(ic0a)
+   fld_c0a(ic0a,:) = fld_mga(imga,:)
 end do
 
-! Check for missing values
-if (any(ismsr(fld_c0a))) call mpl%abort('missing value in copy_mga_to_c0a')
+nred = geom%nmg-geom%nc0
+if (nred>0) then
+   ! Allocation
+   allocate(red_img(nred))
+   allocate(red_jmg(nred))
+   allocate(red_val(nred,geom%nl0))
+   allocate(red_val_pack(nred*geom%nl0))
+   allocate(red_val_min(nred,geom%nl0))
+   allocate(red_val_max(nred,geom%nl0))
+   allocate(red_val_pack_min(nred*geom%nl0))
+   allocate(red_val_pack_max(nred*geom%nl0))
+   allocate(mask_unpack(nred,geom%nl0))
+
+   ! Find redundant points indices
+   ired = 0
+   do img=1,geom%nmg
+      jmg = geom%redundant(img)
+      if (isnotmsi(jmg)) then
+         ired = ired+1
+         red_img(ired) = img
+         red_jmg(ired) = jmg
+      end if
+    end do
+
+   ! Copy redundant values
+   red_val = 0.0
+   do ired=1,nred
+      img = red_img(ired)
+      if (mpl%myproc==geom%mg_to_proc(img)) then
+         imga = geom%mg_to_mga(img)
+         red_val(ired,:) = fld_mga(imga,:)
+      end if
+      jmg = red_jmg(ired)
+      if (mpl%myproc==geom%mg_to_proc(jmg)) then
+         jmga = geom%mg_to_mga(jmg)
+         red_val(ired,:) = fld_mga(jmga,:)
+      end if
+   end do
+
+   ! Communicate redundant values
+   mask_unpack = .true.
+   red_val_pack = pack(red_val,.true.)
+   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_min,fckit_mpi_min())
+   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_max,fckit_mpi_max())
+   red_val_min = unpack(red_val_pack_min,mask_unpack,red_val_min)
+   red_val_max = unpack(red_val_pack_max,mask_unpack,red_val_max)
+
+   ! Copy values
+   do ired=1,nred
+      img = red_img(ired)
+      ic0 = geom%mg_to_c0(img)
+      if (mpl%myproc==geom%c0_to_proc(ic0)) then
+         ic0a = geom%c0_to_c0a(ic0)
+         do il0=1,geom%nl0
+            if (abs(red_val_max(ired,il0)-red_val_min(ired,il0))>0.0) then
+               ! Values are different
+               if (ismsr(red_val_min(ired,il0))) then
+                  ! Min value is missing
+                  fld_c0a(ic0a,il0) = red_val_max(ired,il0)
+               elseif (ismsr(red_val_max(ired,il0))) then
+                  ! Max value is missing
+                  fld_c0a(ic0a,il0) = red_val_min(ired,il0)
+               else
+                  ! Both values are not missing, check for zero value
+                  if (.not.(abs(red_val_min(ired,il0))>0.0)) then
+                     ! Min value is zero
+                     fld_c0a(ic0a,il0) = red_val_max(ired,il0)
+                  elseif (.not.(abs(red_val_max(ired,il0))>0.0)) then
+                     ! Max value is zero
+                     fld_c0a(ic0a,il0) = red_val_min(ired,il0)
+                  else
+                     call mpl%abort('both redundant values are different, not missing and nonzero')
+                  end if
+               end if
+            else
+               ! Values are identical
+               fld_c0a(ic0a,il0) = red_val_min(ired,il0)
+            end if
+         end do
+      end if
+   end do
+end if
 
 end subroutine geom_copy_mga_to_c0a
 
