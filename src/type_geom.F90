@@ -102,8 +102,8 @@ type geom_type
    integer,allocatable :: c0_to_c0a(:)        ! Subset Sc0, global to halo A
    integer,allocatable :: c0a_to_c0(:)        ! Subset Sc0, halo A to global
    integer,allocatable :: proc_to_nc0a(:)     ! Halo A size for each proc
+   integer,allocatable :: mga_to_c0(:)        ! Model grid, halo A to subset Sc0, global
    integer,allocatable :: c0a_to_mga(:)       ! Subset Sc0 to model grid, halo A
-   integer,allocatable :: mga_to_c0a(:)       ! Model grid to subset Sc0, halo A
    type(com_type) :: com_mg                   ! Communication between subset Sc0 and model grid
 contains
    procedure :: alloc => geom_alloc
@@ -111,7 +111,6 @@ contains
    procedure :: setup_online => geom_setup_online
    procedure :: find_sc0 => geom_find_sc0
    procedure :: init => geom_init
-   procedure :: define_mask => geom_define_mask
    procedure :: compute_area => geom_compute_area
    procedure :: define_dirac => geom_define_dirac
    procedure :: define_distribution => geom_define_distribution
@@ -216,8 +215,8 @@ if (allocated(geom%c0_to_proc)) deallocate(geom%c0_to_proc)
 if (allocated(geom%c0_to_c0a)) deallocate(geom%c0_to_c0a)
 if (allocated(geom%c0a_to_c0)) deallocate(geom%c0a_to_c0)
 if (allocated(geom%proc_to_nc0a)) deallocate(geom%proc_to_nc0a)
+if (allocated(geom%mga_to_c0)) deallocate(geom%mga_to_c0)
 if (allocated(geom%c0a_to_mga)) deallocate(geom%c0a_to_mga)
-if (allocated(geom%mga_to_c0a)) deallocate(geom%mga_to_c0a)
 call geom%com_mg%dealloc
 
 end subroutine geom_dealloc
@@ -365,18 +364,19 @@ end do
 call mpl%glb_to_loc_index(geom%nc0a,geom%c0a_to_c0,geom%nc0,geom%c0_to_c0a)
 
 ! Inter-halo conversions
+allocate(geom%mga_to_c0(geom%nmga))
 allocate(geom%c0a_to_mga(geom%nc0a))
-allocate(geom%mga_to_c0a(geom%nmga))
+do imga=1,geom%nmga
+   img = geom%mga_to_mg(imga)
+   ic0 = geom%mg_to_c0(img)
+   geom%mga_to_c0(imga) = ic0
+end do
 do ic0a=1,geom%nc0a
    ic0 = geom%c0a_to_c0(ic0a)
    img = geom%c0_to_mg(ic0)
    imga = geom%mg_to_mga(img)
    geom%c0a_to_mga(ic0a) = imga
-   geom%mga_to_c0a(imga) = ic0a
 end do
-
-! Setup communications
-call geom%com_mg%setup(mpl,'com_mg',geom%nmg,geom%nc0a,geom%nmga,geom%mga_to_mg,geom%c0a_to_mga,geom%mg_to_proc,geom%c0_to_c0a)
 
 ! Deal with mask on redundant points
 do il0=1,geom%nl0
@@ -415,6 +415,7 @@ do il0=1,geom%nl0
 end do
 geom%c0_to_mg = geom%c0_to_mg(order)
 geom%mg_to_c0 = order_inv(geom%mg_to_c0)
+geom%mga_to_c0 = order_inv(geom%mga_to_c0)
 
 ! Other masks
 allocate(geom%mask_c0a(geom%nc0a,geom%nl0))
@@ -424,6 +425,9 @@ geom%mask_hor_c0 = any(geom%mask_c0,dim=2)
 geom%mask_hor_c0a = geom%mask_hor_c0(geom%c0a_to_c0)
 geom%mask_ver_c0 = any(geom%mask_c0,dim=1)
 geom%nc0_mask = count(geom%mask_c0,dim=1)
+
+! Setup redundant points communication
+call geom%com_mg%setup(mpl,'com_mg',geom%nc0,geom%nc0a,geom%nmga,geom%mga_to_c0,geom%c0a_to_mga,geom%c0_to_proc,geom%c0_to_c0a)
 
 end subroutine geom_setup_online
 
@@ -653,9 +657,6 @@ do ic0=1,geom%nc0
    call lonlatmod(geom%lon(ic0),geom%lat(ic0))
 end do
 
-! Define mask
-call geom%define_mask(mpl,nam)
-
 ! Averaged vertical unit
 do il0=1,geom%nl0
    if (geom%mask_ver_c0(il0)) then
@@ -715,75 +716,6 @@ end do
 call flush(mpl%info)
 
 end subroutine geom_init
-
-!----------------------------------------------------------------------
-! Subroutine: geom_define_mask
-! Purpose: define mask
-!----------------------------------------------------------------------
-subroutine geom_define_mask(geom,mpl,nam)
-
-implicit none
-
-! Passed variables
-class(geom_type),intent(inout) :: geom ! Geometry
-type(mpl_type),intent(in) :: mpl       ! MPI data
-type(nam_type),intent(in) :: nam       ! Namelist
-
-! Local variables
-integer :: latmin,latmax,il0,ic0,ildw
-integer :: ncid,nlon_id,nlon_test,nlat_id,nlat_test,mask_id
-real(kind_real) :: dist
-real(kind_real),allocatable :: hydmask(:,:)
-logical :: mask_test
-character(len=3) :: il0char
-character(len=1024) :: subr = 'geom_define_mask'
-
-! Mask restriction
-if (nam%mask_type(1:3)=='lat') then
-   ! Latitude mask
-   read(nam%mask_type(4:6),'(i3)') latmin
-   read(nam%mask_type(7:9),'(i3)') latmax
-   if (latmin>=latmax) call mpl%abort('latmin should be lower than latmax')
-   do il0=1,geom%nl0
-      geom%mask_c0(:,il0) = geom%mask_c0(:,il0).and.(geom%lat>=real(latmin,kind_real)*deg2rad) &
-                          & .and.(geom%lat<=real(latmax,kind_real)*deg2rad)
-   end do
-elseif (trim(nam%mask_type)=='hyd') then
-   ! Read from hydrometeors mask file
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_hyd.nc',nf90_nowrite,ncid))
-   if (trim(nam%model)=='aro') then
-      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
-      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=nlon_test))
-      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
-      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=nlat_test))
-      if ((nlon_test/=geom%nlon).or.(nlat_test/=geom%nlat)) call mpl%abort('wrong dimensions in the mask')
-      allocate(hydmask(geom%nlon,geom%nlat))
-      do il0=1,geom%nl0
-         write(il0char,'(i3.3)') nam%levs(il0)
-         call mpl%ncerr(subr,nf90_inq_varid(ncid,'S'//il0char//'MASK',mask_id))
-         call mpl%ncerr(subr,nf90_get_var(ncid,mask_id,hydmask,(/1,1/),(/geom%nlon,geom%nlat/)))
-         geom%mask_c0(:,il0) = geom%mask_c0(:,il0).and.pack(real(hydmask,kind(1.0))>nam%mask_th,mask=.true.)
-      end do
-      deallocate(hydmask)
-      call mpl%ncerr(subr,nf90_close(ncid))
-   end if
-elseif (trim(nam%mask_type)=='ldwv') then
-   ! Compute distance to the vertical diagnostic points
-   do ic0=1,geom%nc0
-      if (geom%mask_hor_c0(ic0)) then
-         mask_test = .false.
-         do ildw=1,nam%nldwv
-            call sphere_dist(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),geom%lon(ic0),geom%lat(ic0),dist)
-            mask_test = mask_test.or.(dist<1.1*nam%local_rad)
-         end do
-         do il0=1,geom%nl0
-            if (geom%mask_c0(ic0,il0)) geom%mask_c0(ic0,:) = mask_test
-         end do
-      end if
-   end do
-end if
-
-end subroutine geom_define_mask
 
 !----------------------------------------------------------------------
 ! Subroutine: geom_compute_area
@@ -1189,68 +1121,15 @@ type(mpl_type),intent(in) :: mpl                           ! MPI data
 real(kind_real),intent(in) :: fld_c0a(geom%nc0a,geom%nl0)  ! Field on subset Sc0, halo A
 real(kind_real),intent(out) :: fld_mga(geom%nmga,geom%nl0) ! Field on model grid, halo A
 
-! Local variables
-integer :: ic0a,imga,nred,ired,img,jmg,jmga
-integer,allocatable :: red_img(:),red_jmg(:)
-real(kind_real),allocatable :: red_val(:,:),red_val_pack(:),red_val_sum(:,:),red_val_pack_sum(:)
-logical,allocatable :: mask_unpack(:,:)
-
-! Initialization
-call msr(fld_mga)
-
-! Copy non-redundant points
-do ic0a=1,geom%nc0a
-   imga = geom%c0a_to_mga(ic0a)
-   fld_mga(imga,:) = fld_c0a(ic0a,:)
-end do
-
-nred = geom%nmg-geom%nc0
-if (nred>0) then
-   ! Allocation
-   allocate(red_img(nred))
-   allocate(red_jmg(nred))
-   allocate(red_val(nred,geom%nl0))
-   allocate(red_val_pack(nred*geom%nl0))
-   allocate(red_val_sum(nred,geom%nl0))
-   allocate(red_val_pack_sum(nred*geom%nl0))
-   allocate(mask_unpack(nred,geom%nl0))
-
-   ! Find redundant points indices
-   ired = 0
-   do img=1,geom%nmg
-      jmg = geom%redundant(img)
-      if (isnotmsi(jmg)) then
-         ired = ired+1
-         red_img(ired) = img
-         red_jmg(ired) = jmg
-      end if
-    end do
-
-   ! Copy redundant values
-   red_val = 0.0
-   do ired=1,nred
-      jmg = red_jmg(ired)
-      if (mpl%myproc==geom%mg_to_proc(jmg)) then
-         jmga = geom%mg_to_mga(jmg)
-         red_val(ired,:) = fld_mga(jmga,:)
-      end if
-   end do
-
-   ! Communicate redundant values
-   mask_unpack = .true.
-   red_val_pack = pack(red_val,.true.)
-   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_sum,fckit_mpi_sum())
-   red_val_sum = unpack(red_val_pack_sum,mask_unpack,red_val_sum)
-
-   ! Copy values
-   do ired=1,nred
-      img = red_img(ired)
-      if (mpl%myproc==geom%mg_to_proc(img)) then
-         imga = geom%mg_to_mga(img)
-         fld_mga(imga,:) = red_val_sum(ired,:)
-      end if
-   end do
+if (geom%nc0==geom%nmg) then
+   ! Model grid and subset Sc0 are identical
+   fld_mga = fld_c0a
+else
+   ! Extend subset Sc0 to model grid
+   call geom%com_mg%ext(mpl,geom%nl0,fld_c0a,fld_mga)
 end if
+
+write(mpl%info,*) 'c0a_to_mga',mpl%myproc,maxval(fld_c0a),maxval(fld_mga),sum(fld_c0a),sum(fld_mga)
 
 end subroutine geom_copy_c0a_to_mga
 
@@ -1269,103 +1148,53 @@ real(kind_real),intent(in) :: fld_mga(geom%nmga,geom%nl0)  ! Field on model grid
 real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) ! Field on subset Sc0, halo A
 
 ! Local variables
-integer :: ic0a,imga,nred,ired,img,jmg,jmga,il0,ic0
-integer,allocatable :: red_img(:),red_jmg(:)
-real(kind_real),allocatable :: red_val(:,:),red_val_pack(:),red_val_min(:,:),red_val_max(:,:)
-real(kind_real),allocatable :: red_val_pack_min(:),red_val_pack_max(:)
-logical,allocatable :: mask_unpack(:,:)
+integer :: ic0a,imga,il0
+real(kind_real) :: fld_mga_zero(geom%nmga,geom%nl0)
 
-! Initialization
-call msr(fld_c0a)
-
-! Copy non-redundant points
-do ic0a=1,geom%nc0a
-   imga = geom%c0a_to_mga(ic0a)
-   fld_c0a(ic0a,:) = fld_mga(imga,:)
-end do
-
-nred = geom%nmg-geom%nc0
-if (nred>0) then
-   ! Allocation
-   allocate(red_img(nred))
-   allocate(red_jmg(nred))
-   allocate(red_val(nred,geom%nl0))
-   allocate(red_val_pack(nred*geom%nl0))
-   allocate(red_val_min(nred,geom%nl0))
-   allocate(red_val_max(nred,geom%nl0))
-   allocate(red_val_pack_min(nred*geom%nl0))
-   allocate(red_val_pack_max(nred*geom%nl0))
-   allocate(mask_unpack(nred,geom%nl0))
-
-   ! Find redundant points indices
-   ired = 0
-   do img=1,geom%nmg
-      jmg = geom%redundant(img)
-      if (isnotmsi(jmg)) then
-         ired = ired+1
-         red_img(ired) = img
-         red_jmg(ired) = jmg
-      end if
-    end do
-
-   ! Copy redundant values
-   red_val = 0.0
-   do ired=1,nred
-      img = red_img(ired)
-      if (mpl%myproc==geom%mg_to_proc(img)) then
-         imga = geom%mg_to_mga(img)
-         red_val(ired,:) = fld_mga(imga,:)
-      end if
-      jmg = red_jmg(ired)
-      if (mpl%myproc==geom%mg_to_proc(jmg)) then
-         jmga = geom%mg_to_mga(jmg)
-         red_val(ired,:) = fld_mga(jmga,:)
-      end if
+if (geom%nc0==geom%nmg) then
+   ! Model grid and subset Sc0 are identical
+   fld_c0a = fld_mga
+else
+   ! Initialization
+   fld_mga_zero = fld_mga
+   do ic0a=1,geom%nc0a
+      imga = geom%c0a_to_mga(ic0a)
+      fld_mga_zero(imga,:) = 0.0
    end do
 
-   ! Communicate redundant values
-   mask_unpack = .true.
-   red_val_pack = pack(red_val,.true.)
-   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_min,fckit_mpi_min())
-   call mpl%f_comm%allreduce(red_val_pack,red_val_pack_max,fckit_mpi_max())
-   red_val_min = unpack(red_val_pack_min,mask_unpack,red_val_min)
-   red_val_max = unpack(red_val_pack_max,mask_unpack,red_val_max)
+   ! Reduce model grid to subset Sc0
+   call geom%com_mg%red(mpl,geom%nl0,fld_mga_zero,fld_c0a)
 
-   ! Copy values
-   do ired=1,nred
-      img = red_img(ired)
-      ic0 = geom%mg_to_c0(img)
-      if (mpl%myproc==geom%c0_to_proc(ic0)) then
-         ic0a = geom%c0_to_c0a(ic0)
-         do il0=1,geom%nl0
-            if (abs(red_val_max(ired,il0)-red_val_min(ired,il0))>0.0) then
-               ! Values are different
-               if (ismsr(red_val_min(ired,il0))) then
-                  ! Min value is missing
-                  fld_c0a(ic0a,il0) = red_val_max(ired,il0)
-               elseif (ismsr(red_val_max(ired,il0))) then
-                  ! Max value is missing
-                  fld_c0a(ic0a,il0) = red_val_min(ired,il0)
-               else
-                  ! Both values are not missing, check for zero value
-                  if (.not.(abs(red_val_min(ired,il0))>0.0)) then
-                     ! Min value is zero
-                     fld_c0a(ic0a,il0) = red_val_max(ired,il0)
-                  elseif (.not.(abs(red_val_max(ired,il0))>0.0)) then
-                     ! Max value is zero
-                     fld_c0a(ic0a,il0) = red_val_min(ired,il0)
-                  else
-                     call mpl%abort('both redundant values are different, not missing and nonzero')
-                  end if
-               end if
+write(mpl%info,*) 'mga_to_c0a',mpl%myproc,maxval(fld_mga_zero),maxval(fld_c0a),sum(fld_mga_zero),sum(fld_c0a)
+
+   ! Copy non-redundant points
+   do il0=1,geom%nl0
+      do ic0a=1,geom%nc0a
+         imga = geom%c0a_to_mga(ic0a)
+         if (abs(fld_mga(imga,il0)-fld_c0a(ic0a,il0))>0.0) then
+            ! Values are different
+            if (ismsr(fld_c0a(ic0a,il0))) then
+               ! Subset Sc0 value is missing
+               fld_c0a(ic0a,il0) = fld_mga(imga,il0)
+            elseif (ismsr(fld_mga(imga,il0))) then
+               ! Nothing to do
             else
-               ! Values are identical
-               fld_c0a(ic0a,il0) = red_val_min(ired,il0)
+               ! Both values are not missing, check for zero value
+               if (.not.(abs(fld_c0a(ic0a,il0))>0.0)) then
+                  ! Subset Sc0 value is zero
+                  fld_c0a(ic0a,il0) = fld_mga(imga,il0)
+               elseif (.not.(abs(fld_mga(imga,il0))>0.0)) then
+                  ! Nothing to do
+               else
+                  call mpl%abort('both redundant values are different, not missing and nonzero')
+               end if
             end if
-         end do
-      end if
+         end if
+      end do
    end do
 end if
+
+write(mpl%info,*) 'mga_to_c0a',mpl%myproc,maxval(fld_mga),maxval(fld_c0a),sum(fld_mga),sum(fld_c0a)
 
 end subroutine geom_copy_mga_to_c0a
 

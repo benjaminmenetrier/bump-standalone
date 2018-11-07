@@ -738,28 +738,31 @@ allocate(mask_c1(nicas_blk%nc1))
 allocate(rhs_c0(geom%nc0))
 allocate(rhs_c1(nicas_blk%nc1))
 
+! Initialization
+lon_c1 = geom%lon(nicas_blk%c1_to_c0)
+lat_c1 = geom%lat(nicas_blk%c1_to_c0)
+
 ! Horizontal subsampling
 do il1=1,nicas_blk%nl1
    write(mpl%info,'(a7,a,i3,a)',advance='no') '','Compute horizontal subset C2 (level ',il1,'): '
    call flush(mpl%info)
 
+   ! Initialization
+   mask_c1 = geom%mask_c0(nicas_blk%c1_to_c0,il0)
+
    ! Compute nc2
    il0 = nicas_blk%l1_to_l0(il1)
    nicas_blk%nc2(il1) = floor(2.0*geom%area(il0)*nam%resol**2/(sqrt(3.0)*rhs_avg(il0)**2))
    nicas_blk%nc2(il1) = min(nicas_blk%nc2(il1),nicas_blk%nc1)
+   nicas_blk%nc2(il1) = min(nicas_blk%nc2(il1),count(mask_c1))
    if (nicas_blk%nc2(il1)<3) call mpl%abort('nicas_blk%nc2 lower than 3')
 
    if (nicas_blk%nc2(il1)<nicas_blk%nc1) then
       ! Allocation
       allocate(c2_to_c1(nicas_blk%nc2(il1)))
 
-      ! Compute subset
+      ! Local to global
       call mpl%loc_to_glb(geom%nc0a,cmat_blk%rhs(:,il0),geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,rhs_c0)
-
-      ! Initialization
-      lon_c1 = geom%lon(nicas_blk%c1_to_c0)
-      lat_c1 = geom%lat(nicas_blk%c1_to_c0)
-      mask_c1 = geom%mask_c0(nicas_blk%c1_to_c0,il0)
       rhs_c1 = rhs_c0(nicas_blk%c1_to_c0)
 
       ! Initialize sampling

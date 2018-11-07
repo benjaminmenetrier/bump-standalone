@@ -328,9 +328,11 @@ do il0=1,geom%nl0
          call msr(Dv)
          jc3 = 1
          do jl0r=1,bpar%nl0r(ib)
-            distsq = dz(jc3,jl0r)**2
-            if ((lct_blk%raw(jc3,jl0r,ic1a,il0)>cor_min).and.(distsq>0.0)) &
-          & Dv(jl0r) = -distsq/(2.0*log(lct_blk%raw(jc3,jl0r,ic1a,il0)))
+            if (dmask(jc3,jl0r)) then
+               distsq = dz(jc3,jl0r)**2
+               if ((lct_blk%raw(jc3,jl0r,ic1a,il0)>cor_min).and.(lct_blk%raw(jc3,jl0r,ic1a,il0)<1.0).and.(distsq>0.0)) &
+             & Dv(jl0r) = -distsq/(2.0*log(lct_blk%raw(jc3,jl0r,ic1a,il0)))
+            end if
          end do
          if (bpar%nl0r(ib)>1) then
             if (count(isnotmsr(Dv))>0) Dvbar = sum(Dv,mask=isnotmsr(Dv))/real(count(isnotmsr(Dv)),kind_real)
