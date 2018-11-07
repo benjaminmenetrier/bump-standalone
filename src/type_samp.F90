@@ -34,6 +34,7 @@ implicit none
 integer,parameter :: irmax = 10000                           ! Maximum number of random number draws
 real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req ! Length-scale to increase sampling density along coasts
 real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to increase sampling density along coasts
+integer,parameter :: ncontigth = 0                           ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
 
 ! Sampling derived type
 type samp_type
@@ -790,7 +791,7 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
       allocate(rh_c1(nam%nc1))
       lon_c1 = geom%lon(samp%c1_to_c0)
       lat_c1 = geom%lat(samp%c1_to_c0)
-      mask_c1 = all(samp%c1l0_log(:,:),dim=2)
+      mask_c1 = any(samp%c1l0_log(:,:),dim=2)
       rh_c1 = 1.0
       call rng%initialize_sampling(mpl,nam%nc1,lon_c1,lat_c1,mask_c1,rh_c1,nam%ntry,nam%nrep,nam%nc2,samp%c2_to_c1)
       samp%c2_to_c0 = samp%c1_to_c0(samp%c2_to_c1)
@@ -963,16 +964,80 @@ type(geom_type),intent(in) :: geom     ! Geometry
 type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: ic0a,il0,iv,its,ie,isub,ie_sub
-real(kind_real),allocatable :: var(:,:,:,:)
+integer :: ic0a,ic0,il0,ildw,iv,its,ie,ncontig,ncontigmax
+integer :: ncid,nlon_id,nlon_test,nlat_id,nlat_test,mask_id
+integer :: latmin,latmax,ilon,ilat
+real(kind_real) :: dist
+real(kind_real),allocatable :: hydval(:,:),var(:,:,:,:)
 logical :: valid,mask_c0a(geom%nc0a,geom%nl0)
+character(len=3) :: il0char
+character(len=1024) :: subr = 'samp_compute_mask'
+
+! Compute sampling mask
+if (min(ncontigth,geom%nl0)>0) then
+   write(mpl%info,'(a7,a,i3,a)') '','Compute sampling mask with at least ',min(ncontigth,geom%nl0),' vertically contiguous points'
+else
+   write(mpl%info,'(a7,a)') '','Compute sampling mask'
+end if
 
 ! Copy geometry mask
 mask_c0a = geom%mask_c0a
 
-! Ensemble-based mask
-select case (trim(nam%mask_type))
-case ('stddev')
+! Mask restriction
+if (nam%mask_type(1:3)=='lat') then
+   ! Latitude mask
+   read(nam%mask_type(4:6),'(i3)') latmin
+   read(nam%mask_type(7:9),'(i3)') latmax
+   if (latmin>=latmax) call mpl%abort('latmin should be lower than latmax')
+   do ic0a=1,geom%nc0a
+      ic0 = geom%c0a_to_c0(ic0a)
+      valid = (geom%lat(ic0)>=real(latmin,kind_real)*deg2rad).and.(geom%lat(ic0)<=real(latmax,kind_real)*deg2rad)
+      do il0=1,geom%nl0
+         mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
+      end do
+   end do
+elseif (trim(nam%mask_type)=='hyd') then
+   ! Read from hydrometeors mask file
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_hyd.nc',nf90_nowrite,ncid))
+   if (trim(nam%model)=='aro') then
+      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
+      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=nlon_test))
+      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
+      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=nlat_test))
+      if ((nlon_test/=geom%nlon).or.(nlat_test/=geom%nlat)) call mpl%abort('wrong dimensions in the mask')
+      allocate(hydval(geom%nlon,geom%nlat))
+      do il0=1,geom%nl0
+         write(il0char,'(i3.3)') nam%levs(il0)
+         call mpl%ncerr(subr,nf90_inq_varid(ncid,'S'//il0char//'MASK',mask_id))
+         call mpl%ncerr(subr,nf90_get_var(ncid,mask_id,hydval,(/1,1/),(/geom%nlon,geom%nlat/)))
+         do ic0a=1,geom%nc0a
+            if (mask_c0a(ic0a,il0)) then
+               ic0 = geom%c0a_to_c0(ic0a)
+               ilon = geom%c0_to_lon(ic0)
+               ilat = geom%c0_to_lat(ic0)
+               mask_c0a(ic0a,il0) = (hydval(ilon,ilat)>nam%mask_th)
+            end if
+         end do
+      end do
+      deallocate(hydval)
+      call mpl%ncerr(subr,nf90_close(ncid))
+   else
+      call mpl%abort('hydrometeors mask reading only available for AROME')
+   end if
+elseif (trim(nam%mask_type)=='ldwv') then
+   ! Compute distance to the vertical diagnostic points
+   do ic0a=1,geom%nc0a
+      ic0 = geom%c0a_to_c0(ic0a)
+      valid = .false.
+      do ildw=1,nam%nldwv
+         call sphere_dist(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),geom%lon(ic0),geom%lat(ic0),dist)
+         valid = valid.or.(dist<1.1*nam%local_rad)
+      end do
+      do il0=1,geom%nl0
+         mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
+      end do
+   end do
+elseif (trim(nam%mask_type)=='stddev') then
    ! Allocation
    allocate(var(geom%nc0a,geom%nl0,nam%nv,nam%nts))
 
@@ -989,25 +1054,28 @@ case ('stddev')
          mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
       end do
    end do
-case ('all_members')
-   ! Check whether all members are over the threshold
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         do il0=1,geom%nl0
-            do ic0a=1,geom%nc0a
-               valid = .true.
-               do isub=1,ens%nsub
-                  do ie_sub=1,ens%ne/ens%nsub
-                     ie = ie_sub+(isub-1)*ens%ne/ens%nsub
-                     valid = valid.and.(ens%mean(ic0a,il0,iv,its,isub)+ens%fld(ic0a,il0,iv,its,ie)>nam%mask_th)
-                  end do
-               end do
-               mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
-            end do
-         end do
+elseif (trim(nam%mask_type)=='none') then
+   ! Nothing to do
+else
+   call mpl%abort('mask_type not recognized')
+end if
+
+! Check vertically contiguous points
+if (ncontigth>0) then
+   do ic0a=1,geom%nc0a
+      ncontig = 0
+      ncontigmax = 0
+      do il0=1,geom%nl0
+         if (mask_c0a(ic0a,il0)) then
+            ncontig = ncontig+1
+         else
+            ncontig = 0
+         end if
+         if (ncontig>ncontigmax) ncontigmax = ncontig
       end do
+      mask_c0a(ic0a,:) = mask_c0a(ic0a,:).and.(ncontigmax>min(ncontigth,geom%nl0))
    end do
-end select
+end if
 
 ! Local to global
 call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,samp%mask_c0)

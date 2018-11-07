@@ -467,7 +467,7 @@ if (mpl%main) then
    elseif (nval<ns) then
       call mpl%abort('ns greater that mask size in initialize_sampling')
    elseif (nval==ns) then
-      write(mpl%info,'(a)') 'all points are used'
+      write(mpl%info,'(a)') ' all points are used'
       is = 0
       do i=1,n
          if (mask(i)) then

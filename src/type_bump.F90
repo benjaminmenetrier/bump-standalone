@@ -597,18 +597,23 @@ integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
 do its=1,bump%nam%nts
-   ! Model grid to subset Sc0
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-   end do
+   if (bump%geom%nc0==bump%geom%nmg) then
+       ! Apply vertical balance
+      call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
+   else
+      ! Model grid to subset Sc0
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+      end do
 
-   ! Apply vertical balance
-   call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_c0a)
+      ! Apply vertical balance
+      call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-   end do
+      ! Subset Sc0 to model grid
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+      end do
+   end if
 end do
 
 end subroutine bump_apply_vbal
@@ -630,23 +635,23 @@ integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
 do its=1,bump%nam%nts
-   ! Model grid to subset Sc0
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-   end do
+   if (bump%geom%nc0==bump%geom%nmg) then
+      ! Apply vertical balance, inverse
+      call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
+   else
+      ! Model grid to subset Sc0
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+      end do
 
-   ! Apply vertical balance, inverse
-   call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_c0a)
+      ! Apply vertical balance, inverse
+      call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-   end do
-end do
-
-
-do its=1,bump%nam%nts
-
+      ! Subset Sc0 to model grid
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+      end do
+   end if
 end do
 
 end subroutine bump_apply_vbal_inv
@@ -668,18 +673,23 @@ integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
 do its=1,bump%nam%nts
-   ! Model grid to subset Sc0
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-   end do
+   if (bump%geom%nc0==bump%geom%nmg) then
+      ! Apply vertical balance, adjoint
+      call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
+   else
+      ! Model grid to subset Sc0
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+      end do
 
-   ! Apply vertical balance, adjoint
-   call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+      ! Apply vertical balance, adjoint
+      call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-   end do
+      ! Subset Sc0 to model grid
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+      end do
+   end if
 end do
 
 end subroutine bump_apply_vbal_ad
@@ -701,18 +711,23 @@ integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
 do its=1,bump%nam%nts
-   ! Model grid to subset Sc0
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-   end do
+   if (bump%geom%nc0==bump%geom%nmg) then
+      ! Apply vertical balance, inverse adjoint
+      call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
+   else
+      ! Model grid to subset Sc0
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
+      end do
 
-   ! Apply vertical balance, inverse adjoint
-   call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+      ! Apply vertical balance, inverse adjoint
+      call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-   end do
+      ! Subset Sc0 to model grid
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
+      end do
+   end if
 end do
 
 end subroutine bump_apply_vbal_inv_ad
@@ -733,26 +748,35 @@ real(kind_real),intent(inout) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%n
 integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 
-! Model grid to subset Sc0
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
-   end do
-end do
-
-! Apply NICAS
-if (bump%nam%lsqrt) then
-   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
+if (bump%geom%nc0==bump%geom%nmg) then
+   ! Apply NICAS
+   if (bump%nam%lsqrt) then
+      call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga)
+   else
+      call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga)
+   end if
 else
-   call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
-end if
-
-! Subset Sc0 to model grid
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+   ! Model grid to subset Sc0
+   do its=1,bump%nam%nts
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
+      end do
    end do
-end do
+
+   ! Apply NICAS
+   if (bump%nam%lsqrt) then
+      call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
+   else
+      call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
+   end if
+
+   ! Subset Sc0 to model grid
+   do its=1,bump%nam%nts
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+      end do
+   end do
+end if
 
 end subroutine bump_apply_nicas
 
@@ -808,15 +832,20 @@ else
    call bump%mpl%abort('wrong control variable size in bump_apply_nicas_sqrt')
 end if
 
-! Apply NICAS square-root
-call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
+if (bump%geom%nc0==bump%geom%nmg) then
+   ! Apply NICAS square-root
+   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_mga)
+else
+   ! Apply NICAS square-root
+   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
 
-! Subset Sc0 to model grid
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+   ! Subset Sc0 to model grid
+   do its=1,bump%nam%nts
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
+      end do
    end do
-end do
+end if
 
 end subroutine bump_apply_nicas_sqrt
 
@@ -838,15 +867,20 @@ integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 type(cv_type) :: cv
 
-! Model grid to subset Sc0
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
+if (bump%geom%nc0==bump%geom%nmg) then
+   ! Apply NICAS square-root adjoint
+   call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga,cv)
+else
+   ! Model grid to subset Sc0
+   do its=1,bump%nam%nts
+      do iv=1,bump%nam%nv
+         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
+      end do
    end do
-end do
 
-! Apply NICAS square-root adjoint
-call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a,cv)
+   ! Apply NICAS square-root adjoint
+   call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a,cv)
+end if
 
 ! Check dimension
 if (size(pcv)==cv%n) then
@@ -874,11 +908,16 @@ real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0)  ! Observatio
 ! Local variables
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
 
-! Model grid to subset Sc0
-call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,fld_c0a)
+if (bump%geom%nc0==bump%geom%nmg) then
+   ! Apply observation operator
+   call bump%obsop%apply(bump%mpl,bump%geom,fld_mga,obs)
+else
+   ! Model grid to subset Sc0
+   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,fld_c0a)
 
-! Apply observation operator
-call bump%obsop%apply(bump%mpl,bump%geom,fld_c0a,obs)
+   ! Apply observation operator
+   call bump%obsop%apply(bump%mpl,bump%geom,fld_c0a,obs)
+end if
 
 end subroutine bump_apply_obsop
 
@@ -898,11 +937,16 @@ real(kind_real),intent(out) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
 ! Local variables
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
 
-! Apply observation operator adjoint
-call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_c0a)
+if (bump%geom%nc0==bump%geom%nmg) then
+   ! Apply observation operator adjoint
+   call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_mga)
+else
+   ! Apply observation operator adjoint
+   call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_c0a)
 
-! Subset Sc0 to model grid
-call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a,fld_mga)
+   ! Subset Sc0 to model grid
+   call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a,fld_mga)
+end if
 
 end subroutine bump_apply_obsop_ad
 

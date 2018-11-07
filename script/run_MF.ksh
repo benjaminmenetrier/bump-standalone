@@ -1,6 +1,6 @@
 #!/bin/ksh
 #----------------------------------------------------------------------
-# Korn shell script: sbatch
+# Korn shell script: run_MF
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
