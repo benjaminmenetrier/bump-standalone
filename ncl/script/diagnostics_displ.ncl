@@ -7,8 +7,9 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/arp/877D"
-prefix = "arp_877D"
+home = getenv("HOME")
+datadir = home + "/data/bump/geos"
+prefix = "geos"
 
 ; Resources :
 ; -----------

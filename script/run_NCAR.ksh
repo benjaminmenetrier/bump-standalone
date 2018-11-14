@@ -22,19 +22,18 @@ echo "   Number of cpus per nodes: "${ncpus_per_node}
 # Define root directory
 rootdir=/glade/u/home/menetrie/code/bump
 
-# Define model and xp
-model=arp
-xp=877D
+# Define model
+model=geos
 
 # Define data directory
-datadir=${rootdir}/data/${model}/${xp}
+datadir=${rootdir}/data/${model}
 
 # New working directory
-workdir=${rootdir}/${model}_${xp}
+workdir=${rootdir}/${model}_workdir
 rm -fr ${workdir}
 mkdir ${workdir}
 cp -f ${rootdir}/run/bump ${workdir}
-cp -f ${rootdir}/run/namelist_${model}_${xp}_sc ${workdir}/namelist
+cp -f ${rootdir}/run/namelist_${model} ${workdir}/namelist
 
 # Job
 #----------------------------------------------------------------------
@@ -51,7 +50,7 @@ cat<<EOFNAM >${workdir}/job_bump.ksh
 
 source /glade/u/apps/ch/opt/Lmod/7.3.14/lmod/7.3.14/init/ksh
 module purge
-module load cmake/3.9.1 gnu/6.3.0 openmpi/3.0.0 netcdf/4.4.1.1 ncl
+module load  gnu/7.3.0 openblas/0.2.20 openmpi/3.0.1
 export OMP_NUM_THREADS=${nthreads}
 
 cd ${workdir}

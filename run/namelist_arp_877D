@@ -7,7 +7,7 @@ default_seed = .true.,
 /
 
 &driver_param
-method = "cor",
+method = "loc",
 strategy = "common",
 new_vbal = .false.,
 load_vbal = .false.,
@@ -30,23 +30,23 @@ check_obsop = .false.,
 
 &model_param
 nl = 1,
-levs = 68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
+levs = 35,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
 logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE","HUMI.SPECIFI",
 addvar2d = "","",
-nts = 1,
-timeslot = 6,
+nts = 2,
+timeslot = 0,6,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 20,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 10,
+ens2_ne = 0,
 ens2_ne_offset = 0,
 ens2_nsub = 1,
 /
@@ -58,8 +58,8 @@ mask_type = "none",
 mask_th = 0,
 mask_check = .false.,
 draw_type = "random_uniform",
-nc1 = 1000,
-nc2 = 1000,
+nc1 = 3500,
+nc2 = 3500,
 ntry = 30,
 nrep = 0,
 nc3 = 50,
@@ -68,7 +68,7 @@ nl0r = 1,
 /
 
 &diag_param
-ne = 10,
+ne = 20,
 gau_approx = .false.,
 vbal_block = .false.,.false.,false.,
 vbal_rad = 3000.0e3,
@@ -79,11 +79,11 @@ var_niter = 10,
 var_rhflt = 500.0e3,
 local_diag = .false.,
 local_rad = 3000.0e3,
-displ_diag = .false.,
-displ_rad = 3000.0e3,
+displ_diag = .true.,
+displ_rad = 1000.0e3,
 displ_niter = 10,
-displ_rhflt = 500.0e3,
-displ_tol = 0.0,
+displ_rhflt = 100.0e3,
+displ_tol = 0.01,
 /
 
 &fit_param

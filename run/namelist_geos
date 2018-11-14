@@ -14,14 +14,14 @@ load_vbal = .false.,
 new_hdiag = .true.,
 new_lct = .false.,
 load_cmat = .false.,
-new_nicas = .true.,
+new_nicas = .false.,
 load_nicas = .false.,
 new_obsop = .false.,
 load_obsop = .false.,
 check_adjoints = .false.,
 check_pos_def = .false.,
 check_sqrt = .false.,
-check_dirac = .true.,
+check_dirac = .false.,
 check_randomization = .false.,
 check_consistency = .false.,
 check_optimality = .false.,
@@ -29,24 +29,24 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 7,
-levs = 72,62,52,42,32,22,12,
+nl = 1,
+levs = 43,
 logpres = .true.,
 nv = 1,
-varname = "U","V","T","QV",
-addvar2d = "","",
-nts = 1,
-timeslot = 1,
+varname = "T",
+addvar2d = "",
+nts = 2,
+timeslot = 0,6,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 32,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 10,
+ens2_ne = 0,
 ens2_ne_offset = 0,
 ens2_nsub = 1,
 /
@@ -59,16 +59,16 @@ mask_th = 0,
 mask_check = .false.,
 draw_type = "random_uniform",
 nc1 = 3500,
-nc2 = 500,
-ntry = 3,
-nrep = 2,
+nc2 = 3500,
+ntry = 30,
+nrep = 0,
 nc3 = 50,
 dc = 100.0e3,
-nl0r = 7,
+nl0r = 1,
 /
 
 &diag_param
-ne = 10,
+ne = 32,
 gau_approx = .false.,
 vbal_block = .false.,
 vbal_rad = 1000.0e3,
@@ -78,12 +78,12 @@ var_full = .false.,
 var_niter = 0,
 var_rhflt = 0.0,
 local_diag = .false.,
-local_rad = 1000.0e3,
-displ_diag = .false.,
+local_rad = 3000.0e3,
+displ_diag = .true.,
 displ_rad = 1000.0e3,
 displ_niter = 10,
-displ_rhflt = 500.0e3,
-displ_tol = 0.01,
+displ_rhflt = 100.0e3,
+displ_tol = 0.0,
 /
 
 &fit_param
@@ -136,4 +136,3 @@ grid_output = .true.,
 grid_resol = 200.0e3,
 grid_interp = "bilin",
 /
-

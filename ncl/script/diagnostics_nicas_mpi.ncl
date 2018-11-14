@@ -7,7 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/arp/877D"
+home = getenv("HOME")
+datadir = home + "/data/bump/arp/877D"
 prefix = "arp_877D"
 nproc = 3
 mpicom = 2

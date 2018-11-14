@@ -61,12 +61,6 @@ allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
 allocate(a(geom%nlev+1))
 allocate(b(geom%nlev+1))
-allocate(mg_to_lon(geom%nmg))
-allocate(mg_to_lat(geom%nmg))
-allocate(lon_mg(geom%nmg))
-allocate(lat_mg(geom%nmg))
-allocate(area_mg(geom%nmg))
-allocate(lmask_mg(geom%nmg,geom%nl0))
 
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
@@ -82,6 +76,14 @@ call mpl%ncerr(subr,nf90_close(ncid))
 ! Grid size
 geom%nmg = count(lon>-1000.0)
 
+! Allocation
+allocate(mg_to_lon(geom%nmg))
+allocate(mg_to_lat(geom%nmg))
+allocate(lon_mg(geom%nmg))
+allocate(lat_mg(geom%nmg))
+allocate(area_mg(geom%nmg))
+allocate(lmask_mg(geom%nmg,geom%nl0))
+
 ! Convert to radian
 lon = lon*deg2rad
 lat = lat*deg2rad
@@ -95,7 +97,7 @@ do ilon=1,geom%nlon
          mg_to_lon(img) = ilon
          mg_to_lat(img) = ilat
          lon_mg(img) = lon(ilon,ilat)
-         lat_mg(img) = lat(ilat,ilat)
+         lat_mg(img) = lat(ilon,ilat)
       end if
    end do
 end do

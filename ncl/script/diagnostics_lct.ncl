@@ -7,7 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "../../data/nemo"
+home = getenv("HOME")
+datadir = home + "/data/bump/nemo/nemovar"
 prefix = "nemo"
 
 ; Resources :

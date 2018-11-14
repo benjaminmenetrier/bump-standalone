@@ -7,7 +7,8 @@ begin
 ; Parameters:
 ; -----------
 
-datadir = "/home/benjamin/data/bump/arp/877D"
+home = getenv("HOME")
+datadir = home + "/data/bump/arp/877D"
 prefix = "arp_877D"
 nc_plot = 30
 ic_colors = toint(fspan(2,201,nc_plot))

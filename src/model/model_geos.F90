@@ -8,7 +8,7 @@
 module model_geos
 
 use netcdf
-use tools_const, only: deg2rad,rad2deg,pi,ps
+use tools_const, only: deg2rad,rad2deg,pi
 use tools_kinds, only: kind_real
 use tools_missing, only: msr,isanynotmsr
 use tools_nc, only: ncfloat
@@ -40,9 +40,10 @@ type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: img,il0,ilon,ilat,ic0
-integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
+integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,delp_id
 integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
-real(kind=8),allocatable :: lon(:),lat(:),pres(:)
+real(kind_real) :: P0
+real(kind=8),allocatable :: lon(:,:),lat(:,:),delp(:,:,:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
 character(len=1024) :: subr = 'model_geos_coord'
@@ -58,9 +59,9 @@ call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lev',nlev_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
 ! Allocation
-allocate(lon(geom%nlon))
-allocate(lat(geom%nlat))
-allocate(pres(geom%nlev))
+allocate(lon(geom%nlon,geom%nlat))
+allocate(lat(geom%nlon,geom%nlat))
+allocate(delp(geom%nlon,geom%nlat,geom%nlev))
 allocate(mg_to_lon(geom%nmg))
 allocate(mg_to_lat(geom%nmg))
 allocate(lon_mg(geom%nmg))
@@ -71,15 +72,11 @@ allocate(lmask_mg(geom%nmg,geom%nl0))
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'PL',pres_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'delp',delp_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
-call mpl%ncerr(subr,nf90_get_var(ncid,pres_id,pres))
+call mpl%ncerr(subr,nf90_get_var(ncid,delp_id,delp,(/1,1,1/),(/geom%nlon,geom%nlat,geom%nlev/)))
 call mpl%ncerr(subr,nf90_close(ncid))
-
-! Convert to radian
-lon = lon*deg2rad
-lat = lat*deg2rad
 
 ! Model grid
 img = 0
@@ -88,8 +85,8 @@ do ilon=1,geom%nlon
       img = img+1
       mg_to_lon(img) = ilon
       mg_to_lat(img) = ilat
-      lon_mg(img) = real(lon(ilon),kind_real)
-      lat_mg(img) = real(lat(ilat),kind_real)
+      lon_mg(img) = real(lon(ilon,ilat),kind_real)
+      lat_mg(img) = real(lat(ilon,ilat),kind_real)
    end do
 end do
 area_mg = 4.0*pi/real(geom%nmg,kind_real)
@@ -112,8 +109,17 @@ end do
 ! Vertical unit
 do ic0=1,geom%nc0
    if (nam%logpres) then
-      geom%vunit(ic0,1:nam%nl) = log(pres(nam%levs(1:nam%nl)))
-      if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(ps)
+      ilon = geom%c0_to_lon(ic0)
+      ilat = geom%c0_to_lat(ic0)
+      do il0=1,nam%nl
+         P0 = sum(delp(ilon,ilat,:))
+         if (nam%levs(il0)==geom%nlev) then
+            geom%vunit(ic0,il0) = log(P0-0.5*delp(ilon,ilat,geom%nlev))
+         else
+            geom%vunit(ic0,il0) = log(P0-sum(delp(ilon,ilat,nam%levs(il0)+1:geom%nlev))-0.5*delp(ilon,ilat,nam%levs(il0)))
+         end if
+         if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(P0)
+      end do
    else
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
    end if
@@ -122,7 +128,7 @@ end do
 ! Release memory
 deallocate(lon)
 deallocate(lat)
-deallocate(pres)
+deallocate(delp)
 
 end subroutine model_geos_coord
 
@@ -166,7 +172,7 @@ do iv=1,nam%nv
 
       ! Read data
       do il0=1,nam%nl
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0),nam%timeslot(its)/), &
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0),1/), &
        & (/geom%nlon,geom%nlat,1,1/)))
       end do
 
@@ -177,7 +183,7 @@ do iv=1,nam%nv
          call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
 
          ! Read data
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0),(/1,1,nam%timeslot(its)/),(/geom%nlon,geom%nlat,1/)))
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0),(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
       end if
    end if
 
