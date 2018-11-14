@@ -699,7 +699,7 @@ do jc3=1,nam%nc3
 end do
 
 ! Define dirac points
-if (nam%ndir>0) call geom%define_dirac(nam)
+if (nam%check_dirac.and.(nam%ndir>0)) call geom%define_dirac(mpl,nam)
 
 ! Print summary
 write(mpl%info,'(a10,a,f7.1,a,f7.1)') '','Min. / max. longitudes:',minval(geom%lon)*rad2deg,' / ',maxval(geom%lon)*rad2deg
@@ -756,12 +756,13 @@ end subroutine geom_compute_area
 ! Subroutine: geom_define_dirac
 ! Purpose: define dirac indices
 !----------------------------------------------------------------------
-subroutine geom_define_dirac(geom,nam)
+subroutine geom_define_dirac(geom,mpl,nam)
 
 implicit none
 
 ! Passed variables
 class(geom_type),intent(inout) :: geom ! Geometry
+type(mpl_type),intent(in) :: mpl       ! MPI data
 type(nam_type),intent(in) :: nam       ! Namelist
 
 ! Local variables
@@ -782,9 +783,11 @@ allocate(geom%itsdir(nam%ndir))
 geom%ndir = 0
 do idir=1,nam%ndir
    ! Find level
+   call msi(il0dir)
    do il0=1,geom%nl0
       if (nam%levs(il0)==nam%levdir(idir)) il0dir = il0
    end do
+   if (ismsi(il0dir)) call mpl%abort('impossible to find the Dirac level')
 
    ! Find nearest neighbor
    call geom%kdtree%find_nearest_neighbors(nam%londir(idir),nam%latdir(idir),1,nn_index,nn_dist)
@@ -1165,8 +1168,6 @@ else
    ! Reduce model grid to subset Sc0
    call geom%com_mg%red(mpl,geom%nl0,fld_mga_zero,fld_c0a)
 
-write(mpl%info,*) 'mga_to_c0a',mpl%myproc,maxval(fld_mga_zero),maxval(fld_c0a),sum(fld_mga_zero),sum(fld_c0a)
-
    ! Copy non-redundant points
    do il0=1,geom%nl0
       do ic0a=1,geom%nc0a
@@ -1193,8 +1194,6 @@ write(mpl%info,*) 'mga_to_c0a',mpl%myproc,maxval(fld_mga_zero),maxval(fld_c0a),s
       end do
    end do
 end if
-
-write(mpl%info,*) 'mga_to_c0a',mpl%myproc,maxval(fld_mga),maxval(fld_c0a),sum(fld_mga),sum(fld_c0a)
 
 end subroutine geom_copy_mga_to_c0a
 

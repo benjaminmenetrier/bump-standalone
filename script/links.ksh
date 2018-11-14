@@ -13,7 +13,7 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=aro
+model=geos
 
 # Link members
 i=0
@@ -87,11 +87,13 @@ while [ ${i} -lt ${ne} ] ; do
 
    # GEOS
    if test ${model} = "geos" ; then
+      ne=32
       mkdir -p ${bumpdir}/${model}
-      ln -sf ${datadir}/${model}/GEOS.fp.fcst.inst3_3d_asm_Nv.20160724_00+20160727_0000.V01.nc4 ${bumpdir}/${model}/ens1_01_0001.nc
-      ln -sf ${datadir}/${model}/GEOS.fp.fcst.inst3_3d_asm_Nv.20160724_12+20160727_0000.V01.nc4 ${bumpdir}/${model}/ens1_01_0002.nc
-      ln -sf ${datadir}/${model}/GEOS.fp.fcst.inst3_3d_asm_Nv.20160725_00+20160727_0000.V01.nc4 ${bumpdir}/${model}/ens1_01_0003.nc
-      ln -sf ${datadir}/${model}/GEOS.fp.fcst.inst3_3d_asm_Nv.20160725_12+20160727_0000.V01.nc4 ${bumpdir}/${model}/ens1_01_0004.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_00z_00.nc4 ${bumpdir}/${model}/ens1_00_${i4}.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_06z_00.nc4 ${bumpdir}/${model}/ens1_06_${i4}.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_12z_00.nc4 ${bumpdir}/${model}/ens1_12_${i4}.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_18z_00.nc4 ${bumpdir}/${model}/ens1_18_${i4}.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180416_00z_00.nc4 ${bumpdir}/${model}/ens1_24_${i4}.nc
    fi
 
    # GFS
@@ -258,13 +260,59 @@ fi
 # GEOS
 if test ${model} = "geos" ; then
    # Generate grid with ncks and ncwa
-   origin=${bumpdir}/${model}/ens1_01_0001.nc
+   origin=${bumpdir}/${model}/ens1_00_0001.nc
    grid=${bumpdir}/${model}/grid.nc
+   resol=180
    rm -f ${grid}
-   ncks -O -v lat,lon ${origin} ${grid}
-   ncwa -O -v PL -a time,lat,lon ${origin} pressure.nc
-   ncks -A -v PL pressure.nc ${grid}
-   rm -f pressure.nc
+   cat<<EOFNAM >ncl_script.ncl
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+
+begin
+
+strs = asciiread("${datadir}/${model}/c${resol}.txt",-1,"string")
+np = dimsizes(strs)
+i = toint(str_get_field(strs,1," "))
+j = toint(str_get_field(strs,2," "))
+tile = toint(str_get_field(strs,3," "))
+lat_vec = tofloat(str_get_field(strs,4," "))
+lon_vec = tofloat(str_get_field(strs,5," "))
+ni = max(i)
+nj = max(j)
+ntile = max(tile)
+lat = new((/ntile*nj,ni/),float)
+lon = new((/ntile*nj,ni/),float)
+do ip=0,np-1
+   lat((tile(ip)-1)*nj+j(ip)-1,i(ip)-1) = lat_vec(ip)
+   lon((tile(ip)-1)*nj+j(ip)-1,i(ip)-1) = lon_vec(ip)
+end do
+lat!0 = "lat"
+lat!1 = "lon"
+lat@long_name = "latitude"
+lat@units = "degrees_north"
+lon!0 = "lat"
+lon!1 = "lon"
+lon@long_name = "longitude"
+lon@units = "degrees_east"
+
+data_in = addfile("${origin}","r")
+delp = data_in->delp(0,:,:,:)*1.0
+delp!0 = "lev"
+delp!1 = "lat"
+delp!2 = "lon"
+delp@long_name = "pressure_thickness"
+delp@units = "Pa"
+
+data_out = addfile("${grid}","c")
+data_out->lat = lat
+data_out->lon = lon
+data_out->delp = delp
+
+end
+EOFNAM
+   ncl ncl_script.ncl
+   rm -f ncl_script.ncl
 fi
 
 # GFS
