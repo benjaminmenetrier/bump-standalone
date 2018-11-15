@@ -51,7 +51,8 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Initialize block parameters'
 call bump%bpar%alloc(bump%nam,bump%geom)
 
-if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.(bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
+if (bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or. &
+ & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    write(bump%mpl%info,'(a)') '--- Load ensemble 1'
    call flush(bump%mpl%info)

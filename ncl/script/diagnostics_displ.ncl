@@ -10,6 +10,7 @@ begin
 home = getenv("HOME")
 datadir = home + "/data/bump/geos"
 prefix = "geos"
+type = "flt"
 
 ; Resources :
 ; -----------
@@ -97,13 +98,20 @@ lon_c2 = data->lon_c2
 lat_c2 = data->lat_c2
 dims = dimsizes(lon_c2)
 nc2 = dims(1)
-lon_c2_flt = data->lon_c2_flt
-lat_c2_flt = data->lat_c2_flt
-dist_c2_flt = data->dist_c2_flt
+if (type.eq."raw") then
+   lon_c2_dst = data->lon_c2_raw
+   lat_c2_dst = data->lat_c2_raw
+   dist_c2_dst = data->dist_c2_raw
+end if
+if (type.eq."flt") then
+   lon_c2_dst = data->lon_c2_flt
+   lat_c2_dst = data->lat_c2_flt
+   dist_c2_dst = data->dist_c2_flt
+end if
 dot = new(nc2,graphic)
 line = new(nc2,graphic)
 dist_min = 0.0
-dist_max = max(dist_c2_flt)
+dist_max = max(dist_c2_dst)
 valid = data->valid
 dist = data->dist
 rhflt = data->rhflt
@@ -153,12 +161,12 @@ do ilevs=0,nlevs-1
       res@tiMainString = "Displacement @ lev " + levs(ilevs_plot(ilevs)) + " / ts " + timeslot(its)
       plot = gsn_csm_map(wks,res)
 
-      dist_color = 2+toint((dist_c2_flt(its-1,ilevs_plot(ilevs),:)-dist_min)/(dist_max-dist_min)*(61.0-2.0))
+      dist_color = 2+toint((dist_c2_dst(its-1,ilevs_plot(ilevs),:)-dist_min)/(dist_max-dist_min)*(61.0-2.0))
       do ic2=0,nc2-1
          pmres@gsMarkerColor = min((/dist_color(ic2),61/))
          plres@gsLineColor = min((/dist_color(ic2),61/))
          dot(ic2) = gsn_add_polymarker(wks,plot,lon_c2(ilevs_plot(ilevs),ic2),lat_c2(ilevs_plot(ilevs),ic2),pmres)
-         line(ic2) = gsn_add_polyline(wks,plot,(/lon_c2(ilevs_plot(ilevs),ic2),lon_c2_flt(its-1,ilevs_plot(ilevs),ic2)/),(/lat_c2(ilevs_plot(ilevs),ic2),lat_c2_flt(its-1,ilevs_plot(ilevs),ic2)/),plres)
+         line(ic2) = gsn_add_polyline(wks,plot,(/lon_c2(ilevs_plot(ilevs),ic2),lon_c2_dst(its-1,ilevs_plot(ilevs),ic2)/),(/lat_c2(ilevs_plot(ilevs),ic2),lat_c2_dst(its-1,ilevs_plot(ilevs),ic2)/),plres)
       end do
 
       draw(plot)

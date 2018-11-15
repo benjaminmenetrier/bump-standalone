@@ -15,7 +15,7 @@ run/*.test.*
 src_oops
 
 # Test
-test/*.log
+test
 
 # Versions
 versions
