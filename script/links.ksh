@@ -89,11 +89,18 @@ while [ ${i} -lt ${ne} ] ; do
    if test ${model} = "geos" ; then
       ne=32
       mkdir -p ${bumpdir}/${model}
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_00z_00.nc4 ${bumpdir}/${model}/ens1_00_${i4}.nc
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_06z_00.nc4 ${bumpdir}/${model}/ens1_06_${i4}.nc
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_12z_00.nc4 ${bumpdir}/${model}/ens1_12_${i4}.nc
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_18z_00.nc4 ${bumpdir}/${model}/ens1_18_${i4}.nc
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180416_00z_00.nc4 ${bumpdir}/${model}/ens1_24_${i4}.nc
+      ts=0
+      typeset -RZ2 ts
+      hh=0
+      typeset -RZ2 hh
+      while [ ${hh} -lt 24 ] ; do
+         for mm in '00' '15' '30' '45' ; do       
+            ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_${hh}z_${mm}.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
+            let ts=ts+1
+         done
+         let hh=hh+1
+      done
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180416_00z_00.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
    fi
 
    # GFS
