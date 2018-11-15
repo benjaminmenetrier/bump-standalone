@@ -7,10 +7,13 @@
 !----------------------------------------------------------------------
 module type_ens
 
+use fckit_mpi_module, only: fckit_mpi_sum
+use tools_const, only: deg2rad
 use model_interface, only: model_read
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,msr
+use tools_missing, only: msi,msr,isnotmsi
 use type_geom, only: geom_type
+use type_io, only: io_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 
@@ -31,9 +34,9 @@ contains
    procedure :: load => ens_load
    procedure :: copy => ens_copy
    procedure :: remove_mean => ens_remove_mean
-   procedure :: ens_from
-   procedure :: ens_from_nemovar
-   generic :: from => ens_from,ens_from_nemovar
+   procedure :: from => ens_from
+   procedure :: apply_bens => ens_apply_bens
+   procedure :: cortrack => ens_cortrack
 end type ens_type
 
 private
@@ -265,61 +268,123 @@ end if
 end subroutine ens_from
 
 !----------------------------------------------------------------------
-! Subroutine: ens_from_nemovar
-! Purpose: copy 2d NEMOVAR ensemble into ensemble data
+! Subroutine: ens_apply_bens
+! Purpose: apply raw ensemble covariance
 !----------------------------------------------------------------------
-subroutine ens_from_nemovar(ens,mpl,nam,geom,nx,ny,nens,ncyc,ens_2d,ens_3d)
+subroutine ens_apply_bens(ens,mpl,nam,geom,fld)
 
 implicit none
 
 ! Passed variables
-class(ens_type),intent(inout) :: ens                                    ! Ensemble
+class(ens_type),intent(in) :: ens                                       ! Ensemble
 type(mpl_type),intent(in) :: mpl                                        ! MPI data
 type(nam_type),intent(in) :: nam                                        ! Namelist
 type(geom_type),intent(in) :: geom                                      ! Geometry
-integer,intent(in) :: nx                                                ! X-axis size
-integer,intent(in) :: ny                                                ! Y-axis size
-integer,intent(in) :: nens                                              ! Ensemble size at each cycle
-integer,intent(in) :: ncyc                                              ! Number of cycles
-real(kind_real),intent(in),optional :: ens_2d(nx,ny,nens,ncyc)          ! Ensemble on model grid, halo A
-real(kind_real),intent(in),optional :: ens_3d(nx,ny,geom%nl0,nens,ncyc) ! Ensemble on model grid, halo A
+real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) ! Field
 
-! Local variables
-integer :: ie,iens,icyc,its,iv,il0
-real(kind_real) :: tmp(geom%nmga)
+! Local variable
+integer :: ie,ic0a,il0,iv,its
+real(kind_real) :: alpha,norm
+real(kind_real) :: fld_copy(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+real(kind_real) :: pert(geom%nc0a,geom%nl0,nam%nv,nam%nts)
 
-! Allocation
-call ens%alloc(nam,geom,nens*ncyc,ncyc)
+! Initialization
+fld_copy = fld
 
-! Copy
-iv = 1
-its = 1
-ie = 1
-do iens=1,nens
-   do icyc=1,ncyc
-      ! Pack and copy
-      if (present(ens_2d)) then
-         il0 = 1
-         tmp = pack(ens_2d(:,:,iens,icyc),.true.)
-         ens%fld(:,il0,iv,its,ie) = tmp(geom%c0a_to_mga)
-      elseif (present(ens_3d)) then
+! Apply localized ensemble covariance formula
+fld = 0.0
+norm = sqrt(real(nam%ens1_ne-1,kind_real))
+do ie=1,nam%ens1_ne
+   ! Compute perturbation
+   !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
+   do its=1,nam%nts
+      do iv=1,nam%nv
          do il0=1,geom%nl0
-            ! Pack and copy
-            tmp = pack(ens_3d(:,:,il0,iens,icyc),.true.)
-            ens%fld(:,il0,iv,its,ie) = tmp(geom%c0a_to_mga)
+            do ic0a=1,geom%nc0a
+               if (geom%mask_c0a(ic0a,il0)) pert(ic0a,il0,iv,its) = ens%fld(ic0a,il0,iv,its,ie)/norm
+            end do
          end do
-      else
-         call mpl%abort('ens_2d or ens_3d should be provided in ens_from_nemovar')
-      end if
-
-      ! Update
-      ie = ie+1
+      end do
    end do
+   !$omp end parallel do
+
+   ! Dot product
+   call mpl%dot_prod(pert,fld_copy,alpha)
+
+   ! Schur product
+   fld = fld+alpha*pert
 end do
 
-! Remove mean
-call ens%remove_mean
+end subroutine ens_apply_bens
 
-end subroutine ens_from_nemovar
+!----------------------------------------------------------------------
+! Subroutine: ens_cortrack
+! Purpose: correlation tracker
+!----------------------------------------------------------------------
+subroutine ens_cortrack(ens,mpl,nam,geom,io)
+
+implicit none
+
+! Passed variables
+class(ens_type),intent(in) :: ens   ! Ensemble
+type(mpl_type),intent(inout) :: mpl ! MPI data
+type(nam_type),intent(in) :: nam    ! Namelist
+type(geom_type),intent(in) :: geom  ! Geometry
+type(io_type),intent(in) :: io      ! I/O
+
+! Local variable
+integer :: ic0a_ct,il0_ct,iv_ct,ic0a,ic0,ie,its
+integer :: nn_index(1)
+real(kind_real) :: lon_ct,lat_ct,nn_dist(1),var_dirac
+real(kind_real) :: var(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+real(kind_real) :: dirac(geom%nc0a,geom%nl0,nam%nv,nam%nts),fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+character(len=2) :: itschar
+character(len=1024) :: filename
+
+! Set dirac coordinates
+lon_ct = 0.0
+lat_ct = 50.0
+il0_ct = 1
+iv_ct = 1
+
+! Convert to radian
+lon_ct = lon_ct*deg2rad
+lat_ct = lat_ct*deg2rad
+
+! Find local dirac index
+call geom%kdtree%find_nearest_neighbors(lon_ct,lat_ct,1,nn_index,nn_dist)
+call msi(ic0a_ct)
+do ic0a=1,geom%nc0a
+   ic0 = geom%c0a_to_c0(ic0a)
+   if (ic0==nn_index(1)) ic0a_ct = ic0a
+end do
+
+! Generate dirac field
+dirac = 0.0
+if (isnotmsi(ic0a_ct)) dirac(ic0a_ct,il0_ct,iv_ct,1) = 1.0
+
+! Compute variance
+var = 0.0
+do ie=1,ens%ne
+   var = var +ens%fld(:,:,:,:,ie)**2
+end do
+var = var/real(ens%ne-ens%nsub,kind_real)
+call mpl%f_comm%allreduce(sum(dirac*var),var_dirac,fckit_mpi_sum())
+
+! Apply raw ensemble covariance
+fld = dirac
+call ens%apply_bens(mpl,nam,geom,fld)
+
+! Normalize
+fld = fld/sqrt(var*var_dirac)
+
+! Write field
+filename = trim(nam%prefix)//'_cortrack'
+do its=1,nam%nts
+   write(itschar,'(i2.2)') its
+   call io%fld_write(mpl,nam,geom,filename,'fld_'//itschar,fld(:,:,iv_ct,its))
+end do
+
+end subroutine ens_cortrack
 
 end module type_ens

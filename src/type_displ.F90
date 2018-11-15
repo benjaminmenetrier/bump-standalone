@@ -28,8 +28,8 @@ use type_samp, only: samp_type
 
 implicit none
 
-character(len=1024) :: displ_method = 'cor_max'         ! Displacement computation method
-real(kind_real),parameter :: cor_th = 0.2_kind_real     ! Correlation threshold
+character(len=1024) :: displ_method = 'cor_max'       ! Displacement computation method
+real(kind_real),parameter :: c_th = 0.2_kind_real     ! Covariance/correlation threshold
 
 ! Displacement data derived type
 type displ_type
@@ -144,15 +144,14 @@ type(ens_type), intent(in) :: ens        ! Ensemble
 
 ! Local variables
 integer :: ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d,ind
-real(kind_real) :: fac4,fac6,m11_avg,m2m2_avg,fld_1,fld_2,drhflt,dum,cormax
-real(kind_real) :: lon_target,lat_target,rad_target,x_cm,y_cm,z_cm,n_cm
+real(kind_real) :: fac4,fac6,m2m2,fld_1,fld_2,drhflt,dum,cmax
+real(kind_real) :: lon_target,lat_target
 real(kind_real) :: norm_tot,distsum_tot
 real(kind_real),allocatable :: fld_ext(:,:,:,:)
 real(kind_real),allocatable :: m1_1(:,:,:,:,:,:),m2_1(:,:,:,:,:,:)
 real(kind_real),allocatable :: m1_2(:,:,:,:,:,:),m2_2(:,:,:,:,:,:)
 real(kind_real),allocatable :: m11(:,:,:,:,:,:)
-real(kind_real),allocatable :: cor(:),cor_avg(:)
-real(kind_real),allocatable :: x(:),y(:),z(:)
+real(kind_real),allocatable :: cov(:,:),cor(:,:),cov_avg(:),cor_avg(:)
 real(kind_real) :: dlon_c0a(geom%nc0a),dlat_c0a(geom%nc0a)
 real(kind_real) :: dlon_c2a(samp%nc2a),dlat_c2a(samp%nc2a),dist_c2a(samp%nc2a)
 real(kind_real) :: dlon_c2b(samp%nc2b),dlat_c2b(samp%nc2b)
@@ -253,7 +252,7 @@ do isub=1,ens%nsub
                            jc0d = samp%c0_to_c0d(jc0)
 
                            ! Copy points
-                           fld_1 = ens%fld(ic0a,il0,iv,1,ie)
+                           fld_1 = ens%fld(ic0a,il0,iv,its-1,ie)
                            fld_2 = fld_ext(jc0d,il0,iv,its)
 
                            ! Remove means
@@ -298,35 +297,51 @@ do its=2,nam%nts
       ! Number of points
       call mpl%f_comm%allreduce(real(count(mask_c2a(:,il0)),kind_real),norm_tot,fckit_mpi_sum())
 
-      !$omp parallel do schedule(static) private(ic2a,ic2,jc1,jc0,iv,m11_avg,m2m2_avg,lon_target,lat_target,rad_target), &
-      !$omp&                             private(x_cm,y_cm,z_cm,n_cm,ind) firstprivate(cor,cor_avg,x,y,z)
+      !$omp parallel do schedule(static) private(ic2a,ic2,ic0,jc1,jc0,iv,m2m2,cmax,lon_target,lat_target), &
+      !$omp&                             private(ind) firstprivate(cov,cor,cov_avg,cor_avg)
       do ic2a=1,samp%nc2a
          ic2 = samp%c2a_to_c2(ic2a)
+         ic0 = samp%c2_to_c0(ic2)
          if (mask_c2a(ic2a,il0)) then
             ! Allocation
-            allocate(cor(nam%nv))
+            allocate(cov(nam%nc1,nam%nv))
+            allocate(cor(nam%nc1,nam%nv))
+            allocate(cov_avg(nam%nc1))
             allocate(cor_avg(nam%nc1))
 
-            do jc1=1,nam%nc1
-               ! Initialization
-               call msr(cor_avg(jc1))
+            ! Initialization
+            call msr(cov)
+            call msr(cor)
+            call msr(cov_avg)
+            call msr(cor_avg)
 
+            do jc1=1,nam%nc1
                if (samp%displ_mask(jc1,ic2)) then
-                  ! Compute correlation for each variable
+                  ! Compute covariance and correlation
                   do iv=1,nam%nv
+                     ! Covariance
+                     cov(jc1,iv) = sum(m11(jc1,ic2a,il0,iv,its,:))/real(ens%nsub,kind_real)
+
                      ! Correlation
-                     m11_avg = sum(m11(jc1,ic2a,il0,iv,its,:))/real(ens%nsub,kind_real)
-                     m2m2_avg = sum(m2_1(jc1,ic2a,il0,iv,its,:))*sum(m2_2(jc1,ic2a,il0,iv,its,:))/real(ens%nsub**2,kind_real)
-                     if (m2m2_avg>0.0) then
-                        cor(iv) = m11_avg/sqrt(m2m2_avg)
+                     m2m2 = sum(m2_1(jc1,ic2a,il0,iv,its,:))*sum(m2_2(jc1,ic2a,il0,iv,its,:))/real(ens%nsub**2,kind_real)
+                     if (m2m2>0.0) then
+                        cor(jc1,iv) = cov(jc1,iv)/sqrt(m2m2)
                      else
-                        call msr(cor(iv))
+                        call msr(cor(jc1,iv))
                      end if
                   end do
+               end if
+            end do
 
-                  ! Average correlations
+            ! Average covariance and correlation
+            do iv=1,nam%nv
+               cov(:,iv) = cov(:,iv)/maxval(cov(:,iv))
+            end do
+            do jc1=1,nam%nc1
+               if (samp%displ_mask(jc1,ic2)) then                
+                  cov_avg(jc1) = sum(cov(jc1,:))/real(nam%nv,kind_real)
                   if (isanynotmsr(cor)) then
-                     cor_avg(jc1) = sum(cor,mask=isnotmsr(cor))/real(count(isnotmsr(cor)),kind_real)
+                     cor_avg(jc1) = sum(cor(jc1,:),mask=isnotmsr(cor(jc1,:)))/real(count(isnotmsr(cor(jc1,:))),kind_real)
                   else
                      call mpl%abort('average correlation contains missing values only')
                   end if
@@ -336,14 +351,14 @@ do its=2,nam%nts
             select case (trim(displ_method))
             case ('cor_max')
                ! Locate the maximum correlation, with a correlation threshold
-               if (maxval(cor_avg)>cor_th) then
+               if (maxval(cor_avg)>c_th) then
                   ! Find maximum
                   call msi(ind)
-                  cormax = cor_th
+                  cmax = 0.0
                   do jc1=1,nam%nc1
-                     if (cor_avg(jc1)>cormax) then
+                     if (cor_avg(jc1)>cmax) then
                         ind = jc1
-                        cormax = cor_avg(jc1)
+                        cmax = cor_avg(jc1)
                      end if
                   end do
                   jc1 = ind
@@ -351,54 +366,23 @@ do its=2,nam%nts
                   lon_target = geom%lon(jc0)
                   lat_target = geom%lat(jc0)
                else
-                  lon_target = 0.0
-                  lat_target = 0.0
+                  lon_target = geom%lon(ic0)
+                  lat_target = geom%lat(ic0)
                end if
-            case ('cor_center_mass')
-               ! Locate the correlation center of mass, with a correlation threshold
-
-               ! Allocation
-               allocate(x(1))
-               allocate(y(1))
-               allocate(z(1))
-
-               ! Initialization
-               x_cm = 0.0
-               y_cm = 0.0
-               z_cm = 0.0
-               n_cm = 0.0
-
+            case ('cov_max')
+               ! Locate the maximum covariance, with a covariance threshold
+               call msi(ind)
+               cmax = 0.0
                do jc1=1,nam%nc1
-                  if (cor_avg(jc1)>max(cor_th,0.5*maxval(cor_avg))) then
-                     ! Compute cartesian coordinates
-                     jc0 = samp%c1_to_c0(jc1)
-                     call trans(1,geom%lat(jc0),geom%lon(jc0),x,y,z)
-
-                     ! Update center of mass
-                     x_cm = x_cm+cor_avg(jc1)*x(1)
-                     y_cm = y_cm+cor_avg(jc1)*y(1)
-                     z_cm = z_cm+cor_avg(jc1)*z(1)
-                     n_cm = n_cm+cor_avg(jc1)
+                  if (cov_avg(jc1)>cmax) then
+                     ind = jc1
+                     cmax = cov_avg(jc1)
                   end if
                end do
-
-               if (n_cm>0.0) then
-                  ! Final center of mass
-                  x_cm = x_cm/n_cm
-                  y_cm = y_cm/n_cm
-                  z_cm = z_cm/n_cm
-
-                  ! Back to spherical coordinates
-                  call scoord(x_cm,y_cm,z_cm,lat_target,lon_target,rad_target)
-               else
-                  lon_target = 0.0
-                  lat_target = 0.0
-               end if
-
-               ! Release memory
-               deallocate(x)
-               deallocate(y)
-               deallocate(z)
+               jc1 = ind
+               jc0 = samp%c1_to_c0(jc1)
+               lon_target = geom%lon(jc0)
+               lat_target = geom%lat(jc0)
             end select
 
             ! Compute displacement and distance
@@ -408,7 +392,9 @@ do its=2,nam%nts
             call sphere_dist(lon_c2a_ori(ic2a,il0),lat_c2a_ori(ic2a,il0),lon_target,lat_target,dist_c2a(ic2a))
 
             ! Release memory
+            deallocate(cov)
             deallocate(cor)
+            deallocate(cov_avg)
             deallocate(cor_avg)
          end if
       end do
@@ -567,7 +553,15 @@ do its=2,nam%nts
        & displ%rhflt(0,il0,its)*reqkm,' km, valid points: ',100.0*displ%valid(0,il0,its),'%, average displacement = ', &
        & displ%dist(0,il0,its)*reqkm,' km'
          call flush(mpl%info)
+
+         ! Copy
+         displ%lon_c2a_flt(:,il0,its) = displ%lon_c2a_raw(:,il0,its)
+         displ%lat_c2a_flt(:,il0,its) = displ%lat_c2a_raw(:,il0,its)
+         displ%dist_c2a_flt(:,il0,its) = displ%dist_c2a_raw(:,il0,its)
       end if
+
+      ! Integrate displacement
+      ! TODO
 
       ! Displacement interpolation
       do ic2a=1,samp%nc2a

@@ -245,7 +245,8 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Initialize block parameters'
 call bump%bpar%alloc(bump%nam,bump%geom)
 
-if (bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or.(bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
+if (bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or. &
+ & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    write(bump%mpl%info,'(a)') '--- Load ensemble 1'
    call flush(bump%mpl%info)
@@ -362,6 +363,14 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 write(bump%mpl%info,'(a)') '--- Finalize ensemble 2'
 call flush(bump%mpl%info)
 call bump%ens2%remove_mean
+
+if (bump%nam%new_cortrack) then
+   ! Run correlation tracker
+   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
+   write(bump%mpl%info,'(a)') '--- Run correlation tracker'
+   call flush(bump%mpl%info)
+   call bump%ens1%cortrack(bump%mpl,bump%nam,bump%geom,bump%io)
+end if
 
 if (bump%nam%new_vbal) then
    ! Reseed random number generator
