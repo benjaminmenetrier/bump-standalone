@@ -120,7 +120,7 @@ niter = dims_pro(2)
 
 do ilevs=0,nlevs-1
    do its=1,nts-1
-      output = "../fig/" + prefix + "_displ_profiles_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+      output = "../fig/" + prefix + "_displ_profiles_" + type + "_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
       wks = gsn_open_wks("epsi",output)
       gsn_define_colormap(wks,"BlAqGrYeOrReVi200")
 
@@ -154,7 +154,7 @@ end do
 
 do ilevs=0,nlevs-1
    do its=1,nts-1
-      output = "../fig/" + prefix + "_displ_diag_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
+      output = "../fig/" + prefix + "_displ_diag_" + type + "_ts" + timeslot(its) + "_lev" + sprinti("%0.3i",levs(ilevs_plot(ilevs)))
       wks = gsn_open_wks("epsi",output)
       gsn_define_colormap(wks,"MPL_brg")
 

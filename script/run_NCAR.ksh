@@ -40,7 +40,7 @@ cp -f ${rootdir}/run/namelist_${model} ${workdir}/namelist
 cat<<EOFNAM >${workdir}/job_bump.ksh
 #!/bin/ksh
 #set -ex
-#PBS -q regular
+#PBS -q premium
 #PBS -l walltime=00:30:00
 #PBS -l select=${nnodes}:ncpus=${ncpus_per_node}:mpiprocs=${ntasks_per_node}:ompthreads=${nthreads}
 #PBS -j oe

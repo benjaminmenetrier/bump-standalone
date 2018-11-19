@@ -13,7 +13,7 @@ use netcdf
 use tools_const, only: req,reqkm,rad2deg,deg2rad,msvalr
 use tools_func, only: lonlatmod,sphere_dist,reduce_arc,vector_product
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,msr,isnotmsr,isallnotmsr,isanynotmsr
+use tools_missing, only: msi,msr,isnotmsi,isnotmsr,isallnotmsr,isanynotmsr
 use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use tools_stripack, only: trans,scoord
@@ -28,8 +28,7 @@ use type_samp, only: samp_type
 
 implicit none
 
-character(len=1024) :: displ_method = 'cor_max'       ! Displacement computation method
-real(kind_real),parameter :: c_th = 0.2_kind_real     ! Covariance/correlation threshold
+real(kind_real),parameter :: max_std_ratio = 2.5_kind_real ! Minimum ratio between correlation maximum and local standard deviation
 
 ! Displacement data derived type
 type displ_type
@@ -143,15 +142,16 @@ type(samp_type),intent(inout) :: samp    ! Sampling
 type(ens_type), intent(in) :: ens        ! Ensemble
 
 ! Local variables
-integer :: ic0,ic1,ic2,ic2a,jc0,jc1,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d,ind
-real(kind_real) :: fac4,fac6,m2m2,fld_1,fld_2,drhflt,dum,cmax
-real(kind_real) :: lon_target,lat_target
+integer :: ic0,ic1,ic2,ic2a,jn,jc0,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,jc0d,jnmax,nn_index(1)
+integer,allocatable :: ic0d(:,:)
+real(kind_real) :: m2m2,fld_1,fld_2,cov,drhflt,dum,cmax,nn_dist(1)
+real(kind_real) :: mean,stddev,lon_target,lat_target
 real(kind_real) :: norm_tot,distsum_tot
-real(kind_real),allocatable :: fld_ext(:,:,:,:)
-real(kind_real),allocatable :: m1_1(:,:,:,:,:,:),m2_1(:,:,:,:,:,:)
-real(kind_real),allocatable :: m1_2(:,:,:,:,:,:),m2_2(:,:,:,:,:,:)
-real(kind_real),allocatable :: m11(:,:,:,:,:,:)
-real(kind_real),allocatable :: cov(:,:),cor(:,:),cov_avg(:),cor_avg(:)
+real(kind_real),allocatable :: fld_ext_1(:,:,:),fld_ext_2(:,:,:)
+real(kind_real),allocatable :: m1_1(:,:,:,:,:),m2_1(:,:,:,:,:)
+real(kind_real),allocatable :: m1_2(:,:,:,:,:),m2_2(:,:,:,:,:)
+real(kind_real),allocatable :: m11(:,:,:,:,:)
+real(kind_real),allocatable :: cor(:),cor_avg(:)
 real(kind_real) :: dlon_c0a(geom%nc0a),dlat_c0a(geom%nc0a)
 real(kind_real) :: dlon_c2a(samp%nc2a),dlat_c2a(samp%nc2a),dist_c2a(samp%nc2a)
 real(kind_real) :: dlon_c2b(samp%nc2b),dlat_c2b(samp%nc2b)
@@ -162,27 +162,22 @@ real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
 real(kind_real) :: dx_ini(samp%nc2a),dy_ini(samp%nc2a),dz_ini(samp%nc2a)
 real(kind_real) :: dx(samp%nc2a),dy(samp%nc2a),dz(samp%nc2a)
 logical :: dichotomy,convergence
-logical :: mask_c2a(samp%nc2a,geom%nl0),mask_c2(nam%nc2,geom%nl0)
+logical :: mask_c2a(samp%nc2a,geom%nl0),mask_c2(nam%nc2,geom%nl0),mask_nn(samp%displ_nnmax,samp%nc2a,geom%nl0)
 type(mesh_type) :: mesh
 
 ! Allocation
 call displ%alloc(nam,geom,samp)
-allocate(fld_ext(samp%nc0d,geom%nl0,nam%nv,2:nam%nts))
-allocate(m1_1(nam%nc1,samp%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
-allocate(m2_1(nam%nc1,samp%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
-allocate(m1_2(nam%nc1,samp%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
-allocate(m2_2(nam%nc1,samp%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
-allocate(m11(nam%nc1,samp%nc2a,geom%nl0,nam%nv,2:nam%nts,ens%nsub))
+allocate(ic0d(samp%nc2a,geom%nl0))
+allocate(fld_ext_1(samp%nc0d,geom%nl0,nam%nv))
+allocate(fld_ext_2(samp%nc0d,geom%nl0,nam%nv))
+allocate(m1_1(samp%displ_nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
+allocate(m2_1(samp%displ_nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
+allocate(m1_2(samp%displ_nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
+allocate(m2_2(samp%displ_nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
+allocate(m11(samp%displ_nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
 allocate(lon_c2(nam%nc2))
 allocate(lat_c2(nam%nc2))
 allocate(valid_c2(nam%nc2))
-
-! Initialization
-m1_1 = 0.0
-m2_1 = 0.0
-m1_2 = 0.0
-m2_2 = 0.0
-m11 = 0.0
 
 ! Initialization
 do il0=1,geom%nl0
@@ -193,10 +188,16 @@ do il0=1,geom%nl0
    do ic2a=1,samp%nc2a
       ic2 = samp%c2a_to_c2(ic2a)
       mask_c2a(ic2a,il0) = mask_c2(ic2,il0)
+      mask_nn(:,ic2a,il0) = .false.
       if (mask_c2a(ic2a,il0)) then
          ic0 = samp%c2_to_c0(ic2)
          lon_c2a_ori(ic2a,il0) = geom%lon(ic0)
          lat_c2a_ori(ic2a,il0) = geom%lat(ic0)
+         do jn=1,samp%displ_nn(ic2a)
+            jc0d = samp%displ_nn_index(jn,ic2a)
+            jc0 = samp%c0d_to_c0(jc0d)
+            mask_nn(jn,ic2a,il0) = geom%mask_c0(jc0,il0)
+         end do
       end if
    end do
 end do
@@ -205,73 +206,75 @@ end do
 displ%lon_c2a = lon_c2a_ori
 displ%lat_c2a = lat_c2a_ori
 
-! Compute moments
-write(mpl%info,'(a7,a)') '','Compute moments'
-call flush(mpl%info)
-do isub=1,ens%nsub
-   if (ens%nsub==1) then
-      write(mpl%info,'(a10,a)',advance='no') '','Full ensemble, member:'
-   else
-      write(mpl%info,'(a10,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
-   end if
-   call flush(mpl%info)
+do its=2,nam%nts
+   write(mpl%info,'(a7,a,i2)') '','Timeslot ',its
 
-   ! Compute centered moments iteratively
-   do ie_sub=1,ens%ne/ens%nsub
-      write(mpl%info,'(i4)',advance='no') ie_sub
+   ! Set origin point
+   write(mpl%info,'(a10,a)') '','Set origin point'
+   do ic2a=1,samp%nc2a
+      if (its==2) then
+         ! Origin point
+         ic2 = samp%c2a_to_c2(ic2a)
+         ic0 = samp%c2_to_c0(ic2)
+         ic0d(ic2a,:) = samp%c0_to_c0d(ic0)
+      else
+         ! Nearest neighbor of the previous timeslot displacement
+         do il0=1,geom%nl0
+            call geom%kdtree%find_nearest_neighbors(displ%lon_c2a_flt(ic2a,il0,its-1),displ%lat_c2a_flt(ic2a,il0,its-1),1, &
+          & nn_index,nn_dist)
+            ic0d(ic2a,il0) = samp%c0_to_c0d(nn_index(1))
+         end do
+      end if
+   end do
+
+   ! Initialize
+   m11 = 0.0
+   m2_1 = 0.0
+   m2_2 = 0.0
+
+   ! Compute moments
+   write(mpl%info,'(a10,a)') '','Compute moments'
+   call flush(mpl%info)
+   do isub=1,ens%nsub
+      if (ens%nsub==1) then
+         write(mpl%info,'(a13,a)',advance='no') '','Full ensemble, member:'
+      else
+         write(mpl%info,'(a13,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+      end if
       call flush(mpl%info)
 
-      ! Full ensemble index
-      ie = ie_sub+(isub-1)*ens%ne/ens%nsub
+      ! Compute centered moments iteratively
+      do ie_sub=1,ens%ne/ens%nsub
+         write(mpl%info,'(i4)',advance='no') ie_sub
+         call flush(mpl%info)
 
-      ! Computation factors
-      fac4 = 1.0/real(ie_sub,kind_real)
-      fac6 = real(ie_sub-1,kind_real)/real(ie_sub,kind_real)
+         ! Full ensemble index
+         ie = ie_sub+(isub-1)*ens%ne/ens%nsub
 
-      do its=2,nam%nts
          do iv=1,nam%nv
             ! Halo extension
-            call samp%com_AD%ext(mpl,geom%nl0,ens%fld(:,:,iv,its,ie),fld_ext(:,:,iv,its))
-         end do
-      end do
+            call samp%com_AD%ext(mpl,geom%nl0,ens%fld(:,:,iv,its-1,ie),fld_ext_1(:,:,iv))
+            call samp%com_AD%ext(mpl,geom%nl0,ens%fld(:,:,iv,its,ie),fld_ext_2(:,:,iv))
 
-      do its=2,nam%nts
-         do iv=1,nam%nv
-            !$omp parallel do schedule(static) private(il0,ic2a,ic2,ic1,jc1,ic0,jc0,ic0a,jc0d,fld_1,fld_2)
+            !$omp parallel do schedule(static) private(il0,ic2a,jn,jc0d,fld_1,fld_2)
             do il0=1,geom%nl0
                do ic2a=1,samp%nc2a
-                  ic2 = samp%c2a_to_c2(ic2a)
-                  ic1 = samp%c2_to_c1(ic2)
-                  if (samp%c1l0_log(ic1,il0)) then
-                     do jc1=1,nam%nc1
-                        if (samp%displ_mask(jc1,ic2)) then
-                           ! Indices
-                           ic0 = samp%c2_to_c0(ic2)
-                           jc0 = samp%c1_to_c0(jc1)
-                           ic0a = geom%c0_to_c0a(ic0)
-                           jc0d = samp%c0_to_c0d(jc0)
+                  if (mask_c2a(ic2a,il0)) then
+                     do jn=1,samp%displ_nn(ic2a)
+                        if (mask_nn(jn,ic2a,il0)) then
+                           ! Index
+                           jc0d = samp%displ_nn_index(jn,ic2a)
 
                            ! Copy points
-                           fld_1 = ens%fld(ic0a,il0,iv,its-1,ie)
-                           fld_2 = fld_ext(jc0d,il0,iv,its)
+                           fld_1 = fld_ext_1(ic0d(ic2a,il0),il0,iv)
+                           fld_2 = fld_ext_2(jc0d,il0,iv)
 
-                           ! Remove means
-                           fld_1 = fld_1 - m1_1(jc1,ic2a,il0,iv,its,isub)
-                           fld_2 = fld_2 - m1_2(jc1,ic2a,il0,iv,its,isub)
+                           ! Covariance
+                           m11(jn,ic2a,il0,iv,isub) = m11(jn,ic2a,il0,iv,isub)+fld_1*fld_2
 
-                           ! Update high-order moments
-                           if (ie_sub>1) then
-                              ! Covariance
-                              m11(jc1,ic2a,il0,iv,its,isub) = m11(jc1,ic2a,il0,iv,its,isub)+fac6*fld_1*fld_2
-
-                              ! Variances
-                              m2_1(jc1,ic2a,il0,iv,its,isub) = m2_1(jc1,ic2a,il0,iv,its,isub)+fac6*fld_1**2
-                              m2_2(jc1,ic2a,il0,iv,its,isub) = m2_2(jc1,ic2a,il0,iv,its,isub)+fac6*fld_2**2
-                           end if
-
-                           ! Update means
-                           m1_1(jc1,ic2a,il0,iv,its,isub) = m1_1(jc1,ic2a,il0,iv,its,isub)+fac4*fld_1
-                           m1_2(jc1,ic2a,il0,iv,its,isub) = m1_2(jc1,ic2a,il0,iv,its,isub)+fac4*fld_2
+                           ! Variances
+                           m2_1(jn,ic2a,il0,iv,isub) = m2_1(jn,ic2a,il0,iv,isub)+fld_1**2
+                           m2_2(jn,ic2a,il0,iv,isub) = m2_2(jn,ic2a,il0,iv,isub)+fld_2**2
                         end if
                      end do
                   end if
@@ -280,121 +283,90 @@ do isub=1,ens%nsub
             !$omp end parallel do
          end do
       end do
+      write(mpl%info,'(a)') ''
+      call flush(mpl%info)
    end do
-   write(mpl%info,'(a)') ''
+
+   ! Find correlation propagation
+   write(mpl%info,'(a10,a)') '','Find correlation propagation'
    call flush(mpl%info)
-end do
 
-! Find correlation propagation
-write(mpl%info,'(a7,a)') '','Find correlation propagation'
-call flush(mpl%info)
-
-do its=2,nam%nts
    do il0=1,geom%nl0
-      write(mpl%info,'(a10,a,i2,a,i3)') '','Timeslot ',its,' - level ',nam%levs(il0)
+      write(mpl%info,'(a13,a,i3)') '','Level ',nam%levs(il0)
       call flush(mpl%info)
 
       ! Number of points
-      call mpl%f_comm%allreduce(real(count(mask_c2a(:,il0)),kind_real),norm_tot,fckit_mpi_sum())
+      if (its==2) call mpl%f_comm%allreduce(real(count(mask_c2a(:,il0)),kind_real),norm_tot,fckit_mpi_sum())
 
-      !$omp parallel do schedule(static) private(ic2a,ic2,ic0,jc1,jc0,iv,m2m2,cmax,lon_target,lat_target), &
-      !$omp&                             private(ind) firstprivate(cov,cor,cov_avg,cor_avg)
+      !$omp parallel do schedule(static) private(ic2a,jn,iv,cov,m2m2,mean,stddev,jnmax,cmax,jc0d,jc0,ic2), &
+      !$omp&                             firstprivate(cor,cor_avg)
       do ic2a=1,samp%nc2a
-         ic2 = samp%c2a_to_c2(ic2a)
-         ic0 = samp%c2_to_c0(ic2)
          if (mask_c2a(ic2a,il0)) then
             ! Allocation
-            allocate(cov(nam%nc1,nam%nv))
-            allocate(cor(nam%nc1,nam%nv))
-            allocate(cov_avg(nam%nc1))
-            allocate(cor_avg(nam%nc1))
+            allocate(cor(nam%nv))
+            allocate(cor_avg(samp%displ_nn(ic2a)))
 
             ! Initialization
-            call msr(cov)
             call msr(cor)
-            call msr(cov_avg)
             call msr(cor_avg)
 
-            do jc1=1,nam%nc1
-               if (samp%displ_mask(jc1,ic2)) then
+            do jn=1,samp%displ_nn(ic2a)
+               if (mask_nn(jn,ic2a,il0)) then
                   ! Compute covariance and correlation
                   do iv=1,nam%nv
                      ! Covariance
-                     cov(jc1,iv) = sum(m11(jc1,ic2a,il0,iv,its,:))/real(ens%nsub,kind_real)
+                     cov = sum(m11(jn,ic2a,il0,iv,:))/real(ens%nsub,kind_real)
 
                      ! Correlation
-                     m2m2 = sum(m2_1(jc1,ic2a,il0,iv,its,:))*sum(m2_2(jc1,ic2a,il0,iv,its,:))/real(ens%nsub**2,kind_real)
+                     m2m2 = sum(m2_1(jn,ic2a,il0,iv,:))*sum(m2_2(jn,ic2a,il0,iv,:))/real(ens%nsub**2,kind_real)
                      if (m2m2>0.0) then
-                        cor(jc1,iv) = cov(jc1,iv)/sqrt(m2m2)
+                        cor(iv) = cov/sqrt(m2m2)
                      else
-                        call msr(cor(jc1,iv))
+                        call msr(cor(iv))
                      end if
                   end do
-               end if
-            end do
 
-            ! Average covariance and correlation
-            do iv=1,nam%nv
-               cov(:,iv) = cov(:,iv)/maxval(cov(:,iv))
-            end do
-            do jc1=1,nam%nc1
-               if (samp%displ_mask(jc1,ic2)) then                
-                  cov_avg(jc1) = sum(cov(jc1,:))/real(nam%nv,kind_real)
+                  ! Average correlation
                   if (isanynotmsr(cor)) then
-                     cor_avg(jc1) = sum(cor(jc1,:),mask=isnotmsr(cor(jc1,:)))/real(count(isnotmsr(cor(jc1,:))),kind_real)
+                     cor_avg(jn) = sum(cor,mask=isnotmsr(cor))/real(count(isnotmsr(cor)),kind_real)
                   else
                      call mpl%abort('average correlation contains missing values only')
                   end if
                end if
             end do
 
-            select case (trim(displ_method))
-            case ('cor_max')
-               ! Locate the maximum correlation, with a correlation threshold
-               if (maxval(cor_avg)>c_th) then
-                  ! Find maximum
-                  call msi(ind)
-                  cmax = 0.0
-                  do jc1=1,nam%nc1
-                     if (cor_avg(jc1)>cmax) then
-                        ind = jc1
-                        cmax = cor_avg(jc1)
-                     end if
-                  end do
-                  jc1 = ind
-                  jc0 = samp%c1_to_c0(jc1)
-                  lon_target = geom%lon(jc0)
-                  lat_target = geom%lat(jc0)
-               else
-                  lon_target = geom%lon(ic0)
-                  lat_target = geom%lat(ic0)
-               end if
-            case ('cov_max')
-               ! Locate the maximum covariance, with a covariance threshold
-               call msi(ind)
-               cmax = 0.0
-               do jc1=1,nam%nc1
-                  if (cov_avg(jc1)>cmax) then
-                     ind = jc1
-                     cmax = cov_avg(jc1)
-                  end if
-               end do
-               jc1 = ind
-               jc0 = samp%c1_to_c0(jc1)
-               lon_target = geom%lon(jc0)
-               lat_target = geom%lat(jc0)
-            end select
+            ! Compute the local standard-deviation
+            mean = sum(cor_avg,mask=mask_nn(:,ic2a,il0))/real(count(mask_nn(:,ic2a,il0)),kind_real)
+            stddev = sqrt(sum((cor_avg-mean)**2,mask=mask_nn(:,ic2a,il0))/real(count(mask_nn(:,ic2a,il0))-1,kind_real))
 
-            ! Compute displacement and distance
-            dlon_c2a(ic2a) = lon_target-lon_c2a_ori(ic2a,il0)
-            dlat_c2a(ic2a) = lat_target-lat_c2a_ori(ic2a,il0)
-            call lonlatmod(dlon_c2a(ic2a),dlat_c2a(ic2a))
-            call sphere_dist(lon_c2a_ori(ic2a,il0),lat_c2a_ori(ic2a,il0),lon_target,lat_target,dist_c2a(ic2a))
+            ! Locate the maximum correlation
+            call msi(jnmax)
+            cmax = 0.0
+            do jn=1,samp%displ_nn(ic2a)
+               if (cor_avg(jn)>3.0*stddev) then
+                  jnmax = jn
+                  cmax = cor_avg(jn)
+               end if
+            end do
+            if (isnotmsi(jnmax)) then
+               ! Indices
+               jn = jnmax
+               jc0d = samp%displ_nn_index(jn,ic2a)
+               jc0 = samp%c0d_to_c0(jc0d)
+
+               ! Compute displacement and distance
+               dlon_c2a(ic2a) = geom%lon(jc0)-lon_c2a_ori(ic2a,il0)
+               dlat_c2a(ic2a) = geom%lat(jc0)-lat_c2a_ori(ic2a,il0)
+               call lonlatmod(dlon_c2a(ic2a),dlat_c2a(ic2a))
+               call sphere_dist(lon_c2a_ori(ic2a,il0),lat_c2a_ori(ic2a,il0),geom%lon(jc0),geom%lat(jc0),dist_c2a(ic2a))
+            else
+               call msr(dlon_c2a(ic2a))
+               call msr(dlat_c2a(ic2a))
+               call msr(dist_c2a(ic2a))
+            end if
 
             ! Release memory
-            deallocate(cov)
             deallocate(cor)
-            deallocate(cov_avg)
             deallocate(cor_avg)
          end if
       end do
@@ -402,9 +374,14 @@ do its=2,nam%nts
 
       ! Copy lon/lat
       do ic2a=1,samp%nc2a
-         lon_c2a(ic2a) = lon_c2a_ori(ic2a,il0)+dlon_c2a(ic2a)
-         lat_c2a(ic2a) = lat_c2a_ori(ic2a,il0)+dlat_c2a(ic2a)
-         call lonlatmod(lon_c2a(ic2a),lat_c2a(ic2a))
+         if (isnotmsr(dlon_c2a(ic2a)).and.isnotmsr(dlat_c2a(ic2a))) then
+            lon_c2a(ic2a) = lon_c2a_ori(ic2a,il0)+dlon_c2a(ic2a)
+            lat_c2a(ic2a) = lat_c2a_ori(ic2a,il0)+dlat_c2a(ic2a)
+            call lonlatmod(lon_c2a(ic2a),lat_c2a(ic2a))
+         else
+            call msr(lon_c2a(ic2a))
+            call msr(lat_c2a(ic2a))
+         end if
       end do
 
       ! Check raw mesh
@@ -427,18 +404,27 @@ do its=2,nam%nts
       displ%lon_c2a_raw(:,il0,its) = lon_c2a
       displ%lat_c2a_raw(:,il0,its) = lat_c2a
       displ%dist_c2a_raw(:,il0,its) = dist_c2a
+   end do
+
+   ! Filter displacement
+   write(mpl%info,'(a10,a)') '','Filter displacement'
+   call flush(mpl%info)
+
+   do il0=1,geom%nl0
+      write(mpl%info,'(a13,a,i3)') '','Level ',nam%levs(il0)
+      call flush(mpl%info)
 
       if (nam%displ_niter>0) then
-         ! Filter displacement
-
          ! Convert to cartesian coordinates
          call trans(samp%nc2a,lat_c2a_ori(:,il0),lon_c2a_ori(:,il0),x_ori,y_ori,z_ori)
          call trans(samp%nc2a,lat_c2a,lon_c2a,dx_ini,dy_ini,dz_ini)
 
          ! Dichotomy initialization
-         dx_ini = dx_ini-x_ori
-         dy_ini = dy_ini-y_ori
-         dz_ini = dz_ini-z_ori
+         do ic2a=1,samp%nc2a
+            if (isnotmsr(dx_ini(ic2a))) dx_ini(ic2a) = dx_ini(ic2a)-x_ori(ic2a)
+            if (isnotmsr(dy_ini(ic2a))) dy_ini(ic2a) = dy_ini(ic2a)-y_ori(ic2a)
+            if (isnotmsr(dz_ini(ic2a))) dz_ini(ic2a) = dz_ini(ic2a)-z_ori(ic2a)
+         end do
          convergence = .true.
          dichotomy = .false.
          displ%rhflt(1,il0,its) = nam%displ_rhflt
@@ -559,9 +545,6 @@ do its=2,nam%nts
          displ%lat_c2a_flt(:,il0,its) = displ%lat_c2a_raw(:,il0,its)
          displ%dist_c2a_flt(:,il0,its) = displ%dist_c2a_raw(:,il0,its)
       end if
-
-      ! Integrate displacement
-      ! TODO
 
       ! Displacement interpolation
       do ic2a=1,samp%nc2a

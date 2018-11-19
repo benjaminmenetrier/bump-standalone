@@ -8,7 +8,7 @@
 module type_ens
 
 use fckit_mpi_module, only: fckit_mpi_sum
-use tools_const, only: deg2rad
+use tools_const, only: rad2deg
 use model_interface, only: model_read
 use tools_kinds, only: kind_real
 use tools_missing, only: msi,msr,isnotmsi
@@ -333,56 +333,134 @@ type(geom_type),intent(in) :: geom  ! Geometry
 type(io_type),intent(in) :: io      ! I/O
 
 ! Local variable
-integer :: ic0a_ct,il0_ct,iv_ct,ic0a,ic0,ie,its
-integer :: nn_index(1)
-real(kind_real) :: lon_ct,lat_ct,nn_dist(1),var_dirac
-real(kind_real) :: var(geom%nc0a,geom%nl0,nam%nv,nam%nts)
-real(kind_real) :: dirac(geom%nc0a,geom%nl0,nam%nv,nam%nts),fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
-character(len=2) :: itschar
+integer :: ic0a,ic0,ie,its,idir
+integer :: proc_to_ic0a(mpl%nproc),iproc(1)
+real(kind_real) :: proc_to_val(mpl%nproc),lon,lat,val,var_dirac
+real(kind_real) :: u(geom%nc0a,geom%nl0,nam%nts),v(geom%nc0a,geom%nl0,nam%nts),ffsq(geom%nc0a,geom%nl0,nam%nts)
+real(kind_real) :: var(geom%nc0a,geom%nl0,nam%nts),dirac(geom%nc0a,geom%nl0,nam%nts),cor(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+character(len=2) :: idirchar,timeslotchar
 character(len=1024) :: filename
 
-! Set dirac coordinates
-lon_ct = 0.0
-lat_ct = 50.0
-il0_ct = 1
-iv_ct = 1
-
-! Convert to radian
-lon_ct = lon_ct*deg2rad
-lat_ct = lat_ct*deg2rad
-
-! Find local dirac index
-call geom%kdtree%find_nearest_neighbors(lon_ct,lat_ct,1,nn_index,nn_dist)
-call msi(ic0a_ct)
-do ic0a=1,geom%nc0a
-   ic0 = geom%c0a_to_c0(ic0a)
-   if (ic0==nn_index(1)) ic0a_ct = ic0a
-end do
-
-! Generate dirac field
-dirac = 0.0
-if (isnotmsi(ic0a_ct)) dirac(ic0a_ct,il0_ct,iv_ct,1) = 1.0
+! File name
+filename = trim(nam%prefix)//'_cortrack'
 
 ! Compute variance
 var = 0.0
 do ie=1,ens%ne
-   var = var +ens%fld(:,:,:,:,ie)**2
+   var = var+ens%fld(:,:,1,:,ie)**2
 end do
 var = var/real(ens%ne-ens%nsub,kind_real)
-call mpl%f_comm%allreduce(sum(dirac*var),var_dirac,fckit_mpi_sum())
 
-! Apply raw ensemble covariance
-fld = dirac
-call ens%apply_bens(mpl,nam,geom,fld)
+! Compute wind speed squared (variables 2 and 3 should be u and v)
+u = sum(ens%mean(:,:,2,:,:),dim=4)/real(ens%nsub,kind_real)
+v = sum(ens%mean(:,:,3,:,:),dim=4)/real(ens%nsub,kind_real)
+ffsq = u**2+v**2
 
-! Normalize
-fld = fld/sqrt(var*var_dirac)
-
-! Write field
-filename = trim(nam%prefix)//'_cortrack'
+! Write wind
 do its=1,nam%nts
-   write(itschar,'(i2.2)') its
-   call io%fld_write(mpl,nam,geom,filename,'fld_'//itschar,fld(:,:,iv_ct,its))
+   write(timeslotchar,'(i2.2)') nam%timeslot(its)
+   call io%fld_write(mpl,nam,geom,filename,'u_'//timeslotchar,u(:,:,its))
+   call io%fld_write(mpl,nam,geom,filename,'v_'//timeslotchar,v(:,:,its))
+end do
+
+do idir=1,2
+   write(idirchar,'(i2.2)') idir
+   select case (idir)
+   case (1)
+      ! Find local maximum value and index
+      write(mpl%info,'(a7,a)') '','Dirac point based on maximum wind speed'
+      proc_to_val(mpl%myproc) = maxval(ffsq(:,1,1))
+      proc_to_ic0a(mpl%myproc:mpl%myproc) = maxloc(ffsq(:,1,1))
+      call mpl%f_comm%allgather(proc_to_val(mpl%myproc),proc_to_val)
+      call mpl%f_comm%allgather(proc_to_ic0a(mpl%myproc),proc_to_ic0a)
+      iproc = maxloc(proc_to_val)
+   case (2)
+      ! Find local minimum value and index
+      write(mpl%info,'(a7,a)') '','Dirac point based on minimum wind speed'
+      proc_to_val(mpl%myproc) = minval(ffsq(:,1,1))
+      proc_to_ic0a(mpl%myproc:mpl%myproc) = minloc(ffsq(:,1,1))
+      call mpl%f_comm%allgather(proc_to_val(mpl%myproc),proc_to_val)
+      call mpl%f_comm%allgather(proc_to_ic0a(mpl%myproc),proc_to_ic0a)
+      iproc = minloc(proc_to_val)
+   end select
+
+   ! Broadcast dirac point
+   call msi(ic0a)
+   call msi(ic0)
+   if (mpl%myproc==iproc(1)) then
+      ic0a = proc_to_ic0a(iproc(1))
+      ic0 = geom%c0a_to_c0(ic0a)
+      lon = geom%lon(ic0)*rad2deg
+      lat = geom%lat(ic0)*rad2deg
+      val = ffsq(ic0a,1,1)
+   end if
+   call mpl%f_comm%broadcast(lon,iproc(1)-1)
+   call mpl%f_comm%broadcast(lat,iproc(1)-1)
+   call mpl%f_comm%broadcast(val,iproc(1)-1)
+   write(mpl%info,'(a10,a,i2,a,f6.1,a,f6.1,a,f6.1)') '','Timeslot ',nam%timeslot(1),' ~> lon / lat / val: ', &
+ & lon,' / ',lat,' / ',val
+
+   ! Generate dirac field
+   dirac = 0.0
+   if (mpl%myproc==iproc(1)) dirac(ic0a,1,1) = 1.0
+
+   ! Apply raw ensemble covariance
+   cor = 0.0
+   cor(:,:,1,:) = dirac
+   call ens%apply_bens(mpl,nam,geom,cor)
+
+   ! Normalize
+   call mpl%f_comm%allreduce(sum(dirac*var),var_dirac,fckit_mpi_sum())
+   cor(:,:,1,:) = cor(:,:,1,:)/sqrt(var*var_dirac)
+
+   ! Write correlation
+   do its=1,nam%nts
+      write(timeslotchar,'(i2.2)') nam%timeslot(its)
+      call io%fld_write(mpl,nam,geom,filename,'cor_'//idirchar//'_'//timeslotchar,cor(:,:,1,its))
+   end do
+
+   ! Correlation tracker
+   write(timeslotchar,'(i2.2)') nam%timeslot(1)
+   call io%fld_write(mpl,nam,geom,filename,'tracker_'//idirchar//'_'//timeslotchar//'_0',cor(:,:,1,1))
+   call io%fld_write(mpl,nam,geom,filename,'tracker_'//idirchar//'_'//timeslotchar//'_1',cor(:,:,1,2))
+   do its=2,nam%nts-1
+      ! Locate correlation maximum and index
+      proc_to_val(mpl%myproc) = maxval(cor(:,1,1,its))
+      proc_to_ic0a(mpl%myproc:mpl%myproc) = maxloc(cor(:,1,1,its))
+      call mpl%f_comm%allgather(proc_to_val(mpl%myproc),proc_to_val)
+      call mpl%f_comm%allgather(proc_to_ic0a(mpl%myproc),proc_to_ic0a)
+      iproc = maxloc(proc_to_val)
+      if (mpl%myproc==iproc(1)) then
+         ic0a = proc_to_ic0a(iproc(1))
+         ic0 = geom%c0a_to_c0(ic0a)
+         lon = geom%lon(ic0)*rad2deg
+         lat = geom%lat(ic0)*rad2deg
+         val = ffsq(ic0a,1,1)
+      end if
+      call mpl%f_comm%broadcast(lon,iproc(1)-1)
+      call mpl%f_comm%broadcast(lat,iproc(1)-1)
+      call mpl%f_comm%broadcast(val,iproc(1)-1)
+      write(mpl%info,'(a10,a,i2,a,f6.1,a,f6.1,a,f6.1)') '','Timeslot ',nam%timeslot(its),' ~> lon / lat / val: ', &
+    & lon,' / ',lat,' / ',val
+
+      ! Generate dirac field
+      dirac = 0.0
+      if (mpl%myproc==iproc(1)) dirac(ic0a,1,its) = 1.0
+
+      ! Apply raw ensemble covariance
+      cor = 0.0
+      cor(:,:,1,:) = dirac
+      call ens%apply_bens(mpl,nam,geom,cor)
+
+      ! Normalize
+      call mpl%f_comm%allreduce(sum(dirac*var),var_dirac,fckit_mpi_sum())
+      cor(:,:,1,:) = cor(:,:,1,:)/sqrt(var*var_dirac)
+
+      ! Write correlation tracker
+      write(timeslotchar,'(i2.2)') nam%timeslot(its)
+      call io%fld_write(mpl,nam,geom,filename,'tracker_'//idirchar//'_'//timeslotchar//'_0',cor(:,:,1,its))
+      call io%fld_write(mpl,nam,geom,filename,'tracker_'//idirchar//'_'//timeslotchar//'_1',cor(:,:,1,its+1))
+   end do
 end do
 
 end subroutine ens_cortrack

@@ -94,7 +94,7 @@ while [ ${i} -lt ${ne} ] ; do
       hh=0
       typeset -RZ2 hh
       while [ ${hh} -lt 24 ] ; do
-         for mm in '00' '15' '30' '45' ; do       
+         for mm in '00' '15' '30' '45' ; do
             ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_${hh}z_${mm}.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
             let ts=ts+1
          done

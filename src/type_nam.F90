@@ -19,7 +19,7 @@ use type_mpl, only: mpl_type
 implicit none
 
 integer,parameter :: nvmax = 20     ! Maximum number of variables
-integer,parameter :: ntsmax = 20    ! Maximum number of time slots
+integer,parameter :: ntsmax = 99    ! Maximum number of time slots
 integer,parameter :: nlmax = 200    ! Maximum number of levels
 integer,parameter :: nc3max = 1000  ! Maximum number of classes
 integer,parameter :: nscalesmax = 5 ! Maximum number of variables

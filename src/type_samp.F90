@@ -53,7 +53,6 @@ type samp_type
    ! Local data
    logical,allocatable ::  vbal_mask(:,:)           ! Vertical balance mask
    logical,allocatable ::  local_mask(:,:)          ! Local mask
-   logical,allocatable ::  displ_mask(:,:)          ! Displacement mask
    integer,allocatable :: nn_c2_index(:,:,:)        ! Nearest diagnostic neighbors from diagnostic points
    real(kind_real),allocatable :: nn_c2_dist(:,:,:) ! Nearest diagnostic neighbors distance from diagnostic points
    integer,allocatable :: nn_ldwv_index(:)          ! Nearest diagnostic neighbors for local diagnostics profiles
@@ -62,6 +61,9 @@ type samp_type
    type(mesh_type) :: mesh                          ! Sampling mesh
 
    ! Displacement
+   integer,allocatable :: displ_nn(:)               ! Number of nearest neighbors inside search radius
+   integer :: displ_nnmax                           ! Maximum number of nearest neighbors inside search radius
+   integer,allocatable :: displ_nn_index(:,:)       ! Index of nearest neighbors inside search radius
    real(kind_real),allocatable :: displ_lon(:,:,:)  ! Interpolated displaced longitude
    real(kind_real),allocatable :: displ_lat(:,:,:)  ! Interpolated displaced latitude
 
@@ -165,7 +167,6 @@ end if
 if (nam%new_vbal) allocate(samp%vbal_mask(nam%nc1,nam%nc2))
 if (nam%local_diag) allocate(samp%local_mask(nam%nc1,nam%nc2))
 if (nam%displ_diag) then
-   allocate(samp%displ_mask(nam%nc1,nam%nc2))
    allocate(samp%displ_lon(geom%nc0a,geom%nl0,nam%nts))
    allocate(samp%displ_lat(geom%nc0a,geom%nl0,nam%nts))
 end if
@@ -188,7 +189,6 @@ end if
 if (nam%new_vbal) samp%vbal_mask = .false.
 if (nam%local_diag) samp%local_mask = .false.
 if (nam%displ_diag) then
-   samp%displ_mask = .false.
    call msr(samp%displ_lon)
    call msr(samp%displ_lat)
 end if
@@ -225,9 +225,10 @@ if (allocated(samp%c2a_to_c2)) deallocate(samp%c2a_to_c2)
 if (allocated(samp%c2_to_c2a)) deallocate(samp%c2_to_c2a)
 if (allocated(samp%vbal_mask)) deallocate(samp%vbal_mask)
 if (allocated(samp%local_mask)) deallocate(samp%local_mask)
-if (allocated(samp%displ_mask)) deallocate(samp%displ_mask)
 if (allocated(samp%nn_c2_index)) deallocate(samp%nn_c2_index)
 if (allocated(samp%nn_c2_dist)) deallocate(samp%nn_c2_dist)
+if (allocated(samp%displ_nn)) deallocate(samp%displ_nn)
+if (allocated(samp%displ_nn_index)) deallocate(samp%displ_nn_index)
 if (allocated(samp%hfull)) then
    do il0=1,geom%nl0
       call samp%hfull(il0)%dealloc
@@ -267,9 +268,9 @@ integer :: il0,il0i,ic1,jc3,ic2
 integer :: nl0_test,nl0r_test,nc_test,nc1_test,nc2_test,nc2_1_test,nc2_2_test
 integer :: info,ncid,nl0_id,nc3_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id
 integer :: c1_to_c0_id,c1l0_log_id,c1c3_to_c0_id,c1c3l0_log_id
-integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,displ_mask_id,nn_c2_index_id,nn_c2_dist_id
+integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,nn_c2_index_id,nn_c2_dist_id
 integer :: c1l0_logint(nam%nc1,geom%nl0),c1c3l0_logint(nam%nc1,nam%nc3,geom%nl0)
-integer,allocatable :: vbal_maskint(:,:),local_maskint(:,:),displ_maskint(:,:)
+integer,allocatable :: vbal_maskint(:,:),local_maskint(:,:)
 character(len=3) :: il0ichar
 character(len=1024) :: subr = 'samp_read'
 
@@ -439,32 +440,6 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
       end if
    end if
 
-   ! Displacement mask
-   if (nam%displ_diag) then
-      info = nf90_inq_varid(ncid,'displ_mask',displ_mask_id)
-      if (info==nf90_noerr) then
-         allocate(displ_maskint(nam%nc1,nam%nc2))
-         call mpl%ncerr(subr,nf90_get_var(ncid,displ_mask_id,displ_maskint))
-         do ic2=1,nam%nc2
-            do ic1=1,nam%nc1
-               if (displ_maskint(ic1,ic2)==1) then
-                  samp%displ_mask(ic1,ic2) = .true.
-               elseif (displ_maskint(ic1,ic2)==0) then
-                  samp%displ_mask(ic1,ic2) = .false.
-               else
-                  call mpl%abort('wrong displ_mask')
-              end if
-            end do
-         end do
-         deallocate(displ_maskint)
-      else
-         call mpl%warning('cannot find displacement mask data to read, recomputing sampling')
-         call mpl%ncerr(subr,nf90_close(ncid))
-         new_sampling = .true.
-         return
-      end if
-   end if
-
    ! Close file
    call mpl%ncerr(subr,nf90_close(ncid))
 
@@ -534,9 +509,9 @@ type(bpar_type),intent(in) :: bpar  ! Block parameters
 integer :: il0,il0i,ic1,jc3,ic2
 integer :: ncid,nl0_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id,nc3_id
 integer :: lat_id,lon_id,smax_id,c1_to_c0_id,c1l0_log_id,c1c3_to_c0_id,c1c3l0_log_id
-integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,displ_mask_id,nn_c2_index_id,nn_c2_dist_id
+integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,nn_c2_index_id,nn_c2_dist_id
 integer :: c1l0_logint(nam%nc1,geom%nl0),c1c3l0_logint(nam%nc1,nam%nc3,geom%nl0)
-integer,allocatable :: vbal_maskint(:,:),local_maskint(:,:),displ_maskint(:,:)
+integer,allocatable :: vbal_maskint(:,:),local_maskint(:,:)
 real(kind_real) :: lon(nam%nc1,nam%nc3,geom%nl0),lat(nam%nc1,nam%nc3,geom%nl0)
 character(len=3) :: il0ichar
 character(len=1024) :: subr = 'samp_write'
@@ -680,26 +655,6 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
       call mpl%ncerr(subr,nf90_enddef(ncid))
       call mpl%ncerr(subr,nf90_put_var(ncid,local_mask_id,local_maskint))
       deallocate(local_maskint)
-   end if
-
-   ! Displacement mask
-   if (nam%displ_diag) then
-      allocate(displ_maskint(nam%nc1,nam%nc2))
-      call mpl%ncerr(subr,nf90_redef(ncid))
-      call mpl%ncerr(subr,nf90_def_var(ncid,'displ_mask',nf90_int,(/nc1_id,nc2_1_id/),displ_mask_id))
-      call mpl%ncerr(subr,nf90_put_att(ncid,displ_mask_id,'_FillValue',msvali))
-      do ic2=1,nam%nc2
-         do ic1=1,nam%nc1
-            if (samp%displ_mask(ic1,ic2)) then
-               displ_maskint(ic1,ic2) = 1
-            else
-               displ_maskint(ic1,ic2) = 0
-            end if
-         end do
-      end do
-      call mpl%ncerr(subr,nf90_enddef(ncid))
-      call mpl%ncerr(subr,nf90_put_var(ncid,displ_mask_id,displ_maskint))
-      deallocate(displ_maskint)
    end if
 
    ! Close file
@@ -887,8 +842,6 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local
              & .or.(nn_c1_dist(jc1)<nam%vbal_rad)
                if (nam%local_diag) samp%local_mask(kc1,ic2) = (jc1==1) &
              & .or.(nn_c1_dist(jc1)<nam%local_rad)
-               if (nam%displ_diag) samp%displ_mask(kc1,ic2) = (jc1==1) &
-             & .or.(nn_c1_dist(jc1)<min(nam%displ_rad,samp%mesh%bdist(ic2)))
             end do
          end do
          call kdtree%dealloc
@@ -1062,7 +1015,7 @@ elseif (trim(nam%mask_type)=='stddev') then
    ! Compute variances
    var = 0.0
    do ie=1,ens%ne
-      var = var +ens%fld(:,:,:,:,ie)**2
+      var = var+ens%fld(:,:,:,:,ie)**2
    end do
    var = var/real(ens%ne-ens%nsub,kind_real)
 
@@ -1802,30 +1755,65 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: ic0,ic0a,ic0d,ic1,ic2,ic2a,jc0,jc1
+integer :: ic0,ic0a,ic0d,ic2,ic2a,jc0,jn
+real(kind_real),allocatable :: nn_dist(:)
 
 ! Allocation
 allocate(samp%lcheck_c0d(geom%nc0))
+allocate(samp%displ_nn(samp%nc2a))
 
-! Halo definitions
-
-! Halo D
+! Count nearest neighbors
+write(mpl%info,'(a7,a)',advance='no') '','Count nearest neighbors:'
+call mpl%prog_init(samp%nc2a)
 samp%lcheck_c0d = samp%lcheck_c0a
 do ic2a=1,samp%nc2a
+   ! Indices
    ic2 = samp%c2a_to_c2(ic2a)
-   ic1 = samp%c2_to_c1(ic2)
-   do jc1=1,nam%nc1
-      if (samp%displ_mask(jc1,ic2)) then
-         jc0 = samp%c1_to_c0(jc1)
-         samp%lcheck_c0d(jc0) = .true.
-      end if
-   end do
+   ic0 = samp%c2_to_c0(ic2)
+
+   ! Count nearest neighbors
+   call geom%kdtree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nam%displ_rad,samp%displ_nn(ic2a))
+   samp%displ_nn(ic2a) = max(1,samp%displ_nn(ic2a))
+
+   ! Update
+   call mpl%prog_print(ic2a)
 end do
+write(mpl%info,'(a)') '100%'
+call flush(mpl%info)
+
+! Get maximum
+samp%displ_nnmax = maxval(samp%displ_nn)
+
+! Allocation
+allocate(samp%displ_nn_index(samp%displ_nnmax,samp%nc2a))
+allocate(nn_dist(samp%displ_nnmax))
+
+! Find nearest neighbors
+write(mpl%info,'(a7,a)',advance='no') '','Find nearest neighbors:'
+call mpl%prog_init(samp%nc2a)
+do ic2a=1,samp%nc2a
+   ! Indices
+   ic2 = samp%c2a_to_c2(ic2a)
+   ic0 = samp%c2_to_c0(ic2)
+
+   ! Find nearest neighbors
+   call geom%kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),samp%displ_nn(ic2a), &
+ & samp%displ_nn_index(1:samp%displ_nn(ic2a),ic2a),nn_dist(1:samp%displ_nn(ic2a)))
+
+   ! Check points
+   do jn=1,samp%displ_nn(ic2a)
+      jc0 = samp%displ_nn_index(jn,ic2a)
+      samp%lcheck_c0d(jc0) = .true.
+   end do
+
+   ! Update
+   call mpl%prog_print(ic2a)
+end do
+write(mpl%info,'(a)') '100%'
+call flush(mpl%info)
 samp%nc0d = count(samp%lcheck_c0d)
 
 ! Global <-> local conversions for fields
-
-! Halo D
 allocate(samp%c0d_to_c0(samp%nc0d))
 allocate(samp%c0_to_c0d(geom%nc0))
 call msi(samp%c0_to_c0d)
@@ -1844,6 +1832,14 @@ do ic0a=1,geom%nc0a
    ic0 = geom%c0a_to_c0(ic0a)
    ic0d = samp%c0_to_c0d(ic0)
    samp%c0a_to_c0d(ic0a) = ic0d
+end do
+
+! Convert nearest neighbors index
+do ic2a=1,samp%nc2a
+   do jn=1,samp%displ_nn(ic2a)
+      samp%displ_nn_index(jn,ic2a) = samp%c0_to_c0d(samp%displ_nn_index(jn,ic2a))
+      if (ismsi(samp%displ_nn_index(jn,ic2a))) call mpl%abort('displacement nearest neighbor not in the halo')
+   end do
 end do
 
 ! Setup communications

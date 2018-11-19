@@ -1132,8 +1132,6 @@ else
    call geom%com_mg%ext(mpl,geom%nl0,fld_c0a,fld_mga)
 end if
 
-write(mpl%info,*) 'c0a_to_mga',mpl%myproc,maxval(fld_c0a),maxval(fld_mga),sum(fld_c0a),sum(fld_mga)
-
 end subroutine geom_copy_c0a_to_mga
 
 !----------------------------------------------------------------------
