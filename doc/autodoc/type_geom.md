@@ -9,8 +9,8 @@
 | subroutine | [geom%] [init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L637) | initialize geometry |
 | subroutine | [geom%] [compute_area](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L720) | compute domain area |
 | subroutine | [geom%] [define_dirac](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L755) | define dirac indices |
-| subroutine | [geom%] [define_distribution](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L815) | define local distribution |
-| subroutine | [geom%] [check_arc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1059) | check if an arc is crossing boundaries |
-| subroutine | [geom%] [copy_c0a_to_mga](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1110) | copy from subset Sc0 to model grid, halo A |
-| subroutine | [geom%] [copy_mga_to_c0a](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1136) | copy from model grid to subset Sc0, halo A |
-| subroutine | [geom%] [compute_deltas](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1201) | compute deltas for LCT definition |
+| subroutine | [geom%] [define_distribution](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L818) | define local distribution |
+| subroutine | [geom%] [check_arc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1062) | check if an arc is crossing boundaries |
+| subroutine | [geom%] [copy_c0a_to_mga](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1113) | copy from subset Sc0 to model grid, halo A |
+| subroutine | [geom%] [copy_mga_to_c0a](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1137) | copy from model grid to subset Sc0, halo A |
+| subroutine | [geom%] [compute_deltas](https://github.com/benjaminmenetrier/bump/tree/master/src/type_geom.F90#L1198) | compute deltas for LCT definition |

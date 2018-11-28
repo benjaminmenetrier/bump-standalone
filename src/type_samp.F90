@@ -74,14 +74,12 @@ type samp_type
 
    ! MPI distribution
    integer :: nc0c                                  ! Number of points in subset Sc0, halo C
-   integer :: nc0d                                  ! Number of points in subset Sc0, halo D
    integer :: nc1a                                  ! Number of points in subset Sc1, halo A
    integer :: nc2a                                  ! Number of points in subset Sc2, halo A
    integer :: nc2b                                  ! Number of points in subset Sc2, halo B
    integer :: nc2f                                  ! Number of points in subset Sc2, halo F
    logical,allocatable :: lcheck_c0a(:)             ! Detection of halo A on subset Sc0
    logical,allocatable :: lcheck_c0c(:)             ! Detection of halo C on subset Sc0
-   logical,allocatable :: lcheck_c0d(:)             ! Detection of halo D on subset Sc0
    logical,allocatable :: lcheck_c1a(:)             ! Detection of halo A on subset Sc1
    logical,allocatable :: lcheck_c2a(:)             ! Detection of halo A on subset Sc2
    logical,allocatable :: lcheck_c2b(:)             ! Detection of halo B on subset Sc2
@@ -91,9 +89,6 @@ type samp_type
    integer,allocatable :: c0c_to_c0(:)              ! Subset Sc0, halo C to global
    integer,allocatable :: c0_to_c0c(:)              ! Subset Sc0, global to halo C
    integer,allocatable :: c0a_to_c0c(:)             ! Subset Sc0, halo A to halo C
-   integer,allocatable :: c0d_to_c0(:)              ! Subset Sc0, halo D to global
-   integer,allocatable :: c0_to_c0d(:)              ! Subset Sc0, global to halo D
-   integer,allocatable :: c0a_to_c0d(:)             ! Subset Sc0, halo A to halo D
    integer,allocatable :: c1a_to_c1(:)              ! Subset Sc1, halo A to global
    integer,allocatable :: c1_to_c1a(:)              ! Subset Sc1, global to halo A
    integer,allocatable :: c2a_to_c2(:)              ! Subset Sc2, halo A to global
@@ -108,7 +103,6 @@ type samp_type
    integer,allocatable :: proc_to_nc2a(:)           ! Number of points in subset Sc2, halo A, for each processor
    type(com_type) :: com_AC                         ! Communication between halos A and C
    type(com_type) :: com_AB                         ! Communication between halos A and B
-   type(com_type) :: com_AD                         ! Communication between halos A and D
    type(com_type) :: com_AF                         ! Communication between halos A and F (filtering)
 contains
    procedure :: alloc => samp_alloc
@@ -123,7 +117,6 @@ contains
    procedure :: compute_sampling_mask => samp_compute_sampling_mask
    procedure :: compute_mpi_a => samp_compute_mpi_a
    procedure :: compute_mpi_ab => samp_compute_mpi_ab
-   procedure :: compute_mpi_d => samp_compute_mpi_d
    procedure :: compute_mpi_c => samp_compute_mpi_c
    procedure :: compute_mpi_f => samp_compute_mpi_f
    procedure :: diag_filter => samp_diag_filter
@@ -1739,118 +1732,6 @@ end do
 call flush(mpl%info)
 
 end subroutine samp_compute_mpi_ab
-
-!----------------------------------------------------------------------
-! Subroutine: samp_compute_mpi_d
-! Purpose: compute sampling MPI distribution, halo D
-!----------------------------------------------------------------------
-subroutine samp_compute_mpi_d(samp,mpl,nam,geom)
-
-implicit none
-
-! Passed variables
-class(samp_type),intent(inout) :: samp ! Sampling
-type(mpl_type),intent(inout) :: mpl    ! MPI data
-type(nam_type),intent(in) :: nam       ! Namelist
-type(geom_type),intent(in) :: geom     ! Geometry
-
-! Local variables
-integer :: ic0,ic0a,ic0d,ic2,ic2a,jc0,jn
-real(kind_real),allocatable :: nn_dist(:)
-
-! Allocation
-allocate(samp%lcheck_c0d(geom%nc0))
-allocate(samp%displ_nn(samp%nc2a))
-
-! Count nearest neighbors
-write(mpl%info,'(a7,a)',advance='no') '','Count nearest neighbors:'
-call mpl%prog_init(samp%nc2a)
-samp%lcheck_c0d = samp%lcheck_c0a
-do ic2a=1,samp%nc2a
-   ! Indices
-   ic2 = samp%c2a_to_c2(ic2a)
-   ic0 = samp%c2_to_c0(ic2)
-
-   ! Count nearest neighbors
-   call geom%kdtree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nam%displ_rad,samp%displ_nn(ic2a))
-   samp%displ_nn(ic2a) = max(1,samp%displ_nn(ic2a))
-
-   ! Update
-   call mpl%prog_print(ic2a)
-end do
-write(mpl%info,'(a)') '100%'
-call flush(mpl%info)
-
-! Get maximum
-samp%displ_nnmax = maxval(samp%displ_nn)
-
-! Allocation
-allocate(samp%displ_nn_index(samp%displ_nnmax,samp%nc2a))
-allocate(nn_dist(samp%displ_nnmax))
-
-! Find nearest neighbors
-write(mpl%info,'(a7,a)',advance='no') '','Find nearest neighbors:'
-call mpl%prog_init(samp%nc2a)
-do ic2a=1,samp%nc2a
-   ! Indices
-   ic2 = samp%c2a_to_c2(ic2a)
-   ic0 = samp%c2_to_c0(ic2)
-
-   ! Find nearest neighbors
-   call geom%kdtree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),samp%displ_nn(ic2a), &
- & samp%displ_nn_index(1:samp%displ_nn(ic2a),ic2a),nn_dist(1:samp%displ_nn(ic2a)))
-
-   ! Check points
-   do jn=1,samp%displ_nn(ic2a)
-      jc0 = samp%displ_nn_index(jn,ic2a)
-      samp%lcheck_c0d(jc0) = .true.
-   end do
-
-   ! Update
-   call mpl%prog_print(ic2a)
-end do
-write(mpl%info,'(a)') '100%'
-call flush(mpl%info)
-samp%nc0d = count(samp%lcheck_c0d)
-
-! Global <-> local conversions for fields
-allocate(samp%c0d_to_c0(samp%nc0d))
-allocate(samp%c0_to_c0d(geom%nc0))
-call msi(samp%c0_to_c0d)
-ic0d = 0
-do ic0=1,geom%nc0
-   if (samp%lcheck_c0d(ic0)) then
-      ic0d = ic0d+1
-      samp%c0d_to_c0(ic0d) = ic0
-      samp%c0_to_c0d(ic0) = ic0d
-   end if
-end do
-
-! Inter-halo conversions
-allocate(samp%c0a_to_c0d(geom%nc0a))
-do ic0a=1,geom%nc0a
-   ic0 = geom%c0a_to_c0(ic0a)
-   ic0d = samp%c0_to_c0d(ic0)
-   samp%c0a_to_c0d(ic0a) = ic0d
-end do
-
-! Convert nearest neighbors index
-do ic2a=1,samp%nc2a
-   do jn=1,samp%displ_nn(ic2a)
-      samp%displ_nn_index(jn,ic2a) = samp%c0_to_c0d(samp%displ_nn_index(jn,ic2a))
-      if (ismsi(samp%displ_nn_index(jn,ic2a))) call mpl%abort('displacement nearest neighbor not in the halo')
-   end do
-end do
-
-! Setup communications
-call samp%com_AD%setup(mpl,'com_AD',geom%nc0,geom%nc0a,samp%nc0d,samp%c0d_to_c0,samp%c0a_to_c0d,geom%c0_to_proc,geom%c0_to_c0a)
-
-! Print results
-write(mpl%info,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
-write(mpl%info,'(a10,a,i8)') '','nc0d =       ',samp%nc0d
-call flush(mpl%info)
-
-end subroutine samp_compute_mpi_d
 
 !----------------------------------------------------------------------
 ! Subroutine: samp_compute_mpi_c

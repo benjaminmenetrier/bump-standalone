@@ -31,13 +31,13 @@ check_obsop = .false.,
 
 &model_param
 nl = 1,
-levs = 43,
+levs = 1,
 logpres = .true.,
-nv = 1,
-varname = "T",
+nv = 3,
+varname = "T","ua","va",
 addvar2d = "",
-nts = 2,
-timeslot = 0,6,
+nts = 25,
+timeslot = 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,
 /
 
 &ens1_param

@@ -28,7 +28,9 @@ done
 cd ../script
 source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
-   sed -i 's/ *$//' ${file}
+   if test "${file}" /= "namelist.sqlite" ; then
+      sed -i 's/ *$//' ${file}
+   fi
 done
 cd ../ncl/script
 source=`find . -type f -exec egrep -l " +$" {} \;`

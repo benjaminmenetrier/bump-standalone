@@ -139,5 +139,4 @@ done
 rm -f *.out
 if $newexec; then
    rm -f test_*
-   rm -f truth_obs_out.dat
 fi

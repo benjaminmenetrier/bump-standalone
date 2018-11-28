@@ -91,16 +91,11 @@ while [ ${i} -lt ${ne} ] ; do
       mkdir -p ${bumpdir}/${model}
       ts=0
       typeset -RZ2 ts
-      hh=0
-      typeset -RZ2 hh
-      while [ ${hh} -lt 24 ] ; do
-         for mm in '00' '15' '30' '45' ; do
-            ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180415_${hh}z_${mm}.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
-            let ts=ts+1
-         done
-         let hh=hh+1
+      while [ ${ts} -lt 24 ] ; do
+         ln -sf ${datadir}/${model}/mem${i3}/x34.prog.43.20180415_${ts}z_00.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
+         let ts=ts+1
       done
-      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.eta.20180416_00z_00.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
+      ln -sf ${datadir}/${model}/mem${i3}/x34.prog.43.20180416_00z_00.nc4 ${bumpdir}/${model}/ens1_${ts}_${i4}.nc
    fi
 
    # GFS
