@@ -10,7 +10,6 @@ module model_geos
 use netcdf
 use tools_const, only: deg2rad,rad2deg,pi
 use tools_kinds, only: kind_real
-use tools_missing, only: msr,isanynotmsr
 use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
@@ -33,7 +32,7 @@ subroutine model_geos_coord(mpl,rng,nam,geom)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      ! MPI data
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
@@ -75,7 +74,7 @@ call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'delp',delp_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
-call mpl%ncerr(subr,nf90_get_var(ncid,delp_id,delp,(/1,1,1/),(/geom%nlon,geom%nlat,geom%nlev/)))
+call mpl%ncerr(subr,nf90_get_var(ncid,delp_id,delp))
 call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Model grid

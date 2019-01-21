@@ -8,8 +8,8 @@ begin
 ; -----------
 
 home = getenv("HOME")
-datadir = home + "/data/bump/geos"
-prefix = "geos"
+datadir = home + "/data/bump/arp/877D"
+prefix = "arp_877D"
 type = "flt"
 
 ; Resources :

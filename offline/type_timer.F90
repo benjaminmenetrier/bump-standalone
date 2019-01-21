@@ -43,7 +43,7 @@ implicit none
 
 ! Passed variables
 class(timer_type),intent(inout) :: timer ! Timer data
-type(mpl_type),intent(in) :: mpl         ! MPI data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
 
 ! Execution times  initialization
 if (mpl%main) then
@@ -64,7 +64,7 @@ implicit none
 
 ! Passed variables
 class(timer_type),intent(inout) :: timer ! Timer data
-type(mpl_type),intent(in) :: mpl         ! MPI data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
 
 if (mpl%main) then
    ! Execution times calculation
@@ -96,16 +96,20 @@ implicit none
 
 ! Passed variables
 class(timer_type),intent(inout) :: timer ! Timer data
-type(mpl_type),intent(in) :: mpl         ! MPI data
+type(mpl_type),intent(inout) :: mpl      ! MPI data
 
 ! Execution times calculation
 call timer%end(mpl)
 
 ! Display
 write(mpl%info,'(a,f8.3,a)') '--- CPU time:                   ',timer%cpu,' s'
+call mpl%flush
 write(mpl%info,'(a,f8.3,a)') '--- Elapsed time:               ',timer%elapsed,' s'
-if (timer%elapsed>0.0) write(mpl%info,'(a,f8.3)') '--- CPU/elapsed ratio:          ',timer%cpu/timer%elapsed
-call flush(mpl%info)
+call mpl%flush
+if (timer%elapsed>0.0) then
+   write(mpl%info,'(a,f8.3)') '--- CPU/elapsed ratio:          ',timer%cpu/timer%elapsed
+   call mpl%flush
+end if
 
 end subroutine timer_display
 

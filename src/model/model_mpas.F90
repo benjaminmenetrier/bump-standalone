@@ -10,7 +10,6 @@ module model_mpas
 use netcdf
 use tools_const, only: pi,ps
 use tools_kinds,only: kind_real
-use tools_missing, only: msi,msr,isanynotmsr
 use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
@@ -33,7 +32,7 @@ subroutine model_mpas_coord(mpl,rng,nam,geom)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      ! MPI data
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
@@ -47,8 +46,8 @@ logical,allocatable :: lmask_mg(:,:)
 character(len=1024) :: subr = 'model_mpas_coord'
 
 ! Open file and get dimensions
-call msi(geom%nlon)
-call msi(geom%nlat)
+geom%nlon = mpl%msv%vali
+geom%nlat = mpl%msv%vali
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%nmg))

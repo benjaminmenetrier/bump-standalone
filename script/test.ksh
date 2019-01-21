@@ -57,15 +57,15 @@ write_table("${file}.out","w",[/(/"[1mFile: ${file}[m"/)/],"%s")
 
 do ivar=0,nvars-1
    ; Read data
-   fld_truth = tofloat(ndtooned(data_truth->\$vars(ivar)\$))
-   fld_test = tofloat(ndtooned(data_test->\$vars(ivar)\$))
+   fld_truth = todouble(ndtooned(data_truth->\$vars(ivar)\$))
+   fld_test = todouble(ndtooned(data_test->\$vars(ivar)\$))
    n = dimsizes(fld_truth)
    n_test = dimsizes(fld_test)
 
    if (n.eq.n_test) then
       ; Compute distance
-      distmax = 0.0
-      dist = 0.0
+      distmax = 0d0
+      dist = 0d0
       truth_test = False
       test_truth = False
       do i=0,n-1
@@ -136,7 +136,7 @@ EOFNAM
 done
 
 # Clean
-rm -f *.out
-if $newexec; then
-   rm -f test_*
-fi
+#rm -f *.out
+#if $newexec; then
+#   rm -f test_*
+#fi

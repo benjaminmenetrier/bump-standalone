@@ -28,9 +28,9 @@ case ('ens2')
    ne_offset = nam%ens2_ne_offset
    nsub = nam%ens2_nsub
 case default
-   call msi(ne)
-   call msi(ne_offset)
-   call msi(nsub)
+   ne = mpl%msv%vali
+   ne_offset = mpl%msv%vali
+   nsub = mpl%msv%vali
    call mpl%abort('wrong filename in ens_load')
 end select
 
@@ -38,22 +38,23 @@ end select
 call ens%alloc(nam,geom,ne,nsub)
 
 ! Initialization
-call msr(ens%fld)
+ens%fld = mpl%msv%valr
 ietot = 1
 
 ! Loop over sub-ensembles
 do isub=1,ens%nsub
    if (ens%nsub==1) then
-      write(mpl%info,'(a7,a)',advance='no') '','Full ensemble, member:'
+      write(mpl%info,'(a7,a)') '','Full ensemble, member:'
+      call mpl%flush(.false.)
    else
-      write(mpl%info,'(a7,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+      write(mpl%info,'(a7,a,i4,a)') '','Sub-ensemble ',isub,', member:'
+      call mpl%flush(.false.)
    end if
-   call flush(mpl%info)
 
    ! Loop over members for a given sub-ensemble
    do ie=1,ens%ne/ens%nsub
-      write(mpl%info,'(i4)',advance='no') ne_offset+ie
-      call flush(mpl%info)
+      write(mpl%info,'(i4)') ne_offset+ie
+      call mpl%flush(.false.)
 
       ! Read member
       if (ens%nsub==1) then
@@ -67,7 +68,7 @@ do isub=1,ens%nsub
       ietot = ietot+1
    end do
    write(mpl%info,'(a)') ''
-   call flush(mpl%info)
+   call mpl%flush
 end do
 
 end subroutine ens_load

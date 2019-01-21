@@ -15,10 +15,8 @@ The source code is organized in five categories:
 | tools | [tools_fit](autodoc/tools_fit.md) | fit-related tools |
 | tools | [tools_func](autodoc/tools_func.md) | usual functions |
 | tools | [tools_kinds](autodoc/tools_kinds.md) | kinds definition |
-| tools | [tools_missing](autodoc/tools_missing.md) | deal with missing values |
 | tools | [tools_nc](autodoc/tools_nc.md) | NetCDF routines |
 | tools | [tools_repro](autodoc/tools_repro.md) | reproducibility functions |
-| tools | [tools_test](autodoc/tools_test.md) | test tools |
 | derived_type | [type_avg_blk](autodoc/type_avg_blk.md) | averaged statistics block derived type |
 | derived_type | [type_avg](autodoc/type_avg.md) | average routines |
 | derived_type | [type_bpar](autodoc/type_bpar.md) | block parameters derived type |
@@ -45,6 +43,7 @@ The source code is organized in five categories:
 | derived_type | [type_mom_blk](autodoc/type_mom_blk.md) | moments block derived type |
 | derived_type | [type_mom](autodoc/type_mom.md) | moments derived type |
 | derived_type | [type_mpl](autodoc/type_mpl.md) | MPI parameters derived type |
+| derived_type | [type_msv](autodoc/type_msv.md) | deal with missing values |
 | derived_type | [type_nam](autodoc/type_nam.md) | namelist derived type |
 | derived_type | [type_nicas_blk](autodoc/type_nicas_blk.md) | NICAS data block derived type |
 | derived_type | [type_nicas](autodoc/type_nicas.md) | NICAS data derived type |

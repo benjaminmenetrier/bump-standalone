@@ -9,12 +9,11 @@ module type_mpl
 
 use iso_fortran_env, only : output_unit
 use iso_c_binding
+use fckit_mpi_module, only: fckit_mpi_comm,fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
-use tools_const, only: msvali,msvalr
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,isnotmsi
-use fckit_mpi_module, only: fckit_mpi_comm,fckit_mpi_sum,fckit_mpi_status
+use type_msv, only: msv_type
 
 implicit none
 
@@ -28,8 +27,11 @@ type mpl_type
    integer :: myproc                ! MPI task index
    integer :: ioproc                ! Main task index
    logical :: main                  ! Main task logical
-   integer :: info                  ! Listing unit (info)
-   integer :: test                  ! Listing unit (test)
+   character(len=1024) :: verbosity ! Verbosity level
+   character(len=1024) :: info      ! Info buffer
+   character(len=1024) :: test      ! Test buffer
+   integer :: info_unit             ! Info listing unit
+   integer :: test_unit             ! Test listing unit
    integer :: tag                   ! MPI tag
    integer :: nthread               ! Number of OpenMP threads
 
@@ -49,17 +51,21 @@ type mpl_type
    character(len=1024) :: err       ! Error color code
    character(len=1024) :: wng       ! Warning color code
 
-   ! Vertical unit
    character(len=1024) :: vunitchar ! Vertical unit
+
+   type(msv_type) :: msv            ! Missing values
 contains
    procedure :: newunit => mpl_newunit
    procedure :: init => mpl_init
    procedure :: final => mpl_final
    procedure :: init_listing => mpl_init_listing
+   procedure :: flush => mpl_flush
+   procedure :: close_listing => mpl_close_listing
    procedure :: abort => mpl_abort
    procedure :: warning => mpl_warning
    procedure :: prog_init => mpl_prog_init
    procedure :: prog_print => mpl_prog_print
+   procedure :: prog_final => mpl_prog_final
    procedure :: ncerr => mpl_ncerr
    procedure :: update_tag => mpl_update_tag
    procedure :: bcast => mpl_bcast_string_1d
@@ -69,6 +75,14 @@ contains
    procedure :: mpl_dot_prod_4d
    generic :: dot_prod => mpl_dot_prod_1d,mpl_dot_prod_2d,mpl_dot_prod_3d,mpl_dot_prod_4d
    procedure :: split => mpl_split
+   procedure :: mpl_share_integer_1d
+   procedure :: mpl_share_integer_2d
+   procedure :: mpl_share_real_1d
+   procedure :: mpl_share_real_4d
+   procedure :: mpl_share_logical_1d
+   procedure :: mpl_share_logical_3d
+   generic :: share => mpl_share_integer_1d,mpl_share_integer_2d,mpl_share_real_1d,mpl_share_real_4d, &
+            & mpl_share_logical_1d,mpl_share_logical_3d
    procedure :: glb_to_loc_index => mpl_glb_to_loc_index
    procedure :: mpl_glb_to_loc_real_1d
    procedure :: mpl_glb_to_loc_real_2d
@@ -93,8 +107,8 @@ subroutine mpl_newunit(mpl,lunit)
 implicit none
 
 ! Passed variables
-class(mpl_type),intent(in) :: mpl ! MPI data
-integer,intent(out) :: lunit      ! New unit
+class(mpl_type),intent(inout) :: mpl ! MPI data
+integer,intent(out) :: lunit         ! New unit
 
 ! Local variables
 integer :: lun
@@ -172,21 +186,31 @@ end subroutine mpl_final
 ! Subroutine: mpl_init_listing
 ! Purpose: initialize listings
 !----------------------------------------------------------------------
-subroutine mpl_init_listing(mpl,prefix,model,colorlog,logpres,lunit)
+subroutine mpl_init_listing(mpl,datadir,prefix,model,verbosity,colorlog,logpres,lunit)
 
 implicit none
 
 ! Passed variables
-class(mpl_type),intent(inout) :: mpl   ! MPI data
-character(len=*),intent(in) :: prefix  ! Output prefix
-character(len=*),intent(in) :: model   ! Model
-logical,intent(in) :: colorlog         ! Color listing flag
-logical,intent(in) :: logpres          ! Vertical unit flag
-integer,intent(in),optional :: lunit   ! Main listing unit
+class(mpl_type),intent(inout) :: mpl     ! MPI data
+character(len=*),intent(in) :: datadir   ! Output data directory
+character(len=*),intent(in) :: prefix    ! Output prefix
+character(len=*),intent(in) :: model     ! Model
+character(len=*),intent(in) :: verbosity ! Verbosity level
+logical,intent(in) :: colorlog           ! Color listing flag
+logical,intent(in) :: logpres            ! Vertical unit flag
+integer,intent(in),optional :: lunit     ! Main listing unit
 
 ! Local variables
-integer :: iproc
+integer :: iproc,ifileunit
+logical :: ldatadir
 character(len=1024) :: filename
+
+! Check data directory existence
+inquire(file=trim(datadir),exist=ldatadir)
+if (.not.ldatadir) call execute_command_line('mkdir -p '//trim(datadir))
+
+! Set verbosity level
+mpl%verbosity = trim(verbosity)
 
 ! Setup display colors
 if (colorlog) then
@@ -220,43 +244,123 @@ end if
 
 ! Define info unit and open file
 do iproc=1,mpl%nproc
-   if (mpl%main.and.present(lunit)) then
-      ! Specific listing unit
-      mpl%info = lunit
-   else
-      ! Deal with each proc sequentially
+   if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.(iproc==mpl%ioproc))) then
+      ! Info listing
+      if (mpl%main.and.present(lunit)) then
+         ! Specific listing unit
+         mpl%info_unit = lunit
+      else
+         ! Deal with each proc sequentially
+         if (iproc==mpl%myproc) then
+            ! Find a free unit
+            call mpl%newunit(mpl%info_unit)
+
+            ! Open listing file
+            write(filename,'(a,i4.4)') trim(prefix)//'.info.',mpl%myproc-1
+            inquire(file=filename,number=ifileunit)
+            if (ifileunit<0) then
+               open(unit=mpl%info_unit,file=trim(filename),action='write',status='replace')
+            else
+               close(ifileunit)
+               open(unit=mpl%info_unit,file=trim(filename),action='write',status='replace')
+            end if
+         end if
+      end if
+
+      ! Test listing
       if (iproc==mpl%myproc) then
          ! Find a free unit
-         call mpl%newunit(mpl%info)
+         call mpl%newunit(mpl%test_unit)
 
          ! Open listing file
-         write(filename,'(a,i4.4)') trim(prefix)//'.info.',mpl%myproc-1
-         open(unit=mpl%info,file=trim(filename),action='write',status='replace')
+         write(filename,'(a,i4.4)') trim(prefix)//'.test.',mpl%myproc-1
+         inquire(file=filename,number=ifileunit)
+         if (ifileunit<0) then
+            open(unit=mpl%test_unit,file=trim(filename),action='write',status='replace')
+         else
+            close(ifileunit)
+            open(unit=mpl%test_unit,file=trim(filename),action='write',status='replace')
+         end if
       end if
+
+      ! Wait
+      call mpl%f_comm%barrier
    end if
-
-   ! Wait
-   call mpl%f_comm%barrier
-end do
-
-! Define test unit and open file
-do iproc=1,mpl%nproc
-   ! Deal with each proc sequentially
-   if (iproc==mpl%myproc) then
-      ! Find a free unit
-      call mpl%newunit(mpl%test)
-
-      ! Open listing file
-      write(filename,'(a,i4.4)') trim(prefix)//'.test.',mpl%myproc-1
-      open(unit=mpl%test,file=trim(filename),action='write',status='replace')
-   end if
-
-   ! Wait
-   call mpl%f_comm%barrier
 end do
 
 end subroutine mpl_init_listing
 
+!----------------------------------------------------------------------
+! Subroutine: mpl_flush
+! Purpose: flush listings
+!----------------------------------------------------------------------
+subroutine mpl_flush(mpl,advance_flag)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl        ! MPI data
+logical,intent(in),optional :: advance_flag ! Advance flag
+
+! Local variables
+logical :: ladvance_flag
+
+if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)) then
+   ! Set advance flag
+   ladvance_flag = .true.
+   if (present(advance_flag)) ladvance_flag = advance_flag
+
+   ! Check info message
+   if (trim(mpl%info)/='no_message') then
+      ! Write message
+      if (ladvance_flag) then
+         write(mpl%info_unit,'(a)') trim(mpl%info)
+      else
+         write(mpl%info_unit,'(a)',advance='no') trim(mpl%info)
+      end if
+      call flush(mpl%info_unit)
+
+      ! Set at 'no message'
+      mpl%info = 'no_message'
+   end if
+
+   ! Check test message
+   if (trim(mpl%test)/='no_message') then
+      ! Write message
+      if (ladvance_flag) then
+         write(mpl%test_unit,'(a)') trim(mpl%test)
+      else
+         write(mpl%test_unit,'(a)',advance='no') trim(mpl%test)
+      end if
+      call flush(mpl%test_unit)
+
+      ! Set at 'no message'
+      mpl%test = 'no_message'
+   end if
+end if
+
+end subroutine mpl_flush
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_close_listing
+! Purpose: close listings
+!----------------------------------------------------------------------
+subroutine mpl_close_listing(mpl)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(in) :: mpl   ! MPI data
+
+if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)) then
+   ! Close info listing
+   close(unit=mpl%info_unit)
+
+   ! Close test listing
+   close(unit=mpl%test_unit)
+end if
+
+end subroutine mpl_close_listing
 !----------------------------------------------------------------------
 ! Subroutine: mpl_abort
 ! Purpose: clean MPI abort
@@ -266,19 +370,18 @@ subroutine mpl_abort(mpl,message)
 implicit none
 
 ! Passed variable
-class(mpl_type),intent(in) :: mpl      ! MPI data
+class(mpl_type),intent(inout) :: mpl   ! MPI data
 character(len=*),intent(in) :: message ! Message
 
 ! Write message
 write(mpl%info,'(a)') trim(mpl%err)//'!!! Error: '//trim(message)//trim(mpl%black)
-call flush(mpl%info)
 
-! Write message
+! Flush listing
+call mpl%flush
+
+! Write standard output message
 write(output_unit,'(a,i4.4,a)') '!!! ABORT on task #',mpl%myproc,': '//trim(message)
 call flush(output_unit)
-
-! Flush test
-call flush(mpl%test)
 
 ! Abort MPI
 call mpl%f_comm%abort(1)
@@ -294,17 +397,17 @@ subroutine mpl_warning(mpl,message)
 implicit none
 
 ! Passed variables
-class(mpl_type),intent(in) :: mpl      ! MPI data
+class(mpl_type),intent(inout) :: mpl   ! MPI data
 character(len=*),intent(in) :: message ! Message
 
 ! Print warning message
 write(mpl%info,'(a)') trim(mpl%wng)//'!!! Warning: '//trim(message)//trim(mpl%black)
-call flush(mpl%info)
+call mpl%flush
 
 end subroutine mpl_warning
 
 !----------------------------------------------------------------------
-! Subroutine: prog_init
+! Subroutine: mpl_prog_init
 ! Purpose: initialize progression display
 !----------------------------------------------------------------------
 subroutine mpl_prog_init(mpl,nprog)
@@ -316,11 +419,10 @@ class(mpl_type),intent(inout) :: mpl ! MPI data
 integer,intent(in) :: nprog          ! Array size
 
 ! Print message
-write(mpl%info,'(i3,a)',advance='no') 0,'%'
-call flush(mpl%info)
+write(mpl%info,'(a)') ' 0%'
+call mpl%flush(.false.)
 
 ! Allocation
-if (allocated(mpl%done)) deallocate(mpl%done)
 allocate(mpl%done(nprog))
 
 ! Initialization
@@ -352,13 +454,45 @@ if (present(i)) mpl%done(i) = .true.
 prog = 100.0*real(count(mpl%done),kind_real)/real(mpl%nprog,kind_real)
 if (int(prog)>mpl%progint) then
    if (mpl%progint<100) then
-      write(mpl%info,'(i3,a)',advance='no') mpl%progint,'% '
-      call flush(mpl%info)
+      if (mpl%progint<10) then
+         write(mpl%info,'(i2,a)') mpl%progint,'% '
+      else
+         write(mpl%info,'(i3,a)') mpl%progint,'% '
+      end if
+      call mpl%flush(.false.)
    end if
    mpl%progint = mpl%progint+ddis
 end if
 
 end subroutine mpl_prog_print
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_prog_final
+! Purpose: finalize progression display
+!----------------------------------------------------------------------
+subroutine mpl_prog_final(mpl,advance_flag)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl        ! MPI data
+logical,intent(in),optional :: advance_flag ! Advance flag
+
+! Local variables
+logical :: ladvance_flag
+
+! Set advance flag
+ladvance_flag = .true.
+if (present(advance_flag)) ladvance_flag = advance_flag
+
+! Print message
+write(mpl%info,'(a)') ' 100%'
+call mpl%flush(ladvance_flag)
+
+! Release memory
+deallocate(mpl%done)
+
+end subroutine mpl_prog_final
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_ncerr
@@ -369,9 +503,9 @@ subroutine mpl_ncerr(mpl,subr,info)
 implicit none
 
 ! Passed variables
-class(mpl_type),intent(in) :: mpl   ! MPI data
-character(len=*),intent(in) :: subr ! Calling subroutine
-integer,intent(in) :: info          ! Info index
+class(mpl_type),intent(inout) :: mpl ! MPI data
+character(len=*),intent(in) :: subr  ! Calling subroutine
+integer,intent(in) :: info           ! Info index
 
 ! Check status
 if (info/=nf90_noerr) call mpl%abort('in '//trim(subr)//': '//trim(nf90_strerror(info)))
@@ -543,36 +677,362 @@ end subroutine mpl_dot_prod_4d
 ! Subroutine: mpl_split
 ! Purpose: split array over different MPI tasks
 !----------------------------------------------------------------------
-subroutine mpl_split(mpl,n,i_s,i_e,n_loc)
+subroutine mpl_split(mpl,n,n_loc)
 
 implicit none
 
 ! Passed variables
-class(mpl_type),intent(in) :: mpl       ! MPI data
-integer,intent(in) :: n                 ! Total array size
-integer,intent(out) :: i_s(mpl%nproc)   ! Index start
-integer,intent(out) :: i_e(mpl%nproc)   ! Index end
-integer,intent(out) :: n_loc(mpl%nproc) ! Local array size
+class(mpl_type),intent(in) :: mpl         ! MPI data
+integer,intent(in) :: n                   ! Total array size
+integer,intent(out) :: n_loc(0:mpl%nproc) ! Local array size
 
 ! Local variable
 integer :: iproc,nres,delta
+integer :: i_s,i_e
 
 ! MPI splitting
+n_loc(0) = 0
 nres = n
+i_e = 0
 do iproc=1,mpl%nproc
-   if (iproc==1) then
-      i_s(iproc) = 1
-   else
-      i_s(iproc) = i_e(iproc-1)+1
-   end if
+   i_s = i_e+1
    delta = n/mpl%nproc
    if (nres>(mpl%nproc-iproc+1)*delta) delta = delta+1
-   i_e(iproc) = i_s(iproc)+delta-1
+   i_e = i_s+delta-1
    n_loc(iproc) = delta
    nres = nres-delta
 end do
 
 end subroutine mpl_split
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_integer_1d
+! Purpose: share integer array over different MPI tasks, 1d
+!----------------------------------------------------------------------
+subroutine mpl_share_integer_1d(mpl,n1,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Global array size
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size
+integer,intent(inout) :: var(n1)          ! Integer array, 1d
+
+! Local variable
+integer :: iproc
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+integer,allocatable :: sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)
+recvcounts = n1_loc(1:mpl%nproc)
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+
+! Prepare buffer
+sbuf = var(sum(n1_loc(0:mpl%myproc-1))+1:sum(n1_loc(0:mpl%myproc)))
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,var,sendcount,recvcounts,displs)
+
+end subroutine mpl_share_integer_1d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_integer_2d
+! Purpose: share integer array over different MPI tasks, 2d
+!----------------------------------------------------------------------
+subroutine mpl_share_integer_2d(mpl,n1,n2,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Global array size 1
+integer,intent(in) :: n2                  ! Global array size 2
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size 1
+integer,intent(inout) :: var(n1,n2)       ! Integer array, 2d
+
+! Local variable
+integer :: iproc,i1,i2,i1_loc,i
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+integer,allocatable :: rbuf(:),sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)*n2
+recvcounts = n1_loc(1:mpl%nproc)*n2
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))*n2
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+allocate(rbuf(n1*n2))
+
+! Prepare buffer
+i = 0
+do i2=1,n2
+   do i1_loc=1,n1_loc(mpl%myproc)
+      i1 = sum(n1_loc(0:mpl%myproc-1))+i1_loc
+      i = i+1
+      sbuf(i) = var(i1,i2)
+   end do
+end do
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,rbuf,sendcount,recvcounts,displs)
+
+! Format data
+i = 0
+do iproc=1,mpl%nproc
+   do i2=1,n2
+      do i1_loc=1,n1_loc(iproc)
+         i1 = sum(n1_loc(0:iproc-1))+i1_loc
+         i = i+1
+         var(i1,i2) = rbuf(i)
+      end do
+   end do
+end do
+
+end subroutine mpl_share_integer_2d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_real_1d
+! Purpose: share real array over different MPI tasks, 1d
+!----------------------------------------------------------------------
+subroutine mpl_share_real_1d(mpl,n1,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Global array size
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size
+real(kind_real),intent(inout) :: var(n1)  ! Real array, 1d
+
+! Local variable
+integer :: iproc
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+real(kind_real),allocatable :: sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)
+recvcounts = n1_loc(1:mpl%nproc)
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+
+! Prepare buffer
+sbuf = var(sum(n1_loc(0:mpl%myproc-1))+1:sum(n1_loc(0:mpl%myproc)))
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,var,sendcount,recvcounts,displs)
+
+end subroutine mpl_share_real_1d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_real_4d
+! Purpose: share real array over different MPI tasks, 4d
+!----------------------------------------------------------------------
+subroutine mpl_share_real_4d(mpl,n1,n2,n3,n4,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl              ! MPI data
+integer,intent(in) :: n1                          ! Array size 1
+integer,intent(in) :: n2                          ! Array size 2
+integer,intent(in) :: n3                          ! Array size 3
+integer,intent(in) :: n4                          ! Array size 4
+integer,intent(in) :: n1_loc(0:mpl%nproc)         ! Local array size 1
+real(kind_real),intent(inout) :: var(n1,n2,n3,n4) ! Real array, 4d
+
+! Local variable
+integer :: iproc,i1,i2,i3,i4,i1_loc,i
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+real(kind_real),allocatable :: rbuf(:),sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)*n2*n3*n4
+recvcounts = n1_loc(1:mpl%nproc)*n2*n3*n4
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))*n2*n3*n4
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+allocate(rbuf(n1*n2*n3*n4))
+
+! Prepare buffer
+i = 0
+do i4=1,n4
+   do i3=1,n3
+      do i2=1,n2
+         do i1_loc=1,n1_loc(mpl%myproc)
+            i1 = sum(n1_loc(0:mpl%myproc-1))+i1_loc
+            i = i+1
+            sbuf(i) = var(i1,i2,i3,i4)
+         end do
+      end do
+   end do
+end do
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,rbuf,sendcount,recvcounts,displs)
+
+! Format data
+i = 0
+do iproc=1,mpl%nproc
+   do i4=1,n4
+      do i3=1,n3
+         do i2=1,n2
+            do i1_loc=1,n1_loc(iproc)
+               i1 = sum(n1_loc(0:iproc-1))+i1_loc
+               i = i+1
+               var(i1,i2,i3,i4) = rbuf(i)
+            end do
+         end do
+      end do
+   end do
+end do
+
+end subroutine mpl_share_real_4d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_logical_1d
+! Purpose: share logical array over different MPI tasks, 1d
+!----------------------------------------------------------------------
+subroutine mpl_share_logical_1d(mpl,n1,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Global array size
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size
+logical,intent(inout) :: var(n1)          ! Logical array, 1d
+
+! Local variable
+integer :: iproc,i1_loc,i1
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+integer,allocatable :: sbuf(:),rbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)
+recvcounts = n1_loc(1:mpl%nproc)
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+allocate(rbuf(n1))
+
+! Prepare buffer
+do i1_loc=1,n1_loc(mpl%myproc)
+   i1 = sum(n1_loc(0:mpl%myproc-1))+i1_loc
+   if (var(i1)) then
+      sbuf(i1_loc) = 1
+   else
+      sbuf(i1_loc) = 0
+   end if
+end do
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,rbuf,sendcount,recvcounts,displs)
+
+! Format data
+do i1=1,n1
+   if (rbuf(i1)==0) then
+      var(i1) = .false.
+   elseif (rbuf(i1)==1) then
+      var(i1) = .true.
+   else
+      call mpl%abort('wrong value for received buffer in mpl_share_logical_1d')
+   end if
+end do
+
+end subroutine mpl_share_logical_1d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_logical_3d
+! Purpose: share logical array over different MPI tasks, 3d
+!----------------------------------------------------------------------
+subroutine mpl_share_logical_3d(mpl,n1,n2,n3,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Array size 1
+integer,intent(in) :: n2                  ! Array size 2
+integer,intent(in) :: n3                  ! Array size 3
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size 1
+logical,intent(inout) :: var(n1,n2,n3)    ! Logical array, 3d
+
+! Local variable
+integer :: iproc,i1,i2,i3,i1_loc,i
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+integer,allocatable :: rbuf(:),sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)*n2*n3
+recvcounts = n1_loc(1:mpl%nproc)*n2*n3
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))*n2*n3
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+allocate(rbuf(n1*n2*n3))
+
+! Prepare buffer
+i = 0
+do i3=1,n3
+   do i2=1,n2
+      do i1_loc=1,n1_loc(mpl%myproc)
+         i1 = sum(n1_loc(0:mpl%myproc-1))+i1_loc
+         i = i+1
+         if (var(i1,i2,i3)) then
+            sbuf(i) = 1
+         else
+            sbuf(i) = 0
+         end if
+      end do
+   end do
+end do
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,rbuf,sendcount,recvcounts,displs)
+
+! Format data
+i = 0
+do iproc=1,mpl%nproc
+   do i3=1,n3
+      do i2=1,n2
+         do i1_loc=1,n1_loc(iproc)
+            i1 = sum(n1_loc(0:iproc-1))+i1_loc
+            i = i+1
+            if (rbuf(i)==0) then
+               var(i1,i2,i3) = .false.
+            elseif (rbuf(i)==1) then
+               var(i1,i2,i3) = .true.
+            else
+               call mpl%abort('wrong value for received buffer in mpl_share_logical_3d')
+            end if
+         end do
+      end do
+   end do
+end do
+
+end subroutine mpl_share_logical_3d
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_glb_to_loc_index
@@ -729,6 +1189,7 @@ end if
 
 ! Allocation
 allocate(rbuf(n_loc*nl))
+
 if (mpl%main) then
    do iproc=1,mpl%nproc
       ! Allocation
@@ -769,6 +1230,9 @@ do il=1,nl
       loc(i_loc,il) = rbuf((il-1)*n_loc+i_loc)
    end do
 end do
+
+! Release memory
+deallocate(rbuf)
 
 end subroutine mpl_glb_to_loc_real_2d
 
@@ -914,6 +1378,9 @@ call mpl%update_tag(1)
 ! Broadcast
 if (bcast) call mpl%f_comm%broadcast(glb,mpl%ioproc-1)
 
+! Release memory
+deallocate(sbuf)
+
 end subroutine mpl_loc_to_glb_real_2d
 
 !----------------------------------------------------------------------
@@ -992,6 +1459,9 @@ call mpl%update_tag(1)
 
 ! Broadcast
 if (bcast) call mpl%f_comm%broadcast(glb,mpl%ioproc-1)
+
+! Release memory
+deallocate(sbuf)
 
 end subroutine mpl_loc_to_glb_logical_2d
 

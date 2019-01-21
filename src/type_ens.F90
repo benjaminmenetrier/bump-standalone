@@ -8,11 +8,10 @@
 module type_ens
 
 use fckit_mpi_module, only: fckit_mpi_sum
-use tools_const, only: rad2deg
+use tools_const, only: deg2rad,rad2deg
 use tools_func, only: sphere_dist
 use model_interface, only: model_read
 use tools_kinds, only: kind_real
-use tools_missing, only: msi,msr,isnotmsi
 use type_geom, only: geom_type
 use type_io, only: io_type
 use type_mpl, only: mpl_type
@@ -47,7 +46,7 @@ contains
 
 !----------------------------------------------------------------------
 ! Subroutine: ens_alloc
-! Purpose: ensemble data allocation
+! Purpose: allocation
 !----------------------------------------------------------------------
 subroutine ens_alloc(ens,nam,geom,ne,nsub)
 
@@ -60,25 +59,21 @@ type(geom_type),intent(in) :: geom   ! Geometry
 integer,intent(in) :: ne             ! Ensemble size
 integer,intent(in) :: nsub           ! Number of sub-ensembles
 
-! Allocate
+! Copy attributes
+ens%ne = ne
+ens%nsub = nsub
+
+! Allocation
 if (ne>0) then
    allocate(ens%fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ne))
    allocate(ens%mean(geom%nc0a,geom%nl0,nam%nv,nam%nts,nsub))
-end if
-
-! Initialization
-ens%ne = ne
-ens%nsub = nsub
-if (ens%ne>0) then
-   call msr(ens%fld)
-   call msr(ens%mean)
 end if
 
 end subroutine ens_alloc
 
 !----------------------------------------------------------------------
 ! Subroutine: ens_dealloc
-! Purpose: ensemble data deallocation
+! Purpose: release memory
 !----------------------------------------------------------------------
 subroutine ens_dealloc(ens)
 
@@ -122,9 +117,9 @@ case ('ens2')
    ne_offset = nam%ens2_ne_offset
    nsub = nam%ens2_nsub
 case default
-   call msi(ne)
-   call msi(ne_offset)
-   call msi(nsub)
+   ne = mpl%msv%vali
+   ne_offset = mpl%msv%vali
+   nsub = mpl%msv%vali
    call mpl%abort('wrong filename in ens_load')
 end select
 
@@ -132,22 +127,23 @@ end select
 call ens%alloc(nam,geom,ne,nsub)
 
 ! Initialization
-call msr(ens%fld)
+ens%fld = mpl%msv%valr
 ietot = 1
 
 ! Loop over sub-ensembles
 do isub=1,ens%nsub
    if (ens%nsub==1) then
-      write(mpl%info,'(a7,a)',advance='no') '','Full ensemble, member:'
+      write(mpl%info,'(a7,a)') '','Full ensemble, member:'
+      call mpl%flush(.false.)
    else
-      write(mpl%info,'(a7,a,i4,a)',advance='no') '','Sub-ensemble ',isub,', member:'
+      write(mpl%info,'(a7,a,i4,a)') '','Sub-ensemble ',isub,', member:'
+      call mpl%flush(.false.)
    end if
-   call flush(mpl%info)
 
    ! Loop over members for a given sub-ensemble
    do ie=1,ens%ne/ens%nsub
-      write(mpl%info,'(i4)',advance='no') ne_offset+ie
-      call flush(mpl%info)
+      write(mpl%info,'(i4)') ne_offset+ie
+      call mpl%flush(.false.)
 
       ! Read member
       if (ens%nsub==1) then
@@ -161,38 +157,32 @@ do isub=1,ens%nsub
       ietot = ietot+1
    end do
    write(mpl%info,'(a)') ''
-   call flush(mpl%info)
+   call mpl%flush
 end do
 
 end subroutine ens_load
 
 !----------------------------------------------------------------------
-! Subroutine: ens_copy
-! Purpose: ensemble data copy
+! Function: ens_copy
+! Purpose: copy
 !----------------------------------------------------------------------
-subroutine ens_copy(ens_out,ens_in)
+type(ens_type) function ens_copy(ens,nam,geom)
 
 implicit none
 
 ! Passed variables
-class(ens_type),intent(inout) :: ens_out ! Ensemble
-type(ens_type),intent(in) :: ens_in      ! Ensemble
+class(ens_type),intent(in) :: ens  ! Ensemble
+type(nam_type),intent(in) :: nam   ! Namelist
+type(geom_type),intent(in) :: geom ! Geometry
 
 ! Allocate
-if (ens_in%ne>0) then
-   allocate(ens_out%fld(size(ens_in%fld,1),size(ens_in%fld,2),size(ens_in%fld,3),size(ens_in%fld,4),size(ens_in%fld,5)))
-   allocate(ens_out%mean(size(ens_in%mean,1),size(ens_in%mean,2),size(ens_in%mean,3),size(ens_in%mean,4),size(ens_in%mean,5)))
-end if
+call ens_copy%alloc(nam,geom,ens%ne,ens%nsub)
 
-! Initialization
-ens_out%ne = ens_in%ne
-ens_out%nsub = ens_in%nsub
-if (ens_in%ne>0) then
-   ens_out%fld = ens_in%fld
-   ens_out%mean = ens_in%mean
-end if
+! Copy data
+if (allocated(ens%fld)) ens_copy%fld = ens%fld
+if (allocated(ens%mean)) ens_copy%mean = ens%mean
 
-end subroutine ens_copy
+end function ens_copy
 
 !----------------------------------------------------------------------
 ! Subroutine: ens_remove_mean
@@ -278,7 +268,7 @@ implicit none
 
 ! Passed variables
 class(ens_type),intent(in) :: ens                                       ! Ensemble
-type(mpl_type),intent(in) :: mpl                                        ! MPI data
+type(mpl_type),intent(inout) :: mpl                                     ! MPI data
 type(nam_type),intent(in) :: nam                                        ! Namelist
 type(geom_type),intent(in) :: geom                                      ! Geometry
 real(kind_real),intent(inout) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts) ! Field
@@ -335,8 +325,8 @@ type(io_type),intent(in) :: io      ! I/O
 
 ! Local variable
 integer :: ic0a,ic0,jc0a,jc0,ie,its,ind(1)
-integer :: proc_to_ic0a(mpl%nproc),iproc(1)
-real(kind_real) :: dist,proc_to_val(mpl%nproc),lon,lat,val,var_dirac
+integer :: proc_to_ic0a(mpl%nproc),iproc(1),nn_index(1)
+real(kind_real) :: dist,proc_to_val(mpl%nproc),lon,lat,val,var_dirac,nn_dist(1)
 real(kind_real) :: u(geom%nc0a,geom%nl0,nam%nts),v(geom%nc0a,geom%nl0,nam%nts),ffsq(geom%nc0a,geom%nl0,nam%nts)
 real(kind_real) :: var(geom%nc0a,geom%nl0,nam%nts),dirac(geom%nc0a,geom%nl0,nam%nts),cor(geom%nc0a,geom%nl0,nam%nv,nam%nts)
 character(len=2) :: timeslotchar
@@ -347,72 +337,67 @@ filename = trim(nam%prefix)//'_cortrack'
 
 ! Compute variance
 write(mpl%info,'(a7,a)') '','Compute variance'
-call flush(mpl%info)
+call mpl%flush
 var = 0.0
 do ie=1,ens%ne
    var = var+ens%fld(:,:,1,:,ie)**2
 end do
 var = var/real(ens%ne-ens%nsub,kind_real)
 
-! Compute wind speed squared (variables 2 and 3 should be u and v)
-write(mpl%info,'(a7,a)') '','Compute wind speed'
-call flush(mpl%info)
-u = sum(ens%mean(:,:,2,:,:),dim=4)/real(ens%nsub,kind_real)
-v = sum(ens%mean(:,:,3,:,:),dim=4)/real(ens%nsub,kind_real)
-ffsq = u**2+v**2
+if (nam%nv==3) then
+   ! Compute wind speed squared (variables 2 and 3 should be u and v)
+   write(mpl%info,'(a7,a)') '','Compute wind speed'
+   call mpl%flush
+   u = sum(ens%mean(:,:,2,:,:),dim=4)/real(ens%nsub,kind_real)
+   v = sum(ens%mean(:,:,3,:,:),dim=4)/real(ens%nsub,kind_real)
+   ffsq = u**2+v**2
 
-! Only North hemisphere
-write(mpl%info,'(a7,a)') '','Only North hemisphere'
-do ic0a=1,geom%nc0a
-   ic0 = geom%c0a_to_c0(ic0a)
-   if (geom%lat(ic0)<0.0) ffsq(ic0a,:,:) = 0.0
-end do
+   ! Write wind
+   write(mpl%info,'(a7,a)') '','Write wind'
+   call mpl%flush
+   do its=1,nam%nts
+      write(timeslotchar,'(i2.2)') nam%timeslot(its)
+      call io%fld_write(mpl,nam,geom,filename,'u_'//timeslotchar,u(:,:,its))
+      call io%fld_write(mpl,nam,geom,filename,'v_'//timeslotchar,v(:,:,its))
+   end do
 
-! Write wind
-write(mpl%info,'(a7,a)') '','Write wind'
-call flush(mpl%info)
-do its=1,nam%nts
-   write(timeslotchar,'(i2.2)') nam%timeslot(its)
-   call io%fld_write(mpl,nam,geom,filename,'u_'//timeslotchar,u(:,:,its))
-   call io%fld_write(mpl,nam,geom,filename,'v_'//timeslotchar,v(:,:,its))
-end do
-
-if (.true.) then
-   ! Find local maximum value and index
-   write(mpl%info,'(a7,a)') '','Dirac point based on maximum wind speed'
-   call flush(mpl%info)
-   val = maxval(ffsq(:,1,1))
-   ind = maxloc(ffsq(:,1,1))
-   call mpl%f_comm%allgather(val,proc_to_val)
-   call mpl%f_comm%allgather(ind(1),proc_to_ic0a)
-   iproc = maxloc(proc_to_val)
+   if (.true.) then
+      ! Find local maximum value and index
+      write(mpl%info,'(a7,a)') '','Dirac point based on maximum wind speed'
+      call mpl%flush
+      val = maxval(ffsq(:,1,1))
+      ind = maxloc(ffsq(:,1,1))
+      call mpl%f_comm%allgather(val,proc_to_val)
+      call mpl%f_comm%allgather(ind(1),proc_to_ic0a)
+      iproc = maxloc(proc_to_val)
+   else
+      ! Find local minimum value and index
+      write(mpl%info,'(a7,a)') '','Dirac point based on minimum wind speed'
+      call mpl%flush
+      val = minval(ffsq(:,1,1))
+      ind = minloc(ffsq(:,1,1))
+      call mpl%f_comm%allgather(val,proc_to_val)
+      call mpl%f_comm%allgather(ind(1),proc_to_ic0a)
+      iproc = minloc(proc_to_val)
+   end if
 else
-   ! Find local minimum value and index
-   write(mpl%info,'(a7,a)') '','Dirac point based on minimum wind speed'
-   call flush(mpl%info)
-   val = minval(ffsq(:,1,1))
-   ind = minloc(ffsq(:,1,1))
-   call mpl%f_comm%allgather(val,proc_to_val)
-   call mpl%f_comm%allgather(ind(1),proc_to_ic0a)
-   iproc = minloc(proc_to_val)
-end if
+   ! Define lon/lat
+   lat = 0.0*deg2rad
+   lon = 0.0*deg2rad
 
-! Broadcast dirac point
-call msi(ic0a)
-call msi(ic0)
-if (mpl%myproc==iproc(1)) then
-   ic0a = proc_to_ic0a(iproc(1))
-   ic0 = geom%c0a_to_c0(ic0a)
-   lon = geom%lon(ic0)
-   lat = geom%lat(ic0)
-   val = ffsq(ic0a,1,1)
+   ! Find nearest neighbor
+   call geom%kdtree%find_nearest_neighbors(mpl,lon,lat,1,nn_index,nn_dist)
+
+   ! Broadcast dirac point
+   ic0a = mpl%msv%vali
+   ic0 = nn_index(1)
+   iproc(1) = geom%c0_to_proc(ic0)
+   if (mpl%myproc==iproc(1)) ic0a = geom%c0_to_c0a(ic0)
+   call mpl%f_comm%broadcast(ic0a,iproc(1)-1)
+   write(mpl%info,'(a10,a,i2,a,f6.1,a,f6.1)') '','Timeslot ',nam%timeslot(1),' ~> lon / lat: ', &
+    & lon*rad2deg,' / ',lat*rad2deg
+   call mpl%flush
 end if
-call mpl%f_comm%broadcast(lon,iproc(1)-1)
-call mpl%f_comm%broadcast(lat,iproc(1)-1)
-call mpl%f_comm%broadcast(val,iproc(1)-1)
-write(mpl%info,'(a10,a,i2,a,f6.1,a,f6.1,a,f7.1)') '','Timeslot ',nam%timeslot(1),' ~> lon / lat / val: ', &
- & lon*rad2deg,' / ',lat*rad2deg,' / ',sqrt(val)
-call flush(mpl%info)
 
 ! Generate dirac field
 dirac = 0.0
@@ -465,7 +450,7 @@ do its=2,nam%nts-1
    call mpl%f_comm%broadcast(val,iproc(1)-1)
    write(mpl%info,'(a10,a,i2,a,f6.1,a,f6.1,a,f6.3)') '','Timeslot ',nam%timeslot(its),' ~> lon / lat / val: ', &
  & lon*rad2deg,' / ',lat*rad2deg,' / ',val
-   call flush(mpl%info)
+   call mpl%flush
 
    ! Generate dirac field
    dirac = 0.0

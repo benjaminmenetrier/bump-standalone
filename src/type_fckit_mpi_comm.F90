@@ -63,14 +63,20 @@ contains
    procedure :: fckit_mpi_comm_allgather_integer_0d
    procedure :: fckit_mpi_comm_allgather_real_0d
    procedure :: fckit_mpi_comm_allgather_logical_0d
-   generic :: allgather => fckit_mpi_comm_allgather_integer_0d,fckit_mpi_comm_allgather_real_0d,fckit_mpi_comm_allgather_logical_0d
+   procedure :: fckit_mpi_comm_allgatherv_integer_1d
+   procedure :: fckit_mpi_comm_allgatherv_real_1d
+   procedure :: fckit_mpi_comm_allgatherv_logical_1d
+   generic :: allgather => fckit_mpi_comm_allgather_integer_0d,fckit_mpi_comm_allgather_real_0d, &
+                         & fckit_mpi_comm_allgather_logical_0d,fckit_mpi_comm_allgatherv_integer_1d, &
+                         & fckit_mpi_comm_allgatherv_real_1d,fckit_mpi_comm_allgatherv_logical_1d
    procedure :: fckit_mpi_comm_alltoallv_real
    generic :: alltoallv => fckit_mpi_comm_alltoallv_real
    procedure :: fckit_mpi_comm_allreduce_integer_0d
+   procedure :: fckit_mpi_comm_allreduce_integer_1d
    procedure :: fckit_mpi_comm_allreduce_real_0d
    procedure :: fckit_mpi_comm_allreduce_real_1d
-   generic :: allreduce => fckit_mpi_comm_allreduce_integer_0d,fckit_mpi_comm_allreduce_real_0d, &
-                         & fckit_mpi_comm_allreduce_real_1d
+   generic :: allreduce => fckit_mpi_comm_allreduce_integer_0d,fckit_mpi_comm_allreduce_integer_1d, &
+                         & fckit_mpi_comm_allreduce_real_0d,fckit_mpi_comm_allreduce_real_1d
 end type fckit_mpi_comm
 
 interface fckit_mpi_comm
@@ -975,27 +981,108 @@ call f_comm%check(info)
 end subroutine fckit_mpi_comm_allgather_logical_0d
 
 !----------------------------------------------------------------------
-! Subroutine: fckit_mpi_comm_alltoallv_real
-! Purpose: alltoallv for a real array
+! Subroutine: fckit_mpi_comm_allgatherv_integer_1d
+! Purpose: allgatherv for a integer array, 1d
 !----------------------------------------------------------------------
-subroutine fckit_mpi_comm_alltoallv_real(f_comm,sbuf,scounts,sdispl,rbuf,rcounts,rdispl)
+subroutine fckit_mpi_comm_allgatherv_integer_1d(f_comm,sbuf,rbuf,sendcount,recvcounts,displs)
+
+implicit none
+
+! Passed variables
+class(fckit_mpi_comm),intent(in) :: f_comm    ! FCKIT communicator
+integer,dimension(:),intent(in) :: sbuf       ! Sent buffer
+integer,dimension(:),intent(inout) :: rbuf    ! Received buffer
+integer,intent(in) :: sendcount               ! Sending count
+integer,dimension(:),intent(in) :: recvcounts ! Receiving counts
+integer,dimension(:),intent(in) :: displs     ! Receiving displacement
+
+! Local variable
+integer :: info
+
+! Allgatherv
+call mpi_allgatherv(sbuf,sendcount,mpi_integer,rbuf,recvcounts,displs,mpi_integer,mpi_comm_world,info)
+
+! Check
+call f_comm%check(info)
+
+end subroutine fckit_mpi_comm_allgatherv_integer_1d
+
+!----------------------------------------------------------------------
+! Subroutine: fckit_mpi_comm_allgatherv_real_1d
+! Purpose: allgatherv for a real array, 1d
+!----------------------------------------------------------------------
+subroutine fckit_mpi_comm_allgatherv_real_1d(f_comm,sbuf,rbuf,sendcount,recvcounts,displs)
 
 implicit none
 
 ! Passed variables
 class(fckit_mpi_comm),intent(in) :: f_comm         ! FCKIT communicator
 real(kind_real),dimension(:),intent(in) :: sbuf    ! Sent buffer
-integer,dimension(:),intent(in) :: scounts         ! Sending counts
-integer,dimension(:),intent(in) :: sdispl          ! Sending displacement
 real(kind_real),dimension(:),intent(inout) :: rbuf ! Received buffer
-integer,dimension(:),intent(in) :: rcounts         ! Receiving counts
-integer,dimension(:),intent(in) :: rdispl          ! Receiving displacement
+integer,intent(in) :: sendcount                    ! Sending count
+integer,dimension(:),intent(in) :: recvcounts      ! Receiving counts
+integer,dimension(:),intent(in) :: displs          ! Receiving displacement
+
+! Local variable
+integer :: info
+
+! Allgatherv
+call mpi_allgatherv(sbuf,sendcount,fckit_mpi_real(),rbuf,recvcounts,displs,fckit_mpi_real(),mpi_comm_world,info)
+
+! Check
+call f_comm%check(info)
+
+end subroutine fckit_mpi_comm_allgatherv_real_1d
+
+!----------------------------------------------------------------------
+! Subroutine: fckit_mpi_comm_allgatherv_logical_1d
+! Purpose: allgatherv for a logical array, 1d
+!----------------------------------------------------------------------
+subroutine fckit_mpi_comm_allgatherv_logical_1d(f_comm,sbuf,rbuf,sendcount,recvcounts,displs)
+
+implicit none
+
+! Passed variables
+class(fckit_mpi_comm),intent(in) :: f_comm    ! FCKIT communicator
+logical,dimension(:),intent(in) :: sbuf       ! Sent buffer
+logical,dimension(:),intent(inout) :: rbuf    ! Received buffer
+integer,intent(in) :: sendcount               ! Sending count
+integer,dimension(:),intent(in) :: recvcounts ! Receiving counts
+integer,dimension(:),intent(in) :: displs     ! Receiving displacement
+
+! Local variable
+integer :: info
+
+! Allgatherv
+call mpi_allgatherv(sbuf,sendcount,mpi_logical,rbuf,recvcounts,displs,mpi_logical,mpi_comm_world,info)
+
+! Check
+call f_comm%check(info)
+
+end subroutine fckit_mpi_comm_allgatherv_logical_1d
+
+!----------------------------------------------------------------------
+! Subroutine: fckit_mpi_comm_alltoallv_real
+! Purpose: alltoallv for a real array
+!----------------------------------------------------------------------
+subroutine fckit_mpi_comm_alltoallv_real(f_comm,sbuf,sendcounts,sdispls,rbuf,recvcounts,rdispls)
+
+implicit none
+
+! Passed variables
+class(fckit_mpi_comm),intent(in) :: f_comm         ! FCKIT communicator
+real(kind_real),dimension(:),intent(in) :: sbuf    ! Sent buffer
+integer,dimension(:),intent(in) :: sendcounts      ! Sending counts
+integer,dimension(:),intent(in) :: sdispls         ! Sending displacement
+real(kind_real),dimension(:),intent(inout) :: rbuf ! Received buffer
+integer,dimension(:),intent(in) :: recvcounts      ! Receiving counts
+integer,dimension(:),intent(in) :: rdispls         ! Receiving displacement
 
 ! Local variable
 integer :: info
 
 ! Alltoallv
-call mpi_alltoallv(sbuf,scounts,sdispl,fckit_mpi_real(),rbuf,rcounts,rdispl,fckit_mpi_real(),mpi_comm_world,info)
+call mpi_alltoallv(sbuf,sendcounts,sdispls,fckit_mpi_real(),rbuf,recvcounts,rdispls,fckit_mpi_real(),mpi_comm_world,info)
 
 ! Check
 call f_comm%check(info)
@@ -1026,6 +1113,31 @@ call mpi_allreduce(var_in,var_out,1,mpi_integer,mpi_op,mpi_comm_world,info)
 call f_comm%check(info)
 
 end subroutine fckit_mpi_comm_allreduce_integer_0d
+
+!----------------------------------------------------------------------
+! Subroutine: fckit_mpi_comm_allreduce_integer_1d
+! Purpose: allreduce for a integer array, 1d
+!----------------------------------------------------------------------
+subroutine fckit_mpi_comm_allreduce_integer_1d(f_comm,var_in,var_out,mpi_op)
+
+implicit none
+
+! Passed variables
+class(fckit_mpi_comm),intent(in) :: f_comm    ! FCKIT communicator
+integer,dimension(:),intent(in) :: var_in     ! Input integer array, 1d
+integer,dimension(:),intent(inout) :: var_out ! Output integer array, 1d
+integer,intent(in) :: mpi_op                  ! MPI operation
+
+! Local variable
+integer :: info
+
+! Allreduce
+call mpi_allreduce(var_in,var_out,size(var_in),mpi_integer,mpi_op,mpi_comm_world,info)
+
+! Check
+call f_comm%check(info)
+
+end subroutine fckit_mpi_comm_allreduce_integer_1d
 
 !----------------------------------------------------------------------
 ! Subroutine: fckit_mpi_comm_allreduce_real_0d
@@ -1062,8 +1174,8 @@ implicit none
 
 ! Passed variables
 class(fckit_mpi_comm),intent(in) :: f_comm            ! FCKIT communicator
-real(kind_real),dimension(:),intent(in) :: var_in     ! Input real
-real(kind_real),dimension(:),intent(inout) :: var_out ! Output real
+real(kind_real),dimension(:),intent(in) :: var_in     ! Input real array, 1d
+real(kind_real),dimension(:),intent(inout) :: var_out ! Output real array, 1d
 integer,intent(in) :: mpi_op                          ! MPI operation
 
 ! Local variable

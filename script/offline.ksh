@@ -9,7 +9,6 @@
 repo="https://github.com/JCSDA/oops.git"
 branch="feature/bump"
 src_oops="${HOME}/code/bump/src_oops"
-src_ufo="${HOME}/code/ufo-bundle/oops/src/oops/generic/bump"
 src_tmp="${HOME}/code/bump/src_tmp"
 src="${HOME}/code/bump/src"
 offline="${HOME}/code/bump/offline"
@@ -26,6 +25,11 @@ if test "$1" = "git" ; then
    rm -fr oops/
 elif test "$1" = "ufo" ; then
    mkdir -p ${src_oops}
+   src_ufo="${HOME}/code/ufo-bundle/oops/src/oops/generic/bump"
+   rsync -rtv --delete ${src_ufo}/* ${src_oops}
+elif test "$1" = "ufo_develop" ; then
+   mkdir -p ${src_oops}
+   src_ufo="${HOME}/code/ufo-bundle_develop/oops/src/oops/generic/bump"
    rsync -rtv --delete ${src_ufo}/* ${src_oops}
 else
    echo "Wrong source"

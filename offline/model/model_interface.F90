@@ -19,7 +19,6 @@ use model_nemo, only: model_nemo_coord,model_nemo_read
 use model_wrf, only: model_wrf_coord,model_wrf_read
 use netcdf
 use tools_kinds,only: kind_real
-use tools_missing, only: msi,msr,isnotmsi
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
@@ -94,7 +93,7 @@ integer :: its
 character(len=1024) :: fullname
 
 ! Initialization
-call msr(fld)
+fld = mpl%msv%valr
 
 do its=1,nam%nts
    ! Define filename

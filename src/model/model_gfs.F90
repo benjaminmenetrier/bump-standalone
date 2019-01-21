@@ -10,7 +10,6 @@ module model_gfs
 use netcdf
 use tools_const, only: pi,deg2rad,rad2deg,ps
 use tools_kinds,only: kind_real
-use tools_missing, only: msr,isanynotmsr
 use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
@@ -33,7 +32,7 @@ subroutine model_gfs_coord(mpl,rng,nam,geom)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      ! MPI data
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry

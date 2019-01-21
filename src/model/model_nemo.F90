@@ -11,7 +11,6 @@ use netcdf
 use tools_const, only: req,deg2rad,rad2deg
 use tools_func, only: sphere_dist
 use tools_kinds,only: kind_real
-use tools_missing, only: msr,isanynotmsr,isnotmsi
 use tools_nc, only: ncfloat
 use tools_qsort, only: qsort
 use type_geom, only: geom_type
@@ -35,7 +34,7 @@ subroutine model_nemo_coord(mpl,rng,nam,geom)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl      ! MPI data
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry

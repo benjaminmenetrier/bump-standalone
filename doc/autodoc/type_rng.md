@@ -2,7 +2,7 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [rng%] [init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L56) | initialize the random number generator |
+| subroutine | [rng%] [init](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L55) | initialize the random number generator |
 | subroutine | [rng%] [reseed](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L97) | re-seed the random number generator |
 | subroutine | [rng%] [lcg](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L123) | linear congruential generator |
 | subroutine | [rng%] [rand_integer_0d](https://github.com/benjaminmenetrier/bump/tree/master/src/type_rng.F90#L143) | generate a random integer, 0d |
