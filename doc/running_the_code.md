@@ -4,7 +4,7 @@ To run the code on a single node, you have to edit a namelist located in the $MA
  
     cd $MAINDIR/run
     export OMP_NUM_THREADS=$NTHREAD
-    mpirun -n $NTASK bump namelist_$SUFFIX
+    mpirun -n $NTASK ./bump namelist_$SUFFIX
 
 where $NTHREAD is the number of OpenMP threads and $NTASK is the number of MPI tasks that are desired.
 
