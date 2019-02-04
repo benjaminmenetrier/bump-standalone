@@ -125,6 +125,7 @@ end do
 do ic0=1,geom%nc0
    geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
 end do
+mpl%vunitchar = 'lev'
 
 ! Release memory
 deallocate(lon)

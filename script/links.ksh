@@ -13,7 +13,7 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=geos
+model=res
 
 # Link members
 i=0
@@ -139,6 +139,13 @@ while [ ${i} -lt ${ne} ] ; do
             let j4=j4+9
          done
       fi
+   fi
+
+   # RES
+   if test ${model} = "res" ; then
+      ne=10
+      mkdir -p ${bumpdir}/${model}
+      ln -sf ${datadir}/${model}/Ens_${i}.nc ${bumpdir}/${model}/ens1_01_${i4}.nc
    fi
 
    # Test
@@ -389,6 +396,14 @@ if test ${model} = "nemo" ; then
    grid=${bumpdir}/${model}/${xp}/grid.nc
    rm -f ${grid}
    ncks -O -v nav_lat,nav_lon,tmask,e1t,e2t ${origin} ${grid}
+fi
+
+# RES
+if test ${model} = "res" ; then
+   origin=${datadir}/${model}/MyGrid.nc
+   grid=${bumpdir}/${model}/${xp}/grid.nc
+   rm -f ${grid}
+   cp -f ${origin} ${grid}
 fi
 
 # Test

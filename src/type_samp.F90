@@ -149,7 +149,7 @@ allocate(samp%c1_to_c0(nam%nc1))
 allocate(samp%c1l0_log(nam%nc1,geom%nl0))
 allocate(samp%c1c3_to_c0(nam%nc1,nam%nc3))
 allocate(samp%c1c3l0_log(nam%nc1,nam%nc3,geom%nl0))
-if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
+if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) then
    allocate(samp%c2_to_c1(nam%nc2))
    allocate(samp%c2_to_c0(nam%nc2))
    allocate(samp%nn_c2_index(nam%nc2,nam%nc2,geom%nl0i))
@@ -262,7 +262,7 @@ call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc3',nc3_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc3_id,len=nc_test))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc1',nc1_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc1_id,len=nc1_test))
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    info = nf90_inq_dimid(ncid,'nc2',nc2_id)
    if (info==nf90_noerr) then
       call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2_id,len=nc2_test))
@@ -279,7 +279,7 @@ if ((geom%nl0/=nl0_test).or.(bpar%nl0rmax/=nl0r_test).or.(nam%nc3/=nc_test).or.(
    new_sampling = .true.
    return
 end if
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    if (nam%nc2/=nc2_test) then
       call mpl%warning('wrong dimension when reading sampling, recomputing sampling')
       call mpl%ncerr(subr,nf90_close(ncid))
@@ -296,7 +296,7 @@ call mpl%ncerr(subr,nf90_inq_varid(ncid,'c1_to_c0',c1_to_c0_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'c1l0_log',c1l0_log_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'c1c3_to_c0',c1c3_to_c0_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'c1c3l0_log',c1c3l0_log_id))
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    call mpl%ncerr(subr,nf90_inq_varid(ncid,'c2_to_c1',c2_to_c1_id))
    call mpl%ncerr(subr,nf90_inq_varid(ncid,'c2_to_c0',c2_to_c0_id))
 end if
@@ -326,7 +326,7 @@ do il0=1,geom%nl0
       end do
    end do
 end do
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    call mpl%ncerr(subr,nf90_get_var(ncid,c2_to_c1_id,samp%c2_to_c1))
    call mpl%ncerr(subr,nf90_get_var(ncid,c2_to_c0_id,samp%c2_to_c0))
 end if
@@ -334,7 +334,7 @@ end if
 ! Close file
 call mpl%ncerr(subr,nf90_close(ncid))
 
-if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
+if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) then
    ! Read sampling masks
 
    ! Open file
@@ -505,7 +505,7 @@ call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
 call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0r',bpar%nl0rmax))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc3',nam%nc3,nc3_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
-if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) &
+if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) &
  & call mpl%ncerr(subr,nf90_def_dim(ncid,'nc2',nam%nc2,nc2_id))
 
 ! Define variables
@@ -523,7 +523,7 @@ call mpl%ncerr(subr,nf90_def_var(ncid,'c1c3_to_c0',nf90_int,(/nc1_id,nc3_id/),c1
 call mpl%ncerr(subr,nf90_put_att(ncid,c1c3_to_c0_id,'_FillValue',mpl%msv%vali))
 call mpl%ncerr(subr,nf90_def_var(ncid,'c1c3l0_log',nf90_int,(/nc1_id,nc3_id,nl0_id/),c1c3l0_log_id))
 call mpl%ncerr(subr,nf90_put_att(ncid,c1c3l0_log_id,'_FillValue',mpl%msv%vali))
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    call mpl%ncerr(subr,nf90_def_var(ncid,'c2_to_c1',nf90_int,(/nc2_id/),c2_to_c1_id))
    call mpl%ncerr(subr,nf90_put_att(ncid,c2_to_c1_id,'_FillValue',mpl%msv%vali))
    call mpl%ncerr(subr,nf90_def_var(ncid,'c2_to_c0',nf90_int,(/nc2_id/),c2_to_c0_id))
@@ -565,7 +565,7 @@ call mpl%ncerr(subr,nf90_put_var(ncid,c1_to_c0_id,samp%c1_to_c0))
 call mpl%ncerr(subr,nf90_put_var(ncid,c1l0_log_id,c1l0_logint))
 call mpl%ncerr(subr,nf90_put_var(ncid,c1c3_to_c0_id,samp%c1c3_to_c0))
 call mpl%ncerr(subr,nf90_put_var(ncid,c1c3l0_log_id,c1c3l0_logint))
-if (nam%new_lct.or.nam%var_diag.or.nam%local_diag.or.nam%displ_diag) then
+if (nam%new_lct.or.nam%local_diag.or.nam%displ_diag) then
    call mpl%ncerr(subr,nf90_put_var(ncid,c2_to_c1_id,samp%c2_to_c1))
    call mpl%ncerr(subr,nf90_put_var(ncid,c2_to_c0_id,samp%c2_to_c0))
 end if
@@ -573,7 +573,7 @@ end if
 ! Close file
 call mpl%ncerr(subr,nf90_close(ncid))
 
-if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
+if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) then
    ! Write sampling masks
 
    ! Create file
@@ -742,7 +742,7 @@ if (new_sampling) then
    call samp%check_mask(mpl,nam,geom)
 end if
 
-if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
+if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) then
    if (new_sampling) then
       ! Define subsampling
       write(mpl%info,'(a7,a)') '','Define subsampling:'
@@ -1978,25 +1978,27 @@ end subroutine samp_compute_mpi_f
 ! Subroutine: samp_diag_filter
 ! Purpose: filter diagnostics
 !----------------------------------------------------------------------
-subroutine samp_diag_filter(samp,mpl,nam,geom,il0,filter_type,rflt,diag)
+subroutine samp_diag_filter(samp,mpl,nam,geom,il0,filter_type,rflt,diag,val)
 
 implicit none
 
 ! Passed variables
-class(samp_type),intent(in) :: samp              ! Sampling
-type(mpl_type),intent(inout) :: mpl              ! MPI data
-type(nam_type),intent(in) :: nam                 ! Namelist
-type(geom_type),intent(in) :: geom               ! Geometry
-integer,intent(in) :: il0                        ! Level
-character(len=*),intent(in) :: filter_type       ! Filter type
-real(kind_real),intent(in) :: rflt               ! Filter support radius
-real(kind_real),intent(inout) :: diag(samp%nc2a) ! Filtered diagnostic
+class(samp_type),intent(in) :: samp                   ! Sampling
+type(mpl_type),intent(inout) :: mpl                   ! MPI data
+type(nam_type),intent(in) :: nam                      ! Namelist
+type(geom_type),intent(in) :: geom                    ! Geometry
+integer,intent(in) :: il0                             ! Level
+character(len=*),intent(in) :: filter_type            ! Filter type
+real(kind_real),intent(in) :: rflt                    ! Filter support radius
+real(kind_real),intent(inout) :: diag(samp%nc2a)      ! Filtered diagnostic
+real(kind_real),intent(in),optional :: val(samp%nc2a) ! Useful value for filtering
 
 ! Local variables
 integer :: ic2a,ic2,ic1,ic0,jc2,nc2eff,kc2,kc2_glb
 integer,allocatable :: order(:)
 real(kind_real) :: distnorm,norm,wgt
 real(kind_real),allocatable :: diag_glb(:),diag_eff(:),diag_eff_dist(:)
+real(kind_real),allocatable :: val_glb(:),val_eff(:)
 logical :: nam_rad
 
 ! Check radius
@@ -2006,19 +2008,23 @@ if (rflt>0.0) then
    if (nam_rad) then
       ! Allocation
       allocate(diag_glb(samp%nc2f))
+      if (present(val)) allocate(val_glb(samp%nc2f))
 
       ! Communication
       call samp%com_AF%ext(mpl,diag,diag_glb)
+      if (present(val)) call samp%com_AF%ext(mpl,diag,diag_glb)
    else
       ! Allocation
       allocate(diag_glb(nam%nc2))
+      if (present(val)) allocate(val_glb(nam%nc2))
 
       ! Local to global
-     call mpl%loc_to_glb(samp%nc2a,diag,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.true.,diag_glb)
+      call mpl%loc_to_glb(samp%nc2a,diag,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.true.,diag_glb)
+      if (present(val)) call mpl%loc_to_glb(samp%nc2a,val,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.true.,val_glb)
    end if
 
    !$omp parallel do schedule(static) private(ic2a,ic2,ic1,ic0,nc2eff,jc2,distnorm,norm,wgt), &
-   !$omp&                             firstprivate(diag_eff,diag_eff_dist,order)
+   !$omp&                             firstprivate(diag_eff,diag_eff_dist,val_eff,order)
    do ic2a=1,samp%nc2a
       ! Indices
       ic2 = samp%c2a_to_c2(ic2a)
@@ -2028,11 +2034,12 @@ if (rflt>0.0) then
       ! Allocation
       allocate(diag_eff(nam%nc2))
       allocate(diag_eff_dist(nam%nc2))
+      if (present(val)) allocate(val_eff(nam%nc2))
 
       ! Build diag_eff of valid points
       nc2eff = 0
       jc2 = 1
-      do while (samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<min(rflt,geom%mesh%bdist(geom%mesh%order_inv(ic0))))
+      do while (samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<rflt)
          ! Check the point validity
          kc2 = samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))
          if (nam_rad) then
@@ -2044,6 +2051,7 @@ if (rflt>0.0) then
             nc2eff = nc2eff+1
             diag_eff(nc2eff) = diag_glb(kc2_glb)
             diag_eff_dist(nc2eff) = samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))
+            if (present(val)) val_eff(nc2eff) = val_glb(kc2_glb)
          end if
          jc2 = jc2+1
          if (jc2>nam%nc2) exit
@@ -2069,7 +2077,14 @@ if (rflt>0.0) then
          case ('median')
             ! Compute median
             allocate(order(nc2eff))
-            call qsort(nc2eff,diag_eff(1:nc2eff),order)
+            if (present(val)) then
+               ! Use external value
+               call qsort(nc2eff,val_eff(1:nc2eff),order)
+               diag_eff = diag_eff(order)
+            else
+               ! Use diagnostic value
+               call qsort(nc2eff,diag_eff(1:nc2eff),order)
+            end if
             if (mod(nc2eff,2)==0) then
                diag(ic2a) = 0.5*(diag_eff(nc2eff/2)+diag_eff(nc2eff/2+1))
             else
@@ -2087,11 +2102,13 @@ if (rflt>0.0) then
       ! Release memory
       deallocate(diag_eff)
       deallocate(diag_eff_dist)
+      if (present(val)) deallocate(val_eff)
    end do
    !$omp end parallel do
 
    ! Release memory
    deallocate(diag_glb)
+   if (present(val)) deallocate(val_glb)
 end if
 
 end subroutine samp_diag_filter

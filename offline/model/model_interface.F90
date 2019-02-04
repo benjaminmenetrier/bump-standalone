@@ -16,6 +16,7 @@ use model_gfs, only: model_gfs_coord,model_gfs_read
 use model_ifs, only: model_ifs_coord,model_ifs_read
 use model_mpas, only: model_mpas_coord,model_mpas_read
 use model_nemo, only: model_nemo_coord,model_nemo_read
+use model_res, only: model_res_coord,model_res_read
 use model_wrf, only: model_wrf_coord,model_wrf_read
 use netcdf
 use tools_kinds,only: kind_real
@@ -64,6 +65,7 @@ if (trim(nam%model)=='gfs') call model_gfs_coord(mpl,rng,nam,geom)
 if (trim(nam%model)=='ifs') call model_ifs_coord(mpl,rng,nam,geom)
 if (trim(nam%model)=='mpas') call model_mpas_coord(mpl,rng,nam,geom)
 if (trim(nam%model)=='nemo') call model_nemo_coord(mpl,rng,nam,geom)
+if (trim(nam%model)=='res') call model_res_coord(mpl,rng,nam,geom)
 if (trim(nam%model)=='wrf') call model_wrf_coord(mpl,rng,nam,geom)
 
 ! Define distribution
@@ -113,6 +115,7 @@ do its=1,nam%nts
    if (trim(nam%model)=='ifs') call model_ifs_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
    if (trim(nam%model)=='mpas') call model_mpas_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
    if (trim(nam%model)=='nemo') call model_nemo_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
+   if (trim(nam%model)=='res') call model_res_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
    if (trim(nam%model)=='wrf') call model_wrf_read(mpl,nam,geom,fullname,its,fld(:,:,:,its))
 end do
 

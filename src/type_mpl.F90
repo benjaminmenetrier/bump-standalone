@@ -81,8 +81,9 @@ contains
    procedure :: mpl_share_real_4d
    procedure :: mpl_share_logical_1d
    procedure :: mpl_share_logical_3d
+   procedure :: mpl_share_logical_4d
    generic :: share => mpl_share_integer_1d,mpl_share_integer_2d,mpl_share_real_1d,mpl_share_real_4d, &
-            & mpl_share_logical_1d,mpl_share_logical_3d
+            & mpl_share_logical_1d,mpl_share_logical_3d,mpl_share_logical_4d
    procedure :: glb_to_loc_index => mpl_glb_to_loc_index
    procedure :: mpl_glb_to_loc_real_1d
    procedure :: mpl_glb_to_loc_real_2d
@@ -186,7 +187,7 @@ end subroutine mpl_final
 ! Subroutine: mpl_init_listing
 ! Purpose: initialize listings
 !----------------------------------------------------------------------
-subroutine mpl_init_listing(mpl,datadir,prefix,model,verbosity,colorlog,logpres,lunit)
+subroutine mpl_init_listing(mpl,datadir,prefix,model,verbosity,colorlog,lunit)
 
 implicit none
 
@@ -197,7 +198,6 @@ character(len=*),intent(in) :: prefix    ! Output prefix
 character(len=*),intent(in) :: model     ! Model
 character(len=*),intent(in) :: verbosity ! Verbosity level
 logical,intent(in) :: colorlog           ! Color listing flag
-logical,intent(in) :: logpres            ! Vertical unit flag
 integer,intent(in),optional :: lunit     ! Main listing unit
 
 ! Local variables
@@ -231,16 +231,8 @@ else
    mpl%wng = ' '
 end if
 
-! Vertical unit
-if (trim(model)=='online') then
-   mpl%vunitchar = 'vert. unit'
-else
-   if (logpres) then
-      mpl%vunitchar = 'log(Pa)'
-   else
-      mpl%vunitchar = 'lev.'
-   end if
-end if
+! Vertical unit (default)
+if (trim(model)=='online') mpl%vunitchar = 'm'
 
 ! Define info unit and open file
 do iproc=1,mpl%nproc
@@ -1033,6 +1025,84 @@ do iproc=1,mpl%nproc
 end do
 
 end subroutine mpl_share_logical_3d
+
+!----------------------------------------------------------------------
+! Subroutine: mpl_share_logical_4d
+! Purpose: share logical array over different MPI tasks, 4d
+!----------------------------------------------------------------------
+subroutine mpl_share_logical_4d(mpl,n1,n2,n3,n4,n1_loc,var)
+
+implicit none
+
+! Passed variables
+class(mpl_type),intent(inout) :: mpl      ! MPI data
+integer,intent(in) :: n1                  ! Array size 1
+integer,intent(in) :: n2                  ! Array size 2
+integer,intent(in) :: n3                  ! Array size 3
+integer,intent(in) :: n4                  ! Array size 4
+integer,intent(in) :: n1_loc(0:mpl%nproc) ! Local array size 1
+logical,intent(inout) :: var(n1,n2,n3,n4) ! Logical array, 4d
+
+! Local variable
+integer :: iproc,i1,i2,i3,i4,i1_loc,i
+integer :: sendcount,recvcounts(mpl%nproc),displs(mpl%nproc)
+integer,allocatable :: rbuf(:),sbuf(:)
+
+! Dimensions
+sendcount = n1_loc(mpl%myproc)*n2*n3*n4
+recvcounts = n1_loc(1:mpl%nproc)*n2*n3*n4
+do iproc=1,mpl%nproc
+   displs(iproc) = sum(n1_loc(0:iproc-1))*n2*n3*n4
+end do
+
+! Allocation
+allocate(sbuf(sendcount))
+allocate(rbuf(n1*n2*n3*n4))
+
+! Prepare buffer
+i = 0
+do i4=1,n4
+   do i3=1,n3
+      do i2=1,n2
+         do i1_loc=1,n1_loc(mpl%myproc)
+            i1 = sum(n1_loc(0:mpl%myproc-1))+i1_loc
+            i = i+1
+            if (var(i1,i2,i3,i4)) then
+               sbuf(i) = 1
+            else
+               sbuf(i) = 0
+            end if
+         end do
+      end do
+   end do
+end do
+
+! Gather data
+call mpl%f_comm%allgather(sbuf,rbuf,sendcount,recvcounts,displs)
+
+! Format data
+i = 0
+do iproc=1,mpl%nproc
+   do i4=1,n4
+      do i3=1,n3
+         do i2=1,n2
+            do i1_loc=1,n1_loc(iproc)
+               i1 = sum(n1_loc(0:iproc-1))+i1_loc
+               i = i+1
+               if (rbuf(i)==0) then
+                  var(i1,i2,i3,i4) = .false.
+               elseif (rbuf(i)==1) then
+                  var(i1,i2,i3,i4) = .true.
+               else
+                  call mpl%abort('wrong value for received buffer in mpl_share_logical_4d')
+               end if
+            end do
+         end do
+      end do
+   end do
+end do
+
+end subroutine mpl_share_logical_4d
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_glb_to_loc_index

@@ -39,7 +39,7 @@ type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: ic0,il0
-integer :: ncid,ng_id,nlev_id,lon_id,lat_id,pres_id
+integer :: ncid,nmg_id,nlev_id,lon_id,lat_id,pres_id
 real(kind=4),allocatable :: lon(:),lat(:),pres(:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
@@ -49,8 +49,8 @@ character(len=1024) :: subr = 'model_mpas_coord'
 geom%nlon = mpl%msv%vali
 geom%nlat = mpl%msv%vali
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nCells',ng_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,ng_id,len=geom%nmg))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nCells',nmg_id))
+call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nmg_id,len=geom%nmg))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nVertLevels',nlev_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 
@@ -99,6 +99,11 @@ do ic0=1,geom%nc0
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
    end if
 end do
+if (nam%logpres) then
+   mpl%vunitchar = 'log(Pa)'
+else
+  mpl%vunitchar = 'lev.'
+end if
 
 ! Release memory
 deallocate(lon)

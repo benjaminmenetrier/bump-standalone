@@ -53,7 +53,7 @@ contains
    procedure :: linop_interp_from_mesh_kdtree
    procedure :: linop_interp_grid
    generic :: interp => linop_interp_from_lat_lon,linop_interp_from_mesh_kdtree,linop_interp_grid
-   procedure :: interp_check_mask => linop_interp_check_mask
+   procedure :: check_mask => linop_check_mask
    procedure :: interp_missing => linop_interp_missing
 end type linop_type
 
@@ -969,7 +969,7 @@ if (mask_check) then
    lat_col = geom%lat(c1_to_c0)
 
    ! Check mask boundaries
-   call interp_base%interp_check_mask(mpl,geom,valid,il0i,lon_col=lon_col,lat_col=lat_col)
+   call interp_base%check_mask(mpl,geom,valid,il0i,lon_col=lon_col,lat_col=lat_col)
 
    ! Release memory
    deallocate(lon_col)
@@ -1041,10 +1041,10 @@ deallocate(valid)
 end subroutine linop_interp_grid
 
 !----------------------------------------------------------------------
-! Subroutine: linop_interp_check_mask
-! Purpose: check mask boundaries for interpolations
+! Subroutine: linop_check_mask
+! Purpose: check mask boundaries for linear operators
 !----------------------------------------------------------------------
-subroutine linop_interp_check_mask(linop,mpl,geom,valid,il0,lon_row,lat_row,lon_col,lat_col)
+subroutine linop_check_mask(linop,mpl,geom,valid,il0,lon_row,lat_row,lon_col,lat_col)
 
 implicit none
 
@@ -1053,13 +1053,14 @@ class(linop_type),intent(inout) :: linop                    ! Linear operator
 type(mpl_type),intent(inout) :: mpl                         ! MPI data
 type(geom_type),intent(in) :: geom                          ! Geometry
 logical,intent(inout) :: valid(linop%n_s)                   ! Valid points
+integer,intent(in) :: il0                                   ! Level
 real(kind_real),intent(in),optional :: lon_row(linop%n_dst) ! Row longitude (Sc0 longitude if missing)
 real(kind_real),intent(in),optional :: lat_row(linop%n_dst) ! Row latitude (Sc0 latitude if missing)
 real(kind_real),intent(in),optional :: lon_col(linop%n_src) ! Column longitude (Sc0 longitude if missing)
 real(kind_real),intent(in),optional :: lat_col(linop%n_src) ! Column latitude (Sc0 latitude if missing)
 
 ! Local variables
-integer :: i_s,il0
+integer :: i_s
 integer :: n_s_loc(0:mpl%nproc),i_s_loc
 real(kind_real) :: llon_row,llat_row,llon_col,llat_col
 
@@ -1105,7 +1106,7 @@ call mpl%prog_final
 ! MPI sharing
 call mpl%share(linop%n_s,n_s_loc,valid)
 
-end subroutine linop_interp_check_mask
+end subroutine linop_check_mask
 
 !----------------------------------------------------------------------
 ! Subroutine: linop_interp_missing

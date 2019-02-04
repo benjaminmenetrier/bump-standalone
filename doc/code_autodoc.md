@@ -68,4 +68,5 @@ The source code is organized in five categories:
 | model | [model_interface](autodoc/model_interface.md) | model routines |
 | model | [module_mpas](autodoc/module_mpas.md) | MPAS model routines |
 | model | [module_nemo](autodoc/module_nemo.md) | NEMO model routines |
+| model | [module_res](autodoc/module_res.md) | RES model routines |
 | model | [module_wrf](autodoc/module_wrf.md) | WRF model routines |

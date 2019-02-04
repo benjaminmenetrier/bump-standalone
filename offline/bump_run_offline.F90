@@ -29,7 +29,7 @@ call bump%nam%read(bump%mpl,namelname)
 call bump%nam%bcast(bump%mpl)
 
 ! Initialize listing
-call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,bump%nam%logpres)
+call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
 
 ! Generic setup
 call bump%setup_generic

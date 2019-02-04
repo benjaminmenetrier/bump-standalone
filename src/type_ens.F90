@@ -382,8 +382,8 @@ if (nam%nv==3) then
    end if
 else
    ! Define lon/lat
-   lat = 0.0*deg2rad
-   lon = 0.0*deg2rad
+   lon = 0.5*(minval(geom%lon)+maxval(geom%lon))
+   lat = 0.5*(minval(geom%lat)+maxval(geom%lat))
 
    ! Find nearest neighbor
    call geom%kdtree%find_nearest_neighbors(mpl,lon,lat,1,nn_index,nn_dist)

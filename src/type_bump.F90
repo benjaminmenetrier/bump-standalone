@@ -143,12 +143,10 @@ call bump%nam%setup_internal(nl0,nv,nts,lens1_ne,lens1_nsub,lens2_ne,lens2_nsub)
 
 ! Initialize listing
 if (present(lunit)) then
-   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog, &
- & bump%nam%logpres,lunit)
+   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,lunit)
    bump%close_listing = .false.
 else
-   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog, &
- & bump%nam%logpres)
+   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
    bump%close_listing = (trim(bump%nam%model)=='online').and.(.not.present(nobs))
 end if
 
@@ -251,7 +249,7 @@ call bump%nam%read(bump%mpl,namelname)
 call bump%nam%bcast(bump%mpl)
 
 ! Initialize listing
-call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,bump%nam%logpres)
+call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
 
 ! Generic setup
 call bump%setup_generic
@@ -506,7 +504,7 @@ else
 end if
 
 if (allocated(bump%cmat%blk)) then
-   ! Get C matrix from OOPS
+   ! Get C matrix from BUMP interface
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
    write(bump%mpl%info,'(a)') '--- Get C matrix from BUMP interface'

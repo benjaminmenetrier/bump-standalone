@@ -29,7 +29,7 @@ type nam_type
    ! general_param
    character(len=1024) :: datadir                   ! Data directory
    character(len=1024) :: prefix                    ! Files prefix
-   character(len=1024) :: model                     ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo' or 'wrf')
+   character(len=1024) :: model                     ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'res' or 'wrf')
    character(len=1024) :: verbosity                 ! Verbosity level ('all', 'main' or 'none')
    logical :: colorlog                              ! Add colors to the log (for display on terminal)
    logical :: default_seed                          ! Default seed for random numbers
@@ -103,7 +103,6 @@ type nam_type
    logical :: gau_approx                            ! Gaussian approximation for asymptotic quantities
    logical :: vbal_block(nvmax*(nvmax-1)/2)         ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
    real(kind_real) :: vbal_rad                      ! Vertical balance diagnostic radius
-   logical :: var_diag                              ! Compute variances
    logical :: var_filter                            ! Filter variances
    integer :: var_niter                             ! Number of iteration for the variances filtering (for var_filter = .true.)
    real(kind_real) ::  var_rhflt                    ! Variances initial filtering support radius (for var_filter = .true.)
@@ -273,7 +272,6 @@ do iv=1,nvmax*(nvmax-1)/2
    nam%vbal_block(iv) = .false.
 end do
 nam%vbal_rad = 0.0
-nam%var_diag = .false.
 nam%var_filter = .false.
 nam%var_full = .false.
 nam%var_niter = 0
@@ -300,7 +298,7 @@ nam%lct_diag = .false.
 nam%lsqrt = .false.
 nam%resol = 0.0
 nam%fast_sampling = .false.
-nam%subsamp = ''
+nam%subsamp = 'hvh'
 nam%nicas_interp = ''
 nam%network = .false.
 nam%mpicom = 0
@@ -363,7 +361,7 @@ logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas
 logical :: load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def,check_sqrt
 logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,sam_write,sam_read,mask_check
-logical :: vbal_block(nvmax*(nvmax-1)/2),var_diag,var_filter,var_full,gau_approx,local_diag,displ_diag,double_fit(0:nvmax)
+logical :: vbal_block(nvmax*(nvmax-1)/2),var_filter,var_full,gau_approx,local_diag,displ_diag,double_fit(0:nvmax)
 logical :: lhomh,lhomv,lct_diag(nscalesmax),lsqrt,fast_sampling,network,forced_radii,write_grids,field_io,split_io,grid_output
 real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,displ_rad,displ_rhflt,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
@@ -381,7 +379,7 @@ namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_ne_offset,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_ne_offset,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,draw_type,nc1,nc2,ntry,nrep,nc3,dc,nl0r
-namelist/diag_param/ne,gau_approx,vbal_block,vbal_rad,var_diag,var_filter,var_full,var_niter,var_rhflt,local_diag,local_rad, &
+namelist/diag_param/ne,gau_approx,vbal_block,vbal_rad,var_filter,var_full,var_niter,var_rhflt,local_diag,local_rad, &
                   & displ_diag,displ_rad,displ_niter,displ_rhflt
 namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,advmode,forced_radii,rh,rv,write_grids,ndir, &
@@ -472,7 +470,6 @@ if (mpl%main) then
       vbal_block(iv) = .false.
    end do
    vbal_rad = 0.0
-   var_diag = .false.
    var_filter = .false.
    var_full = .false.
    var_niter = 0
@@ -498,7 +495,7 @@ if (mpl%main) then
    ! nicas_param default
    lsqrt = .false.
    resol = 0.0
-   subsamp = ''
+   subsamp = 'hvh'
    nicas_interp = ''
    network = .false.
    mpicom = 0
@@ -626,7 +623,6 @@ if (mpl%main) then
    nam%gau_approx = gau_approx
    if (nv>1) nam%vbal_block(1:nam%nv*(nam%nv-1)/2) = vbal_block(1:nam%nv*(nam%nv-1)/2)
    nam%vbal_rad = vbal_rad
-   nam%var_diag = var_diag
    nam%var_filter = var_filter
    nam%var_full = var_full
    nam%var_niter = var_niter
@@ -790,7 +786,6 @@ call mpl%f_comm%broadcast(nam%ne,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%gau_approx,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%vbal_block,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%vbal_rad,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%var_diag,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%var_filter,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%var_full,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%var_niter,mpl%ioproc-1)
@@ -944,7 +939,7 @@ nam%grid_resol = nam%grid_resol/req
 if (trim(nam%datadir)=='') call mpl%abort('datadir not specified')
 if (trim(nam%prefix)=='') call mpl%abort('prefix not specified')
 select case (trim(nam%model))
-case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','online','wrf')
+case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','online','res','wrf')
 case default
    call mpl%abort('wrong model')
 end select
@@ -1052,7 +1047,7 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
       call mpl%abort('wrong draw_type')
    end select
    if (nam%nc1<3) call mpl%abort('nc1 should be larger than 2')
-   if (nam%new_vbal.or.(nam%new_hdiag.and.(nam%var_diag.or.nam%local_diag.or.nam%displ_diag))) then
+   if (nam%new_vbal.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%displ_diag))) then
       if (nam%nc2<3) call mpl%abort('nc2 should be larger than 2')
    else
       if (nam%nc2<0) then
@@ -1096,8 +1091,7 @@ if (nam%new_hdiag.or.nam%check_consistency) then
    case ('loc_norm','loc','hyb-avg','hyb-rnd','dual-ens')
       if (nam%ne<=3) call mpl%abort('ne should be larger than 3')
    end select
-   if (nam%var_diag.and.(.not.trim(nam%method)=='cor')) call mpl%abort('var_diag requires method = cor')
-   if (nam%var_filter.and.(.not.nam%var_diag)) call mpl%abort('var_filter requires var_diag')
+   if (nam%var_filter.and.(.not.nam%local_diag)) call mpl%abort('var_filter requires local_diag')
    if (nam%var_filter) then
       if (nam%var_niter<=0) call mpl%abort('var_niter should be positive')
       if (nam%var_rhflt<0.0) call mpl%abort('var_rhflt should be non-negative')
@@ -1340,7 +1334,6 @@ if (nam%nv>1) call put_att(mpl,ncid,'vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_bl
 ! diag_param
 call put_att(mpl,ncid,'ne',nam%ne)
 call put_att(mpl,ncid,'gau_approx',nam%gau_approx)
-call put_att(mpl,ncid,'var_diag',nam%var_diag)
 call put_att(mpl,ncid,'var_filter',nam%var_filter)
 call put_att(mpl,ncid,'var_full',nam%var_full)
 call put_att(mpl,ncid,'var_niter',nam%var_niter)

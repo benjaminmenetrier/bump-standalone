@@ -17,4 +17,4 @@
 | subroutine | [samp%] [compute_mpi_c](https://github.com/benjaminmenetrier/bump/tree/master/src/type_samp.F90#L1726) | compute sampling MPI distribution, halo C |
 | subroutine | [samp%] [compute_mpi_f](https://github.com/benjaminmenetrier/bump/tree/master/src/type_samp.F90#L1903) | compute sampling MPI distribution, halo F |
 | subroutine | [samp%] [diag_filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_samp.F90#L1977) | filter diagnostics |
-| subroutine | [samp%] [diag_fill](https://github.com/benjaminmenetrier/bump/tree/master/src/type_samp.F90#L2099) | fill diagnostics missing values |
+| subroutine | [samp%] [diag_fill](https://github.com/benjaminmenetrier/bump/tree/master/src/type_samp.F90#L2116) | fill diagnostics missing values |

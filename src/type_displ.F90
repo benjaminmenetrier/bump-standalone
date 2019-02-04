@@ -27,7 +27,7 @@ use type_samp, only: samp_type
 
 implicit none
 
-logical,parameter :: cor_tracker = .true.                  ! Tracker method
+logical,parameter :: cor_tracker = .false.                 ! Tracker method
 real(kind_real),parameter :: max_std_ratio = 2.5_kind_real ! Minimum ratio between correlation maximum and local standard deviation
 
 ! Displacement data derived type
@@ -140,7 +140,7 @@ real(kind_real) :: lon_c2a(samp%nc2a),lat_c2a(samp%nc2a)
 real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
 real(kind_real) :: x_ini(samp%nc2a),y_ini(samp%nc2a),z_ini(samp%nc2a)
 real(kind_real) :: dx_ini(samp%nc2a),dy_ini(samp%nc2a),dz_ini(samp%nc2a)
-real(kind_real) :: dx(samp%nc2a),dy(samp%nc2a),dz(samp%nc2a)
+real(kind_real) :: dx(samp%nc2a),dy(samp%nc2a),dz(samp%nc2a),dd(samp%nc2a)
 real(kind_real) :: dx_c2b(samp%nc2b),dy_c2b(samp%nc2b),dz_c2b(samp%nc2b)
 real(kind_real) :: dx_c0a(geom%nc0a),dy_c0a(geom%nc0a),dz_c0a(geom%nc0a)
 real(kind_real) :: x_ori_c0a(geom%nc0a),y_ori_c0a(geom%nc0a),z_ori_c0a(geom%nc0a)
@@ -180,6 +180,10 @@ do ic2a=1,samp%nc2a
    ic2 = samp%c2a_to_c2(ic2a)
    ic0 = samp%c2_to_c0(ic2)
    call trans(mpl,1,geom%lat(ic0),geom%lon(ic0),x_ori(ic2a:ic2a),y_ori(ic2a:ic2a),z_ori(ic2a:ic2a))
+end do
+do ic0a=1,geom%nc0a
+   ic0 = geom%c0a_to_c0(ic0a)
+   call trans(mpl,1,geom%lat(ic0),geom%lon(ic0),x_ori_c0a(ic0a:ic0a),y_ori_c0a(ic0a:ic0a),z_ori_c0a(ic0a:ic0a))
 end do
 
 do its=2,nam%nts
@@ -545,9 +549,10 @@ do its=2,nam%nts
             dz = dz_ini
 
             ! Median filter to remove extreme values
-            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dx)
-            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dy)
-            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dz)
+            dd = dx**2+dy**2+dz**2
+            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dx,dd)
+            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dy,dd)
+            call samp%diag_filter(mpl,nam,geom,il0,'median',displ%rhflt(iter,il0,its),dz,dd)
 
             ! Average filter to smooth displacement
             call samp%diag_filter(mpl,nam,geom,il0,'gc99',displ%rhflt(iter,il0,its),dx)
@@ -589,7 +594,7 @@ do its=2,nam%nts
             displ%dist(iter,il0,its) = distsum_tot/norm_tot
 
             ! Print results
-            write(mpl%info,'(a19,a,i2,a,f10.2,a,f6.2,a,f6.2,a,f7.2,a)') '','Iteration ',iter,': rhflt = ', &
+            write(mpl%info,'(a16,a,i2,a,f10.2,a,f6.2,a,f6.2,a,f7.2,a)') '','Iteration ',iter,': rhflt = ', &
           & displ%rhflt(iter,il0,its)*reqkm,' km, valid points: ',100.0*displ%valid(0,il0,its),'% ~> ', &
           & 100.0*displ%valid(iter,il0,its),'%, average displacement = ',displ%dist(iter,il0,its)*reqkm,' km'
             call mpl%flush
@@ -633,7 +638,7 @@ do its=2,nam%nts
          call mpl%flush
 
          ! No filtering
-         convergence = .not.(displ%valid(0,il0,its)<0.99)
+         convergence = .not.(displ%valid(0,il0,its)<1.0)
 
          ! Copy
          displ%lon_c2a_flt(:,il0,its) = displ%lon_c2a_raw(:,il0,its)
@@ -645,7 +650,6 @@ do its=2,nam%nts
       if (.not.convergence) call mpl%abort('convergence failed in displ%compute')
 
       ! Convert to cartesian coordinates
-      call trans(mpl,geom%nc0a,geom%lat(geom%c0a_to_c0),geom%lon(geom%c0a_to_c0),x_ori_c0a,y_ori_c0a,z_ori_c0a)
       call trans(mpl,samp%nc2a,displ%lat_c2a_flt(:,il0,its),displ%lon_c2a_flt(:,il0,its),dx,dy,dz)
       do ic2a=1,samp%nc2a
          if (mpl%msv%isnotr(dx(ic2a))) dx(ic2a) = dx(ic2a)-x_ori(ic2a)

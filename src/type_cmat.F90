@@ -718,8 +718,8 @@ do ib=1,bpar%nbe
                              & .and.allocated(cmat%blk(ib)%bump_Dcoef))
 
       ! Define attributes
-      cmat%blk(ib)%double_fit = import_double_fit(ib)
-      cmat%blk(ib)%anisotropic = import_anisotropic(ib)
+      cmat%blk(ib)%double_fit = cmat%blk(ib)%double_fit.or.import_double_fit(ib)
+      cmat%blk(ib)%anisotropic = cmat%blk(ib)%anisotropic.or.import_anisotropic(ib)
    end if
 end do
 

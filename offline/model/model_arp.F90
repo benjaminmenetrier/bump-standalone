@@ -127,6 +127,11 @@ do ic0=1,geom%nc0
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0))
    end if
 end do
+if (nam%logpres) then
+   mpl%vunitchar = 'log(Pa)'
+else
+  mpl%vunitchar = 'lev.'
+end if
 
 ! Release memory
 deallocate(lon)

@@ -493,7 +493,7 @@ do il0=1,nl0
          ! Double Gaspari-Cohn (1999) function
          distnorm = dist(jc3,jl0r)
          distnormh = sqrt(distnorm**2-distnormv**2)
-         fit(jc3,jl0r,il0) = gc99(mpl,distnormh)*((1.0+coef)*gc99(mpl,distnormv/rfac)-coef*gc99(mpl,distnormv))
+         fit(jc3,jl0r,il0) = gc99(mpl,distnormh)*((1.0+coef)*gc99(mpl,distnormv)-coef*gc99(mpl,distnormv*rfac))
       end do
    end do
 
