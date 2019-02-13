@@ -43,7 +43,7 @@ integer :: ncid,nmg_id,nlev_id,lon_id,lat_id,alt_id,area_id,mask_id
 real(kind_real),allocatable :: lon(:,:),lat(:,:),alt(:,:),area(:,:),mask(:,:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
-character(len=1024) :: subr = 'model_res_coord'
+character(len=1024),parameter :: subr = 'model_res_coord'
 
 ! Open file and get dimensions
 geom%nlon = mpl%msv%vali
@@ -97,6 +97,7 @@ do il0=1,geom%nl0
 end do
 
 ! Vertical unit
+if (nam%logpres) call mpl%abort(subr,'pressure logarithm vertical coordinate is not available for this model')
 do il0=1,geom%nl0
    do ic0=1,geom%nc0
       geom%vunit(ic0,il0) = alt(geom%c0_to_mg(ic0),nam%levs(il0))
@@ -134,7 +135,7 @@ integer :: iv,il0,img,ic0
 integer :: ncid,fld_id
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:)
-character(len=1024) :: subr = 'model_res_read'
+character(len=1024),parameter :: subr = 'model_res_read'
 
 if (mpl%main) then
    ! Allocation

@@ -16,6 +16,7 @@ character(len=*),intent(in) :: filename ! Filename ('ens1' or 'ens2')
 
 ! Local variables
 integer :: ne,ne_offset,nsub,isub,jsub,ie,ietot
+character(len=1024),parameter :: subr = 'ens_load'
 
 ! Setup
 select case (trim(filename))
@@ -31,7 +32,7 @@ case default
    ne = mpl%msv%vali
    ne_offset = mpl%msv%vali
    nsub = mpl%msv%vali
-   call mpl%abort('wrong filename in ens_load')
+   call mpl%abort(subr,'wrong filename in ens_load')
 end select
 
 ! Allocation

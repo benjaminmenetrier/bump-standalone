@@ -508,6 +508,7 @@ real(kind_real),allocatable :: D(:,:,:,:),coef(:,:,:)
 logical :: mask_c1a(lct%samp%nc1a,geom%nl0)
 character(len=1) :: iscaleschar
 character(len=1024) :: filename
+character(len=1024),parameter :: subr = 'lct_write'
 
 ! Define mask
 do il0=1,geom%nl0
@@ -593,7 +594,7 @@ do ib=1,bpar%nb
                if (det>0.0) then
                   fld(ic0a,il0,2*4+2) = sqrt(sqrt(det))
                else
-                  call mpl%abort('non-valid horizontal diffusion tensor determinant, grid c0')
+                  call mpl%abort(subr,'non-valid horizontal diffusion tensor determinant, grid c0')
                end if
             end if
          end do

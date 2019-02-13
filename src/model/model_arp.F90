@@ -44,7 +44,7 @@ integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 real(kind_real),allocatable :: lon(:,:),lat(:,:),a(:),b(:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
-character(len=1024) :: subr = 'model_arp_coord'
+character(len=1024),parameter :: subr = 'model_arp_coord'
 
 ! Open file and get dimensions
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
@@ -163,7 +163,7 @@ integer :: ncid,fld_id
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
 character(len=3) :: ilchar
-character(len=1024) :: subr = 'model_arp_read'
+character(len=1024),parameter :: subr = 'model_arp_read'
 
 if (mpl%main) then
    ! Allocation

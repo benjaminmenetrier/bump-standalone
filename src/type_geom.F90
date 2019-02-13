@@ -10,8 +10,7 @@ module type_geom
 use netcdf
 use tools_const, only: pi,req,deg2rad,rad2deg,reqkm
 use tools_func, only: lonlatmod,sphere_dist,vector_product,vector_triple_product
-use tools_kinds, only: kind_real
-use tools_nc, only: ncfloat
+use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_stripack, only: areas,trans
 use type_com, only: com_type
@@ -416,6 +415,7 @@ real(kind_real) :: nn_dist(nredmax),latbnd(2),lonbnd(2),v1(3),v2(3)
 real(kind_real),allocatable :: lon_c0full(:),lat_c0full(:)
 logical :: init
 logical,allocatable :: lmask_c0full(:,:)
+character(len=1024),parameter :: subr = 'geom_find_sc0'
 type(kdtree_type) :: kdtree
 type(mesh_type) :: mesh
 
@@ -520,7 +520,7 @@ if (geom%mask_del.or.mask_check) then
                if (.not.lmask_c0full(jc0full,il0).and.lmask_c0full(kc0full,il0)) then
                   ! Create a new boundary arc
                   geom%nbnd(il0) = geom%nbnd(il0)+1
-                  if (geom%nbnd(il0)>mesh%n) call mpl%abort('too many boundary arcs')
+                  if (geom%nbnd(il0)>mesh%n) call mpl%abort(subr,'too many boundary arcs')
                   ic0full_bnd(1,geom%nbnd(il0),il0) = ic0full
                   ic0full_bnd(2,geom%nbnd(il0),il0) = jc0full
                end if
@@ -731,6 +731,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 integer :: idir,il0,nn_index(1),ic0dir,il0dir
 real(kind_real) :: nn_dist(1)
 logical :: valid
+character(len=1024),parameter :: subr = 'geom_define_dirac'
 
 ! Allocation
 allocate(geom%londir(nam%ndir))
@@ -749,7 +750,7 @@ do idir=1,nam%ndir
    do il0=1,geom%nl0
       if (nam%levs(il0)==nam%levdir(idir)) il0dir = il0
    end do
-   if (mpl%msv%isi(il0dir)) call mpl%abort('impossible to find the Dirac level')
+   if (mpl%msv%isi(il0dir)) call mpl%abort(subr,'impossible to find the Dirac level')
 
    ! Find nearest neighbor
    call geom%kdtree%find_nearest_neighbors(mpl,nam%londir(idir),nam%latdir(idir),1,nn_index,nn_dist)
@@ -801,7 +802,7 @@ real(kind_real),allocatable :: rh_c0(:),lon_center(:),lat_center(:)
 logical,allocatable :: mask_hor_c0(:)
 character(len=4) :: nprocchar
 character(len=1024) :: filename_nc
-character(len=1024) :: subr = 'geom_define_distribution'
+character(len=1024),parameter :: subr = 'geom_define_distribution'
 type(kdtree_type) :: kdtree
 
 if (mpl%nproc==1) then
@@ -842,7 +843,7 @@ elseif (mpl%nproc>1) then
       call mpl%f_comm%broadcast(geom%c0_to_c0a,mpl%ioproc-1)
 
       ! Check
-      if (maxval(geom%c0_to_proc)>mpl%nproc) call mpl%abort('wrong distribution')
+      if (maxval(geom%c0_to_proc)>mpl%nproc) call mpl%abort(subr,'wrong distribution')
    else
       ! Generate a distribution
 
@@ -892,7 +893,7 @@ elseif (mpl%nproc>1) then
             nx(iy) = delta
             nres = nres-delta
          end do
-         if (sum(nx)/=mpl%nproc) call mpl%abort('wrong number of tiles in define_distribution')
+         if (sum(nx)/=mpl%nproc) call mpl%abort(subr,'wrong number of tiles in define_distribution')
          dlat = (maxval(geom%lat)-minval(geom%lat))/ny
          iproc = 0
          do iy=1,ny
@@ -952,14 +953,14 @@ elseif (mpl%nproc>1) then
          call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename_nc),or(nf90_clobber,nf90_64bit_offset),ncid))
 
          ! Write namelist parameters
-         call nam%ncwrite(mpl,ncid)
+         call nam%write(mpl,ncid)
 
          ! Define dimension
          call mpl%ncerr(subr,nf90_def_dim(ncid,'nc0',geom%nc0,nc0_id))
 
          ! Define variables
-         call mpl%ncerr(subr,nf90_def_var(ncid,'lon',ncfloat,(/nc0_id/),lon_id))
-         call mpl%ncerr(subr,nf90_def_var(ncid,'lat',ncfloat,(/nc0_id/),lat_id))
+         call mpl%ncerr(subr,nf90_def_var(ncid,'lon',nc_kind_real,(/nc0_id/),lon_id))
+         call mpl%ncerr(subr,nf90_def_var(ncid,'lat',nc_kind_real,(/nc0_id/),lat_id))
          call mpl%ncerr(subr,nf90_def_var(ncid,'c0_to_proc',nf90_int,(/nc0_id/),c0_to_proc_id))
          call mpl%ncerr(subr,nf90_def_var(ncid,'c0_to_c0a',nf90_int,(/nc0_id/),c0_to_c0a_id))
 
@@ -1153,6 +1154,7 @@ real(kind_real),intent(out) :: fld_c0a(geom%nc0a,geom%nl0) ! Field on subset Sc0
 ! Local variables
 integer :: ic0a,imga,il0
 real(kind_real) :: fld_mga_zero(geom%nmga,geom%nl0)
+character(len=1024),parameter :: subr = 'geom_copy_mga_to_c0a'
 
 if (geom%nc0==geom%nmg) then
    ! Model grid and subset Sc0 are identical
@@ -1187,7 +1189,7 @@ else
                elseif (.not.(abs(fld_mga(imga,il0))>0.0)) then
                   ! Nothing to do
                else
-                  call mpl%abort('both redundant values are different, not missing and nonzero')
+                  call mpl%abort(subr,'both redundant values are different, not missing and nonzero')
                end if
             end if
          end if

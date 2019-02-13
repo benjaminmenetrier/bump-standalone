@@ -12,8 +12,7 @@ use netcdf
 use tools_const, only: reqkm,rad2deg,pi
 use tools_fit, only: ver_smooth
 use tools_func, only: fit_diag,fit_diag_dble
-use tools_kinds, only: kind_real
-use tools_nc, only: ncfloat
+use tools_kinds, only: kind_real,nc_kind_real
 use type_avg, only: avg_type
 use type_bpar, only: bpar_type
 use type_diag_blk, only: diag_blk_type
@@ -140,6 +139,7 @@ integer :: ib,i,ic2,il0,il0i,iproc,ic2a,ildw,n
 real(kind_real) :: fld_c2a(samp%nc2a,geom%nl0),fld_c2b(samp%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
 character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
+character(len=1024),parameter :: subr = 'diag_write'
 
 if (mpl%main) then
    filename = trim(nam%prefix)//'_diag.nc'
@@ -150,7 +150,7 @@ if (mpl%main) then
    end do
 end if
 
-if ((trim(diag%prefix)/='cov').and.nam%local_diag) then
+if ((trim(diag%prefix)/='cor').and.nam%local_diag) then
    do ib=1,bpar%nbe
       if (bpar%fit_block(ib)) then
          filename = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)
@@ -216,7 +216,7 @@ do ildw=1,nam%nldwv
          end do
       end if
    else
-      call mpl%warning('missing local profile')
+      call mpl%warning(subr,'missing local profile')
    end if
 end do
 
@@ -497,7 +497,7 @@ do ib=1,bpar%nbe
                call mpl%flush
                if (diag%blk(0,ib)%double_fit) then
                   write(mpl%info,'(a47,a,f10.2,a,f10.2,a)') 'cor. double fit:    ',trim(mpl%aqua),diag%blk(0,ib)%fit_rv_rfac(il0), &
-                & trim(mpl%black)//' / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv_coef(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
+                & trim(mpl%black)//' / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv_coef(il0),trim(mpl%black)
                   call mpl%flush
                end if
             end if
@@ -563,7 +563,6 @@ do ib=1,bpar%nbe
 
          ! Normalization
          call diag%blk(ic2a,ib)%normalization(mpl,geom,bpar,.true.)
-         if (trim(nam%method)=='loc_norm') diag%blk(ic2a,ib)%raw_coef_ens = 1.0
 
          ! Fitting
          if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
@@ -585,15 +584,7 @@ do ib=1,bpar%nbe
          end select
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               select case (trim(nam%method))
-               case ('loc','hyb-avg','hyb-rnd','dual-ens')
-                  write(mpl%info,'(a47)') 'loc. support radii: '
-                  call mpl%flush(.false.)
-               case ('loc_norm')
-                  write(mpl%info,'(a13,a,i3,a4,a20)') '','Level: ',nam%levs(il0),' ~> ','loc. support radii: '
-                  call mpl%flush(.false.)
-               end select
-               write(mpl%info,'(a,f10.2,a,f10.2,a)') trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
+               write(mpl%info,'(a47a,f10.2,a,f10.2,a)') 'loc. support radii: ',trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
              & trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
             end if

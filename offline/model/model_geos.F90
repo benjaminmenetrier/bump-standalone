@@ -45,7 +45,7 @@ real(kind_real) :: P0
 real(kind=8),allocatable :: lon(:,:),lat(:,:),delp(:,:,:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
-character(len=1024) :: subr = 'model_geos_coord'
+character(len=1024),parameter :: subr = 'model_geos_coord'
 
 ! Open file and get dimensions
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
@@ -157,7 +157,7 @@ integer :: iv,il0,ic0,ilon,ilat
 integer :: ncid,fld_id
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
-character(len=1024) :: subr = 'model_geos_read'
+character(len=1024),parameter :: subr = 'model_geos_read'
 
 if (mpl%main) then
    ! Allocation

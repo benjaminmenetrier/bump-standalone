@@ -459,15 +459,16 @@ real(kind_real),allocatable :: lon_rep(:),lat_rep(:),dist(:)
 real(kind_real),allocatable :: sdist(:,:),nn_sdist(:)
 logical :: lfast
 logical,allocatable :: lmask(:),smask(:),rmask(:)
+character(len=1024),parameter :: subr = 'rng_initialize_sampling'
 type(kdtree_type) :: kdtree
 
 if (mpl%main) then
    ! Check mask size
    nval = count(mask)
    if (nval==0) then
-       call mpl%abort('empty mask in initialize sampling')
+       call mpl%abort(subr,'empty mask in initialize sampling')
    elseif (nval<ns) then
-      call mpl%abort('ns greater that mask size in initialize_sampling')
+      call mpl%abort(subr,'ns greater that mask size in initialize_sampling')
    elseif (nval==ns) then
       write(mpl%info,'(a)') ' all points are used'
       call mpl%flush
@@ -480,7 +481,7 @@ if (mpl%main) then
       end do
    else
       nbeff = count(mask(bnd))
-      if (ns<nbeff) call mpl%abort('ns lower than the number of boundary nodes')
+      if (ns<nbeff) call mpl%abort(subr,'ns lower than the number of boundary nodes')
 
       if (nn_stats) then
          ! Save initial time
@@ -524,7 +525,7 @@ if (mpl%main) then
                   exit
                end if
             end do
-            if (mpl%msv%isi(irval)) call mpl%abort('cannot find irval in initialize_sampling')
+            if (mpl%msv%isi(irval)) call mpl%abort(subr,'cannot find irval in initialize_sampling')
             ihor_tmp(ibeff) = ir
             lmask(ir) = .false.
             smask(ir) = .true.
@@ -696,7 +697,7 @@ if (mpl%main) then
                   elseif (nn_index(2)==is) then
                      dist(is) = nn_dist(1)
                   else
-                     call mpl%abort('wrong index in replacement')
+                     call mpl%abort(subr,'wrong index in replacement')
                   end if
                   dist(is) = dist(is)**2/(rh(ihor_tmp(nn_index(1)))**2+rh(ihor_tmp(nn_index(2)))**2)
                end if

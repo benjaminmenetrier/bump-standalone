@@ -44,7 +44,7 @@ integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 real(kind=8),allocatable :: lon(:),lat(:),a(:),b(:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
-character(len=1024) :: subr = 'model_gem_coord'
+character(len=1024),parameter :: subr = 'model_gem_coord'
 
 ! Open file and get dimensions
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
@@ -157,7 +157,7 @@ integer,allocatable :: fld_tmp_int(:,:)
 real(kind_real) :: add_offset,scale_factor
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
-character(len=1024) :: subr = 'model_gem_read'
+character(len=1024),parameter :: subr = 'model_gem_read'
 
 if (mpl%main) then
    ! Allocation
@@ -190,7 +190,7 @@ do iv=1,nam%nv
             call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0)/),(/geom%nlon,geom%nlat,1/)))
          end do
       case default
-         call mpl%abort('wrong variable type')
+         call mpl%abort(subr,'wrong variable type')
       end select
 
       if (trim(nam%addvar2d(iv))/='') then
@@ -210,7 +210,7 @@ do iv=1,nam%nv
          case (nf90_double)
             call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,geom%nl0)))
          case default
-            call mpl%abort('wrong variable type')
+            call mpl%abort(subr,'wrong variable type')
          end select
       end if
    end if

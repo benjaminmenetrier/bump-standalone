@@ -47,7 +47,7 @@ real(kind_real) :: dx,dy
 real(kind_real),allocatable :: lon(:,:),lat(:,:),cmask(:,:),a(:),b(:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:),cmask_pack(:)
-character(len=1024) :: subr = 'model_aro_coord'
+character(len=1024),parameter :: subr = 'model_aro_coord'
 
 ! Open file and get dimensions
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
@@ -110,7 +110,7 @@ do ilon=1,geom%nlon
       case ('C+I+E')
          lmask_mg(img,:) = .true.
       case default
-         call mpl%abort('wrong AROME zone')
+         call mpl%abort(subr,'wrong AROME zone')
       end select
    end do
 end do
@@ -177,7 +177,7 @@ integer :: ncid,fld_id
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
 character(len=3) :: ilchar
-character(len=1024) :: subr = 'model_aro_read'
+character(len=1024),parameter :: subr = 'model_aro_read'
 
 if (mpl%main) then
    ! Allocation

@@ -519,8 +519,11 @@ real(kind_real),intent(in) :: distnorm ! Normalized distance
 ! Returned variable
 real(kind_real) :: gc99
 
+! Local variables
+character(len=1024),parameter :: subr = 'gc99'
+
 ! Distance check bound
-if (distnorm<0.0) call mpl%abort('negative normalized distance')
+if (distnorm<0.0) call mpl%abort(subr,'negative normalized distance')
 
 ! Gaspari and Cohn (1999) function
 if (distnorm<0.5) then
@@ -629,6 +632,7 @@ real(kind_real),intent(out) :: H12 ! Local correlation tensor component 12
 
 ! Local variables
 real(kind_real) :: det
+character(len=1024),parameter :: subr = 'lct_d2h'
 
 ! Compute horizontal determinant
 det = D11*D22-D12**2
@@ -639,7 +643,7 @@ if (det>0.0) then
    H22 = D11/det
    H12 = -D12/det
 else
-   call mpl%abort('non-invertible tensor')
+   call mpl%abort(subr,'non-invertible tensor')
 end if
 if (D33>0.0) then
    H33 = 1.0/D33
@@ -668,9 +672,10 @@ real(kind_real),intent(out) :: rv   ! Vertical support radius
 
 ! Local variables
 real(kind_real) :: tr,det,diff
+character(len=1024),parameter :: subr = 'lct_h2r'
 
 ! Check diagonal positivity
-if ((H11<0.0).or.(H22<0.0)) call mpl%abort('negative diagonal LCT coefficients')
+if ((H11<0.0).or.(H22<0.0)) call mpl%abort(subr,'negative diagonal LCT coefficients')
 
 ! Compute horizontal trace
 tr = H11+H22
@@ -684,10 +689,10 @@ if ((det>0.0).and..not.(diff<0.0)) then
    if (0.5*tr>sqrt(diff)) then
       rh = gau2gc/sqrt(0.5*tr-sqrt(diff))
    else
-      call mpl%abort('non positive-definite LCT (eigenvalue)')
+      call mpl%abort(subr,'non positive-definite LCT (eigenvalue)')
    end if
 else
-   call mpl%abort('non positive-definite LCT (determinant)')
+   call mpl%abort(subr,'non positive-definite LCT (determinant)')
 end if
 
 ! Compute vertical support radius
@@ -773,10 +778,11 @@ real(kind_real),intent(in) :: x     ! Argument
 ! Local variables
 integer :: j
 real(kind_real) :: xtmp,beta
+character(len=1024),parameter :: subr = 'matern'
 
 ! Check
-if (M<2) call mpl%abort('M should be larger than 2')
-if (mod(M,2)>0) call mpl%abort('M should be even')
+if (M<2) call mpl%abort(subr,'M should be larger than 2')
+if (mod(M,2)>0) call mpl%abort(subr,'M should be even')
 
 ! Initialization
 matern = 0.0
