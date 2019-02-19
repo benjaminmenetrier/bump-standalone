@@ -12,11 +12,11 @@
 | subroutine | [fit_diag](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L226) | compute diagnostic fit function |
 | subroutine | [fit_diag_dble](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L360) | compute diagnostic fit function |
 | function | [gc99](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L509) | Gaspari and Cohn (1999) function, with the support radius as a parameter |
-| subroutine | [fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L539) | LCT fit |
-| subroutine | [lct_d2h](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L611) | inversion from D (Daley tensor) to H (local correlation tensor) |
-| subroutine | [lct_h2r](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L652) | inversion from H (local correlation tensor) to support radii |
-| subroutine | [lct_r2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L702) | conversion from support radius to Daley tensor diagonal element |
-| subroutine | [check_cond](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L719) | check tensor conditioning |
-| function | [matern](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L760) | compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3) |
-| subroutine | [cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L802) | compute cholesky decomposition |
-| subroutine | [syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L854) | compute inverse of a symmetric matrix |
+| subroutine | [fit_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L542) | LCT fit |
+| subroutine | [lct_d2h](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L614) | inversion from D (Daley tensor) to H (local correlation tensor) |
+| subroutine | [lct_h2r](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L656) | inversion from H (local correlation tensor) to support radii |
+| subroutine | [lct_r2d](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L707) | conversion from support radius to Daley tensor diagonal element |
+| subroutine | [check_cond](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L724) | check tensor conditioning |
+| function | [matern](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L765) | compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3) |
+| subroutine | [cholesky](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L808) | compute cholesky decomposition |
+| subroutine | [syminv](https://github.com/benjaminmenetrier/bump/tree/master/src/tools_func.F90#L860) | compute inverse of a symmetric matrix |

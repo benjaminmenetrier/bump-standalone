@@ -1192,7 +1192,7 @@ if (nam%new_obsop) then
    select case (trim(nam%obsdis))
    case('')
    case ('random','local','adjusted')
-      if (trim(nam%model)=='online') & 
+      if (trim(nam%model)=='online') &
     & call mpl%abort(subr,'modified distribution of observations only available for offline execution')
    case default
       call mpl%abort(subr,'wrong observation distribution')

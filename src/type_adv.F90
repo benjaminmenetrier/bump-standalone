@@ -193,7 +193,7 @@ type(samp_type),intent(inout) :: samp ! Sampling
 type(ens_type), intent(in) :: ens     ! Ensemble
 
 ! Local variables
-integer :: ic0,ic1,ic2,ic2a,jn,jc0,il0,il0i,isub,iv,its,ie,ie_sub,iter,ic0a,nc0d,ic0d,jc0d,jnmax,nnmax
+integer :: ic0,ic2,ic2a,jn,jc0,il0,isub,iv,its,ie,ie_sub,ic0a,nc0d,ic0d,jc0d,jnmax,nnmax
 integer :: nn(samp%nc2a,geom%nl0),ic0_rac(samp%nc2a,geom%nl0)
 integer :: c0_to_c0d(geom%nc0),c0a_to_c0d(geom%nc0a)
 integer,allocatable :: jc0_ra(:,:,:),c0d_to_c0(:)
@@ -207,7 +207,6 @@ real(kind_real),allocatable :: m11(:,:,:,:,:)
 real(kind_real),allocatable :: cor(:,:),cor_avg(:)
 logical :: valid_c2(nam%nc2)
 logical,allocatable :: lcheck_c0d(:),mask_nn(:,:,:),mask_nn_tmp(:)
-character(len=1024),parameter :: subr = 'adv_compute_raw'
 type(com_type) :: com_AD
 type(mesh_type) :: mesh
 
@@ -481,8 +480,6 @@ do its=2,nam%nts
             ic0 = ic0_rac(ic2a,il0)
             ic0a = geom%c0_to_c0a(ic0)
             adv%cor_max(ic0a,il0,:,its) = cor(jnmax,:)
-         else
-            adv%cor_max(ic0a,il0,:,its) = mpl%msv%valr
          end if
 
          ! Apply threshold on standard-deviation
@@ -570,7 +567,7 @@ type(geom_type),intent(in) :: geom    ! Geometry
 type(samp_type),intent(inout) :: samp ! Sampling
 
 ! Local variables
-integer :: ic0,ic1,ic2,ic2a,jn,jc0,il0,il0i,iv,its,iter,ic0a
+integer :: ic0,ic2,ic2a,il0,its,iter
 real(kind_real) :: dist_sum,norm,norm_tot,dum,valid_flt,dist_flt,rhflt,drhflt
 real(kind_real) :: lon_c2a(samp%nc2a),lat_c2a(samp%nc2a),dist_c2a(samp%nc2a)
 real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
@@ -736,14 +733,13 @@ type(geom_type),intent(in) :: geom    ! Geometry
 type(samp_type),intent(inout) :: samp ! Sampling
 
 ! Local variables
-integer :: ic0,ic1,ic2,ic2a,jn,jc0,il0,il0i,iv,its,iter,ic0a
+integer :: ic0,ic2,ic2a,il0,il0i,its,ic0a
 real(kind_real) :: dum
 real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
 real(kind_real) :: dx(samp%nc2a),dy(samp%nc2a),dz(samp%nc2a)
 real(kind_real) :: dx_c2b(samp%nc2b),dy_c2b(samp%nc2b),dz_c2b(samp%nc2b)
 real(kind_real) :: dx_c0a(geom%nc0a),dy_c0a(geom%nc0a),dz_c0a(geom%nc0a)
 real(kind_real) :: x_ori_c0a(geom%nc0a),y_ori_c0a(geom%nc0a),z_ori_c0a(geom%nc0a)
-character(len=1024),parameter :: subr = 'adv_interp'
 
 write(mpl%info,'(a7,a)') '','Interpolate advection'
 call mpl%flush
@@ -761,7 +757,7 @@ end do
 
 do its=2,nam%nts
    call mpl%flush
- 
+
    do il0=1,geom%nl0
       ! Convert to cartesian coordinates
       call trans(mpl,samp%nc2a,adv%lat_c2a_flt(:,il0,its),adv%lon_c2a_flt(:,il0,its),dx,dy,dz)
@@ -1001,7 +997,7 @@ do its=2,nam%nts
             end if
          end do
       end do
-   end do 
+   end do
 end do
 
 ! Print results

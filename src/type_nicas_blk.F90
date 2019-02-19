@@ -2218,11 +2218,6 @@ do isbb=1,nicas_blk%nsbb
    end do
 
    ! Pack data
-   do il1=1,nicas_blk%nl1
-      do ic1=1,nicas_blk%nc1
-         if (supeq(distnorm(ic1,il1),1.0_kind_real)) distnorm(ic1,il1) = mpl%msv%valr
-      end do
-   end do
    call nicas_blk%distnorm(isbb)%pack(mpl,nicas_blk%nc1,nicas_blk%nl1,distnorm)
 
    ! Release memory
@@ -2377,17 +2372,13 @@ do isbb=1,nicas_blk%nsbb
                   end if
                   distnorm(jc1,jl1) = sqrt(disthsq+distvsq)
                end if
+               if (supeq(distnorm(jc1,jl1),1.0_kind_real)) distnorm(jc1,jl1) = mpl%msv%valr
             end if
          end if
       end do
    end do
 
    ! Pack data
-   do il1=1,nicas_blk%nl1
-      do ic1=1,nicas_blk%nc1
-         if (supeq(distnorm(ic1,il1),1.0_kind_real)) distnorm(ic1,il1) = mpl%msv%valr
-      end do
-   end do
    call nicas_blk%distnorm(isbb)%pack(mpl,nicas_blk%nc1,nicas_blk%nl1,distnorm)
 
    ! Release memory

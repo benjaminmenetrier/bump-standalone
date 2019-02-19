@@ -8,7 +8,7 @@ default_seed = .true.,
 /
 
 &driver_param
-method = "loc_norm",
+method = "loc",
 strategy = "common",
 new_cortrack = .false.,
 new_vbal = .false.,

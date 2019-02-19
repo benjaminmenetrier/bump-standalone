@@ -9,4 +9,4 @@
 | subroutine | [lct%] [filter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L252) | filter LCT |
 | subroutine | [lct%] [rmse](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L418) | compute LCT fit RMSE |
 | subroutine | [lct%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L487) | interpolate and write LCT |
-| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L652) | write correlation and LCT fit |
+| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump/tree/master/src/type_lct.F90#L653) | write correlation and LCT fit |

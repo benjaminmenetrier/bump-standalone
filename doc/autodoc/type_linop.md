@@ -2,19 +2,19 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [linop%] [alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L65) | allocation |
-| subroutine | [linop%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L95) | release memory |
-| function | [linop%] [copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L114) | copy |
-| subroutine | [linop%] [read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L150) | read |
-| subroutine | [linop%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L206) | write |
-| subroutine | [linop%] [reorder](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L264) | reorder linear operator |
+| subroutine | [linop%] [alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L64) | allocation |
+| subroutine | [linop%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L94) | release memory |
+| function | [linop%] [copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L113) | copy |
+| subroutine | [linop%] [read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L149) | read |
+| subroutine | [linop%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L205) | write |
+| subroutine | [linop%] [reorder](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L263) | reorder linear operator |
 | subroutine | [linop%] [apply](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L322) | apply linear operator |
-| subroutine | [linop%] [apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L411) | apply linear operator, adjoint |
-| subroutine | [linop%] [apply_sym](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L465) | apply linear operator, symmetric |
-| subroutine | [linop%] [add_op](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L531) | add operation |
-| subroutine | [linop%] [gather](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L576) | gather data from OpenMP threads |
-| subroutine | [linop%] [interp_from_lat_lon](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L610) | compute horizontal interpolation from source latitude/longitude |
-| subroutine | [linop%] [interp_from_mesh_kdtree](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L686) | compute horizontal interpolation from source mesh and kdtree |
-| subroutine | [linop%] [interp_grid](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L899) | compute horizontal grid interpolation |
-| subroutine | [linop%] [check_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1043) | check mask boundaries for linear operators |
-| subroutine | [linop%] [interp_missing](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1111) | deal with missing interpolation points |
+| subroutine | [linop%] [apply_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L412) | apply linear operator, adjoint |
+| subroutine | [linop%] [apply_sym](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L468) | apply linear operator, symmetric |
+| subroutine | [linop%] [add_op](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L535) | add operation |
+| subroutine | [linop%] [gather](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L580) | gather data from OpenMP threads |
+| subroutine | [linop%] [interp_from_lat_lon](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L614) | compute horizontal interpolation from source latitude/longitude |
+| subroutine | [linop%] [interp_from_mesh_kdtree](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L690) | compute horizontal interpolation from source mesh and kdtree |
+| subroutine | [linop%] [interp_grid](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L904) | compute horizontal grid interpolation |
+| subroutine | [linop%] [check_mask](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1049) | check mask boundaries for linear operators |
+| subroutine | [linop%] [interp_missing](https://github.com/benjaminmenetrier/bump/tree/master/src/type_linop.F90#L1117) | deal with missing interpolation points |

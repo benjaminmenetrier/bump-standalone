@@ -2,5 +2,5 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [model_wrf_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/module_wrf.F90#L26) | get WRF coordinates |
-| subroutine | [model_wrf_read](https://github.com/benjaminmenetrier/bump/tree/master/src/module_wrf.F90#L136) | read WRF field |
+| subroutine | [model_wrf_coord](https://github.com/benjaminmenetrier/bump/tree/master/src/module_wrf.F90#L25) | get WRF coordinates |
+| subroutine | [model_wrf_read](https://github.com/benjaminmenetrier/bump/tree/master/src/module_wrf.F90#L134) | read WRF field |

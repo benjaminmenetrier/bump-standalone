@@ -14,7 +14,6 @@ use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
-use type_rng, only: rng_type
 
 implicit none
 
@@ -29,13 +28,12 @@ contains
 ! Subroutine: model_aro_coord
 ! Purpose: load AROME coordinates
 !----------------------------------------------------------------------
-subroutine model_aro_coord(mpl,rng,nam,geom)
+subroutine model_aro_coord(mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(inout) :: mpl   ! MPI data
-type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
@@ -117,7 +115,7 @@ end do
 area_mg = dx*dy/req**2
 
 ! Sc0 subset
-call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.false.,nam%mask_check,.false.)
+call geom%find_sc0(mpl,lon_mg,lat_mg,.false.)
 
 ! Pack
 call geom%alloc

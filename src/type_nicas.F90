@@ -1395,7 +1395,7 @@ case ('common')
       end do
    end do
 
-   if (nam%nonunit_diag) then 
+   if (nam%nonunit_diag) then
       ! Apply common ensemble coefficient square-root
       !$omp parallel do schedule(static) private(il0,ic0a)
       do il0=1,geom%nl0
@@ -1426,7 +1426,7 @@ case ('common_univariate')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         if (nam%nonunit_diag) then 
+         if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
@@ -1495,7 +1495,7 @@ case ('common_weighted')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         if (nam%nonunit_diag) then 
+         if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
@@ -1533,7 +1533,7 @@ case ('specific_univariate')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         if (nam%nonunit_diag) then 
+         if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
@@ -1571,7 +1571,7 @@ case ('specific_multivariate')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         if (nam%nonunit_diag) then 
+         if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0

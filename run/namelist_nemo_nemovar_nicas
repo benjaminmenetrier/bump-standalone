@@ -8,7 +8,7 @@ default_seed = .true.,
 /
 
 &driver_param
-method = "loc_norm",
+method = "loc",
 strategy = "common",
 new_cortrack = .false.,
 new_vbal = .false.,
@@ -37,7 +37,7 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 1,
+nl = 2,
 levs = 1,4,7,10,13,16,
 logpres = .false.,
 nv = 1,
@@ -64,7 +64,7 @@ sam_write = .false.,
 sam_read = .false.,
 mask_type = "none",
 mask_th = 0,
-mask_check = .false.,
+mask_check = .true.,
 draw_type = "random_uniform",
 nc1 = 1000,
 nc2 = 300,
@@ -105,8 +105,8 @@ lct_diag = .false.,
 &nicas_param
 lsqrt = .true.,
 resol = 8.0,
-fast_sampling = .true.,
-subsamp = "hvh",
+fast_sampling = .false.,
+subsamp = "hv",
 nicas_interp = "bilin",
 network = .false.,
 mpicom = 2,
@@ -141,7 +141,7 @@ diag_interp = "bilin",
 field_io = .true.,
 split_io = .false.,
 grid_output = .true.,
-grid_resol = 200.0e3,
+grid_resol = 150.0e3,
 grid_interp = "bilin",
 /
 

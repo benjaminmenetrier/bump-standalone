@@ -150,7 +150,7 @@ if (mpl%main) then
    end do
 end if
 
-if ((trim(diag%prefix)/='cor').and.nam%local_diag) then
+if ((trim(diag%prefix)/='cov').and.nam%local_diag) then
    do ib=1,bpar%nbe
       if (bpar%fit_block(ib)) then
          filename = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)
@@ -584,7 +584,7 @@ do ib=1,bpar%nbe
          end select
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a47a,f10.2,a,f10.2,a)') 'loc. support radii: ',trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
+               write(mpl%info,'(a17,a,f10.2,a,f10.2,a)') 'loc. support radii: ',trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
              & trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
             end if

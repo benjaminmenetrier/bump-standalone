@@ -17,6 +17,7 @@ The source code is organized in five categories:
 | tools | [tools_kinds](autodoc/tools_kinds.md) | kinds definition |
 | tools | [tools_nc](autodoc/tools_nc.md) | NetCDF routines |
 | tools | [tools_repro](autodoc/tools_repro.md) | reproducibility functions |
+| derived_type | [type_adv](autodoc/type_adv.md) | advection derived type |
 | derived_type | [type_avg_blk](autodoc/type_avg_blk.md) | averaged statistics block derived type |
 | derived_type | [type_avg](autodoc/type_avg.md) | average routines |
 | derived_type | [type_bpar](autodoc/type_bpar.md) | block parameters derived type |
@@ -28,7 +29,6 @@ The source code is organized in five categories:
 | derived_type | [type_cv](autodoc/type_cv.md) | control vector derived type |
 | derived_type | [type_diag_blk](autodoc/type_diag_blk.md) | diagnostic block derived type |
 | derived_type | [type_diag](autodoc/type_diag.md) | diagnostic derived type |
-| derived_type | [type_displ](autodoc/type_displ.md) | displacement data derived type |
 | derived_type | [type_ens](autodoc/type_ens.md) | ensemble derived type |
 | derived_type | [type_fckit_mpi_comm](autodoc/type_fckit_mpi_comm.md) | FCKIT emulator for offline execution |
 | derived_type | [type_geom](autodoc/type_geom.md) | geometry derived type |

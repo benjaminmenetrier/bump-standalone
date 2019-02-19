@@ -2,7 +2,7 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [vbal%] [alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L63) | allocation |
+| subroutine | [vbal%] [alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L62) | allocation |
 | subroutine | [vbal%] [partial_dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L111) | release memory (partial) |
 | subroutine | [vbal%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L136) | release memory (full) |
 | subroutine | [vbal%] [read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_vbal.F90#L168) | read |

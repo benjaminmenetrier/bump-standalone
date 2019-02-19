@@ -173,10 +173,8 @@ real(kind_real),intent(out) :: nn_dist(nn) ! Neareast neighbors distance
 ! Local variables
 integer :: i,j,nid
 integer,allocatable :: order(:)
-real(kind_real) :: lontmp(1),lattmp(1)
-real(kind_real) :: qv(3)
+real(kind_real) :: lontmp(1),lattmp(1),qv(3)
 type(kdtree2_result) :: results(nn)
-
 
 ! Copy lon/lat
 lontmp(1) = lon

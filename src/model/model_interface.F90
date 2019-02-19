@@ -56,17 +56,17 @@ do iv=1,nam%nv
 end do
 
 ! Select model
-if (trim(nam%model)=='aro') call model_aro_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='arp') call model_arp_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='fv3') call model_fv3_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='gem') call model_gem_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='geos') call model_geos_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='gfs') call model_gfs_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='ifs') call model_ifs_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='mpas') call model_mpas_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='nemo') call model_nemo_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='res') call model_res_coord(mpl,rng,nam,geom)
-if (trim(nam%model)=='wrf') call model_wrf_coord(mpl,rng,nam,geom)
+if (trim(nam%model)=='aro') call model_aro_coord(mpl,nam,geom)
+if (trim(nam%model)=='arp') call model_arp_coord(mpl,nam,geom)
+if (trim(nam%model)=='fv3') call model_fv3_coord(mpl,nam,geom)
+if (trim(nam%model)=='gem') call model_gem_coord(mpl,nam,geom)
+if (trim(nam%model)=='geos') call model_geos_coord(mpl,nam,geom)
+if (trim(nam%model)=='gfs') call model_gfs_coord(mpl,nam,geom)
+if (trim(nam%model)=='ifs') call model_ifs_coord(mpl,nam,geom)
+if (trim(nam%model)=='mpas') call model_mpas_coord(mpl,nam,geom)
+if (trim(nam%model)=='nemo') call model_nemo_coord(mpl,nam,geom)
+if (trim(nam%model)=='res') call model_res_coord(mpl,nam,geom)
+if (trim(nam%model)=='wrf') call model_wrf_coord(mpl,nam,geom)
 
 ! Define distribution
 call geom%define_distribution(mpl,nam,rng)

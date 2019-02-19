@@ -404,7 +404,7 @@ do ilonlat_loc=1,nlonlat_loc(mpl%myproc)
    ! Check that the interpolation point is inside the domain
    call geom%mesh%inside(mpl,io%lon(ilon),io%lat(ilat),mask_lonlat(ilonlat))
 
-   if (mask_lonlat(ilonlat).and.(nam%mask_check.or.geom%mask_del)) then
+   if (mask_lonlat(ilonlat).and.nam%mask_check) then
       ! Find the nearest Sc0 point
       call geom%kdtree%find_nearest_neighbors(mpl,io%lon(ilon),io%lat(ilat),1,nn_index,nn_dist)
 

@@ -9,7 +9,7 @@
 | subroutine | [cmat%] [read](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L198) | read |
 | subroutine | [cmat%] [write](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L291) | write |
 | subroutine | [cmat%] [from_hdiag](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L366) | import HDIAG into C matrix |
-| subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L548) | import LCT into C matrix |
-| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L622) | import radii into C matrix |
-| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L684) | import C matrix from BUMP |
-| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L781) | setup C matrix sampling |
+| subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L549) | import LCT into C matrix |
+| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L624) | import radii into C matrix |
+| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L687) | import C matrix from BUMP |
+| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat.F90#L784) | setup C matrix sampling |

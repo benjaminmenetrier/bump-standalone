@@ -14,7 +14,6 @@ use tools_nc, only: ncfloat
 use type_geom, only: geom_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
-use type_rng, only: rng_type
 
 implicit none
 
@@ -27,13 +26,12 @@ contains
 ! Subroutine: model_res_coord
 ! Purpose: get RES coordinates
 !----------------------------------------------------------------------
-subroutine model_res_coord(mpl,rng,nam,geom)
+subroutine model_res_coord(mpl,nam,geom)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(inout) :: mpl   ! MPI data
-type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(inout) :: geom ! Geometry
 
@@ -85,7 +83,7 @@ area_mg = sum(area,dim=2)/real(geom%nlev,kind_real)/req**2
 lmask_mg = (mask(:,nam%levs(1:geom%nl0))>0.5)
 
 ! Sc0 subset
-call geom%find_sc0(mpl,rng,lon_mg,lat_mg,lmask_mg,.false.,nam%mask_check,.false.)
+call geom%find_sc0(mpl,lon_mg,lat_mg,.false.)
 
 ! Pack
 call geom%alloc

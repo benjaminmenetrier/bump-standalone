@@ -1325,11 +1325,10 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: il0,ic1,ic0,jc0,ibnd,jc3
+integer :: il0,ic1,ic0,jc0,jc3
 integer :: nn_index(nam%nc3)
 integer :: nc1_loc(0:mpl%nproc),ic1_loc
 real(kind_real) :: nn_dist(nam%nc3)
-real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
 
 ! MPI splitting
 call mpl%split(nam%nc1,nc1_loc)
@@ -1361,58 +1360,14 @@ do ic1_loc=1,nc1_loc(mpl%myproc)
       if (nam%mask_check) then
          ! Check that great circle to neighbors is not crossing mask boundaries
          do il0=1,geom%nl0
-            !$omp parallel do schedule(static) private(jc3,ic0,jc0) firstprivate(x,y,z,v1,v2,va,vp,t)
+            !$omp parallel do schedule(static) private(jc3,ic0,jc0)
             do jc3=1,nam%nc3
-               ! Allocation
-               allocate(x(2))
-               allocate(y(2))
-               allocate(z(2))
-               allocate(v1(3))
-               allocate(v2(3))
-               allocate(va(3))
-               allocate(vp(3))
-               allocate(t(4))
-
                ! Indices
                ic0 = samp%c1_to_c0(ic1)
                jc0 = samp%c1c3_to_c0(ic1,jc3)
 
-               ! Transform to cartesian coordinates
-               call trans(mpl,2,geom%lat((/ic0,jc0/)),geom%lon((/ic0,jc0/)),x,y,z)
-
-               ! Compute arc orthogonal vector
-               v1 = (/x(1),y(1),z(1)/)
-               v2 = (/x(2),y(2),z(2)/)
-               call vector_product(v1,v2,va)
-
-               ! Check if arc is crossing boundary arcs
-               do ibnd=1,geom%nbnd(il0)
-                  call vector_product(va,geom%vbnd(:,ibnd,il0),vp)
-                  v1 = (/x(1),y(1),z(1)/)
-                  call vector_triple_product(v1,va,vp,t(1))
-                  v1 = (/x(2),y(2),z(2)/)
-                  call vector_triple_product(v1,va,vp,t(2))
-                  v1 = (/geom%xbnd(1,ibnd,il0),geom%ybnd(1,ibnd,il0),geom%zbnd(1,ibnd,il0)/)
-                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(3))
-                  v1 = (/geom%xbnd(2,ibnd,il0),geom%ybnd(2,ibnd,il0),geom%zbnd(2,ibnd,il0)/)
-                  call vector_triple_product(v1,geom%vbnd(:,ibnd,il0),vp,t(4))
-                  t(1) = -t(1)
-                  t(3) = -t(3)
-                  if (all(t>0).or.(all(t<0))) then
-                     samp%c1c3l0_log(ic1,jc3,il0) = .false.
-                     exit
-                  end if
-               end do
-
-               ! Memory release
-               deallocate(x)
-               deallocate(y)
-               deallocate(z)
-               deallocate(v1)
-               deallocate(v2)
-               deallocate(va)
-               deallocate(vp)
-               deallocate(t)
+               ! Check arc validity
+               call geom%check_arc(mpl,il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),samp%c1c3l0_log(ic1,jc3,il0))
             end do
             !$omp end parallel do
          end do
