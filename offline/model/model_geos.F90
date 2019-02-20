@@ -108,15 +108,15 @@ do ic0=1,geom%nc0
    if (nam%logpres) then
       ilon = geom%c0_to_lon(ic0)
       ilat = geom%c0_to_lat(ic0)
+      P0 = sum(delp(ilon,ilat,:))
       do il0=1,nam%nl
-         P0 = sum(delp(ilon,ilat,:))
          if (nam%levs(il0)==geom%nlev) then
             geom%vunit(ic0,il0) = log(P0-0.5*delp(ilon,ilat,geom%nlev))
          else
             geom%vunit(ic0,il0) = log(P0-sum(delp(ilon,ilat,nam%levs(il0)+1:geom%nlev))-0.5*delp(ilon,ilat,nam%levs(il0)))
          end if
-         if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(P0)
       end do
+      if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = log(P0)
    else
       geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
    end if
@@ -124,7 +124,7 @@ end do
 if (nam%logpres) then
    mpl%vunitchar = 'log(Pa)'
 else
-  mpl%vunitchar = 'lev.'
+   mpl%vunitchar = 'lev.'
 end if
 
 ! Release memory

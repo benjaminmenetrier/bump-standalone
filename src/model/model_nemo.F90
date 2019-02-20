@@ -39,10 +39,10 @@ type(geom_type),intent(inout) :: geom ! Geometry
 
 ! Local variables
 integer :: il0,img,ilat,ilon,ic0
-integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,tmask_id,e1t_id,e2t_id
+integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,tmask_id,e1t_id,e2t_id,e3t_id
 integer,allocatable :: mg_to_lon(:),mg_to_lat(:)
 integer(kind=1),allocatable :: tmask(:,:,:)
-real(kind_real),allocatable :: lon(:,:),lat(:,:),e1t(:,:,:),e2t(:,:,:)
+real(kind_real),allocatable :: lon(:,:),lat(:,:),e1t(:,:),e2t(:,:),e3t(:,:,:)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:)
 logical,allocatable :: lmask_mg(:,:)
 character(len=1024),parameter :: subr = 'model_nemo_coord'
@@ -61,8 +61,9 @@ call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=geom%nlev))
 allocate(lon(geom%nlon,geom%nlat))
 allocate(lat(geom%nlon,geom%nlat))
 allocate(tmask(geom%nlon,geom%nlat,geom%nl0))
-allocate(e1t(geom%nlon,geom%nlat,geom%nl0))
-allocate(e2t(geom%nlon,geom%nlat,geom%nl0))
+allocate(e1t(geom%nlon,geom%nlat))
+allocate(e2t(geom%nlon,geom%nlat))
+allocate(e3t(geom%nlon,geom%nlat,geom%nlev))
 allocate(mg_to_lon(geom%nmg))
 allocate(mg_to_lat(geom%nmg))
 allocate(lon_mg(geom%nmg))
@@ -76,12 +77,16 @@ call mpl%ncerr(subr,nf90_inq_varid(ncid,'nav_lat',lat_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'tmask',tmask_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'e1t',e1t_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'e2t',e2t_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'e3t',e3t_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 do il0=1,geom%nl0
    call mpl%ncerr(subr,nf90_get_var(ncid,tmask_id,tmask(:,:,il0),(/1,1,nam%levs(il0),1/),(/geom%nlon,geom%nlat,1,1/)))
-   call mpl%ncerr(subr,nf90_get_var(ncid,e1t_id,e1t(:,:,il0),(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
-   call mpl%ncerr(subr,nf90_get_var(ncid,e2t_id,e2t(:,:,il0),(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
+end do
+call mpl%ncerr(subr,nf90_get_var(ncid,e1t_id,e1t,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
+call mpl%ncerr(subr,nf90_get_var(ncid,e2t_id,e2t,(/1,1,1/),(/geom%nlon,geom%nlat,1/)))
+do il0=1,geom%nlev
+   call mpl%ncerr(subr,nf90_get_var(ncid,e3t_id,e3t(:,:,il0),(/1,1,il0,1/),(/geom%nlon,geom%nlat,1,1/)))
 end do
 call mpl%ncerr(subr,nf90_close(ncid))
 
@@ -98,7 +103,7 @@ do ilon=1,geom%nlon
       mg_to_lat(img) = ilat
       lon_mg(img) = lon(ilon,ilat)
       lat_mg(img) = lat(ilon,ilat)
-      area_mg(img) = e1t(ilon,ilat,1)*e2t(ilon,ilat,1)/req**2
+      area_mg(img) = e1t(ilon,ilat)*e2t(ilon,ilat)/req**2
       do il0=1,geom%nl0
          lmask_mg(img,il0) = (tmask(ilon,ilat,il0)>0)
       end do
@@ -120,11 +125,27 @@ do il0=1,geom%nl0
 end do
 
 ! Vertical unit
-if (nam%logpres) call mpl%abort(subr,'pressure logarithm vertical coordinate is not available for this model')
 do ic0=1,geom%nc0
-   geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
+   if (nam%logpres) then
+      ilon = geom%c0_to_lon(ic0)
+      ilat = geom%c0_to_lat(ic0)
+      do il0=1,nam%nl
+         if (nam%levs(il0)==1) then
+            geom%vunit(ic0,il0) = -0.5*e3t(ilon,ilat,1)
+         else
+            geom%vunit(ic0,il0) = -sum(e3t(ilon,ilat,1:nam%levs(il0)-1))-0.5*e3t(ilon,ilat,nam%levs(il0))
+         end if
+      end do
+      if (geom%nl0>nam%nl) geom%vunit(ic0,geom%nl0) = 0.0
+   else
+      geom%vunit(ic0,:) = real(nam%levs(1:geom%nl0),kind_real)
+   end if
 end do
-mpl%vunitchar = 'lev'
+if (nam%logpres) then
+   mpl%vunitchar = 'm'
+else
+   mpl%vunitchar = 'lev.'
+end if
 
 ! Release memory
 deallocate(lon)

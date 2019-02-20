@@ -11,7 +11,7 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
 use tools_const, only: pi,req,deg2rad,rad2deg
-use tools_func, only: gc99,sphere_dist,vector_product,vector_triple_product
+use tools_func, only: gc99,sphere_dist
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_stripack, only: trans
@@ -705,7 +705,7 @@ real(kind_real) :: rh_c0a(geom%nc0a,geom%nl0),nn_dist(1)
 real(kind_real),allocatable :: rh_c1(:),nn_c1_dist(:)
 logical :: new_sampling,mask_c1(nam%nc1)
 character(len=8) :: ivalformat
-character(len=1024) :: filename
+character(len=1024) :: filename,color
 character(len=1024),parameter :: subr = 'samp_setup_sampling'
 type(kdtree_type) :: kdtree
 type(linop_type) :: hbase
@@ -920,7 +920,7 @@ end if
 write(mpl%info,'(a7,a)') '','Sampling efficiency (%):'
 call mpl%flush
 do il0=1,geom%nl0
-   write(mpl%info,'(a10,a,i3,a4)') '','Level ',nam%levs(il0),' ~> '
+   write(mpl%info,'(a10,a,i3,a3)') '','Level ',nam%levs(il0),' ~>'
    call mpl%flush(.false.)
    do jc3=1,nam%nc3
       ival = int(100.0*real(count(samp%c1c3l0_log(:,jc3,il0)),kind_real)/real(nam%nc1,kind_real))
@@ -931,13 +931,14 @@ do il0=1,geom%nl0
       end if
       if (count(samp%c1c3l0_log(:,jc3,il0))>=nam%nc1/2) then
          ! Sucessful sampling
-         write(mpl%info,ivalformat) trim(mpl%green),ival,trim(mpl%black)
-         call mpl%flush(.false.)
+         color = mpl%green
       else
          ! Insufficient sampling
-         write(mpl%info,ivalformat) trim(mpl%peach),ival,trim(mpl%black)
-         call mpl%flush(.false.)
+         color = mpl%peach
       end if
+      if (jc3==1) color = ' '//trim(color)
+      write(mpl%info,ivalformat) trim(color),ival,trim(mpl%black)
+      call mpl%flush(.false.)
       if (jc3<nam%nc3) then
          write(mpl%info,'(a)') '-'
          call mpl%flush(.false.)

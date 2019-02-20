@@ -10,7 +10,7 @@ module type_nicas_blk
 use netcdf
 !$ use omp_lib
 use tools_const, only: pi,req,reqkm,deg2rad,rad2deg
-use tools_func, only: gc2gau,lonlatmod,sphere_dist,vector_product,vector_triple_product,gc99
+use tools_func, only: gc2gau,lonlatmod,sphere_dist,gc99
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: supeq
@@ -29,7 +29,7 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max
 
 implicit none
 
-integer,parameter :: nc1max = 50000                       ! Maximum size of the Sc1 subset
+integer,parameter :: nc1max = 15000                       ! Maximum size of the Sc1 subset
 real(kind_real),parameter :: sqrt_r = 0.721_kind_real     ! Square-root factor (empirical)
 real(kind_real),parameter :: sqrt_r_dble = 0.86_kind_real ! Square-root factor (empirical)
 real(kind_real),parameter :: sqrt_rfac = 0.9_kind_real    ! Square-root factor (empirical)
@@ -2255,25 +2255,37 @@ type(geom_type),intent(in) :: geom               ! Geometry
 integer :: nnmax,is,ic1,jc1,il1,il0,j,js,ic0,jc0,jl0,jl1,ic1bb,isbb
 integer :: nn(nicas_blk%nc1bb)
 integer,allocatable :: nn_index(:,:)
-real(kind_real) :: disthsq,distvsq,rhsq,rvsq
+real(kind_real) :: nnavg,rr,disthsq,distvsq,rhsq,rvsq
 real(kind_real) :: dx,dy,dz,H11,H22,H33,H12
 real(kind_real),allocatable :: distnorm(:,:),nn_dist(:,:)
 logical,allocatable :: valid_arc(:,:,:)
 
 ! Count nearest neighbors
-write(mpl%info,'(a10,a)') '','Count nearest neighbors'
-call mpl%flush
+write(mpl%info,'(a10,a)') '','Count nearest neighbors: '
+call mpl%flush(.false.)
+call mpl%prog_init(nicas_blk%nc1bb)
 do ic1bb=1,nicas_blk%nc1bb
    ! Indices
    ic1 = nicas_blk%c1bb_to_c1(ic1bb)
    ic0 = nicas_blk%c1_to_c0(ic1)
 
+   ! Research radius
+   rr = sqrt(0.5*(maxval(nicas_blk%rh_c1(ic1,:))**2+nicas_blk%rhmax**2))
+
    ! Count nearest neighbors
-   call nicas_blk%kdtree%count_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),nicas_blk%rhmax,nn(ic1bb))
+   call nicas_blk%kdtree%count_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),rr,nn(ic1bb))
+
+   ! Update
+   call mpl%prog_print(ic1bb)
 end do
+call mpl%prog_final
+
+! Print results
 nnmax = maxval(nn)
-write(mpl%info,'(a10,a,i6,a,f5.1,a)') '','Number of neighbors to find: ',nnmax,' (', &
-& real(nnmax,kind_real)/real(nicas_blk%nc1,kind_real)*100.0,'%)'
+nnavg = real(sum(nn),kind_real)/real(nicas_blk%nc1bb,kind_real)
+write(mpl%info,'(a10,a,f8.1,a,f5.1,a,i6,a,f5.1,a)') '','Average / maximum number of neighbors to find for this task: ',nnavg, &
+ & ' (', nnavg/real(nicas_blk%nc1,kind_real)*100.0,'%)  /',nnmax,' (', &
+ & real(nnmax,kind_real)/real(nicas_blk%nc1,kind_real)*100.0,'%)'
 call mpl%flush
 
 ! Allocation
@@ -2300,9 +2312,9 @@ do ic1bb=1,nicas_blk%nc1bb
       jc0 = nicas_blk%c1_to_c0(jc1)
       do il1=1,nicas_blk%nl1
          il0 = nicas_blk%l1_to_l0(il1)
-         valid_arc(j,ic1bb,il1) = .true.
-         if (nam%mask_check) call geom%check_arc(mpl,il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0), &
-       & valid_arc(j,ic1bb,il1))
+         valid_arc(j,ic1bb,il1) = (geom%mask_c0(ic0,il0).and.geom%mask_c0(jc0,il0))
+         if (nam%mask_check.and.valid_arc(j,ic1bb,il1)) call geom%check_arc(mpl,il0,geom%lon(ic0),geom%lat(ic0),geom%lon(jc0), &
+       & geom%lat(jc0),valid_arc(j,ic1bb,il1))
       end do
    end do
 
@@ -2342,7 +2354,7 @@ do isbb=1,nicas_blk%nsbb
             js = nicas_blk%c1l1_to_s(jc1,jl1)
 
             ! Check valid arc for both levels
-            if (geom%mask_c0(ic0,il0).and.geom%mask_c0(jc0,jl0).and.valid_arc(j,ic1bb,il1).and.valid_arc(j,ic1bb,jl1)) then
+            if (valid_arc(j,ic1bb,il1).and.valid_arc(j,ic1bb,jl1)) then
                ! Normalized distance
                if (nicas_blk%anisotropic) then
                   dx = geom%lon(jc0)-geom%lon(ic0)

@@ -118,7 +118,7 @@ end do
 if (nam%logpres) then
    mpl%vunitchar = 'log(Pa)'
 else
-  mpl%vunitchar = 'lev.'
+   mpl%vunitchar = 'lev.'
 end if
 
 ! Release memory

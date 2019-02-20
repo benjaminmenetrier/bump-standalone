@@ -69,16 +69,9 @@ type geom_type
 
    ! Boundary nodes
    integer,allocatable :: nbnda(:)              ! Number of boundary arcs
-   real(kind_real),allocatable :: xbnda(:,:,:)   ! Boundary arcs, x-coordinate
-   real(kind_real),allocatable :: ybnda(:,:,:)   ! Boundary arcs, y-coordinate
-   real(kind_real),allocatable :: zbnda(:,:,:)   ! Boundary arcs, z-coordinate
-   real(kind_real),allocatable :: vbnda(:,:,:)   ! Boundary arcs, orthogonal vector
-   real(kind_real),allocatable :: maxbnda(:)    ! Maximum size of boundary arcs
-   integer,allocatable :: bnda_to_c0(:,:,:)       ! Boundary arc to subset Sc0
-   integer,allocatable :: nbndn(:)               ! Number of boundary nodes
-   integer,allocatable :: bndn_to_c0(:,:)       ! Boundary node to subset Sc0
-   integer,allocatable :: c0_to_bndn(:,:)       ! Subset Sc0 to boundary node
-   type(kdtree_type),allocatable :: kdtree_bndn(:) ! KD-tree of boundary nodes
+   real(kind_real),allocatable :: v1bnda(:,:,:) ! Boundary arcs, first vector
+   real(kind_real),allocatable :: v2bnda(:,:,:) ! Boundary arcs, second vector
+   real(kind_real),allocatable :: vabnda(:,:,:) ! Boundary arcs, orthogonal vector
 
    ! Gripoints and subset Sc0
    integer,allocatable :: redundant(:)          ! Redundant points array
@@ -169,9 +162,6 @@ implicit none
 ! Passed variables
 class(geom_type),intent(inout) :: geom ! Geometry
 
-! Local variables
-integer :: il0
-
 ! Release memory
 if (allocated(geom%c0_to_lon)) deallocate(geom%c0_to_lon)
 if (allocated(geom%c0_to_lat)) deallocate(geom%c0_to_lat)
@@ -192,21 +182,9 @@ call geom%mesh%dealloc
 call geom%kdtree%dealloc
 if (allocated(geom%redundant)) deallocate(geom%redundant)
 if (allocated(geom%nbnda)) deallocate(geom%nbnda)
-if (allocated(geom%xbnda)) deallocate(geom%xbnda)
-if (allocated(geom%ybnda)) deallocate(geom%ybnda)
-if (allocated(geom%zbnda)) deallocate(geom%zbnda)
-if (allocated(geom%vbnda)) deallocate(geom%vbnda)
-if (allocated(geom%maxbnda)) deallocate(geom%maxbnda)
-if (allocated(geom%bnda_to_c0)) deallocate(geom%bnda_to_c0)
-if (allocated(geom%nbndn)) deallocate(geom%nbndn)
-if (allocated(geom%bndn_to_c0)) deallocate(geom%bndn_to_c0)
-if (allocated(geom%c0_to_bndn)) deallocate(geom%c0_to_bndn)
-if (allocated(geom%kdtree_bndn)) then
-   do il0=1,size(geom%kdtree_bndn)
-      call geom%kdtree_bndn(il0)%dealloc
-   end do
-   deallocate(geom%kdtree_bndn)
-end if
+if (allocated(geom%v1bnda)) deallocate(geom%v1bnda)
+if (allocated(geom%v2bnda)) deallocate(geom%v2bnda)
+if (allocated(geom%vabnda)) deallocate(geom%vabnda)
 if (allocated(geom%c0_to_mg)) deallocate(geom%c0_to_mg)
 if (allocated(geom%mg_to_c0)) deallocate(geom%mg_to_c0)
 if (allocated(geom%mg_to_proc)) deallocate(geom%mg_to_proc)
@@ -528,11 +506,10 @@ type(rng_type),intent(inout) :: rng    ! Random number generator
 type(nam_type),intent(in) :: nam       ! Namelist
 
 ! Local variables
-integer :: ic0,il0,jc3,iproc,jc0,kc0,i,j,k,iend,ibnda,ibndn
-real(kind_real) :: lat_arc(2),lon_arc(2),v1(3),v2(3),dist
-real(kind_real),allocatable :: lon_bnd(:),lat_bnd(:)
+integer :: ic0,il0,jc3,iproc,jc0,kc0,i,j,k,iend,ibnda
+integer,allocatable :: bnda_to_c0(:,:)
+real(kind_real) :: lat_arc(2),lon_arc(2),xbnda(2),ybnda(2),zbnda(2)
 logical :: same_mask,init
-logical,allocatable :: mask_bndn(:,:)
 
 ! Set longitude and latitude bounds
 do ic0=1,geom%nc0
@@ -591,11 +568,6 @@ if ((nam%check_dirac.or.nam%check_consistency).and.(nam%ndir>0)) call geom%defin
 if (nam%mask_check) then
    ! Allocation
    allocate(geom%nbnda(geom%nl0))
-   allocate(mask_bndn(geom%nc0,geom%nl0))
-   allocate(geom%maxbnda(geom%nl0))
-   allocate(geom%nbndn(geom%nl0))
-   allocate(geom%c0_to_bndn(geom%nc0,geom%nl0))
-   allocate(geom%kdtree_bndn(geom%nl0))
 
    ! Count boundary arcs
    do il0=1,geom%nl0
@@ -619,11 +591,10 @@ if (nam%mask_check) then
    end do
 
    ! Allocation
-   allocate(geom%xbnda(2,maxval(geom%nbnda),geom%nl0))
-   allocate(geom%ybnda(2,maxval(geom%nbnda),geom%nl0))
-   allocate(geom%zbnda(2,maxval(geom%nbnda),geom%nl0))
-   allocate(geom%vbnda(3,maxval(geom%nbnda),geom%nl0))
-   allocate(geom%bnda_to_c0(2,maxval(geom%nbnda),geom%nl0))
+   allocate(geom%v1bnda(3,maxval(geom%nbnda),geom%nl0))
+   allocate(geom%v2bnda(3,maxval(geom%nbnda),geom%nl0))
+   allocate(geom%vabnda(3,maxval(geom%nbnda),geom%nl0))
+   allocate(bnda_to_c0(2,maxval(geom%nbnda)))
 
    do il0=1,geom%nl0
       ! Define boundary arcs
@@ -640,8 +611,8 @@ if (nam%mask_check) then
                kc0 = geom%mesh%order(k)
                if (.not.geom%mask_c0(jc0,il0).and.geom%mask_c0(kc0,il0)) then
                   ibnda = ibnda+1
-                  geom%bnda_to_c0(1,ibnda,il0) = ic0
-                  geom%bnda_to_c0(2,ibnda,il0) = jc0
+                  bnda_to_c0(1,ibnda) = ic0
+                  bnda_to_c0(2,ibnda) = jc0
                end if
                iend = geom%mesh%lptr(iend)
                init = .false.
@@ -650,56 +621,15 @@ if (nam%mask_check) then
       end do
 
       ! Compute boundary arcs coordinates
-      geom%maxbnda(il0) = 0.0
       do ibnda=1,geom%nbnda(il0)
-         lon_arc = geom%lon(geom%bnda_to_c0(:,ibnda,il0))
-         lat_arc = geom%lat(geom%bnda_to_c0(:,ibnda,il0))
-         call trans(mpl,2,lat_arc,lon_arc,geom%xbnda(:,ibnda,il0),geom%ybnda(:,ibnda,il0),geom%zbnda(:,ibnda,il0))
-         v1 = (/geom%xbnda(1,ibnda,il0),geom%ybnda(1,ibnda,il0),geom%zbnda(1,ibnda,il0)/)
-         v2 = (/geom%xbnda(2,ibnda,il0),geom%ybnda(2,ibnda,il0),geom%zbnda(2,ibnda,il0)/)
-         call vector_product(v1,v2,geom%vbnda(:,ibnda,il0))
-         call sphere_dist(lon_arc(1),lat_arc(1),lon_arc(2),lat_arc(2),dist)
-         if (dist>geom%maxbnda(il0)) geom%maxbnda(il0) = dist
+         lon_arc = geom%lon(bnda_to_c0(:,ibnda))
+         lat_arc = geom%lat(bnda_to_c0(:,ibnda))
+         call trans(mpl,2,lat_arc,lon_arc,xbnda,ybnda,zbnda)
+         geom%v1bnda(:,ibnda,il0) = (/xbnda(1),ybnda(1),zbnda(1)/)
+         geom%v2bnda(:,ibnda,il0) = (/xbnda(2),ybnda(2),zbnda(2)/)
+         call vector_product(geom%v1bnda(:,ibnda,il0),geom%v2bnda(:,ibnda,il0),geom%vabnda(:,ibnda,il0))
       end do
-
-      ! Set boundary nodes mask
-      mask_bndn(:,il0) = .false.
-      do ibnda=1,geom%nbnda(il0)
-         mask_bndn(geom%bnda_to_c0(:,ibnda,il0),il0) = .true.
-      end do
-      geom%nbndn(il0) = count(mask_bndn(:,il0))
    end do
-
-   ! Allocation
-   allocate(geom%bndn_to_c0(maxval(geom%nbndn),geom%nl0))
-
-   do il0=1,geom%nl0
-      ! Allocation
-      allocate(lon_bnd(geom%nbndn(il0)))
-      allocate(lat_bnd(geom%nbndn(il0)))
-      call geom%kdtree_bndn(il0)%alloc(mpl,geom%nbndn(il0))
-
-      ! Initialization
-      ibndn = 0
-      geom%c0_to_bndn = mpl%msv%vali
-      do ic0=1,geom%nc0
-         if (mask_bndn(ic0,il0)) then
-            ibndn = ibndn+1
-            lon_bnd(ibndn) = geom%lon(ic0)
-            lat_bnd(ibndn) = geom%lat(ic0)
-            geom%bndn_to_c0(ibndn,il0) = ic0
-            geom%c0_to_bndn(ic0,il0) = ibndn
-         end if
-      end do
-      call geom%kdtree_bndn(il0)%init(mpl,lon_bnd,lat_bnd)
-
-      ! Release memory
-      deallocate(lon_bnd)
-      deallocate(lat_bnd)
-   end do
-
-   ! Release memory
-   deallocate(mask_bndn)
 end if
 
 ! Print summary
@@ -1081,82 +1011,36 @@ real(kind_real),intent(in) :: lat_e ! Second point latitude
 logical,intent(out) :: valid        ! True for valid arcs
 
 ! Local variables
-integer :: ibnda,ic0(2),ibndn(2),i,nn_s,nn_e
-integer,allocatable :: nn_index_s(:),nn_index_e(:)
-real(kind_real) :: dist,delta,rad
+integer :: ibnda
 real(kind_real) :: x(2),y(2),z(2),v1(3),v2(3),va(3),vp(3),t(4)
-real(kind_real),allocatable :: nn_dist_s(:),nn_dist_e(:)
-logical :: lmask(geom%nbndn(il0))
 
-! Compute arc size
-call sphere_dist(lon_s,lat_s,lon_e,lat_e,dist)
+! Initialization
+valid = .true.
 
-! Compute research radius
-delta = 0.5*(sqrt(dist**2+geom%maxbnda(il0)**2)-dist)
-rad = 0.5*dist+delta
+! Transform to cartesian coordinates
+call trans(mpl,2,(/lat_s,lat_e/),(/lon_s,lon_e/),x,y,z)
 
-! Find nearest neighbors of the first point
-call geom%kdtree_bndn(il0)%count_nearest_neighbors(mpl,lon_s,lat_s,rad,nn_s)
-if (nn_s>0) then
-   allocate(nn_index_s(nn_s))
-   allocate(nn_dist_s(nn_s))
-   call geom%kdtree_bndn(il0)%find_nearest_neighbors(mpl,lon_s,lat_s,nn_s,nn_index_s,nn_dist_s)
-end if
+! Compute arc orthogonal vector
+v1 = (/x(1),y(1),z(1)/)
+v2 = (/x(2),y(2),z(2)/)
+call vector_product(v1,v2,va)
 
-! Find nearest neighbors of the second point
-call geom%kdtree_bndn(il0)%count_nearest_neighbors(mpl,lon_e,lat_e,rad,nn_e)
-if (nn_e>0) then
-   allocate(nn_index_e(nn_e))
-   allocate(nn_dist_e(nn_e))
-   call geom%kdtree_bndn(il0)%find_nearest_neighbors(mpl,lon_e,lat_e,nn_e,nn_index_e,nn_dist_e)
-end if
-
-! Gather relevant neighbors
-lmask = .false.
-do i=1,nn_s
-   ibndn = nn_index_s(i)
-   lmask(ibndn) = .true.
-end do
-do i=1,nn_e
-   ibndn = nn_index_e(i)
-   lmask(ibndn) = .true.
-end do
-
-if (count(lmask)>0) then
-   ! Transform to cartesian coordinates
-   call trans(mpl,2,(/lat_s,lat_e/),(/lon_s,lon_e/),x,y,z)
-
-   ! Compute arc orthogonal vector
+! Check if arc is crossing boundary arcs
+do ibnda=1,geom%nbnda(il0)
+   call vector_product(va,geom%vabnda(:,ibnda,il0),vp)
    v1 = (/x(1),y(1),z(1)/)
-   v2 = (/x(2),y(2),z(2)/)
-   call vector_product(v1,v2,va)
-
-   ! Check if arc is crossing boundary arcs
-   do ibnda=1,geom%nbnda(il0)
-      ! Indices
-      ic0 = geom%bnda_to_c0(:,ibnda,il0)
-      ibndn = geom%c0_to_bndn(ic0,il0)
-
-      ! Check boundary arc distance from arc points
-      if (all(lmask(ibndn))) then
-         call vector_product(va,geom%vbnda(:,ibnda,il0),vp)
-         v1 = (/x(1),y(1),z(1)/)
-         call vector_triple_product(v1,va,vp,t(1))
-         v1 = (/x(2),y(2),z(2)/)
-         call vector_triple_product(v1,va,vp,t(2))
-         v1 = (/geom%xbnda(1,ibnda,il0),geom%ybnda(1,ibnda,il0),geom%zbnda(1,ibnda,il0)/)
-         call vector_triple_product(v1,geom%vbnda(:,ibnda,il0),vp,t(3))
-         v1 = (/geom%xbnda(2,ibnda,il0),geom%ybnda(2,ibnda,il0),geom%zbnda(2,ibnda,il0)/)
-         call vector_triple_product(v1,geom%vbnda(:,ibnda,il0),vp,t(4))
-         t(1) = -t(1)
-         t(3) = -t(3)
-         if (all(t>0).or.(all(t<0))) then
-            valid = .false.
-            exit
-         end if
-      end if
-   end do
-end if
+   call vector_triple_product(v1,va,vp,t(1))
+   v1 = (/x(2),y(2),z(2)/)
+   call vector_triple_product(v1,va,vp,t(2))
+   call vector_triple_product(geom%v1bnda(:,ibnda,il0),geom%vabnda(:,ibnda,il0),vp,t(3))
+   call vector_triple_product(geom%v2bnda(:,ibnda,il0),geom%vabnda(:,ibnda,il0),vp,t(4))
+   t(1) = -t(1)
+   t(3) = -t(3)
+   if (all(t>0.0).or.(all(t<0.0))) then
+      valid = .false.
+      exit
+   end if
+end do
 
 end subroutine geom_check_arc
 

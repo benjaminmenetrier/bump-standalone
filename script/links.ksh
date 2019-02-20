@@ -13,7 +13,7 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=res
+model=nemo
 
 # Link members
 i=0
@@ -395,7 +395,7 @@ if test ${model} = "nemo" ; then
    origin=${datadir}/${model}/mesh_mask
    grid=${bumpdir}/${model}/${xp}/grid.nc
    rm -f ${grid}
-   ncks -O -v nav_lat,nav_lon,tmask,e1t,e2t ${origin} ${grid}
+   ncks -O -v nav_lat,nav_lon,tmask,e1t,e2t,e3t ${origin} ${grid}
 fi
 
 # RES

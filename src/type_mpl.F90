@@ -176,6 +176,10 @@ mpl%nthread = 1
 !$ mpl%nthread = omp_get_max_threads()
 !$ call omp_set_num_threads(mpl%nthread)
 
+! Set log at 'no message'
+mpl%info = 'no_message'
+mpl%test = 'no_message'
+
 end subroutine mpl_init
 
 !----------------------------------------------------------------------

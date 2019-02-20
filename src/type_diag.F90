@@ -496,8 +496,9 @@ do ib=1,bpar%nbe
              & diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
                if (diag%blk(0,ib)%double_fit) then
-                  write(mpl%info,'(a47,a,f10.2,a,f10.2,a)') 'cor. double fit:    ',trim(mpl%aqua),diag%blk(0,ib)%fit_rv_rfac(il0), &
-                & trim(mpl%black)//' / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv_coef(il0),trim(mpl%black)
+                  write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','cor. double fit:    ',trim(mpl%aqua), &
+                & diag%blk(0,ib)%fit_rv_rfac(il0),trim(mpl%black)//' / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv_coef(il0), &
+                & trim(mpl%black)
                   call mpl%flush
                end if
             end if
@@ -584,8 +585,9 @@ do ib=1,bpar%nbe
          end select
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a17,a,f10.2,a,f10.2,a)') 'loc. support radii: ',trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
-             & trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
+               write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii: ',trim(mpl%aqua), &
+             & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0), &
+             & trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
             end if
          end if
@@ -663,8 +665,9 @@ do ib=1,bpar%nbe
          end if
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a48,a,f10.2,a,f10.2,a)') 'loc. support radii: ',trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm, &
-             & trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
+               write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii: ',trim(mpl%aqua), &
+             & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0), &
+             & trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
             end if
          end if
@@ -745,24 +748,24 @@ do ib=1,bpar%nbe
       ! Print results
       do il0=1,geom%nl0
          if (mpl%msv%isnotr(diag%blk(0,ib)%raw_coef_ens(il0))) then
-            write(mpl%info,'(a10,a,i3,a4,a21,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','loc. at class zero (HR): ', &
+            write(mpl%info,'(a13,a,i3,a4,a21,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','loc. at class zero (HR): ', &
           & trim(mpl%peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(mpl%black)
             call mpl%flush
          end if
          if (mpl%msv%isnotr(diag%blk(0,ib)%raw_coef_ens(il0))) then
-            write(mpl%info,'(a45,a,f10.2,a)') 'loc. at class zero (LR): ',trim(mpl%peach),diag_lr%blk(0,ib)%raw_coef_ens(il0), &
-          & trim(mpl%black)
+            write(mpl%info,'(a27,a,a,f10.2,a)') '','loc. at class zero (LR): ',trim(mpl%peach), &
+          & diag_lr%blk(0,ib)%raw_coef_ens(il0),trim(mpl%black)
             call mpl%flush
          end if
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a45,a,f10.2,a,f10.2,a)') 'loc. support radii (HR): ',trim(mpl%aqua), &
+               write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii (HR): ',trim(mpl%aqua), &
              & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
              & trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
             end if
             if (mpl%msv%isnotr(diag_lr%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a45,a,f10.2,a,f10.2,a)') 'loc. support radii (LR): ',trim(mpl%aqua), &
+               write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii (LR): ',trim(mpl%aqua), &
              & diag_lr%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
              & trim(mpl%black)//' '//trim(mpl%vunitchar)
                call mpl%flush
