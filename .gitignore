@@ -15,7 +15,7 @@ run/*.test.*
 src_oops
 
 # Test
-test
+test/test_*.nc
 
 # Versions
 versions
