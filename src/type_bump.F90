@@ -144,10 +144,10 @@ call bump%nam%setup_internal(nl0,nv,nts,lens1_ne,lens1_nsub,lens2_ne,lens2_nsub)
 
 ! Initialize listing
 if (present(lunit)) then
-   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,lunit)
+   call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,lunit)
    bump%close_listing = .false.
 else
-   call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
+   call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
    bump%close_listing = (trim(bump%nam%model)=='online').and.(.not.present(nobs))
 end if
 
@@ -250,7 +250,7 @@ call bump%nam%read(bump%mpl,namelname)
 call bump%nam%bcast(bump%mpl)
 
 ! Initialize listing
-call bump%mpl%init_listing(bump%nam%datadir,bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
+call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
 
 ! Generic setup
 call bump%setup_generic
@@ -1138,7 +1138,11 @@ case ('var')
 case ('cor_rh')
    if (.not.allocated(bump%cmat%blk(ib)%rh)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
-   fld_mga = fld_mga*req
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req
+      end do
+   end do
 case ('cor_rv')
    if (.not.allocated(bump%cmat%blk(ib)%rv)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld_mga)
@@ -1154,7 +1158,11 @@ case ('loc_coef')
 case ('loc_rh')
    if (.not.allocated(bump%cmat%blk(ib)%rh)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
-   fld_mga = fld_mga*req
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req
+      end do
+   end do
 case ('loc_rv')
    if (.not.allocated(bump%cmat%blk(ib)%rv)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rv,fld_mga)
@@ -1164,7 +1172,11 @@ case ('hyb_coef')
 case ('loc_D11','loc_D22')
    if (.not.allocated(bump%cmat%blk(ib)%rh)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
-   fld_mga = fld_mga*req
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req
+      end do
+   end do
    do il0=1,bump%geom%nl0
       do imga=1,bump%geom%nmga
          tmp = fld_mga(imga,il0)
@@ -1189,13 +1201,21 @@ case default
       read(param(5:5),'(i1)') iscales
       if (iscales>size(bump%lct%blk(ib)%D11,3)) call bump%mpl%abort(subr,trim(param)//' has fewer scales in bump%copy_to_field')
       call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D11(:,:,iscales),fld_mga)
-      fld_mga = fld_mga*req**2
+      do il0=1,bump%geom%nl0
+         do imga=1,bump%geom%nmga
+            if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req**2
+         end do
+      end do
    case ('D22_')
       if (.not.allocated(bump%lct%blk(ib)%D22)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
       read(param(5:5),'(i1)') iscales
       if (iscales>size(bump%lct%blk(ib)%D22,3)) call bump%mpl%abort(subr,trim(param)//' has fewer scales in bump%copy_to_field')
       call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D22(:,:,iscales),fld_mga)
-      fld_mga = fld_mga*req**2
+      do il0=1,bump%geom%nl0
+         do imga=1,bump%geom%nmga
+            if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req**2
+         end do
+      end do
    case ('D33_')
       if (.not.allocated(bump%lct%blk(ib)%D33)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
       read(param(5:5),'(i1)') iscales
@@ -1206,7 +1226,11 @@ case default
       read(param(5:5),'(i1)') iscales
       if (iscales>size(bump%lct%blk(ib)%D12,3)) call bump%mpl%abort(subr,trim(param)//' has fewer scales in bump%copy_to_field')
       call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%D12(:,:,iscales),fld_mga)
-      fld_mga = fld_mga*req**2
+      do il0=1,bump%geom%nl0
+         do imga=1,bump%geom%nmga
+            if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req**2
+         end do
+      end do
    case ('Dcoe')
       if (.not.allocated(bump%lct%blk(ib)%Dcoef)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
       read(param(7:7),'(i1)') iscales
@@ -1217,7 +1241,11 @@ case default
       read(param(5:5),'(i1)') iscales
       if (iscales>size(bump%lct%blk(ib)%DLh,3)) call bump%mpl%abort(subr,trim(param)//' has fewer scales in bump%copy_to_field')
       call bump%geom%copy_c0a_to_mga(bump%mpl,bump%lct%blk(ib)%DLh(:,:,iscales),fld_mga)
-      fld_mga = fld_mga*req
+      do il0=1,bump%geom%nl0
+         do imga=1,bump%geom%nmga
+            if (bump%mpl%msv%isnotr(fld_mga(imga,il0))) fld_mga(imga,il0) = fld_mga(imga,il0)*req
+         end do
+      end do
    case default
       if (param(1:6)=='ens1u_') then
          if (.not.allocated(bump%ens1u%fld)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
@@ -1305,6 +1333,7 @@ integer,intent(in) :: ib                                            ! Block inde
 real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Local variables
+integer :: imga,il0
 character(len=1024),parameter :: subr = 'bump_copy_from_field'
 
 ! Allocation
@@ -1318,7 +1347,12 @@ case ('var')
 case ('cor_rh')
    if (.not.allocated(bump%cmat%blk(ib)%bump_rh)) allocate(bump%cmat%blk(ib)%bump_rh(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_rh)
-   bump%cmat%blk(ib)%bump_rh = bump%cmat%blk(ib)%bump_rh/req
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(bump%cmat%blk(ib)%bump_rh(imga,il0))) &
+       & bump%cmat%blk(ib)%bump_rh(imga,il0) = bump%cmat%blk(ib)%bump_rh(imga,il0)/req
+      end do
+   end do
 case ('cor_rv')
    if (.not.allocated(bump%cmat%blk(ib)%bump_rv)) allocate(bump%cmat%blk(ib)%bump_rv(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_rv)
@@ -1334,7 +1368,12 @@ case ('loc_coef')
 case ('loc_rh')
    if (.not.allocated(bump%cmat%blk(ib)%bump_rh)) allocate(bump%cmat%blk(ib)%bump_rh(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_rh)
-   bump%cmat%blk(ib)%bump_rh = bump%cmat%blk(ib)%bump_rh/req
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(bump%cmat%blk(ib)%bump_rh(imga,il0))) &
+       & bump%cmat%blk(ib)%bump_rh(imga,il0) = bump%cmat%blk(ib)%bump_rh(imga,il0)/req
+      end do
+   end do
 case ('loc_rv')
    if (.not.allocated(bump%cmat%blk(ib)%bump_rv)) allocate(bump%cmat%blk(ib)%bump_rv(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_rv)
@@ -1344,18 +1383,33 @@ case ('hyb_coef')
 case ('D11')
    if (.not.allocated(bump%cmat%blk(ib)%bump_D11)) allocate(bump%cmat%blk(ib)%bump_D11(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_D11)
-   bump%cmat%blk(ib)%bump_D11 = bump%cmat%blk(ib)%bump_D11/req**2
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(bump%cmat%blk(ib)%bump_D11(imga,il0))) &
+       & bump%cmat%blk(ib)%bump_D11(imga,il0) = bump%cmat%blk(ib)%bump_D11(imga,il0)/req**2
+      end do
+   end do
 case ('D22')
    if (.not.allocated(bump%cmat%blk(ib)%bump_D22)) allocate(bump%cmat%blk(ib)%bump_D22(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_D22)
-   bump%cmat%blk(ib)%bump_D22 = bump%cmat%blk(ib)%bump_D22/req**2
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(bump%cmat%blk(ib)%bump_D22(imga,il0))) &
+       & bump%cmat%blk(ib)%bump_D22(imga,il0) = bump%cmat%blk(ib)%bump_D22(imga,il0)/req**2
+      end do
+   end do
 case ('D33')
    if (.not.allocated(bump%cmat%blk(ib)%bump_D33)) allocate(bump%cmat%blk(ib)%bump_D33(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_D33)
 case ('D12')
    if (.not.allocated(bump%cmat%blk(ib)%bump_D12)) allocate(bump%cmat%blk(ib)%bump_D12(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_D12)
-   bump%cmat%blk(ib)%bump_D12 = bump%cmat%blk(ib)%bump_D12/req**2
+   do il0=1,bump%geom%nl0
+      do imga=1,bump%geom%nmga
+         if (bump%mpl%msv%isnotr(bump%cmat%blk(ib)%bump_D12(imga,il0))) &
+       & bump%cmat%blk(ib)%bump_D12(imga,il0) = bump%cmat%blk(ib)%bump_D12(imga,il0)/req**2
+      end do
+   end do
 case ('Dcoef')
    if (.not.allocated(bump%cmat%blk(ib)%bump_Dcoef)) allocate(bump%cmat%blk(ib)%bump_Dcoef(bump%geom%nc0a,bump%geom%nl0))
    call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga,bump%cmat%blk(ib)%bump_Dcoef)

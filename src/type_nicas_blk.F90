@@ -1979,16 +1979,21 @@ integer :: net_nnb(nicas_blk%nc1),ic1_loc,nc1_loc(0:mpl%nproc)
 integer,allocatable :: net_inb(:,:),plist(:,:),plist_new(:,:)
 real(kind_real) :: distnorm_network,disttest
 real(kind_real) :: dnb,dx,dy,dz,disthsq,distvsq,rhsq,rvsq,H11,H22,H33,H12
+real(kind_real),allocatable :: lon_c1(:),lat_c1(:)
 real(kind_real),allocatable :: distnorm(:,:),net_dnb(:,:,:,:)
 logical :: init,add_to_front
 logical,allocatable :: valid_arc(:,:,:)
 type(mesh_type) :: mesh
 
 ! Allocation
+allocate(lon_c1(nicas_blk%nc1))
+allocate(lat_c1(nicas_blk%nc1))
 call mesh%alloc(nicas_blk%nc1)
 
 ! Initialization
-call mesh%init(mpl,rng,geom%lon(nicas_blk%c1_to_c0),geom%lat(nicas_blk%c1_to_c0))
+lon_c1 = geom%lon(nicas_blk%c1_to_c0)
+lat_c1 = geom%lat(nicas_blk%c1_to_c0)
+call mesh%init(mpl,rng,lon_c1,lat_c1)
 
 ! Count neighbors
 write(mpl%info,'(a10,a)') '','Count neighbors'
@@ -2218,6 +2223,11 @@ do isbb=1,nicas_blk%nsbb
    end do
 
    ! Pack data
+   do il1=1,nicas_blk%nl1
+      do ic1=1,nicas_blk%nc1
+         if (supeq(distnorm(ic1,il1),1.0_kind_real)) distnorm(ic1,il1) = mpl%msv%valr
+      end do
+   end do
    call nicas_blk%distnorm(isbb)%pack(mpl,nicas_blk%nc1,nicas_blk%nl1,distnorm)
 
    ! Release memory
@@ -2231,6 +2241,8 @@ end do
 call mpl%prog_final
 
 ! Release memory
+deallocate(lon_c1)
+deallocate(lat_c1)
 deallocate(net_inb)
 deallocate(net_dnb)
 deallocate(valid_arc)
@@ -2384,13 +2396,17 @@ do isbb=1,nicas_blk%nsbb
                   end if
                   distnorm(jc1,jl1) = sqrt(disthsq+distvsq)
                end if
-               if (supeq(distnorm(jc1,jl1),1.0_kind_real)) distnorm(jc1,jl1) = mpl%msv%valr
             end if
          end if
       end do
    end do
 
    ! Pack data
+   do il1=1,nicas_blk%nl1
+      do ic1=1,nicas_blk%nc1
+         if (supeq(distnorm(ic1,il1),1.0_kind_real)) distnorm(ic1,il1) = mpl%msv%valr
+      end do
+   end do
    call nicas_blk%distnorm(isbb)%pack(mpl,nicas_blk%nc1,nicas_blk%nl1,distnorm)
 
    ! Release memory

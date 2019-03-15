@@ -20,7 +20,7 @@
 | subroutine | [bump%] [apply_obsop_ad](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1029) | observation operator adjoint application |
 | subroutine | [bump%] [get_parameter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1058) | get a parameter |
 | subroutine | [bump%] [copy_to_field](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1114) | copy to field |
-| subroutine | [bump%] [set_parameter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1237) | set a parameter |
-| subroutine | [bump%] [copy_from_field](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1293) | copy from field |
-| subroutine | [bump%] [partial_dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1368) | release memory (partial) |
-| subroutine | [bump%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1395) | release memory (full) |
+| subroutine | [bump%] [set_parameter](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1265) | set a parameter |
+| subroutine | [bump%] [copy_from_field](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1321) | copy from field |
+| subroutine | [bump%] [partial_dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1422) | release memory (partial) |
+| subroutine | [bump%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L1449) | release memory (full) |

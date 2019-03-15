@@ -162,14 +162,14 @@ do iv=1,nam%nv
             case ('specific_univariate')
                bpar%diag_block(ib) = (iv==jv).and.(its==jts)
                bpar%avg_block(ib) = .false.
-               bpar%B_block(ib) = (iv==jv).and.(its==1).and.(jts==1)
-               bpar%nicas_block(ib) = (iv==jv).and.(its==1).and.(jts==1)
-               bpar%cv_block(ib) = (iv==jv).and.(its==1).and.(jts==1)
+               bpar%B_block(ib) = (iv==jv).and.(its==jts)
+               bpar%nicas_block(ib) = (iv==jv).and.(its==jts)
+               bpar%cv_block(ib) = (iv==jv).and.(its==jts)
             case ('specific_multivariate')
                bpar%diag_block(ib) = (iv==jv).and.(its==jts)
                bpar%avg_block(ib) = (bpar%nbe==bpar%nb)
-               bpar%B_block(ib) = (iv==jv).and.(its==1).and.(jts==1)
-               bpar%nicas_block(ib) = (iv==jv).and.(its==1).and.(jts==1)
+               bpar%B_block(ib) = (iv==jv).and.(its==jts)
+               bpar%nicas_block(ib) = (iv==jv).and.(its==jts)
                bpar%cv_block(ib) = (ib==bpar%nbe)
             end select
             bpar%fit_block(ib) = (bpar%nb==1).or.(bpar%diag_block(ib).and.(iv==jv).and.(its==jts) &

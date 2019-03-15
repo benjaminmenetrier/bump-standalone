@@ -22,146 +22,147 @@ integer,parameter :: nlmax = 200    ! Maximum number of levels
 integer,parameter :: nc3max = 1000  ! Maximum number of classes
 integer,parameter :: nscalesmax = 5 ! Maximum number of variables
 integer,parameter :: ndirmax = 300  ! Maximum number of diracs
-integer,parameter :: nldwvmax = 100 ! Maximum number of local diagnostic profiles
+integer,parameter :: nldwvmax = 99  ! Maximum number of local diagnostic profiles
 
 type nam_type
    ! general_param
-   character(len=1024) :: datadir                   ! Data directory
-   character(len=1024) :: prefix                    ! Files prefix
-   character(len=1024) :: model                     ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'res' or 'wrf')
-   character(len=1024) :: verbosity                 ! Verbosity level ('all', 'main' or 'none')
-   logical :: colorlog                              ! Add colors to the log (for display on terminal)
-   logical :: default_seed                          ! Default seed for random numbers
+   character(len=1024) :: datadir                       ! Data directory
+   character(len=1024) :: prefix                        ! Files prefix
+   character(len=1024) :: model                         ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'res' or 'wrf')
+   character(len=1024) :: verbosity                     ! Verbosity level ('all', 'main' or 'none')
+   logical :: colorlog                                  ! Add colors to the log (for display on terminal)
+   logical :: default_seed                              ! Default seed for random numbers
 
    ! driver_param
-   character(len=1024) :: method                    ! Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
-   character(len=1024) :: strategy                  ! Localization strategy ('diag_all', 'common', 'common_univariate', 'common_weighted', 'specific_univariate' or 'specific_multivariate')
-   logical :: new_cortrack                          ! New correlation tracker
-   logical :: new_vbal                              ! Compute new vertical balance operator
-   logical :: load_vbal                             ! Load existing vertical balance operator
-   logical :: write_vbal                            ! Write vertical balance operator
-   logical :: new_hdiag                             ! Compute new HDIAG diagnostics
-   logical :: write_hdiag                           ! Write HDIAG diagnostics
-   logical :: new_lct                               ! Compute new LCT
-   logical :: write_lct                             ! Write LCT
-   logical :: load_cmat                             ! Load existing C matrix
-   logical :: write_cmat                            ! Write existing C matrix
-   logical :: new_nicas                             ! Compute new NICAS parameters
-   logical :: load_nicas                            ! Load existing NICAS parameters
-   logical :: write_nicas                           ! Write NICAS parameters
-   logical :: new_obsop                             ! Compute new observation operator
-   logical :: load_obsop                            ! Load existing observation operator
-   logical :: write_obsop                           ! Write observation operator
-   logical :: check_vbal                            ! Test vertical balance inverse and adjoint
-   logical :: check_adjoints                        ! Test NICAS adjoints
-   logical :: check_pos_def                         ! Test NICAS positive definiteness
-   logical :: check_sqrt                            ! Test NICAS full/square-root equivalence
-   logical :: check_dirac                           ! Test NICAS application on diracs
-   logical :: check_randomization                   ! Test NICAS randomization
-   logical :: check_consistency                     ! Test HDIAG-NICAS consistency
-   logical :: check_optimality                      ! Test HDIAG optimality
-   logical :: check_obsop                           ! Test observation operator
+   character(len=1024) :: method                        ! Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
+   character(len=1024) :: strategy                      ! Localization strategy ('diag_all', 'common', 'common_univariate', 'common_weighted', 'specific_univariate' or 'specific_multivariate')
+   logical :: new_cortrack                              ! New correlation tracker
+   logical :: new_vbal                                  ! Compute new vertical balance operator
+   logical :: load_vbal                                 ! Load existing vertical balance operator
+   logical :: write_vbal                                ! Write vertical balance operator
+   logical :: new_hdiag                                 ! Compute new HDIAG diagnostics
+   logical :: write_hdiag                               ! Write HDIAG diagnostics
+   logical :: new_lct                                   ! Compute new LCT
+   logical :: write_lct                                 ! Write LCT
+   logical :: load_cmat                                 ! Load existing C matrix
+   logical :: write_cmat                                ! Write existing C matrix
+   logical :: new_nicas                                 ! Compute new NICAS parameters
+   logical :: load_nicas                                ! Load existing NICAS parameters
+   logical :: write_nicas                               ! Write NICAS parameters
+   logical :: new_obsop                                 ! Compute new observation operator
+   logical :: load_obsop                                ! Load existing observation operator
+   logical :: write_obsop                               ! Write observation operator
+   logical :: check_vbal                                ! Test vertical balance inverse and adjoint
+   logical :: check_adjoints                            ! Test NICAS adjoints
+   logical :: check_pos_def                             ! Test NICAS positive definiteness
+   logical :: check_sqrt                                ! Test NICAS full/square-root equivalence
+   logical :: check_dirac                               ! Test NICAS application on diracs
+   logical :: check_randomization                       ! Test NICAS randomization
+   logical :: check_consistency                         ! Test HDIAG-NICAS consistency
+   logical :: check_optimality                          ! Test HDIAG optimality
+   logical :: check_obsop                               ! Test observation operator
 
    ! model_param
-   integer :: nl                                    ! Number of levels
-   integer :: levs(nlmax)                           ! Levels
-   logical :: logpres                               ! Use pressure logarithm as vertical coordinate (model level if .false.)
-   integer :: nv                                    ! Number of variables
-   character(len=1024),dimension(nvmax) :: varname  ! Variables names
-   character(len=1024),dimension(nvmax) :: addvar2d ! Additionnal 2d variables names
-   integer :: nts                                   ! Number of time slots
-   integer,dimension(ntsmax) :: timeslot            ! Timeslots
+   integer :: nl                                        ! Number of levels
+   integer :: levs(nlmax)                               ! Levels
+   logical :: logpres                                   ! Use pressure logarithm as vertical coordinate (model level if .false.)
+   integer :: nv                                        ! Number of variables
+   character(len=1024),dimension(nvmax) :: varname      ! Variables names
+   character(len=1024),dimension(nvmax) :: addvar2d     ! Additionnal 2d variables names
+   integer :: nts                                       ! Number of time slots
+   integer,dimension(ntsmax) :: timeslot                ! Timeslots
 
    ! ens1_param
-   integer :: ens1_ne                               ! Ensemble 1 size
-   integer :: ens1_ne_offset                        ! Ensemble 1 index offset
-   integer :: ens1_nsub                             ! Ensemble 1 sub-ensembles number
+   integer :: ens1_ne                                   ! Ensemble 1 size
+   integer :: ens1_ne_offset                            ! Ensemble 1 index offset
+   integer :: ens1_nsub                                 ! Ensemble 1 sub-ensembles number
 
    ! ens2_param
-   integer :: ens2_ne                               ! Ensemble 2 size
-   integer :: ens2_ne_offset                        ! Ensemble 2 index offset
-   integer :: ens2_nsub                             ! Ensemble 2 sub-ensembles number
+   integer :: ens2_ne                                   ! Ensemble 2 size
+   integer :: ens2_ne_offset                            ! Ensemble 2 index offset
+   integer :: ens2_nsub                                 ! Ensemble 2 sub-ensembles number
 
    ! sampling_param
-   logical :: sam_write                             ! Write sampling
-   logical :: sam_read                              ! Read sampling
-   character(len=1024) :: mask_type                 ! Mask restriction type
-   real(kind_real) ::  mask_th                      ! Mask threshold
-   logical :: mask_check                            ! Check that sampling couples and interpolations do not cross mask boundaries
-   character(len=1024) :: draw_type                 ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
-   integer :: nc1                                   ! Number of sampling points
-   integer :: nc2                                   ! Number of diagnostic points
-   integer :: ntry                                  ! Number of tries to get the most separated point for the zero-separation sampling
-   integer :: nrep                                  ! Number of replacement to improve homogeneity of the zero-separation sampling
-   integer :: nc3                                   ! Number of classes
-   real(kind_real) ::  dc                           ! Class size (for sam_type='hor'), should be larger than the typical grid cell size
-   integer :: nl0r                                  ! Reduced number of levels for diagnostics
+   logical :: sam_write                                 ! Write sampling
+   logical :: sam_read                                  ! Read sampling
+   character(len=1024) :: mask_type                     ! Mask restriction type
+   real(kind_real) ::  mask_th                          ! Mask threshold
+   logical :: mask_check                                ! Check that sampling couples and interpolations do not cross mask boundaries
+   character(len=1024) :: draw_type                     ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
+   integer :: nc1                                       ! Number of sampling points
+   integer :: nc2                                       ! Number of diagnostic points
+   integer :: ntry                                      ! Number of tries to get the most separated point for the zero-separation sampling
+   integer :: nrep                                      ! Number of replacement to improve homogeneity of the zero-separation sampling
+   integer :: nc3                                       ! Number of classes
+   real(kind_real) ::  dc                               ! Class size (for sam_type='hor'), should be larger than the typical grid cell size
+   integer :: nl0r                                      ! Reduced number of levels for diagnostics
 
    ! diag_param
-   integer :: ne                                    ! Ensemble size
-   logical :: gau_approx                            ! Gaussian approximation for asymptotic quantities
-   logical :: vbal_block(nvmax*(nvmax-1)/2)         ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
-   real(kind_real) :: vbal_rad                      ! Vertical balance diagnostic radius
-   logical :: var_filter                            ! Filter variances
-   integer :: var_niter                             ! Number of iteration for the variances filtering (for var_filter = .true.)
-   real(kind_real) ::  var_rhflt                    ! Variances initial filtering support radius (for var_filter = .true.)
-   logical :: var_full                              ! Compute variances on full grid
-   logical :: local_diag                            ! Activate local diagnostics
-   real(kind_real) ::  local_rad                    ! Local diagnostics calculation radius (for local_rad = .true.)
-   logical :: adv_diag                              ! Activate advection diagnostic
-   real(kind_real) ::  adv_rad                      ! Advection diagnostic calculation radius
-   integer :: adv_niter                             ! Number of iteration for the advection filtering (for adv_diag = .true.)
-   real(kind_real) ::  adv_rhflt                    ! Advection initial filtering support radius (for adv_diag = .true.)
+   integer :: ne                                        ! Ensemble size
+   logical :: gau_approx                                ! Gaussian approximation for asymptotic quantities
+   logical :: vbal_block(nvmax*(nvmax-1)/2)             ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
+   real(kind_real) :: vbal_rad                          ! Vertical balance diagnostic radius
+   logical :: var_filter                                ! Filter variances
+   integer :: var_niter                                 ! Number of iteration for the variances filtering (for var_filter = .true.)
+   real(kind_real) ::  var_rhflt                        ! Variances initial filtering support radius (for var_filter = .true.)
+   logical :: var_full                                  ! Compute variances on full grid
+   logical :: local_diag                                ! Activate local diagnostics
+   real(kind_real) ::  local_rad                        ! Local diagnostics calculation radius (for local_rad = .true.)
+   logical :: adv_diag                                  ! Activate advection diagnostic
+   real(kind_real) ::  adv_rad                          ! Advection diagnostic calculation radius
+   integer :: adv_niter                                 ! Number of iteration for the advection filtering (for adv_diag = .true.)
+   real(kind_real) ::  adv_rhflt                        ! Advection initial filtering support radius (for adv_diag = .true.)
 
    ! fit_param
-   character(len=1024) :: minim_algo                ! Minimization algorithm ('none', 'fast' or 'hooke')
-   logical :: double_fit(0:nvmax)                   ! Double fit to introduce negative lobes on the vertical
-   logical :: lhomh                                 ! Vertically homogenous horizontal support radius
-   logical :: lhomv                                 ! Vertically homogenous vertical support radius
-   real(kind_real) ::  rvflt                        ! Vertical smoother support radius
-   integer :: lct_nscales                           ! Number of LCT scales
-   logical :: lct_diag(nscalesmax)                  ! Diagnostic of diagonal LCT components only
+   character(len=1024) :: minim_algo                    ! Minimization algorithm ('none', 'fast' or 'hooke')
+   logical :: double_fit(0:nvmax)                       ! Double fit to introduce negative lobes on the vertical
+   logical :: lhomh                                     ! Vertically homogenous horizontal support radius
+   logical :: lhomv                                     ! Vertically homogenous vertical support radius
+   real(kind_real) ::  rvflt                            ! Vertical smoother support radius
+   integer :: lct_nscales                               ! Number of LCT scales
+   logical :: lct_diag(nscalesmax)                      ! Diagnostic of diagonal LCT components only
 
    ! nicas_param
-   logical :: nonunit_diag                          ! Non-unit diagonal for the NICAS application
-   logical :: lsqrt                                 ! Square-root formulation
-   real(kind_real) :: resol                         ! Resolution
-   logical :: fast_sampling                         ! Fast sampling flag
-   character(len=1024) :: subsamp                   ! Subsampling structure ('h', 'hv', 'vh' or 'hvh')
-   character(len=1024) :: nicas_interp              ! NICAS interpolation type
-   logical :: network                               ! Network-base convolution calculation (distance-based if false)
-   integer :: mpicom                                ! Number of communication steps
-   integer :: adv_mode                              ! Advection mode (1: direct, -1: direct and inverse)
-   logical :: forced_radii                          ! Force specific support radii
-   real(kind_real) :: rh                            ! Forced horizontal support radius
-   real(kind_real) :: rv                            ! Forced vertical support radius
-   logical :: write_grids                           ! Write NICAS grids
-   integer :: ndir                                  ! Number of Diracs
-   real(kind_real) :: londir(ndirmax)               ! Diracs longitudes (in degrees)
-   real(kind_real) :: latdir(ndirmax)               ! Diracs latitudes (in degrees)
-   integer :: levdir(ndirmax)                       ! Diracs level
-   integer :: ivdir(ndirmax)                        ! Diracs variable
-   integer :: itsdir(ndirmax)                       ! Diracs timeslot
+   logical :: nonunit_diag                              ! Non-unit diagonal for the NICAS application
+   logical :: lsqrt                                     ! Square-root formulation
+   real(kind_real) :: resol                             ! Resolution
+   logical :: fast_sampling                             ! Fast sampling flag
+   character(len=1024) :: subsamp                       ! Subsampling structure ('h', 'hv', 'vh' or 'hvh')
+   character(len=1024) :: nicas_interp                  ! NICAS interpolation type
+   logical :: network                                   ! Network-base convolution calculation (distance-based if false)
+   integer :: mpicom                                    ! Number of communication steps
+   integer :: adv_mode                                  ! Advection mode (1: direct, -1: direct and inverse)
+   logical :: forced_radii                              ! Force specific support radii
+   real(kind_real) :: rh                                ! Forced horizontal support radius
+   real(kind_real) :: rv                                ! Forced vertical support radius
+   logical :: write_grids                               ! Write NICAS grids
+   integer :: ndir                                      ! Number of Diracs
+   real(kind_real) :: londir(ndirmax)                   ! Diracs longitudes (in degrees)
+   real(kind_real) :: latdir(ndirmax)                   ! Diracs latitudes (in degrees)
+   integer :: levdir(ndirmax)                           ! Diracs level
+   integer :: ivdir(ndirmax)                            ! Diracs variable
+   integer :: itsdir(ndirmax)                           ! Diracs timeslot
 
    ! obsop_param
-   integer :: nobs                                  ! Number of observations
-   character(len=1024) :: obsdis                    ! Observation distribution parameter
-   character(len=1024) :: obsop_interp              ! Observation operator interpolation type
+   integer :: nobs                                      ! Number of observations
+   character(len=1024) :: obsdis                        ! Observation distribution parameter
+   character(len=1024) :: obsop_interp                  ! Observation operator interpolation type
 
    ! output_param
-   integer :: nldwh                                 ! Number of local diagnostics fields to write (for local_diag = .true.)
-   integer :: il_ldwh(nlmax*nc3max)                 ! Levels of local diagnostics fields to write (for local_diag = .true.)
-   integer :: ic_ldwh(nlmax*nc3max)                 ! Classes of local diagnostics fields to write (for local_diag = .true.)
-   integer :: nldwv                                 ! Number of local diagnostics profiles to write (for local_diag = .true.)
-   real(kind_real) ::  lon_ldwv(nldwvmax)           ! Longitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-   real(kind_real) ::  lat_ldwv(nldwvmax)           ! Latitudes (in degrees) local diagnostics profiles to write (for local_diag = .true.)
-   real(kind_real) ::  diag_rhflt                   ! Diagnostics filtering radius
-   character(len=1024) :: diag_interp               ! Diagnostics interpolation type
-   logical :: field_io                              ! Field I/O
-   logical :: split_io                              ! Split I/O (each task read and write its own file)
-   logical :: grid_output                           ! Write regridded fields
-   real(kind_real) :: grid_resol                    ! Regridded fields resolution
-   character(len=1024) :: grid_interp               ! Regridding interpolation type
+   integer :: nldwh                                     ! Number of local diagnostics fields to write (for local_diag = .true.)
+   integer :: il_ldwh(nlmax*nc3max)                     ! Levels of local diagnostics fields to write (for local_diag = .true.)
+   integer :: ic_ldwh(nlmax*nc3max)                     ! Classes of local diagnostics fields to write (for local_diag = .true.)
+   integer :: nldwv                                     ! Number of local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lon_ldwv(nldwvmax)               ! Longitudes (in degrees) of the local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  lat_ldwv(nldwvmax)               ! Latitudes (in degrees) of the local diagnostics profiles to write (for local_diag = .true.)
+   character(len=1024),dimension(nldwvmax) :: name_ldwv ! Name of the local diagnostics profiles to write (for local_diag = .true.)
+   real(kind_real) ::  diag_rhflt                       ! Diagnostics filtering radius
+   character(len=1024) :: diag_interp                   ! Diagnostics interpolation type
+   logical :: field_io                                  ! Field I/O
+   logical :: split_io                                  ! Split I/O (each task read and write its own file)
+   logical :: grid_output                               ! Write regridded fields
+   real(kind_real) :: grid_resol                        ! Regridded fields resolution
+   character(len=1024) :: grid_interp                   ! Regridding interpolation type
 contains
    procedure :: init => nam_init
    procedure :: read => nam_read
@@ -189,7 +190,7 @@ implicit none
 class(nam_type),intent(out) :: nam ! Namelist
 
 ! Local variable
-integer :: iv
+integer :: iv,ildwv
 
 ! general_param default
 nam%datadir = '.'
@@ -327,6 +328,9 @@ nam%ic_ldwh = 0
 nam%nldwv = 0
 nam%lon_ldwv = 0.0
 nam%lat_ldwv = 0.0
+do ildwv=1,nldwvmax
+   nam%name_ldwv(ildwv) = ''
+end do
 nam%diag_rhflt = 0.0
 nam%diag_interp = 'bilin'
 nam%field_io = .true.
@@ -358,7 +362,7 @@ character(len=1024),parameter :: subr = 'nam_read'
 integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_ne_offset,ens1_nsub,ens2_ne,ens2_ne_offset,ens2_nsub
 integer :: nc1,nc2,ntry,nrep,nc3,nl0r,ne,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir,levdir(ndirmax),ivdir(ndirmax)
-integer :: itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv
+integer :: itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,ildwv
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas
 logical :: load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def,check_sqrt
@@ -366,11 +370,12 @@ logical :: check_dirac,check_randomization,check_consistency,check_optimality,ch
 logical :: vbal_block(nvmax*(nvmax-1)/2),var_filter,var_full,gau_approx,local_diag,adv_diag,double_fit(0:nvmax)
 logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids,field_io,split_io
 logical :: grid_output
-real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
-real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
+real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax)
+real(kind_real) :: diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
 character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,draw_type,minim_algo,subsamp,nicas_interp
 character(len=1024) :: obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
+character(len=1024),dimension(nldwvmax) :: name_ldwv
 
 ! Namelist blocks
 namelist/general_param/datadir,prefix,model,verbosity,colorlog,default_seed
@@ -388,7 +393,7 @@ namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
                    & write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
-namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
+namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
                     & grid_output,grid_resol,grid_interp
 
 if (mpl%main) then
@@ -527,6 +532,9 @@ if (mpl%main) then
    nldwv = 0
    lon_ldwv = 0.0
    lat_ldwv = 0.0
+   do ildwv=1,nldwvmax
+      name_ldwv(ildwv) = ''
+   end do
    diag_rhflt = 0.0
    diag_interp = 'bilin'
    field_io = .true.
@@ -683,11 +691,16 @@ if (mpl%main) then
    if (nldwh>nlmax*nc3max) call mpl%abort(subr,'nldwh is too large')
    if (nldwv>nldwvmax) call mpl%abort(subr,'nldwv is too large')
    nam%nldwh = nldwh
-   if (nldwh>0) nam%il_ldwh(1:nldwh) = il_ldwh(1:nldwh)
-   if (nldwh>0) nam%ic_ldwh(1:nldwh) = ic_ldwh(1:nldwh)
+   if (nldwh>0) then
+      nam%il_ldwh(1:nldwh) = il_ldwh(1:nldwh)
+      nam%ic_ldwh(1:nldwh) = ic_ldwh(1:nldwh)
+   end if
    nam%nldwv = nldwv
-   if (nldwv>0) nam%lon_ldwv(1:nldwv) = lon_ldwv(1:nldwv)
-   if (nldwv>0) nam%lat_ldwv(1:nldwv) = lat_ldwv(1:nldwv)
+   if (nldwv>0) then
+      nam%lon_ldwv(1:nldwv) = lon_ldwv(1:nldwv)
+      nam%lat_ldwv(1:nldwv) = lat_ldwv(1:nldwv)
+      nam%name_ldwv(1:nldwv) = name_ldwv(1:nldwv)
+   end if
    nam%diag_rhflt = diag_rhflt
    nam%diag_interp = diag_interp
    nam%field_io = field_io
@@ -844,6 +857,7 @@ call mpl%f_comm%broadcast(nam%ic_ldwh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lon_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%ioproc-1)
+call mpl%bcast(nam%name_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_interp,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%field_io,mpl%ioproc-1)
@@ -913,8 +927,9 @@ class(nam_type),intent(inout) :: nam ! Namelist
 type(mpl_type),intent(inout) :: mpl  ! MPI data
 
 ! Local variables
-integer :: iv,its,il,idir
-character(len=2) :: ivchar
+integer :: iv,its,il,idir,ildwv,info
+logical :: ldatadir
+character(len=2) :: ivchar,ildwvchar
 character(len=1024),parameter :: subr = 'nam_check'
 
 ! Check maximum sizes
@@ -1059,7 +1074,7 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
    end if
    if (nam%new_lct) then
       if (nam%nc2/=nam%nc1) then
-         call mpl%warning(subr,'nc2 should be equal to nc2 for new_lct, resetting nc2 to nc1')
+         call mpl%warning(subr,'nc2 should be equal to nc1 for new_lct, resetting nc2 to nc1')
          nam%nc2 = nam%nc1
       end if
    end if
@@ -1073,7 +1088,7 @@ if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
 else
    nam%nc3 = 1
 end if
-if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
    if (nam%nl0r<1) call mpl%abort (subr,'nl0r should be positive')
 end if
 if (nam%new_hdiag.or.nam%check_consistency) then
@@ -1216,8 +1231,13 @@ if (nam%new_hdiag) then
       end if
       if (nam%nldwv<0) call mpl%abort(subr,'nldwv should be non-negative')
       if (nam%nldwv>0) then
+         if (.not.nam%local_diag) call mpl%abort(subr,'nldwv>0 requires local_diag')
          if (any(nam%lon_ldwv(1:nam%nldwv)<-180.0).or.any(nam%lon_ldwv(1:nam%nldwv)>180.0)) call mpl%abort(subr,'wrong lon_ldwv')
          if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call mpl%abort(subr,'wrong lat_ldwv')
+         do ildwv=1,nam%nldwv
+            write(ildwvchar,'(i2.2)') ildwv
+            if (trim(nam%name_ldwv(ildwv))=='') call mpl%abort(subr,'name_ldwv not specified for profile '//ildwvchar)
+         end do
       end if
    end if
    if (nam%local_diag.or.nam%adv_diag) then
@@ -1241,6 +1261,28 @@ if (nam%new_hdiag.or.nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or
          call mpl%abort(subr,'wrong interpolation for fields regridding')
       end select
    end if
+end if
+
+! Check data directory existence
+if  ((nam%new_cortrack.or.nam%write_hdiag.or.nam%write_lct.or.nam%write_cmat.or.nam%write_nicas.or.nam%write_obsop &
+ & .or.nam%write_vbal.or.nam%check_dirac.or.nam%check_randomization.or.nam%sam_write.or.nam%sam_read.or.nam%var_full &
+ & .or.nam%write_grids).and.(trim(nam%datadir)/='.')) then
+   ! Work is done by the main processor
+   if (mpl%main) then
+      inquire(file=trim(nam%datadir),exist=ldatadir)
+      if (.not.ldatadir) then
+         call mpl%warning(subr,'data directory does not exist, BUMP will try to create it')
+         call execute_command_line('mkdir -p '//trim(nam%datadir),exitstat=info)
+         if (info==0) then
+            call mpl%warning(subr,'data directory creation successful')
+         else
+            call mpl%abort(subr,'data directory creation failed')
+         end if
+      end if
+   end if
+
+   ! Wait
+   call mpl%f_comm%barrier
 end if
 
 end subroutine nam_check
@@ -1447,6 +1489,7 @@ if (nam%nldwv>0) then
 end if
 call mpl%write(lncid,'lon_ldwv',nam%nldwv,lon_ldwv)
 call mpl%write(lncid,'lat_ldwv',nam%nldwv,lat_ldwv)
+call mpl%write(lncid,'name_ldwv',nam%nldwv,nam%name_ldwv(1:nam%nldwv))
 call mpl%write(lncid,'diag_rhflt',nam%diag_rhflt*req)
 call mpl%write(lncid,'diag_interp',nam%diag_interp)
 call mpl%write(lncid,'field_io',nam%field_io)

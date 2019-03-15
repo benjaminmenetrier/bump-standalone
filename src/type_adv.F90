@@ -14,6 +14,7 @@ use tools_const, only: req,reqkm,rad2deg,deg2rad
 use tools_func, only: lonlatmod,sphere_dist,reduce_arc,vector_product
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
+use tools_repro, only: inf,sup
 use tools_stripack, only: trans,scoord
 use type_bpar, only: bpar_type
 use type_com, only: com_type
@@ -429,13 +430,18 @@ do its=2,nam%nts
    call mpl%flush
 
    do il0=1,geom%nl0
-      !$omp parallel do schedule(static) private(ic2a,jn,iv,cov,m2m2,mean,stddev,jnmax,cor_avg_max,jc0d,jc0,ic2,ic0,ic0a), &
+      !$omp parallel do schedule(static) private(ic2a,jn,iv,cov,m2m2,jnmax,cor_avg_max,jc0,ic2,ic0,ic0a,mean,stddev), &
       !$omp&                             firstprivate(cor,cor_avg,mask_nn_tmp)
       do ic2a=1,samp%nc2a
          ! Allocation
          allocate(cor(nn(ic2a,il0),nam%nv))
          allocate(cor_avg(nn(ic2a,il0)))
          allocate(mask_nn_tmp(nn(ic2a,il0)))
+
+         ! Initialization
+         mask_nn_tmp = .false.
+         jnmax = mpl%msv%vali
+         cor_avg_max = 0.0
 
          do jn=1,nn(ic2a,il0)
             if (mask_nn(jn,ic2a,il0)) then
@@ -460,15 +466,13 @@ do its=2,nam%nts
                   cor_avg(jn) = mpl%msv%valr
                end if
             end if
-         end do
-         mask_nn_tmp = mask_nn(1:nn(ic2a,il0),ic2a,il0).and.mpl%msv%isnotr(cor_avg)
 
-         ! Locate the maximum correlation
-         jnmax = mpl%msv%vali
-         cor_avg_max = 0.0
-         do jn=1,nn(ic2a,il0)
+            ! Set mask
+            mask_nn_tmp(jn) = mpl%msv%isnotr(cor_avg(jn))
+
+            ! Locate the maximum correlation
             if (mask_nn_tmp(jn)) then
-               if (cor_avg(jn)>cor_avg_max) then
+               if (sup(cor_avg(jn),cor_avg_max)) then
                   jnmax = jn
                   cor_avg_max = cor_avg(jn)
                end if
@@ -666,7 +670,7 @@ do its=2,nam%nts
          dist_flt = dist_flt/norm_tot
 
          ! Update support radius
-         if (valid_flt<1.0) then
+         if (inf(valid_flt,1.0_kind_real)) then
             ! Increase filtering support radius
             if (dichotomy) then
                drhflt = 0.5*drhflt

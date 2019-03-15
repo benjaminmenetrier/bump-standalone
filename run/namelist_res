@@ -48,7 +48,7 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 101,
 ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
@@ -76,20 +76,20 @@ nl0r = 5,
 /
 
 &diag_param
-ne = 10,
+ne = 101,
 gau_approx = .false.,
 vbal_block = .false.,
-vbal_rad = 1000.0e3,
+vbal_rad = 0.0e3,
 var_filter = .false.,
 var_full = .false.,
 var_niter = 0,
 var_rhflt = 0.0,
-local_diag = .false.,
-local_rad = 1000.0e3,
+local_diag = .true.,
+local_rad = 1.0e3,
 adv_diag = .false.,
-adv_rad = 1000.0e3,
-adv_niter = 10,
-adv_rhflt = 500.0e3,
+adv_rad = 0.0e3,
+adv_niter = 0,
+adv_rhflt = 0.0e3,
 /
 
 &fit_param
@@ -133,9 +133,10 @@ obsop_interp = "natural",
 nldwh = 0,
 il_ldwh = 0,
 ic_ldwh = 0,
-nldwv = 0,
-lon_ldwv = 0.0,
-lat_ldwv = 0.0,
+nldwv = 5,
+lon_ldwv = 84.895126444825820,84.882319066403127,84.894194181368690,84.891136597810728,84.904473057859164
+lat_ldwv = 7.2904688099050023,7.2829864254462890,7.2644155397222407,7.2752575961254031,7.2731982236701826
+name_ldwv = 'I1','I2','P1','P2','P3',
 diag_rhflt = 500.0e3,
 diag_interp = "bilin",
 field_io = .true.,

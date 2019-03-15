@@ -6,7 +6,7 @@ Code report obtained with [CLOC](https://github.com/AlDanial/cloc).
 
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| Fortran 90 | 55 | 5904 | 9250 | 21988 | 42 |
+| Fortran 90 | 55 | 5902 | 9257 | 22138 | 41 |
 
 **External code:** 
 

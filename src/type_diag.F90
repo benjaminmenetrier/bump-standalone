@@ -135,9 +135,8 @@ type(io_type),intent(in) :: io         ! I/O
 type(samp_type),intent(in) :: samp     ! Sampling
 
 ! Local variables
-integer :: ib,i,ic2,il0,il0i,iproc,ic2a,ildw,n
+integer :: ib,i,ic2,ic0,il0,il0i,iproc,ic2a,ildw,n
 real(kind_real) :: fld_c2a(samp%nc2a,geom%nl0),fld_c2b(samp%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0)
-character(len=7) :: lonchar,latchar
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'diag_write'
 
@@ -200,23 +199,25 @@ if ((trim(diag%prefix)/='cov').and.nam%local_diag) then
 end if
 
 do ildw=1,nam%nldwv
-   if (mpl%msv%isnoti(samp%nn_ldwv_index(ildw))) then
-      ic2 = samp%nn_ldwv_index(ildw)
-      iproc = samp%c2_to_proc(ic2)
+   ic0 = samp%ldwv_to_c0(ildw)
+   if (geom%mask_hor_c0(ic0)) then
+      iproc = geom%c0_to_proc(ic0)
       if (mpl%myproc==iproc) then
          ! Build file name
-         write(lonchar,'(f7.2)') nam%lon_ldwv(ildw)*rad2deg
-         write(latchar,'(f7.2)') nam%lat_ldwv(ildw)*rad2deg
-         filename = trim(nam%prefix)//'_diag_'//trim(adjustl(lonchar))//'-'//trim(adjustl(latchar))//'.nc'
+         filename = trim(nam%prefix)//'_diag_'//trim(nam%name_ldwv(ildw))//'.nc'
 
-         ! Find diagnostic point task
-         ic2a = samp%c2_to_c2a(ic2)
-         do ib=1,bpar%nbe
-            if (bpar%diag_block(ib)) call diag%blk(ic2a,ib)%write(mpl,nam,geom,bpar,filename)
+         ! Find diagnostic point
+         do ic2a=1,samp%nc2a
+            ic2 = samp%c2a_to_c2(ic2a)
+            if (samp%c2_to_c0(ic2)==ic0) then
+               do ib=1,bpar%nbe
+                  if (bpar%diag_block(ib)) call diag%blk(ic2a,ib)%write(mpl,nam,geom,bpar,filename)
+               end do
+            end if
          end do
       end if
    else
-      call mpl%warning(subr,'missing local profile')
+      call mpl%warning(subr,'missing local profile '//trim(nam%name_ldwv(ildw)))
    end if
 end do
 

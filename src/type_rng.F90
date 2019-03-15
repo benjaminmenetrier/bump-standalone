@@ -426,7 +426,7 @@ end subroutine rng_rand_gau_5d
 ! Subroutine: rng_initialize_sampling
 ! Purpose: intialize sampling
 !----------------------------------------------------------------------
-subroutine rng_initialize_sampling(rng,mpl,n,lon,lat,mask,nb,bnd,rh,ntry,nrep,ns,ihor,fast)
+subroutine rng_initialize_sampling(rng,mpl,n,lon,lat,mask,nfor,for,rh,ntry,nrep,ns,ihor,fast)
 
 implicit none
 
@@ -437,8 +437,8 @@ integer,intent(in) :: n              ! Number of points
 real(kind_real),intent(in) :: lon(n) ! Longitudes
 real(kind_real),intent(in) :: lat(n) ! Latitudes
 logical,intent(in) :: mask(n)        ! Mask
-integer,intent(in) :: nb             ! Number of boundary nodes (automatically included into the subsampling)
-integer,intent(in) :: bnd(nb)        ! Boundary nodes indices
+integer,intent(in) :: nfor           ! Number of forced points (included into the subsampling)
+integer,intent(in) :: for(nfor)      ! Forced points
 real(kind_real),intent(in) :: rh(n)  ! Horizontal support radius
 integer,intent(in) :: ntry           ! Number of tries
 integer,intent(in) :: nrep           ! Number of replacements
@@ -448,7 +448,7 @@ logical,intent(in),optional :: fast  ! Fast sampling flag
 
 ! Local variables
 integer :: system_clock_start,system_clock_end,count_rate,count_max
-integer :: is,js,ib,i,irep,irmax,itry,irval,irvalmin,irvalmax,i_red,ir,ismin,nval,nrep_eff,nn_index(2),ibeff,nbeff
+integer :: is,js,ifor,i,irep,irmax,itry,irval,irvalmin,irvalmax,i_red,ir,ismin,nval,nrep_eff,nn_index(2)
 integer,allocatable :: val_to_full(:),ihor_tmp(:)
 real(kind_real) :: elapsed
 real(kind_real) :: d,distmax,distmin,nn_dist(2)
@@ -463,6 +463,12 @@ character(len=1024),parameter :: subr = 'rng_initialize_sampling'
 type(kdtree_type) :: kdtree
 
 if (mpl%main) then
+   ! Check forced points
+   do ifor=1,nfor
+      if (.not.mask(for(ifor))) call mpl%abort(subr,'a forced point is out of the mask')
+   end do
+   if (ns<nfor) call mpl%abort(subr,'ns lower than the number of forced points')
+
    ! Check mask size
    nval = count(mask)
    if (nval==0) then
@@ -480,9 +486,6 @@ if (mpl%main) then
          end if
       end do
    else
-      nbeff = count(mask(bnd))
-      if (ns<nbeff) call mpl%abort(subr,'ns lower than the number of boundary nodes')
-
       if (nn_stats) then
          ! Save initial time
          call system_clock(count=system_clock_start)
@@ -512,28 +515,23 @@ if (mpl%main) then
       if (present(fast)) lfast = fast
 
       ! Boundary nodes
-      ibeff = 0
-      do ib=1,nb
-         if (mask(bnd(ib))) then
-            ! Find boundary node in the valid points vector
-            ibeff = ibeff+1
-            ir = bnd(ib)
-            irval = mpl%msv%vali
-            do i=1,nval
-               if (val_to_full(i)==ir) then
-                  irval = i
-                  exit
-               end if
-            end do
-            if (mpl%msv%isi(irval)) call mpl%abort(subr,'cannot find irval in initialize_sampling')
-            ihor_tmp(ibeff) = ir
-            lmask(ir) = .false.
-            smask(ir) = .true.
+      do ifor=1,nfor
+         ir = for(ifor)
+         irval = mpl%msv%vali
+         do i=1,nval
+            if (val_to_full(i)==ir) then
+               irval = i
+               exit
+            end if
+         end do
+         if (mpl%msv%isi(irval)) call mpl%abort(subr,'cannot find irval in initialize_sampling')
+         ihor_tmp(ifor) = ir
+         lmask(ir) = .false.
+         smask(ir) = .true.
 
-            ! Shift valid points array
-            if (irval<nval) val_to_full(irval:nval-1) = val_to_full(irval+1:nval)
-            nval = nval-1
-         end if
+         ! Shift valid points array
+         if (irval<nval) val_to_full(irval:nval-1) = val_to_full(irval+1:nval)
+         nval = nval-1
       end do
 
       if (lfast) then
@@ -549,7 +547,7 @@ if (mpl%main) then
          cdf_norm = 1.0/cdf(nval)
          cdf(1:nval) = cdf(1:nval)*cdf_norm
 
-         do is=1+nbeff,ns+nrep
+         do is=1+nfor,ns+nrep
             ! Generate random number
             call rng%rand_real(0.0_kind_real,1.0_kind_real,rr)
 
@@ -590,7 +588,7 @@ if (mpl%main) then
          deallocate(cdf)
       else
          ! Define sampling with KD-tree
-         do is=1+nbeff,ns+nrep_eff
+         do is=1+nfor,ns+nrep_eff
             if (is>2) then
                ! Allocation
                call kdtree%alloc(mpl,n,mask=smask)
@@ -688,7 +686,7 @@ if (mpl%main) then
             call kdtree%init(mpl,lon_rep,lat_rep,sort=.false.)
 
             ! Get minimum distance
-            do is=1+nbeff,ns+nrep_eff
+            do is=1+nfor,ns+nrep_eff
                if (rmask(is)) then
                   ! Find nearest neighbor distance
                   call kdtree%find_nearest_neighbors(mpl,lon(ihor_tmp(is)),lat(ihor_tmp(is)),2,nn_index,nn_dist)
@@ -709,7 +707,7 @@ if (mpl%main) then
             ! Remove worst point
             distmin = huge(1.0)
             ismin = mpl%msv%vali
-            do is=1+nbeff,ns+nrep_eff
+            do is=1+nfor,ns+nrep_eff
                if (rmask(is)) then
                   if (inf(dist(is),distmin)) then
                      ismin = is

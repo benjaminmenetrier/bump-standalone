@@ -13,7 +13,7 @@ bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
 testdir=${HOME}/bump/test
 #testdir=/home/menetrie/bump/test
-model=nemo
+model=res
 
 # Link members
 i=0
@@ -143,7 +143,7 @@ while [ ${i} -lt ${ne} ] ; do
 
    # RES
    if test ${model} = "res" ; then
-      ne=10
+      ne=101
       mkdir -p ${bumpdir}/${model}
       ln -sf ${datadir}/${model}/Ens_${i}.nc ${bumpdir}/${model}/ens1_01_${i4}.nc
    fi

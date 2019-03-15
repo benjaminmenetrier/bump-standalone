@@ -197,9 +197,11 @@ do ib=1,bpar%nbe
       call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
       if (nl0_test/=geom%nl0) call mpl%abort(subr,'wrong dimension when reading nicas')
       if (bpar%nicas_block(ib)) then
-         call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
-         call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=nc0a_test))
-         if (nc0a_test/=geom%nc0a) call mpl%abort(subr,'wrong dimension when reading nicas')
+         if (geom%nc0a>0) then
+            call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc0a',nc0a_id))
+            call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc0a_id,len=nc0a_test))
+            if (nc0a_test/=geom%nc0a) call mpl%abort(subr,'wrong dimension when reading nicas')
+         end if
          info = nf90_inq_dimid(ncid,'nc1b',nc1b_id)
          if (info==nf90_noerr) then
             call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc1b_id,len=nicas%blk(ib)%nc1b))
@@ -261,8 +263,8 @@ do ib=1,bpar%nbe
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_get_var(ncid,sb_to_l1_id,nicas%blk(ib)%sb_to_l1))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_get_var(ncid,sa_to_sc_id,nicas%blk(ib)%sa_to_sc))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_get_var(ncid,sb_to_sc_id,nicas%blk(ib)%sb_to_sc))
-         call mpl%ncerr(subr,nf90_get_var(ncid,norm_id,nicas%blk(ib)%norm))
-         call mpl%ncerr(subr,nf90_get_var(ncid,coef_ens_id,nicas%blk(ib)%coef_ens))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_get_var(ncid,norm_id,nicas%blk(ib)%norm))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_get_var(ncid,coef_ens_id,nicas%blk(ib)%coef_ens))
          call nicas%blk(ib)%com_AB%read(mpl,ncid,'com_AB')
          call nicas%blk(ib)%com_AC%read(mpl,ncid,'com_AC')
          nicas%blk(ib)%c%prefix = 'c'
@@ -337,7 +339,7 @@ do ib=1,bpar%nbe
       ! Define dimensions
       call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
       if (bpar%nicas_block(ib)) then
-         call mpl%ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_def_dim(ncid,'nc0a',geom%nc0a,nc0a_id))
          call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0i',geom%nl0i))
          if (nicas%blk(ib)%nc1b>0) call mpl%ncerr(subr,nf90_def_dim(ncid,'nc1b',nicas%blk(ib)%nc1b,nc1b_id))
          call mpl%ncerr(subr,nf90_def_dim(ncid,'nl1',nicas%blk(ib)%nl1,nl1_id))
@@ -359,13 +361,13 @@ do ib=1,bpar%nbe
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sb_to_l1',nf90_int,(/nsb_id/),sb_to_l1_id))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sa_to_sc',nf90_int,(/nsa_id/),sa_to_sc_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sb_to_sc',nf90_int,(/nsb_id/),sb_to_sc_id))
-         call mpl%ncerr(subr,nf90_def_var(ncid,'norm',nc_kind_real,(/nc0a_id,nl0_id/),norm_id))
-         call mpl%ncerr(subr,nf90_def_var(ncid,'coef_ens',nc_kind_real,(/nc0a_id,nl0_id/),coef_ens_id))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_def_var(ncid,'norm',nc_kind_real,(/nc0a_id,nl0_id/),norm_id))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_def_var(ncid,'coef_ens',nc_kind_real,(/nc0a_id,nl0_id/),coef_ens_id))
 
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_att(ncid,sa_to_sc_id,'_FillValue',mpl%msv%vali))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_att(ncid,sb_to_sc_id,'_FillValue',mpl%msv%vali))
-         call mpl%ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',mpl%msv%valr))
-         call mpl%ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',mpl%msv%valr))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',mpl%msv%valr))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_att(ncid,coef_ens_id,'_FillValue',mpl%msv%valr))
       end if
 
       ! End definition mode
@@ -377,8 +379,8 @@ do ib=1,bpar%nbe
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_var(ncid,sb_to_l1_id,nicas%blk(ib)%sb_to_l1))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_var(ncid,sa_to_sc_id,nicas%blk(ib)%sa_to_sc))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_var(ncid,sb_to_sc_id,nicas%blk(ib)%sb_to_sc))
-         call mpl%ncerr(subr,nf90_put_var(ncid,norm_id,nicas%blk(ib)%norm))
-         call mpl%ncerr(subr,nf90_put_var(ncid,coef_ens_id,nicas%blk(ib)%coef_ens))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_var(ncid,norm_id,nicas%blk(ib)%norm))
+         if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_var(ncid,coef_ens_id,nicas%blk(ib)%coef_ens))
          call nicas%blk(ib)%com_AB%write(mpl,ncid)
          call nicas%blk(ib)%com_AC%write(mpl,ncid)
          call nicas%blk(ib)%c%write(mpl,ncid)
@@ -553,12 +555,14 @@ if (nam%write_nicas) then
    call mpl%flush
    call nicas%write(mpl,nam,geom,bpar)
 
-   ! Write NICAS MPI summary
-   write(mpl%info,'(a)') '-------------------------------------------------------------------'
-   call mpl%flush
-   write(mpl%info,'(a)') '--- Write NICAS MPI summary'
-   call mpl%flush
-   call nicas%write_mpi_summary(mpl,nam,geom,bpar)
+   if (mpl%main.and.nam%write_grids) then
+      ! Write NICAS MPI summary
+      write(mpl%info,'(a)') '-------------------------------------------------------------------'
+      call mpl%flush
+      write(mpl%info,'(a)') '--- Write NICAS MPI summary'
+      call mpl%flush
+      call nicas%write_mpi_summary(mpl,nam,geom,bpar)
+   end if
 end if
 
 end subroutine nicas_run_nicas
@@ -1006,56 +1010,40 @@ case ('common_weighted')
    deallocate(wgt)
    deallocate(wgt_diag)
 case ('specific_univariate')
-   ! Allocation
-   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
-
-   ! Sum product over timeslots
-   fld_4d = 0.0
-   do its=1,nam%nts
-      fld_4d = fld_4d+fld(:,:,:,its)
-   end do
-
    do ib=1,bpar%nb
       if (bpar%nicas_block(ib)) then
          ! Variable index
          iv = bpar%b_to_v1(ib)
+         its = bpar%b_to_ts1(ib)
 
          if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its) &
+                                                                    & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
 
          ! Apply specific NICAS (same for all timeslots)
-         call nicas%blk(ib)%apply(mpl,nam,geom,fld_4d(:,:,iv))
+         call nicas%blk(ib)%apply(mpl,nam,geom,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its) &
+                                                                    & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
       end if
    end do
-
-   ! Build final vector
-   do its=1,nam%nts
-      fld(:,:,:,its) = fld_4d
-   end do
-
-   ! Release memory
-   deallocate(fld_4d)
 case ('specific_multivariate')
    call mpl%abort(subr,'specific multivariate strategy should not be called from apply_NICAS (lsqrt required)')
 end select
@@ -1277,71 +1265,51 @@ case ('common_weighted')
    deallocate(wgt_diag)
    deallocate(wgt_u)
 case ('specific_univariate')
-   ! Allocation
-   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
-
    do ib=1,bpar%nb
       if (bpar%nicas_block(ib)) then
          ! Variable index
          iv = bpar%b_to_v1(ib)
+         its = bpar%b_to_ts1(ib)
 
          ! Apply specific NICAS (same for all timeslots)
-         call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(ib)%alpha,fld_4d(:,:,iv))
+         call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(ib)%alpha,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
             ! Apply specific ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its) &
+                                                                       & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
       end if
    end do
-
-   ! Build final vector
-   do its=1,nam%nts
-      fld(:,:,:,its) = fld_4d
-   end do
-
-   ! Release memory
-   deallocate(fld_4d)
 case ('specific_multivariate')
-   ! Allocation
-   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
-
    do ib=1,bpar%nb
       if (bpar%nicas_block(ib)) then
          ! Variable index
          iv = bpar%b_to_v1(ib)
+         its = bpar%b_to_ts1(ib)
 
          ! Apply specific NICAS (same for all timeslots)
-         call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(bpar%nbe)%alpha,fld_4d(:,:,iv))
+         call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(bpar%nbe)%alpha,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
             ! Apply specific ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its) &
+                                                                    & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
       end if
    end do
-
-   ! Build final vector
-   do its=1,nam%nts
-      fld(:,:,:,its) = fld_4d
-   end do
-
-   ! Release memory
-   deallocate(fld_4d)
 end select
 
 ! Advection
@@ -1519,80 +1487,60 @@ case ('common_weighted')
    deallocate(wgt_diag)
    deallocate(wgt_u)
 case ('specific_univariate')
-   ! Allocation
-   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
-
-   ! Sum product over timeslots
-   fld_4d = 0.0
-   do its=1,nam%nts
-      fld_4d = fld_4d+fld_5d(:,:,:,its)
-   end do
-
    do ib=1,bpar%nb
       if (bpar%nicas_block(ib)) then
-         ! Variable index
+         ! Indices
          iv = bpar%b_to_v1(ib)
+         its = bpar%b_to_ts1(ib)
 
          if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld_5d(ic0a,il0,iv,its) = fld_5d(ic0a,il0,iv,its) &
+                                                                       & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
 
          ! Apply specific NICAS (same for all timeslots)
-         call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_4d(:,:,iv),cv%blk(ib)%alpha)
+         call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_5d(:,:,iv,its),cv%blk(ib)%alpha)
       end if
    end do
-
-   ! Release memory
-   deallocate(fld_4d)
 case ('specific_multivariate')
    ! Allocation
-   allocate(fld_4d(geom%nc0a,geom%nl0,nam%nv))
    call nicas%alloc_cv(mpl,bpar,cv_tmp)
 
    ! Initialization
    cv%blk(bpar%nbe)%alpha = 0.0
 
-   ! Sum product over timeslots
-   fld_4d = 0.0
-   do its=1,nam%nts
-      fld_4d = fld_4d+fld_5d(:,:,:,its)
-   end do
-
    do ib=1,bpar%nb
       if (bpar%nicas_block(ib)) then
          ! Variable index
          iv = bpar%b_to_v1(ib)
+         its = bpar%b_to_ts1(ib)
 
          if (nam%nonunit_diag) then
             ! Apply common ensemble coefficient square-root
             !$omp parallel do schedule(static) private(il0,ic0a)
             do il0=1,geom%nl0
                do ic0a=1,geom%nc0a
-                  if (geom%mask_c0a(ic0a,il0)) fld_4d(ic0a,il0,iv) = fld_4d(ic0a,il0,iv) &
-                                                                   & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
+                  if (geom%mask_c0a(ic0a,il0)) fld_5d(ic0a,il0,iv,its) = fld_5d(ic0a,il0,iv,its) &
+                                                                       & *sqrt(nicas%blk(ib)%coef_ens(ic0a,il0))
                end do
             end do
             !$omp end parallel do
          end if
 
          ! Apply specific NICAS (same for all timeslots)
-         call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_4d(:,:,iv),cv_tmp%blk(bpar%nbe)%alpha)
+         call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_5d(:,:,iv,its),cv_tmp%blk(bpar%nbe)%alpha)
 
          ! Sum control variable
          cv%blk(bpar%nbe)%alpha = cv%blk(bpar%nbe)%alpha+cv_tmp%blk(bpar%nbe)%alpha
       end if
    end do
-
-   ! Release memory
-   deallocate(fld_4d)
 end select
 
 ! Release memory

@@ -10,7 +10,7 @@ module tools_func
 use tools_asa007, only: asa007_cholesky,asa007_syminv
 use tools_const, only: pi
 use tools_kinds, only: kind_real
-use tools_repro, only: inf
+use tools_repro, only: inf,sup
 use type_mpl, only: mpl_type
 
 implicit none
@@ -103,7 +103,7 @@ real(kind_real) :: theta
 call sphere_dist(lon_i,lat_i,lon_f,lat_f,dist)
 
 ! Check with the maximum distance
-if (dist>maxdist) then
+if (sup(dist,maxdist)) then
    ! Compute bearing
    theta = atan2(sin(lon_f-lon_i)*cos(lat_f),cos(lat_i)*sin(lat_f)-sin(lat_i)*cos(lat_f)*cos(lon_f-lon_i))
 
@@ -254,7 +254,7 @@ logical :: add_to_front
 fit = 0.0
 
 !$omp parallel do schedule(static) private(il0,np,jl0r,np_new,ip,jc3,jl0,kc3,kl0r,kl0,rhsq,rvsq,distnorm,disttest,add_to_front), &
-!$omp&                             firstprivate(plist,plist_new,dist)
+!$omp&                             private(jp) firstprivate(plist,plist_new,dist)
 do il0=1,nl0
    ! Allocation
    allocate(plist(nc3*nl0r,2))
@@ -390,7 +390,7 @@ logical :: add_to_front
 fit = 0.0
 
 !$omp parallel do schedule(static) private(il0,np,jl0r,np_new,ip,jc3,jl0,kc3,kl0r,kl0,rhsq,rvsq,distnorm,disttest,add_to_front), &
-!$omp&                             private(coef,distnormv,distnormh) firstprivate(plist,plist_new,dist)
+!$omp&                             private(jp,distnormv,rfac,coef,distnormh) firstprivate(plist,plist_new,dist)
 do il0=1,nl0
    ! Allocation
    allocate(plist(nc3*nl0r,2))

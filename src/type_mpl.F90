@@ -202,13 +202,12 @@ end subroutine mpl_final
 ! Subroutine: mpl_init_listing
 ! Purpose: initialize listings
 !----------------------------------------------------------------------
-subroutine mpl_init_listing(mpl,datadir,prefix,model,verbosity,colorlog,lunit)
+subroutine mpl_init_listing(mpl,prefix,model,verbosity,colorlog,lunit)
 
 implicit none
 
 ! Passed variables
 class(mpl_type),intent(inout) :: mpl     ! MPI data
-character(len=*),intent(in) :: datadir   ! Output data directory
 character(len=*),intent(in) :: prefix    ! Output prefix
 character(len=*),intent(in) :: model     ! Model
 character(len=*),intent(in) :: verbosity ! Verbosity level
@@ -217,12 +216,7 @@ integer,intent(in),optional :: lunit     ! Main listing unit
 
 ! Local variables
 integer :: iproc,ifileunit
-logical :: ldatadir
 character(len=1024) :: filename
-
-! Check data directory existence
-inquire(file=trim(datadir),exist=ldatadir)
-if (.not.ldatadir) call execute_command_line('mkdir -p '//trim(datadir))
 
 ! Set verbosity level
 mpl%verbosity = trim(verbosity)
@@ -368,6 +362,7 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
 end if
 
 end subroutine mpl_close_listing
+
 !----------------------------------------------------------------------
 ! Subroutine: mpl_abort
 ! Purpose: clean MPI abort
@@ -455,6 +450,7 @@ class(mpl_type),intent(inout) :: mpl ! MPI data
 integer,intent(in),optional :: i     ! Index
 
 ! Local variables
+integer :: ithread
 real(kind_real) :: prog
 
 ! Update progression array
@@ -462,7 +458,9 @@ if (present(i)) mpl%done(i) = .true.
 
 ! Print message
 prog = 100.0*real(count(mpl%done),kind_real)/real(mpl%nprog,kind_real)
-if (int(prog)>mpl%progint) then
+ithread = 0
+!$ ithread = omp_get_thread_num()
+if ((int(prog)>mpl%progint).and.(ithread==0)) then
    if (mpl%progint<100) then
       if (mpl%progint<10) then
          write(mpl%info,'(i2,a)') mpl%progint,'% '

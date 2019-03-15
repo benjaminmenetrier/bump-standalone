@@ -14,6 +14,7 @@ use tools_const, only: pi,req,deg2rad,rad2deg
 use tools_func, only: gc99,sphere_dist
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
+use tools_repro, only: eq,inf
 use tools_stripack, only: trans
 use type_bpar, only: bpar_type
 use type_com, only: com_type
@@ -54,7 +55,11 @@ type samp_type
    logical,allocatable ::  local_mask(:,:)          ! Local mask
    integer,allocatable :: nn_c2_index(:,:,:)        ! Nearest diagnostic neighbors from diagnostic points
    real(kind_real),allocatable :: nn_c2_dist(:,:,:) ! Nearest diagnostic neighbors distance from diagnostic points
-   integer,allocatable :: nn_ldwv_index(:)          ! Nearest diagnostic neighbors for local diagnostics profiles
+
+   ! Forced points
+   integer :: nfor                                  ! Number of forced points
+   integer,allocatable :: ldwv_to_c0(:)             ! Local diagnostics profiles to subset Sc0
+   integer,allocatable :: ldwv_to_c2(:)             ! Local diagnostics profiles to subset Sc2
 
    ! Sampling mesh
    type(mesh_type) :: mesh                          ! Sampling mesh
@@ -215,7 +220,8 @@ if (allocated(samp%h)) then
    end do
    deallocate(samp%h)
 end if
-if (allocated(samp%nn_ldwv_index)) deallocate(samp%nn_ldwv_index)
+if (allocated(samp%ldwv_to_c0)) deallocate(samp%ldwv_to_c0)
+if (allocated(samp%ldwv_to_c2)) deallocate(samp%ldwv_to_c2)
 if (allocated(samp%adv_lon)) deallocate(samp%adv_lon)
 if (allocated(samp%adv_lat)) deallocate(samp%adv_lat)
 
@@ -696,12 +702,11 @@ type(io_type),intent(in) :: io         ! I/O
 type(ens_type),intent(in) :: ens       ! Ensemble
 
 ! Local variables
-integer :: ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,ib
-integer :: bnd(geom%mesh%nb),ival
-integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:)
+integer :: ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,ifor,ival,nn_index(geom%nc0)
+integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:),for(:)
 real(kind_real) :: lon_c1(nam%nc1),lat_c1(nam%nc1)
 real(kind_real) :: lon_c2(nam%nc2),lat_c2(nam%nc2)
-real(kind_real) :: rh_c0a(geom%nc0a,geom%nl0),nn_dist(1)
+real(kind_real) :: rh_c0a(geom%nc0a,geom%nl0),nn_dist(geom%nc0)
 real(kind_real),allocatable :: rh_c1(:),nn_c1_dist(:)
 logical :: new_sampling,mask_c1(nam%nc1)
 character(len=8) :: ivalformat
@@ -722,6 +727,26 @@ call samp%alloc(nam,geom)
 ! Initialization
 samp%c1_to_c0 = mpl%msv%vali
 samp%c1c3_to_c0 = mpl%msv%vali
+
+! Compute nearest neighbors for local diagnostics output
+if (nam%nldwv>0) then
+   write(mpl%info,'(a7,a)') '','Compute nearest neighbors for local diagnostics output'
+   call mpl%flush
+
+   ! Allocation
+   allocate(samp%ldwv_to_c0(nam%nldwv))
+
+   ! Find nearest neighbors
+   samp%ldwv_to_c0 = mpl%msv%vali
+   do ildw=1,nam%nldwv
+      ic0 = 0
+      do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
+         ic0 = ic0+1
+         call geom%kdtree%find_nearest_neighbors(mpl,nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0),nn_dist(1:ic0))
+         if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
+      end do
+   end do
+end if
 
 ! Read or compute sampling data
 new_sampling = .true.
@@ -757,11 +782,12 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv
       lon_c1 = geom%lon(samp%c1_to_c0)
       lat_c1 = geom%lat(samp%c1_to_c0)
       mask_c1 = any(samp%c1l0_log(:,:),dim=2)
-      do ib=1,geom%mesh%nb
-         bnd(ib) = ib
+      allocate(for(samp%nfor))
+      do ifor=1,samp%nfor
+         for(ifor) = ifor
       end do
       rh_c1 = 1.0
-      call rng%initialize_sampling(mpl,nam%nc1,lon_c1,lat_c1,mask_c1,geom%mesh%nb,bnd,rh_c1, &
+      call rng%initialize_sampling(mpl,nam%nc1,lon_c1,lat_c1,mask_c1,samp%nfor,for,rh_c1, &
     & nam%ntry,nam%nrep,nam%nc2,samp%c2_to_c1)
       samp%c2_to_c0 = samp%c1_to_c0(samp%c2_to_c1)
       deallocate(rh_c1)
@@ -893,27 +919,6 @@ if (nam%sam_write) then
       filename = trim(nam%prefix)//'_sampling_rh_c0'
       call io%fld_write(mpl,nam,geom,filename,'rh_c0',rh_c0a)
    end if
-end if
-
-! Compute nearest neighbors for local diagnostics output
-if (nam%local_diag.and.(nam%nldwv>0)) then
-   write(mpl%info,'(a7,a)') '','Compute nearest neighbors for local diagnostics output'
-   call mpl%flush
-
-   ! Allocation
-   allocate(samp%nn_ldwv_index(nam%nldwv))
-   call kdtree%alloc(mpl,nam%nc2,mask=samp%c1l0_log(samp%c2_to_c1,1))
-
-   ! Initialization
-   call kdtree%init(mpl,geom%lon(samp%c2_to_c0),geom%lat(samp%c2_to_c0))
-
-   ! Find nearest neighbors
-   do ildw=1,nam%nldwv
-      call kdtree%find_nearest_neighbors(mpl,nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),1,samp%nn_ldwv_index(ildw:ildw),nn_dist)
-   end do
-
-   ! Release memory
-   call kdtree%dealloc
 end if
 
 ! Print results
@@ -1121,9 +1126,11 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: ic0,ic1,il0
-integer :: nn_index(1),bnd(geom%mesh%nb)
+integer :: ic0,jc0,ic1,il0,ib,jb,ildwv,jldwv,ifor
+integer :: nn_index(1)
+integer,allocatable :: for(:)
 real(kind_real) :: nn_dist(1)
+logical :: valid
 type(kdtree_type) :: kdtree
 
 ! Compute subset
@@ -1164,10 +1171,66 @@ if (nam%nc1<maxval(samp%nc0_mask)) then
       samp%rh_c0(:,1) = rcoast+(1.0-rcoast)*(1.0-samp%rh_c0(:,1)/real(geom%nl0,kind_real))
    end select
 
+   ! Count forced points
+   samp%nfor = 0
+   do ib=1,geom%mesh%nb
+      ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+      if (geom%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+   end do
+   do ildwv=1,nam%nldwv
+      ic0 = samp%ldwv_to_c0(ildwv)
+      valid = .true.
+      do jb=1,geom%mesh%nb
+         jc0 = geom%mesh%order(geom%mesh%bnd(jb))
+         if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
+      end do
+      do jldwv=1,ildwv-1
+         jc0 = samp%ldwv_to_c0(jldwv)
+         if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
+      end do
+      if (valid) then
+         if (geom%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+      end if
+   end do
+
+   if (samp%nfor>0) then
+      ! Allocation
+      allocate(for(samp%nfor))
+      ifor = 0
+
+      ! Add boundary points
+      do ib=1,geom%mesh%nb
+         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+         if (geom%mask_hor_c0(ic0)) then
+            ifor = ifor+1
+            for(ifor) = ic0
+         end if
+      end do
+
+      ! Add local diagnostic profiles
+      do ildwv=1,nam%nldwv
+         ic0 = samp%ldwv_to_c0(ildwv)
+         valid = .true.
+         do jb=1,geom%mesh%nb
+            jc0 = geom%mesh%order(geom%mesh%bnd(jb))
+            if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
+         end do
+         do jldwv=1,ildwv-1
+            jc0 = samp%ldwv_to_c0(jldwv)
+            if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
+         end do
+         if (valid) then
+            if (geom%mask_hor_c0(ic0)) then
+               ifor = ifor+1
+               for(ifor) = ic0
+            end if
+         end if
+      end do
+   end if
+
    ! Initialize sampling
-   if (geom%mesh%nb>0) bnd = geom%mesh%order(geom%mesh%bnd)
-   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,geom%mesh%nb,bnd, &
- & samp%rh_c0(:,1),nam%ntry,nam%nrep,nam%nc1,samp%c1_to_c0)
+   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,samp%nfor,for,samp%rh_c0(:,1), &
+ & nam%ntry,nam%nrep,nam%nc1,samp%c1_to_c0)
 else
    ic1 = 0
    do ic0=1,geom%nc0
@@ -2001,7 +2064,7 @@ if (rflt>0.0) then
       if (present(val)) call mpl%loc_to_glb(samp%nc2a,val,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.true.,val_glb)
    end if
 
-   !$omp parallel do schedule(static) private(ic2a,ic2,ic1,ic0,nc2eff,jc2,distnorm,norm,wgt), &
+   !$omp parallel do schedule(static) private(ic2a,ic2,ic1,ic0,nc2eff,jc2,kc2,kc2_glb,distnorm,norm,wgt), &
    !$omp&                             firstprivate(diag_eff,diag_eff_dist,val_eff,order)
    do ic2a=1,samp%nc2a
       ! Indices
@@ -2017,7 +2080,7 @@ if (rflt>0.0) then
       ! Build diag_eff of valid points
       nc2eff = 0
       jc2 = 1
-      do while (samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i))<rflt)
+      do while (inf(samp%nn_c2_dist(jc2,ic2,min(il0,geom%nl0i)),rflt))
          ! Check the point validity
          kc2 = samp%nn_c2_index(jc2,ic2,min(il0,geom%nl0i))
          if (nam_rad) then
