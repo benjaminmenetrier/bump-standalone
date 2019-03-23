@@ -8,12 +8,12 @@
 module type_kdtree
 
 use tools_const, only: pi
+use tools_func, only: lonlat2xyz
 use tools_kdtree2, only: kdtree2,kdtree2_result,kdtree2_create,kdtree2_destroy, &
                        & kdtree2_n_nearest,kdtree2_r_count
 use tools_kinds, only: kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: rth
-use tools_stripack, only: trans,scoord
 use type_mpl, only: mpl_type
 
 implicit none
@@ -119,7 +119,7 @@ do i=1,kdtree%n
       ieff = ieff+1
 
       ! Transform to cartesian coordinates
-      call trans(mpl,1,lat(i),lon(i),input_data(1,ieff),input_data(2,ieff),input_data(3,ieff))
+      call lonlat2xyz(mpl,lon(i),lat(i),input_data(1,ieff),input_data(2,ieff),input_data(3,ieff))
 
       ! Conversion
       kdtree%from_eff(ieff) = i
@@ -173,15 +173,11 @@ real(kind_real),intent(out) :: nn_dist(nn) ! Neareast neighbors distance
 ! Local variables
 integer :: i,j,nid
 integer,allocatable :: order(:)
-real(kind_real) :: lontmp(1),lattmp(1),qv(3)
+real(kind_real) :: qv(3)
 type(kdtree2_result) :: results(nn)
 
-! Copy lon/lat
-lontmp(1) = lon
-lattmp(1) = lat
-
 ! Transform to cartesian coordinates
-call trans(mpl,1,lattmp,lontmp,qv(1),qv(2),qv(3))
+call lonlat2xyz(mpl,lon,lat,qv(1),qv(2),qv(3))
 
 ! Find nearest neighbors
 call kdtree2_n_nearest(kdtree%tp,qv,nn,results)
@@ -232,15 +228,10 @@ real(kind_real),intent(in) :: sr        ! Spherical radius
 integer,intent(out) :: nn               ! Number of nearest neighbors found
 
 ! Local variables
-real(kind_real) :: lontmp(1),lattmp(1)
 real(kind_real) :: qv(3),chordsq
 
-! Copy lon/lat
-lontmp(1) = lon
-lattmp(1) = lat
-
 ! Transform to cartesian coordinates
-call trans(mpl,1,lattmp,lontmp,qv(1),qv(2),qv(3))
+call lonlat2xyz(mpl,lon,lat,qv(1),qv(2),qv(3))
 
 ! Convert radius on sphere to chord squared
 chordsq = 4.0*sin(0.5*min(sr,pi))**2

@@ -7,9 +7,9 @@
 #----------------------------------------------------------------------
 
 # Directories
-src=${HOME}/code/bump/src
-doc=${HOME}/code/bump/doc
-autodoc=${HOME}/code/bump/doc/autodoc
+src=${HOME}/code/bump-standalone/src
+doc=${HOME}/code/bump-standalone/doc
+autodoc=${HOME}/code/bump-standalone/doc/autodoc
 mkdir -p ${autodoc}
 
 # Introduction
@@ -98,7 +98,7 @@ for category in "main" "tools" "derived_type" "external_tools" "model" ; do
          if test "${new_purpose}" = "true" ; then
             if test "${category}" = "main" ; then
                # New program
-               printf "| main | [main](https://github.com/benjaminmenetrier/bump/tree/master/src/main.F90) | ${purpose} |\n" >> ${doc}/code_autodoc.md
+               printf "| main | [main](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/main.F90) | ${purpose} |\n" >> ${doc}/code_autodoc.md
             else
                # New module
                if test "${new_module}" = "true" ; then
@@ -117,9 +117,9 @@ EOFMOD
                # New subroutine/function
                if test "${new_subfunc}" = "true" ; then
                   if test "${type_bound}" = "true" ; then
-                     printf "| ${subfunc_type} | [${class}\%] [${subfunc#${class}_}](https://github.com/benjaminmenetrier/bump/tree/master/src/${module}.F90#L${i}) | ${purpose} |\n" >> ${autodoc}/${module}.md
+                     printf "| ${subfunc_type} | [${class}\%] [${subfunc#${class}_}](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/${module}.F90#L${i}) | ${purpose} |\n" >> ${autodoc}/${module}.md
                   else
-                     printf "| ${subfunc_type} | [${subfunc}](https://github.com/benjaminmenetrier/bump/tree/master/src/${module}.F90#L${i}) | ${purpose} |\n" >> ${autodoc}/${module}.md
+                     printf "| ${subfunc_type} | [${subfunc}](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/${module}.F90#L${i}) | ${purpose} |\n" >> ${autodoc}/${module}.md
                   fi
                   new_subfunc=false
                   type_bound=false

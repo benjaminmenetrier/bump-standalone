@@ -61,6 +61,7 @@ project (bump Fortran)
 file (GLOB BUMP_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.F90"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/external/*.F90"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/fckit/*.F90"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/model/*.F90"
 )
 add_executable (bump ${BUMP_SRC})

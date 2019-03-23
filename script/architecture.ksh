@@ -7,8 +7,8 @@
 #----------------------------------------------------------------------
 
 # Directories
-doc=${HOME}/code/bump/doc
-architecture=${HOME}/code/bump/doc/architecture
+doc=${HOME}/code/bump_standalone/doc
+architecture=${HOME}/code/bump_standalone/doc/architecture
 mkdir -p ${architecture}
 
 # Build diagrams

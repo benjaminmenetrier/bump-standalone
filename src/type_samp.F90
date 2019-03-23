@@ -15,7 +15,6 @@ use tools_func, only: gc99,sphere_dist
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: eq,inf
-use tools_stripack, only: trans
 use type_bpar, only: bpar_type
 use type_com, only: com_type
 use type_ens, only: ens_type

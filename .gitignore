@@ -11,11 +11,8 @@ run/bump
 run/*.info.*
 run/*.test.*
 
-# Source OOPS
-src_oops
+# Library source
+src_lib
 
 # Test
 test/test_*.nc
-
-# Versions
-versions

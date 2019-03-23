@@ -9,11 +9,10 @@
 ! Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 !----------------------------------------------------------------------
 module tools_kdtree2
-  use tools_func, only: sphere_dist
+  use fckit_geometry_module, only: unit_sphere_xyz2lonlat,unit_sphere_distance
   use tools_kdtree2_pq
   use tools_kinds, only: kind_real
   use tools_repro, only: inf,infeq,sup
-  use tools_stripack, only: scoord
   ! K-D tree routines in Fortran 90 by Matt Kennel.
   ! Original program was written in Sather by Steve Omohundro and
   ! Matt Kennel.  Only the Euclidean metric is supported.
@@ -632,18 +631,18 @@ contains
 
     ! .. Function Return Value ..
     ! re-implemented to improve vectorization.
-    real(kind_real) :: res, ilat, ilon, ir, qlat, qlon, qr
+    real(kind_real) :: res, ilat, ilon, qlat, qlon
     ! ..
     ! .. Array Arguments ..
     real(kind_real),intent(in) :: iv(3),qv(3)
     ! ..
     ! ..
-    ! .. Back to spherical coordinates
-    call scoord(iv(1),iv(2),iv(3),ilat,ilon,ir)
-    call scoord(qv(1),qv(2),qv(3),qlat,qlon,qr)
+    ! .. Back to spherical coordinates (in degrees)
+    call unit_sphere_xyz2lonlat(iv(1),iv(2),iv(3),ilon,ilat)
+    call unit_sphere_xyz2lonlat(qv(1),qv(2),qv(3),qlon,qlat)
 
     ! Distance on sphere
-    call sphere_dist(ilon,ilat,qlon,qlat,res)
+    res = unit_sphere_distance(ilon,ilat,qlon,qlat)
 
   end function sdistance
 

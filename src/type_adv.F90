@@ -11,11 +11,10 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
 use tools_const, only: req,reqkm,rad2deg,deg2rad
-use tools_func, only: lonlatmod,sphere_dist,reduce_arc,vector_product
+use tools_func, only: lonlatmod,sphere_dist,reduce_arc,lonlat2xyz,xyz2lonlat,vector_product
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: inf,sup
-use tools_stripack, only: trans,scoord
 use type_bpar, only: bpar_type
 use type_com, only: com_type
 use type_ens, only: ens_type
@@ -525,7 +524,7 @@ do its=2,nam%nts
       call mpl%loc_to_glb(samp%nc2a,adv%lat_c2a_raw(:,il0,its),nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lat_c2)
       if (mpl%main) then
          mesh = samp%mesh%copy()
-         call mesh%trans(mpl,lon_c2,lat_c2)
+         call mesh%store(mpl,lon_c2,lat_c2)
          call mesh%check(mpl,valid_c2)
       end if
       call mpl%f_comm%broadcast(valid_c2,mpl%ioproc-1)
@@ -572,7 +571,7 @@ type(samp_type),intent(inout) :: samp ! Sampling
 
 ! Local variables
 integer :: ic0,ic2,ic2a,il0,its,iter
-real(kind_real) :: dist_sum,norm,norm_tot,dum,valid_flt,dist_flt,rhflt,drhflt
+real(kind_real) :: dist_sum,norm,norm_tot,valid_flt,dist_flt,rhflt,drhflt
 real(kind_real) :: lon_c2a(samp%nc2a),lat_c2a(samp%nc2a),dist_c2a(samp%nc2a)
 real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
 real(kind_real) :: dx_ini(samp%nc2a),dy_ini(samp%nc2a),dz_ini(samp%nc2a)
@@ -590,7 +589,7 @@ call mpl%flush
 do ic2a=1,samp%nc2a
    ic2 = samp%c2a_to_c2(ic2a)
    ic0 = samp%c2_to_c0(ic2)
-   call trans(mpl,1,geom%lat(ic0),geom%lon(ic0),x_ori(ic2a:ic2a),y_ori(ic2a:ic2a),z_ori(ic2a:ic2a))
+   call lonlat2xyz(mpl,geom%lon(ic0),geom%lat(ic0),x_ori(ic2a),y_ori(ic2a),z_ori(ic2a))
 end do
 
 do its=2,nam%nts
@@ -602,8 +601,8 @@ do its=2,nam%nts
       call mpl%flush
 
       ! Convert to cartesian coordinates
-      call trans(mpl,samp%nc2a,adv%lat_c2a_raw(:,il0,its),adv%lon_c2a_raw(:,il0,its),dx_ini,dy_ini,dz_ini)
       do ic2a=1,samp%nc2a
+         call lonlat2xyz(mpl,adv%lon_c2a_raw(ic2a,il0,its),adv%lat_c2a_raw(ic2a,il0,its),dx_ini(ic2a),dy_ini(ic2a),dz_ini(ic2a))
          if (mpl%msv%isnotr(dx_ini(ic2a))) dx_ini(ic2a) = dx_ini(ic2a)-x_ori(ic2a)
          if (mpl%msv%isnotr(dy_ini(ic2a))) dy_ini(ic2a) = dy_ini(ic2a)-y_ori(ic2a)
          if (mpl%msv%isnotr(dz_ini(ic2a))) dz_ini(ic2a) = dz_ini(ic2a)-z_ori(ic2a)
@@ -637,7 +636,7 @@ do its=2,nam%nts
          dy = y_ori+dy
          dz = z_ori+dz
          do ic2a=1,samp%nc2a
-            call scoord(dx(ic2a),dy(ic2a),dz(ic2a),lat_c2a(ic2a),lon_c2a(ic2a),dum)
+            call xyz2lonlat(mpl,dx(ic2a),dy(ic2a),dz(ic2a),lon_c2a(ic2a),lat_c2a(ic2a))
          end do
 
          ! Reduce distance with respect to the boundary
@@ -655,7 +654,7 @@ do its=2,nam%nts
          call mpl%loc_to_glb(samp%nc2a,lat_c2a,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lat_c2)
          if (mpl%main) then
             mesh = samp%mesh%copy()
-            call mesh%trans(mpl,lon_c2,lat_c2)
+            call mesh%store(mpl,lon_c2,lat_c2)
             call mesh%check(mpl,valid_c2)
          end if
          call mpl%f_comm%broadcast(valid_c2,mpl%ioproc-1)
@@ -752,11 +751,11 @@ call mpl%flush
 do ic2a=1,samp%nc2a
    ic2 = samp%c2a_to_c2(ic2a)
    ic0 = samp%c2_to_c0(ic2)
-   call trans(mpl,1,geom%lat(ic0),geom%lon(ic0),x_ori(ic2a:ic2a),y_ori(ic2a:ic2a),z_ori(ic2a:ic2a))
+   call lonlat2xyz(mpl,geom%lon(ic0),geom%lat(ic0),x_ori(ic2a),y_ori(ic2a),z_ori(ic2a))
 end do
 do ic0a=1,geom%nc0a
    ic0 = geom%c0a_to_c0(ic0a)
-   call trans(mpl,1,geom%lat(ic0),geom%lon(ic0),x_ori_c0a(ic0a:ic0a),y_ori_c0a(ic0a:ic0a),z_ori_c0a(ic0a:ic0a))
+   call lonlat2xyz(mpl,geom%lon(ic0),geom%lat(ic0),x_ori_c0a(ic0a),y_ori_c0a(ic0a),z_ori_c0a(ic0a))
 end do
 
 do its=2,nam%nts
@@ -764,8 +763,8 @@ do its=2,nam%nts
 
    do il0=1,geom%nl0
       ! Convert to cartesian coordinates
-      call trans(mpl,samp%nc2a,adv%lat_c2a_flt(:,il0,its),adv%lon_c2a_flt(:,il0,its),dx,dy,dz)
       do ic2a=1,samp%nc2a
+         call lonlat2xyz(mpl,adv%lon_c2a_flt(ic2a,il0,its),adv%lat_c2a_flt(ic2a,il0,its),dx(ic2a),dy(ic2a),dz(ic2a))
          if (mpl%msv%isnotr(dx(ic2a))) dx(ic2a) = dx(ic2a)-x_ori(ic2a)
          if (mpl%msv%isnotr(dy(ic2a))) dy(ic2a) = dy(ic2a)-y_ori(ic2a)
          if (mpl%msv%isnotr(dz(ic2a))) dz(ic2a) = dz(ic2a)-z_ori(ic2a)
@@ -785,7 +784,7 @@ do its=2,nam%nts
       dy_c0a = y_ori_c0a+dy_c0a
       dz_c0a = z_ori_c0a+dz_c0a
       do ic0a=1,geom%nc0a
-         call scoord(dx_c0a(ic0a),dy_c0a(ic0a),dz_c0a(ic0a),samp%adv_lat(ic0a,il0,its),samp%adv_lon(ic0a,il0,its),dum)
+         call xyz2lonlat(mpl,dx_c0a(ic0a),dy_c0a(ic0a),dz_c0a(ic0a),samp%adv_lon(ic0a,il0,its),samp%adv_lat(ic0a,il0,its))
       end do
 
       ! Reduce distance with respect to the boundary

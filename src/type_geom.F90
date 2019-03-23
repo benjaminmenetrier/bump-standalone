@@ -9,11 +9,11 @@ module type_geom
 
 use netcdf
 use tools_const, only: pi,req,deg2rad,rad2deg,reqkm
-use tools_func, only: lonlatmod,sphere_dist,vector_product,vector_triple_product
+use tools_func, only: lonlatmod,sphere_dist,lonlat2xyz,vector_product,vector_triple_product
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: inf
-use tools_stripack, only: areas,trans
+use tools_stripack, only: areas
 use type_com, only: com_type
 use type_kdtree, only: kdtree_type
 use type_mesh, only: mesh_type
@@ -624,7 +624,8 @@ if (nam%mask_check) then
       do ibnda=1,geom%nbnda(il0)
          lon_arc = geom%lon(bnda_to_c0(:,ibnda))
          lat_arc = geom%lat(bnda_to_c0(:,ibnda))
-         call trans(mpl,2,lat_arc,lon_arc,xbnda,ybnda,zbnda)
+         call lonlat2xyz(mpl,lon_arc(1),lat_arc(1),xbnda(1),ybnda(1),zbnda(1))
+         call lonlat2xyz(mpl,lon_arc(2),lat_arc(2),xbnda(2),ybnda(2),zbnda(2))
          geom%v1bnda(:,ibnda,il0) = (/xbnda(1),ybnda(1),zbnda(1)/)
          geom%v2bnda(:,ibnda,il0) = (/xbnda(2),ybnda(2),zbnda(2)/)
          call vector_product(geom%v1bnda(:,ibnda,il0),geom%v2bnda(:,ibnda,il0),geom%vabnda(:,ibnda,il0))
@@ -1018,7 +1019,8 @@ real(kind_real) :: x(2),y(2),z(2),v1(3),v2(3),va(3),vp(3),t(4)
 valid = .true.
 
 ! Transform to cartesian coordinates
-call trans(mpl,2,(/lat_s,lat_e/),(/lon_s,lon_e/),x,y,z)
+call lonlat2xyz(mpl,lon_s,lat_s,x(1),y(1),z(1))
+call lonlat2xyz(mpl,lon_e,lat_e,x(2),y(2),z(2))
 
 ! Compute arc orthogonal vector
 v1 = (/x(1),y(1),z(1)/)

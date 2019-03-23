@@ -6,43 +6,23 @@
 # Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Parameters
-repo="https://github.com/JCSDA/oops.git"
-branch="feature/bump"
-src_oops="${HOME}/code/bump/src_oops"
-src_tmp="${HOME}/code/bump/src_tmp"
-src="${HOME}/code/bump/src"
-offline="${HOME}/code/bump/offline"
+src_origin="${HOME}/code/ufo-bundle/oops/src/oops/generic/bump"
+src_lib="${HOME}/code/bump-standalone/src_lib"
+src_tmp="${HOME}/code/bump-standalone/src_tmp"
+src="${HOME}/code/bump-standalone/src"
+offline="${HOME}/code/bump-standalone/offline"
 
-# Get src_oops
-if test "$1" = "git" ; then
-   git clone ${repo}
-   cd oops
-   git checkout ${branch}
-   cd src/oops/generic
-   rm -fr ${src_oops}
-   mv bump ${src_oops}
-   cd ../../../..
-   rm -fr oops/
-elif test "$1" = "ufo" ; then
-   mkdir -p ${src_oops}
-   src_ufo="${HOME}/code/ufo-bundle/oops/src/oops/generic/bump"
-   rsync -rtv --delete ${src_ufo}/* ${src_oops}
-elif test "$1" = "ufo_develop" ; then
-   mkdir -p ${src_oops}
-   src_ufo="${HOME}/code/ufo-bundle_develop/oops/src/oops/generic/bump"
-   rsync -rtv --delete ${src_ufo}/* ${src_oops}
-else
-   echo "Wrong source"
-   exit
-fi
+# Get src_lib
+mkdir -p ${src_lib}
+rsync -rtv --delete ${src_origin}/* ${src_lib}
 
-# Copy src_oops into src, exclude type_bump.F90 and type_ens.F90
+# Copy src_lib into src, exclude type_bump.F90 and type_ens.F90
 mkdir -p ${src}
-rsync -rtv --delete --exclude "type_bump.F90" --exclude "type_ens.F90" ${src_oops}/* ${src}
+rsync -rtv --delete --exclude "type_bump.F90" --exclude "type_ens.F90" ${src_lib}/* ${src}
 
-# Copy src_oops (type_bump.F90 and type_ens.F90) into src_tmp
+# Copy src_lib (type_bump.F90 and type_ens.F90) into src_tmp
 mkdir -p ${src_tmp}
-rsync -rtv --delete ${src_oops}/"type_bump.F90" ${src_oops}/"type_ens.F90" ${src_tmp}
+rsync -rtv --delete ${src_lib}/"type_bump.F90" ${src_lib}/"type_ens.F90" ${src_tmp}
 
 # Modify type_bump.F90
 filename="type_bump.F90"
@@ -70,7 +50,7 @@ while IFS= read -r line ; do
    add=bump_run_offline.F90
    tag="end subroutine bump_setup_online"
    test "${line#*$tag}" != "$line" && cat ${offline}/${add} >> ${src_tmp}/${filename}"_tmp"
-done < ${src_oops}/${filename}
+done < ${src_lib}/${filename}
 
 # Check whether the modified file should be updated
 if test ! -e ${src}/${filename} ; then
@@ -104,7 +84,7 @@ while IFS= read -r line ; do
    add=ens_load.F90
    tag="end subroutine ens_dealloc"
    test "${line#*$tag}" != "$line" && cat ${offline}/${add} >> ${src_tmp}/${filename}"_tmp"
-done < ${src_oops}/${filename}
+done < ${src_lib}/${filename}
 
 # Check whether the modified file should be updated
 if test ! -e ${src}/${filename} ; then
@@ -117,8 +97,8 @@ else
    fi
 fi
 
-# Add type_fckit_mpi_comm.F90
-rsync -rtv --delete ${offline}/type_fckit_mpi_comm.F90 ${src}
+# Add fckit routines
+rsync -rtv --delete ${offline}/fckit ${src}
 
 # Add main.F90
 rsync -rtv --delete ${offline}/main.F90 ${src}

@@ -29,13 +29,6 @@ echo '--- Recompute truth'
 cd ../run
 export OMP_NUM_THREADS=1;./bump namelist_truth
 
-# Pack everything
-echo '--- Pack everything'
-cd ../script
-./pack.ksh
-mkdir -p ../versions
-mv -f ../bump_*.tar.gz ../versions
-
 # Execute test
 echo '--- Execute test'
 cd ../test
