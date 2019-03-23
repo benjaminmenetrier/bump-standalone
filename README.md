@@ -1,5 +1,5 @@
-# BUMP
-B matrix on an Unstructured Mesh Package
+# BUMP-STANDALONE
+B matrix on an Unstructured Mesh Package - Standalone package
 
 The BUMP (B matrix on an Unstructured Mesh Package) software is a computer program whose purpose is to estimate and apply background error covariance-related operators, defined on an unstructured mesh.
 
