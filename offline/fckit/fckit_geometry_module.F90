@@ -7,6 +7,7 @@
 !----------------------------------------------------------------------
 module fckit_geometry_module
 
+use tools_const, only: deg2rad,rad2deg
 use tools_kinds, only: kind_real
 
 implicit none
@@ -95,14 +96,14 @@ r = sqrt(x**2+y**2+z**2)
 
 ! Longitude
 if ((abs(x)>0.0).or.(abs(y)>0.0)) then
-   lon = atan2(y,x)*
+   lon = atan2(y,x)*rad2deg
 else
    lon = 0.0
 end if
 
 ! Latitude
 if (r>0.0) then
-   lat = asin(z/r)
+   lat = asin(z/r)*rad2deg
 else
    lat = 0.0
 end if
