@@ -128,7 +128,7 @@ if (((ic2a==0).or.nam%local_diag).and.(trim(nam%minim_algo)/='none')) then
    else
       ic2 = samp%c2a_to_c2(ic2a)
       ic0 = samp%c2_to_c0(ic2)
-      vunit = geom%vunit(ic0,:)
+      vunit = geom%vunit_c0(ic0,:)
    end if
    do il0=1,geom%nl0
       do jl0=1,geom%nl0
@@ -295,7 +295,7 @@ call mpl%ncerr(subr,nf90_enddef(ncid))
 
 ! Write variables
 call mpl%ncerr(subr,nf90_put_var(ncid,disth_id,geom%disth(1:nam%nc3)))
-call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,sum(geom%vunit,mask=geom%mask_c0,dim=1)/real(geom%nc0_mask,kind_real)))
+call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,sum(geom%vunit_c0,mask=geom%mask_c0,dim=1)/real(geom%nc0_mask,kind_real)))
 if (mpl%msv%isanynotr(diag_blk%raw_coef_ens)) call mpl%ncerr(subr,nf90_put_var(ncid,raw_coef_ens_id,diag_blk%raw_coef_ens))
 if ((ic2a==0).or.nam%local_diag) then
    if (mpl%msv%isanynotr(diag_blk%raw)) then
@@ -451,7 +451,7 @@ if (ic2a==0) then
 else
    ic2 = samp%c2a_to_c2(ic2a)
    ic0 = samp%c2_to_c0(ic2)
-   vunit = geom%vunit(ic0,:)
+   vunit = geom%vunit_c0(ic0,:)
 end if
 
 ! Fast fit

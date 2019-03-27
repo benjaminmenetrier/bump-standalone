@@ -12,37 +12,6 @@ architecture=${HOME}/code/bump_standalone/doc/architecture
 mkdir -p ${architecture}
 
 # Build diagrams
-filename=run_offline
-cat<<EOFDIAGRAM > ${architecture}/${filename}.txt
-digraph callgraph {
-  "Main" -> "Offline run :: bump%run_offline";
-  "Offline run :: bump%run_offline" -> "Initialize MPL :: mpl%init";
-  "Offline run :: bump%run_offline" -> "Initialize timer :: timer%start";
-  "Offline run :: bump%run_offline" -> "Initialize namelist :: nam%init";
-  "Offline run :: bump%run_offline" -> "Read namelist :: nam%read";
-  "Offline run :: bump%run_offline" -> "Broadcast namelist :: nam%bcast";
-  "Offline run :: bump%run_offline" -> "Initialize listing :: mpl%init_listing";
-  "Offline run :: bump%run_offline" -> "Generic setup :: bump%setup_generic";
-  "Offline run :: bump%run_offline" -> "Get coordinates from file :: model_coord";
-  "Offline run :: bump%run_offline" -> "Initialize geometry :: geom%init";
-  "Offline run :: bump%run_offline" -> "If fields regridding required";
-  "If fields regridding required" -> "Initialize fields regridding :: io%grid_init";
-  "Offline run :: bump%run_offline" -> "Initialize block parameters :: bpar%alloc";
-  "Offline run :: bump%run_offline" -> "If ensemble 1 required";
-  "If ensemble 1 required" -> "Load ensemble 1 :: ens1%load";
-  "Offline run :: bump%run_offline" -> "If ensemble 2 required";
-  "If ensemble 2 required" -> "Load ensemble 2 :: ens2%load";
-  "Offline run :: bump%run_offline" -> "If new observation operator required";
-  "If new observation operator required" -> "Generate observations locations :: obsop%generate";
-  "Offline run :: bump%run_offline" -> "Run drivers :: bump%run_drivers";
-  "Offline run :: bump%run_offline" -> "Execution stats :: timer%display";
-  "Offline run :: bump%run_offline" -> "Close listings";
-  "Offline run :: bump%run_offline" -> "Finalize MPL :: mpl%final";
-}
-EOFDIAGRAM
-cat ${architecture}/${filename}.txt | dot -Nshape="box" -Grankdir="LR" -Tsvg > ${architecture}/${filename}.svg
-rm -f ${architecture}/${filename}.txt
-
 filename=setup_online
 cat<<EOFDIAGRAM > ${architecture}/${filename}.txt
 digraph callgraph {

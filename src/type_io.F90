@@ -627,7 +627,7 @@ character(len=*),intent(in) :: varname                ! Variable name
 real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
-integer :: il0,info,ilon,ilat,iog,ioga,i,iproc
+integer :: il0,info,info_lon,info_lat,info_lev,ilon,ilat,iog,ioga,i,iproc
 integer :: ncid,nlon_gridded_id,nlat_gridded_id,nlev_id,fld_id,lon_gridded_id,lat_gridded_id,lev_id
 integer,allocatable :: oga_to_og(:)
 real(kind_real) :: fld_c0b(io%nc0b,geom%nl0)
@@ -733,20 +733,20 @@ if (mpl%main) then
    if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nlat_gridded',io%nlat,nlat_gridded_id))
    info = nf90_inq_dimid(ncid,'nlev',nlev_id)
    if (info/=nf90_noerr) call mpl%ncerr(subr,nf90_def_dim(ncid,'nlev',geom%nl0,nlev_id))
-   info = nf90_inq_varid(ncid,'lon_gridded',lon_gridded_id)
-   if (info/=nf90_noerr) then
+   info_lon = nf90_inq_varid(ncid,'lon_gridded',lon_gridded_id)
+   if (info_lon/=nf90_noerr) then
       call mpl%ncerr(subr,nf90_def_var(ncid,'lon_gridded',nc_kind_real,(/nlon_gridded_id/),lon_gridded_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,lon_gridded_id,'_FillValue',mpl%msv%valr))
       call mpl%ncerr(subr,nf90_put_att(ncid,lon_gridded_id,'unit','degrees_north'))
    end if
-   info = nf90_inq_varid(ncid,'lat_gridded',lat_gridded_id)
-   if (info/=nf90_noerr) then
+   info_lat = nf90_inq_varid(ncid,'lat_gridded',lat_gridded_id)
+   if (info_lat/=nf90_noerr) then
       call mpl%ncerr(subr,nf90_def_var(ncid,'lat_gridded',nc_kind_real,(/nlat_gridded_id/),lat_gridded_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,lat_gridded_id,'_FillValue',mpl%msv%valr))
       call mpl%ncerr(subr,nf90_put_att(ncid,lat_gridded_id,'unit','degrees_east'))
    end if
-   info = nf90_inq_varid(ncid,'lev',lev_id)
-   if (info/=nf90_noerr) then
+   info_lev = nf90_inq_varid(ncid,'lev',lev_id)
+   if (info_lev/=nf90_noerr) then
       call mpl%ncerr(subr,nf90_def_var(ncid,'lev',nc_kind_real,(/nlev_id/),lev_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,lev_id,'_FillValue',mpl%msv%valr))
       call mpl%ncerr(subr,nf90_put_att(ncid,lev_id,'unit','layer'))
@@ -761,19 +761,21 @@ if (mpl%main) then
    call mpl%ncerr(subr,nf90_enddef(ncid))
 
    ! Allocation
-   allocate(lon_gridded(io%nlon))
-   allocate(lat_gridded(io%nlat))
+   if (info_lon/=nf90_noerr) allocate(lon_gridded(io%nlon))
+   if (info_lat/=nf90_noerr) allocate(lat_gridded(io%nlat))
 
    ! Convert to degrees
-   lon_gridded = io%lon*rad2deg
-   lat_gridded = io%lat*rad2deg
+   if (info_lon/=nf90_noerr) lon_gridded = io%lon*rad2deg
+   if (info_lat/=nf90_noerr) lat_gridded = io%lat*rad2deg
 
    ! Write data
-   call mpl%ncerr(subr,nf90_put_var(ncid,lon_gridded_id,lon_gridded))
-   call mpl%ncerr(subr,nf90_put_var(ncid,lat_gridded_id,lat_gridded))
-   do il0=1,geom%nl0
-      call mpl%ncerr(subr,nf90_put_var(ncid,lev_id,real(il0,kind_real),(/il0/)))
-   end do
+   if (info_lon/=nf90_noerr) call mpl%ncerr(subr,nf90_put_var(ncid,lon_gridded_id,lon_gridded))
+   if (info_lat/=nf90_noerr) call mpl%ncerr(subr,nf90_put_var(ncid,lat_gridded_id,lat_gridded))
+   if (info_lev/=nf90_noerr) then
+      do il0=1,geom%nl0
+         call mpl%ncerr(subr,nf90_put_var(ncid,lev_id,real(il0,kind_real),(/il0/)))
+      end do
+   end if
    call mpl%ncerr(subr,nf90_put_var(ncid,fld_id,fld_grid))
 
    ! Close file
@@ -781,8 +783,8 @@ if (mpl%main) then
 
    ! Release memory
    deallocate(fld_grid)
-   deallocate(lon_gridded)
-   deallocate(lat_gridded)
+   if (info_lon/=nf90_noerr) deallocate(lon_gridded)
+   if (info_lat/=nf90_noerr) deallocate(lat_gridded)
 end if
 
 end subroutine io_grid_write

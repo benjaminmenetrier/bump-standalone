@@ -150,6 +150,7 @@ if (mpl%main) then
 end if
 
 if ((trim(diag%prefix)/='cov').and.nam%local_diag) then
+   call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
    do ib=1,bpar%nbe
       if (bpar%fit_block(ib)) then
          filename = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)
@@ -460,7 +461,7 @@ do ib=1,bpar%nbe
 
          ! Copy
          if (nam%var_filter) then
-            diag%blk(ic2a,ib)%raw_coef_ens = avg%blk(ic2,ib)%m2flt
+            diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2,ib)%m2flt,dim=2)/real(avg%nsub,kind_real)
          else
             diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2,ib)%m2,dim=2)/real(avg%nsub,kind_real)
          end if
@@ -494,7 +495,7 @@ do ib=1,bpar%nbe
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
                write(mpl%info,'(a13,a,i3,a4,a16,a,f10.2,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','cor. support radii: ', &
              & trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua), &
-             & diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' '//trim(mpl%vunitchar)
+             & diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' vert. unit'
                call mpl%flush
                if (diag%blk(0,ib)%double_fit) then
                   write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','cor. double fit:    ',trim(mpl%aqua), &
@@ -588,7 +589,7 @@ do ib=1,bpar%nbe
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
                write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii: ',trim(mpl%aqua), &
              & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0), &
-             & trim(mpl%black)//' '//trim(mpl%vunitchar)
+             & trim(mpl%black)//' vert. unit'
                call mpl%flush
             end if
          end if
@@ -668,7 +669,7 @@ do ib=1,bpar%nbe
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
                write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii: ',trim(mpl%aqua), &
              & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag%blk(0,ib)%fit_rv(il0), &
-             & trim(mpl%black)//' '//trim(mpl%vunitchar)
+             & trim(mpl%black)//' vert. unit'
                call mpl%flush
             end if
          end if
@@ -762,13 +763,13 @@ do ib=1,bpar%nbe
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
                write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii (HR): ',trim(mpl%aqua), &
              & diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
-             & trim(mpl%black)//' '//trim(mpl%vunitchar)
+             & trim(mpl%black)//' vert. unit'
                call mpl%flush
             end if
             if (mpl%msv%isnotr(diag_lr%blk(0,ib)%fit_rh(il0))) then
                write(mpl%info,'(a27,a,a,f10.2,a,f10.2,a)') '','loc. support radii (LR): ',trim(mpl%aqua), &
              & diag_lr%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua),diag_lr%blk(0,ib)%fit_rv(il0), &
-             & trim(mpl%black)//' '//trim(mpl%vunitchar)
+             & trim(mpl%black)//' vert. unit'
                call mpl%flush
             end if
          end if

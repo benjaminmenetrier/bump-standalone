@@ -1197,7 +1197,7 @@ if (mpl%main) then
    call mpl%ncerr(subr,nf90_enddef(ncid))
 
    ! Write data
-   call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit(samp%c2_to_c0,:)))
+   call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunit_c0(samp%c2_to_c0,:)))
    call mpl%ncerr(subr,nf90_put_var(ncid,lon_c2_id,lon_c2))
    call mpl%ncerr(subr,nf90_put_var(ncid,lat_c2_id,lat_c2))
    call mpl%ncerr(subr,nf90_put_var(ncid,lon_c2_raw_id,lon_c2_raw))
@@ -1229,15 +1229,16 @@ if (mpl%main) then
 end if
 
 ! Write test
+call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 do ib=1,bpar%nb
    iv = bpar%b_to_v1(ib)
    jv = bpar%b_to_v2(ib)
    its = bpar%b_to_ts1(ib)
    jts = bpar%b_to_ts2(ib)
    if ((iv>1).and.(iv==jv).and.(its==jts)) then
-      call io%fld_write(mpl,nam,geom,trim(filename),trim(bpar%blockname(ib))//'_cor_loc',adv%cor_loc(:,:,iv,its))
-      call io%fld_write(mpl,nam,geom,trim(filename),trim(bpar%blockname(ib))//'_cor_max',adv%cor_adv(:,:,iv,its))
-      call io%fld_write(mpl,nam,geom,trim(filename),trim(bpar%blockname(ib))//'_cor_adv',adv%cor_max(:,:,iv,its))
+      call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_cor_loc',adv%cor_loc(:,:,iv,its))
+      call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_cor_max',adv%cor_adv(:,:,iv,its))
+      call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_cor_adv',adv%cor_max(:,:,iv,its))
    end if
 end do
 

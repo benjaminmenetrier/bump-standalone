@@ -8,7 +8,6 @@
 module type_bump
 
 use netcdf
-use model_interface, only: model_coord
 use tools_const, only: req,deg2rad
 use tools_func, only: sphere_dist,lct_r2d
 use tools_kinds,only: kind_real
@@ -25,7 +24,6 @@ use type_nam, only: nam_type
 use type_nicas, only: nicas_type
 use type_obsop, only: obsop_type
 use type_rng, only: rng_type
-use type_timer, only: timer_type
 use type_vbal, only: vbal_type
 
 implicit none
@@ -47,10 +45,8 @@ type bump_type
    type(obsop_type) :: obsop
    type(rng_type) :: rng
    type(vbal_type) :: vbal
-   logical :: close_listing
 contains
    procedure :: setup_online => bump_setup_online
-   procedure :: run_offline => bump_run_offline
    procedure :: setup_generic => bump_setup_generic
    procedure :: run_drivers => bump_run_drivers
    procedure :: add_member => bump_add_member
@@ -85,8 +81,8 @@ contains
 ! Subroutine: bump_setup_online
 ! Purpose: online setup
 !----------------------------------------------------------------------
-subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,lmask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
-                           & nobs,lonobs,latobs,namelname,lunit,msvali,msvalr)
+subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,gmask,smask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
+                           & nobs,lonobs,latobs,namelname,info_unit,test_unit,msvali,msvalr)
 
 implicit none
 
@@ -100,7 +96,8 @@ real(kind_real),intent(in) :: lon(nmga)           ! Longitude (in degrees: -180 
 real(kind_real),intent(in) :: lat(nmga)           ! Latitude (in degrees: -90 to 90)
 real(kind_real),intent(in) :: area(nmga)          ! Area (in m^2)
 real(kind_real),intent(in) :: vunit(nmga,nl0)     ! Vertical unit
-logical,intent(in) :: lmask(nmga,nl0)             ! Mask
+logical,intent(in) :: gmask(nmga,nl0)             ! Geometry mask
+logical,intent(in),optional :: smask(nmga,nl0)    ! Sampling mask
 integer,intent(in),optional :: ens1_ne            ! Ensemble 1 size
 integer,intent(in),optional :: ens1_nsub          ! Ensemble 1 number of sub-ensembles
 integer,intent(in),optional :: ens2_ne            ! Ensemble 2 size
@@ -109,7 +106,8 @@ integer,intent(in),optional :: nobs               ! Number of observations
 real(kind_real),intent(in),optional :: lonobs(:)  ! Observations longitude (in degrees: -180 to 180)
 real(kind_real),intent(in),optional :: latobs(:)  ! Observations latitude (in degrees: -90 to 90)
 character(len=*),intent(in),optional :: namelname ! Namelist name
-integer,intent(in),optional :: lunit              ! Listing unit
+integer,intent(in),optional :: info_unit          ! Info listing unit
+integer,intent(in),optional :: test_unit          ! Test listing unit
 integer,intent(in),optional :: msvali             ! Missing value for integers
 real(kind_real),intent(in),optional :: msvalr     ! Missing value for reals
 
@@ -146,12 +144,27 @@ if (present(ens2_ne)) lens2_nsub = ens2_nsub
 call bump%nam%setup_internal(nl0,nv,nts,lens1_ne,lens1_nsub,lens2_ne,lens2_nsub)
 
 ! Initialize listing
-if (present(lunit)) then
-   call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog,lunit)
-   bump%close_listing = .false.
+bump%mpl%info_unit = bump%mpl%msv%vali
+if (present(info_unit)) bump%mpl%info_unit = info_unit
+bump%mpl%test_unit = bump%mpl%msv%vali
+if (present(test_unit)) bump%mpl%test_unit = test_unit
+bump%mpl%verbosity = bump%nam%verbosity
+if (bump%nam%colorlog) then
+   bump%mpl%black = char(27)//'[0;0m'
+   bump%mpl%green = char(27)//'[0;32m'
+   bump%mpl%peach = char(27)//'[1;91m'
+   bump%mpl%aqua = char(27)//'[1;36m'
+   bump%mpl%purple = char(27)//'[1;35m'
+   bump%mpl%err = char(27)//'[0;37;41;1m'
+   bump%mpl%wng = char(27)//'[0;37;42;1m'
 else
-   call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
-   bump%close_listing = (trim(bump%nam%model)=='online').and.(.not.present(nobs))
+   bump%mpl%black = ' '
+   bump%mpl%green = ' '
+   bump%mpl%peach = ' '
+   bump%mpl%aqua = ' '
+   bump%mpl%purple = ' '
+   bump%mpl%err = ' '
+   bump%mpl%wng = ' '
 end if
 
 ! Generic setup
@@ -162,7 +175,7 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 call bump%mpl%flush
 write(bump%mpl%info,'(a)') '--- Initialize geometry'
 call bump%mpl%flush
-call bump%geom%setup_online(bump%mpl,nmga,nl0,lon,lat,area,vunit,lmask)
+call bump%geom%setup_online(bump%mpl,nmga,nl0,lon,lat,area,vunit,gmask)
 call bump%geom%init(bump%mpl,bump%rng,bump%nam)
 if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 
@@ -221,125 +234,13 @@ if ((bump%nam%ens1_ne>0).or.(bump%nam%ens2_ne>0)) then
    call bump%mpl%flush
 end if
 
+! Copy sampling mask
+if (present(smask)) then
+   allocate(bump%geom%smask_c0a(bump%geom%nc0a,bump%geom%nl0))
+   bump%geom%smask_c0a = smask(bump%geom%c0a_to_mga,:)
+end if
+
 end subroutine bump_setup_online
-
-!----------------------------------------------------------------------
-! Subroutine: bump_run_offline
-! Purpose: offline run
-!----------------------------------------------------------------------
-subroutine bump_run_offline(bump,namelname)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(inout) :: bump            ! BUMP
-character(len=*),intent(in) :: namelname          ! Namelist name
-
-! Local variables
-type(timer_type) :: timer
-
-! Set missing values
-call bump%mpl%msv%init(-999,-999.0_kind_real)
-
-! Initialize MPL
-call bump%mpl%init
-
-! Initialize timer
-call timer%start(bump%mpl)
-
-! Initialize, read and broadcast namelist
-call bump%nam%init
-call bump%nam%read(bump%mpl,namelname)
-call bump%nam%bcast(bump%mpl)
-
-! Initialize listing
-call bump%mpl%init_listing(bump%nam%prefix,bump%nam%model,bump%nam%verbosity,bump%nam%colorlog)
-
-! Generic setup
-call bump%setup_generic
-
-! Initialize geometry
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '--- Initialize geometry'
-call bump%mpl%flush
-call model_coord(bump%mpl,bump%rng,bump%nam,bump%geom)
-call bump%geom%init(bump%mpl,bump%rng,bump%nam)
-if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
-
-if (bump%nam%grid_output) then
-   ! Initialize fields regridding
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Initialize fields regridding'
-   call bump%mpl%flush
-   call bump%io%grid_init(bump%mpl,bump%rng,bump%nam,bump%geom)
-   if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
-end if
-
-! Initialize block parameters
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '--- Initialize block parameters'
-call bump%mpl%flush
-call bump%bpar%alloc(bump%nam,bump%geom)
-call bump%bpar%init(bump%nam,bump%geom)
-
-if (bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or. &
- & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Load ensemble 1'
-   call bump%mpl%flush
-   call bump%ens1%load(bump%mpl,bump%nam,bump%geom,'ens1')
-end if
-
-if (bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Load ensemble 2'
-   call bump%mpl%flush
-   call bump%ens2%load(bump%mpl,bump%nam,bump%geom,'ens2')
-end if
-
-if (bump%nam%new_obsop) then
-   ! Generate observations locations
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Generate observations locations'
-   call bump%mpl%flush
-   call bump%obsop%generate(bump%mpl,bump%rng,bump%nam,bump%geom)
-   if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
-end if
-
-! Run drivers
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '--- Run drivers'
-call bump%mpl%flush
-bump%close_listing = .false.
-call bump%run_drivers
-
-! Execution stats
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '--- Execution stats'
-call timer%display(bump%mpl)
-call bump%mpl%flush
-
-! Close listings
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '--- Close listings'
-call bump%mpl%flush
-write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-call bump%mpl%flush
-call bump%mpl%close_listing
-
-! Finalize MPL
-call bump%mpl%final
-
-end subroutine bump_run_offline
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup_generic
@@ -586,17 +487,6 @@ if (bump%nam%check_obsop) then
    call bump%mpl%flush
    call bump%obsop%run_obsop_tests(bump%mpl,bump%rng,bump%geom)
    if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
-end if
-
-if (bump%close_listing) then
-   ! Close listings
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Close listings'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   call bump%mpl%close_listing
 end if
 
 end subroutine bump_run_drivers

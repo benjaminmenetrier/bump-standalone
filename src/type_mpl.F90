@@ -7,8 +7,9 @@
 !----------------------------------------------------------------------
 module type_mpl
 
-use iso_fortran_env, only : output_unit
 use iso_c_binding
+use iso_fortran_env, only : output_unit
+use fckit_log_module, only: fckit_log
 use fckit_mpi_module, only: fckit_mpi_comm,fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
@@ -27,20 +28,21 @@ type mpl_type
    integer :: myproc                ! MPI task index
    integer :: ioproc                ! Main task index
    logical :: main                  ! Main task logical
+   integer :: tag                   ! MPI tag
+   integer :: nthread               ! Number of OpenMP threads
+
+   ! fckit communicator
+   type(fckit_mpi_comm) :: f_comm   ! fckit communicator
+
+   ! Missing values
+   type(msv_type) :: msv            ! Missing values
+
+   ! Display parameters
    character(len=1024) :: verbosity ! Verbosity level
    character(len=1024) :: info      ! Info buffer
    character(len=1024) :: test      ! Test buffer
    integer :: info_unit             ! Info listing unit
    integer :: test_unit             ! Test listing unit
-   integer :: tag                   ! MPI tag
-   integer :: nthread               ! Number of OpenMP threads
-
-   type(fckit_mpi_comm) :: f_comm   ! Interface to fckit
-
-   ! Progression print
-   integer :: nprog                 ! Progression array size
-   integer :: progint               ! Progression integer
-   logical,allocatable :: done(:)   ! Progression array
 
    ! Display colors
    character(len=1024) :: black     ! Black color code
@@ -51,16 +53,15 @@ type mpl_type
    character(len=1024) :: err       ! Error color code
    character(len=1024) :: wng       ! Warning color code
 
-   character(len=1024) :: vunitchar ! Vertical unit
-
-   type(msv_type) :: msv            ! Missing values
+   ! Progression print
+   integer :: nprog                 ! Progression array size
+   integer :: progint               ! Progression integer
+   logical,allocatable :: done(:)   ! Progression array
 contains
    procedure :: newunit => mpl_newunit
    procedure :: init => mpl_init
    procedure :: final => mpl_final
-   procedure :: init_listing => mpl_init_listing
    procedure :: flush => mpl_flush
-   procedure :: close_listing => mpl_close_listing
    procedure :: abort => mpl_abort
    procedure :: warning => mpl_warning
    procedure :: prog_init => mpl_prog_init
@@ -193,103 +194,13 @@ implicit none
 ! Passed variables
 class(mpl_type),intent(inout) :: mpl ! MPI data
 
+! Release memory
+if (allocated(mpl%done)) deallocate(mpl%done)
+
 ! Finalize MPI communicator
 call mpl%f_comm%final
 
 end subroutine mpl_final
-
-!----------------------------------------------------------------------
-! Subroutine: mpl_init_listing
-! Purpose: initialize listings
-!----------------------------------------------------------------------
-subroutine mpl_init_listing(mpl,prefix,model,verbosity,colorlog,lunit)
-
-implicit none
-
-! Passed variables
-class(mpl_type),intent(inout) :: mpl     ! MPI data
-character(len=*),intent(in) :: prefix    ! Output prefix
-character(len=*),intent(in) :: model     ! Model
-character(len=*),intent(in) :: verbosity ! Verbosity level
-logical,intent(in) :: colorlog           ! Color listing flag
-integer,intent(in),optional :: lunit     ! Main listing unit
-
-! Local variables
-integer :: iproc,ifileunit
-character(len=1024) :: filename
-
-! Set verbosity level
-mpl%verbosity = trim(verbosity)
-
-! Setup display colors
-if (colorlog) then
-   mpl%black = char(27)//'[0;0m'
-   mpl%green = char(27)//'[0;32m'
-   mpl%peach = char(27)//'[1;91m'
-   mpl%aqua = char(27)//'[1;36m'
-   mpl%purple = char(27)//'[1;35m'
-   mpl%err = char(27)//'[0;37;41;1m'
-   mpl%wng = char(27)//'[0;37;42;1m'
-else
-   mpl%black = ' '
-   mpl%green = ' '
-   mpl%peach = ' '
-   mpl%aqua = ' '
-   mpl%purple = ' '
-   mpl%err = ' '
-   mpl%wng = ' '
-end if
-
-! Vertical unit (default)
-if (trim(model)=='online') mpl%vunitchar = 'm'
-
-! Define info unit and open file
-do iproc=1,mpl%nproc
-   if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.(iproc==mpl%ioproc))) then
-      ! Info listing
-      if (mpl%main.and.present(lunit)) then
-         ! Specific listing unit
-         mpl%info_unit = lunit
-      else
-         ! Deal with each proc sequentially
-         if (iproc==mpl%myproc) then
-            ! Find a free unit
-            call mpl%newunit(mpl%info_unit)
-
-            ! Open listing file
-            write(filename,'(a,i4.4)') trim(prefix)//'.info.',mpl%myproc-1
-            inquire(file=filename,number=ifileunit)
-            if (ifileunit<0) then
-               open(unit=mpl%info_unit,file=trim(filename),action='write',status='replace')
-            else
-               close(ifileunit)
-               open(unit=mpl%info_unit,file=trim(filename),action='write',status='replace')
-            end if
-         end if
-      end if
-
-      ! Test listing
-      if (iproc==mpl%myproc) then
-         ! Find a free unit
-         call mpl%newunit(mpl%test_unit)
-
-         ! Open listing file
-         write(filename,'(a,i4.4)') trim(prefix)//'.test.',mpl%myproc-1
-         inquire(file=filename,number=ifileunit)
-         if (ifileunit<0) then
-            open(unit=mpl%test_unit,file=trim(filename),action='write',status='replace')
-         else
-            close(ifileunit)
-            open(unit=mpl%test_unit,file=trim(filename),action='write',status='replace')
-         end if
-      end if
-
-      ! Wait
-      call mpl%f_comm%barrier
-   end if
-end do
-
-end subroutine mpl_init_listing
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_flush
@@ -315,11 +226,18 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
    if (trim(mpl%info)/='no_message') then
       ! Write message
       if (ladvance_flag) then
-         write(mpl%info_unit,'(a)') trim(mpl%info)
+         if (mpl%msv%isi(mpl%info_unit)) then
+            call fckit_log%info(trim(mpl%info))
+         else
+            write(mpl%info_unit,'(a)') trim(mpl%info)
+         end if
       else
-         write(mpl%info_unit,'(a)',advance='no') trim(mpl%info)
+         if (mpl%msv%isi(mpl%info_unit)) then
+            call fckit_log%info(trim(mpl%info),newl=.false.)
+         else
+            write(mpl%info_unit,'(a)',advance='no') trim(mpl%info)
+         end if
       end if
-      call flush(mpl%info_unit)
 
       ! Set at 'no message'
       mpl%info = 'no_message'
@@ -329,11 +247,18 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
    if (trim(mpl%test)/='no_message') then
       ! Write message
       if (ladvance_flag) then
-         write(mpl%test_unit,'(a)') trim(mpl%test)
+         if (mpl%msv%isi(mpl%test_unit)) then
+            call fckit_log%test(trim(mpl%test))
+         else
+            write(mpl%test_unit,'(a)') trim(mpl%info)
+         end if
       else
-         write(mpl%test_unit,'(a)',advance='no') trim(mpl%test)
+         if (mpl%msv%isi(mpl%info_unit)) then
+            call fckit_log%test(trim(mpl%test),newl=.false.)
+         else
+            write(mpl%test_unit,'(a)',advance='no') trim(mpl%info)
+         end if
       end if
-      call flush(mpl%test_unit)
 
       ! Set at 'no message'
       mpl%test = 'no_message'
@@ -341,27 +266,6 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
 end if
 
 end subroutine mpl_flush
-
-!----------------------------------------------------------------------
-! Subroutine: mpl_close_listing
-! Purpose: close listings
-!----------------------------------------------------------------------
-subroutine mpl_close_listing(mpl)
-
-implicit none
-
-! Passed variables
-class(mpl_type),intent(in) :: mpl   ! MPI data
-
-if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)) then
-   ! Close info listing
-   close(unit=mpl%info_unit)
-
-   ! Close test listing
-   close(unit=mpl%test_unit)
-end if
-
-end subroutine mpl_close_listing
 
 !----------------------------------------------------------------------
 ! Subroutine: mpl_abort

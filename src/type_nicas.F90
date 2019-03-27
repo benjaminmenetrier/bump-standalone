@@ -1941,6 +1941,7 @@ end if
 
 ! Write field
 filename = trim(nam%prefix)//'_dirac'
+call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 do its=1,nam%nts
    write(itschar,'(i2.2)') its
    do iv=1,nam%nv
@@ -2076,7 +2077,7 @@ type(bpar_type),intent(in) :: bpar       ! Block parameters
 type(io_type),intent(in) :: io           ! I/O
 
 ! Local variables
-integer :: ens1_ne,ens1_ne_offset,ens1_nsub,ic0a,ic0,ic0dir,ib,il0
+integer :: ens1_ne,ens1_nsub,ic0a,ic0,ic0dir,ib,il0
 real(kind_real) :: resol,dist,dist_min,dist_min_tot
 real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
 logical :: local_diag
@@ -2093,7 +2094,6 @@ call nicas%dealloc
 prefix = nam%prefix
 method = nam%method
 ens1_ne = nam%ens1_ne
-ens1_ne_offset = nam%ens1_ne_offset
 ens1_nsub = nam%ens1_nsub
 local_diag = nam%local_diag
 resol = nam%resol
@@ -2102,7 +2102,6 @@ resol = nam%resol
 nam%prefix = trim(nam%prefix)//'_consistency-test'
 nam%method = 'cor'
 nam%ens1_ne = ne_rand
-nam%ens1_ne_offset = 0
 nam%ens1_nsub = 1
 nam%local_diag = .false.
 nam%resol = 12.0
@@ -2196,7 +2195,6 @@ end do
 nam%prefix = prefix
 nam%method = method
 nam%ens1_ne = ens1_ne
-nam%ens1_ne_offset = ens1_ne_offset
 nam%ens1_nsub = ens1_nsub
 nam%local_diag = local_diag
 nam%resol = resol

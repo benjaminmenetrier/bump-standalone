@@ -3,7 +3,6 @@
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
 | subroutine | [bump%] [setup_online](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L81) | online setup |
-| subroutine | [bump%] [run_offline](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L223) | offline run |
 | subroutine | [bump%] [setup_generic](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L341) | generic setup |
 | subroutine | [bump%] [run_drivers](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L391) | run drivers |
 | subroutine | [bump%] [add_member](https://github.com/benjaminmenetrier/bump/tree/master/src/type_bump.F90#L601) | add member into bump0,000000e+00ns[1,2] |

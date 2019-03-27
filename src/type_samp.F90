@@ -916,6 +916,7 @@ if (nam%sam_write) then
    if (trim(nam%draw_type)=='random_coast') then
       call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,samp%rh_c0,geom%nc0a,rh_c0a)
       filename = trim(nam%prefix)//'_sampling_rh_c0'
+      call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
       call io%fld_write(mpl,nam,geom,filename,'rh_c0',rh_c0a)
    end if
 end if
@@ -974,7 +975,7 @@ integer :: ic0a,ic0,il0,ildw,iv,its,ie,ncontig,ncontigmax
 integer :: ncid,nlon_id,nlon_test,nlat_id,nlat_test,mask_id
 integer :: latmin,latmax,ilon,ilat
 real(kind_real) :: dist
-real(kind_real),allocatable :: hydval(:,:),var(:,:,:,:)
+real(kind_real),allocatable :: var(:,:,:,:)
 logical :: valid,mask_c0a(geom%nc0a,geom%nl0)
 character(len=3) :: il0char
 character(len=1024),parameter :: subr = 'samp_compute_mask'
@@ -990,6 +991,7 @@ end if
 
 ! Copy geometry mask
 mask_c0a = geom%mask_c0a
+if (allocated(geom%smask_c0a)) mask_c0a = mask_c0a.and.geom%smask_c0a
 
 ! Mask restriction
 if (nam%mask_type(1:3)=='lat') then
@@ -1004,34 +1006,6 @@ if (nam%mask_type(1:3)=='lat') then
          mask_c0a(ic0a,il0) = mask_c0a(ic0a,il0).and.valid
       end do
    end do
-elseif ((trim(nam%mask_type)=='hyd').and.(trim(nam%model)=='aro')) then
-   ! Allocation
-   allocate(hydval(geom%nlon,geom%nlat))
-
-   ! Read from hydrometeors mask file
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(nam%prefix)//'_hyd.nc',nf90_nowrite,ncid))
-   call mpl%ncerr(subr,nf90_inq_dimid(ncid,'X',nlon_id))
-   call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=nlon_test))
-   call mpl%ncerr(subr,nf90_inq_dimid(ncid,'Y',nlat_id))
-   call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=nlat_test))
-   if ((nlon_test/=geom%nlon).or.(nlat_test/=geom%nlat)) call mpl%abort(subr,'wrong dimensions in the mask')
-   do il0=1,geom%nl0
-      write(il0char,'(i3.3)') nam%levs(il0)
-      call mpl%ncerr(subr,nf90_inq_varid(ncid,'S'//il0char//'MASK',mask_id))
-      call mpl%ncerr(subr,nf90_get_var(ncid,mask_id,hydval,(/1,1/),(/geom%nlon,geom%nlat/)))
-      do ic0a=1,geom%nc0a
-         if (mask_c0a(ic0a,il0)) then
-            ic0 = geom%c0a_to_c0(ic0a)
-            ilon = geom%c0_to_lon(ic0)
-            ilat = geom%c0_to_lat(ic0)
-            mask_c0a(ic0a,il0) = (hydval(ilon,ilat)>nam%mask_th)
-         end if
-      end do
-   end do
-   call mpl%ncerr(subr,nf90_close(ncid))
-
-   ! Release memory
-   deallocate(hydval)
 elseif (trim(nam%mask_type)=='ldwv') then
    ! Compute distance to the vertical diagnostic points
    do ic0a=1,geom%nc0a
@@ -1174,7 +1148,7 @@ if (nam%nc1<maxval(samp%nc0_mask)) then
    samp%nfor = 0
    do ib=1,geom%mesh%nb
       ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-      if (geom%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+      if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
    end do
    do ildwv=1,nam%nldwv
       ic0 = samp%ldwv_to_c0(ildwv)
@@ -1188,7 +1162,7 @@ if (nam%nc1<maxval(samp%nc0_mask)) then
          if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
       end do
       if (valid) then
-         if (geom%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+         if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
       end if
    end do
 
@@ -1200,7 +1174,7 @@ if (nam%nc1<maxval(samp%nc0_mask)) then
       ! Add boundary points
       do ib=1,geom%mesh%nb
          ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-         if (geom%mask_hor_c0(ic0)) then
+         if (samp%mask_hor_c0(ic0)) then
             ifor = ifor+1
             for(ifor) = ic0
          end if
@@ -1219,7 +1193,7 @@ if (nam%nc1<maxval(samp%nc0_mask)) then
             if (eq(geom%lon(ic0),geom%lon(jc0)).and.eq(geom%lat(ic0),geom%lat(jc0))) valid = .false.
          end do
          if (valid) then
-            if (geom%mask_hor_c0(ic0)) then
+            if (samp%mask_hor_c0(ic0)) then
                ifor = ifor+1
                for(ifor) = ic0
             end if

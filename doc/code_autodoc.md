@@ -10,12 +10,11 @@ The source code is organized in five categories:
 
 | Category | Name | Purpose |
 | :------: | :--: | :---------- |
-| main | [main](https://github.com/benjaminmenetrier/bump/tree/master/src/main.F90) | command line arguments parsing and offline setup (call to the BUMP routine) |
+| main | [main](https://github.com/benjaminmenetrier/bump/tree/master/src/main.F90) | command line arguments parsing and standalone setup (call to the BUMP routines) |
 | tools | [tools_const](autodoc/tools_const.md) | define usual constants and missing values |
 | tools | [tools_fit](autodoc/tools_fit.md) | fit-related tools |
 | tools | [tools_func](autodoc/tools_func.md) | usual functions |
 | tools | [tools_kinds](autodoc/tools_kinds.md) | kinds definition |
-| tools | [tools_nc](autodoc/tools_nc.md) | NetCDF routines |
 | tools | [tools_repro](autodoc/tools_repro.md) | reproducibility functions |
 | derived_type | [type_adv](autodoc/type_adv.md) | advection derived type |
 | derived_type | [type_avg_blk](autodoc/type_avg_blk.md) | averaged statistics block derived type |
@@ -30,7 +29,6 @@ The source code is organized in five categories:
 | derived_type | [type_diag_blk](autodoc/type_diag_blk.md) | diagnostic block derived type |
 | derived_type | [type_diag](autodoc/type_diag.md) | diagnostic derived type |
 | derived_type | [type_ens](autodoc/type_ens.md) | ensemble derived type |
-| derived_type | [type_fckit_mpi_comm](autodoc/type_fckit_mpi_comm.md) | FCKIT emulator for offline execution |
 | derived_type | [type_geom](autodoc/type_geom.md) | geometry derived type |
 | derived_type | [type_hdiag](autodoc/type_hdiag.md) | hybrid diagnostics derived type |
 | derived_type | [type_io](autodoc/type_io.md) | I/O derived type |
@@ -40,6 +38,7 @@ The source code is organized in five categories:
 | derived_type | [type_linop](autodoc/type_linop.md) | linear operator derived type |
 | derived_type | [type_mesh](autodoc/type_mesh.md) | mesh derived type |
 | derived_type | [type_minim](autodoc/type_minim.md) | minimization data derived type |
+| derived_type | [type_model](autodoc/type_model.md) | model routines |
 | derived_type | [type_mom_blk](autodoc/type_mom_blk.md) | moments block derived type |
 | derived_type | [type_mom](autodoc/type_mom.md) | moments derived type |
 | derived_type | [type_mpl](autodoc/type_mpl.md) | MPI parameters derived type |
@@ -58,6 +57,9 @@ The source code is organized in five categories:
 | external_tools | [tools_kdtree2_pq](autodoc/tools_kdtree2_pq.md) | K-d tree priority queue routines |
 | external_tools | [tools_qsort](autodoc/tools_qsort.md) | qsort routines |
 | external_tools | [tools_stripack](autodoc/tools_stripack.md) | STRIPACK routines |
+| fckit | [fckit_geometry_module](autodoc/fckit_geometry_module.md) | fckit log emulator for standalone execution |
+| fckit | [fckit_log_module](autodoc/fckit_log_module.md) | fckit log emulator for standalone execution |
+| fckit | [fckit_mpi_module](autodoc/fckit_mpi_module.md) | fckit MPI emulator for standalone execution |
 | model | [module_aro](autodoc/module_aro.md) | AROME model routines |
 | model | [module_arp](autodoc/module_arp.md) | ARPEGE model routines |
 | model | [module_fv3](autodoc/module_fv3.md) | FV3 model routines |
@@ -65,7 +67,6 @@ The source code is organized in five categories:
 | model | [module_geos](autodoc/module_geos.md) | GEOS model routines |
 | model | [module_gfs](autodoc/module_gfs.md) | GFS model routines |
 | model | [module_ifs](autodoc/module_ifs.md) | IFS model routines |
-| model | [model_interface](autodoc/model_interface.md) | model routines |
 | model | [module_mpas](autodoc/module_mpas.md) | MPAS model routines |
 | model | [module_nemo](autodoc/module_nemo.md) | NEMO model routines |
 | model | [module_res](autodoc/module_res.md) | RES model routines |

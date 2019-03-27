@@ -15,7 +15,7 @@ Theoretical documentation:
 
 Code documentation:
  - [Code size and characteristics](doc/CLOC_REPORT.md)
- - [Offline or online usage](doc/offline_or_online_usage.md)
+ - [Standalone or online usage](doc/standalone_or_online_usage.md)
  - [Folders organization](doc/folders_organization.md)
  - [Compilation and dependencies](doc/compilation_and_dependencies.md)
  - [Code architecture](doc/code_architecture.md)

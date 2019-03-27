@@ -1,60 +1,49 @@
 # Code architecture
 
-- [Offline run](#offline-run)
-- [Online run](#online-run)
-  - [Setup](#setup)
-  - [Run](#run)
-  - [Apply](#apply)
-    - [Get parameters](#get-parameters)
-    - [Apply vertical balance operator](#apply-vertical-balance-operator)
-    - [Apply NICAS](#apply-nicas)
-    - [Apply observation operator](#apply-observation-operator)
-  - [Deallocate](#deallocate)
+- [Setup](#setup)
+- [Run](#run)
+- [Apply](#apply)
+  - [Get parameters](#get-parameters)
+  - [Apply vertical balance operator](#apply-vertical-balance-operator)
+  - [Apply NICAS](#apply-nicas)
+  - [Apply observation operator](#apply-observation-operator)
+- [Deallocate](#deallocate)
 - [Drivers](#drivers)
 
-
-## Offline run
-
-![](architecture/run_offline.svg)
-
-
-## Online run
-
-
-#### Setup
+## Setup
 
 ![](architecture/setup_online.svg)
 
 
-#### Run
+### Run
 
 ![](architecture/run_online.svg)
 
 
-#### Apply
+### Apply
 
 
-###### Get parameters
+#### Get parameters
 
 ![](architecture/get_parameter.svg)
 
 
-###### Apply vertical balance operator
+#### Apply vertical balance operator
 
 ![](architecture/apply_vbal.svg)
 
 
-###### Apply NICAS
+#### Apply NICAS
 
 ![](architecture/apply_nicas.svg)
 
 
-###### Apply observation operator
+#### Apply observation operator
 
 ![](architecture/apply_obsop.svg)
 
 
-#### Deallocate
+### Deallocate
 
 ![](architecture/deallocation.svg)
 

@@ -3,7 +3,7 @@
 The main directory $MAINDIR contains the CMakeLists.txt file and several folders:
   - doc: documentation and support
   - ncl: [NCL](http://ncl.ucar.edu) scripts to plot curves
-  - offline: offline-specific source code
+  - standalone: standalone-specific source code
   - run: executables and namelists
   - script: useful scripts
   - src: source code
