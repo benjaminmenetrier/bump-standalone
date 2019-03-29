@@ -622,7 +622,7 @@ rvs_avg = rvs_avg*norm
 write(mpl%info,'(a10,a)') '','Average support radii (H/V): '
 call mpl%flush
 do il0=1,geom%nl0
-   nicas_blk%vlev(il0) = (rhs_avg(il0)>0.0).and.(rvs_avg(il0)>0.0)
+   nicas_blk%vlev(il0) = (rhs_avg(il0)>0.0).or.(rvs_avg(il0)>0.0)
    if (nicas_blk%vlev(il0)) then
       write(mpl%info,'(a13,a,i3,a,f10.2,a,f10.2,a)') '','Level ',nam%levs(il0),': '//trim(mpl%aqua),rhs_avg(il0)*reqkm, &
     & trim(mpl%black)//' km  / '//trim(mpl%aqua),rvs_avg(il0),trim(mpl%black)//' vert. unit'
