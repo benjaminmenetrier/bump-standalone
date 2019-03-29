@@ -141,7 +141,7 @@ character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'diag_write'
 
 if (mpl%main) then
-   filename = trim(nam%prefix)//'_diag.nc'
+   filename = trim(nam%prefix)//'_diag'
    do ib=1,bpar%nbe
       if (bpar%diag_block(ib)) then
         call diag%blk(0,ib)%write(mpl,nam,geom,bpar,filename)
@@ -150,10 +150,10 @@ if (mpl%main) then
 end if
 
 if ((trim(diag%prefix)/='cov').and.nam%local_diag) then
-   call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
    do ib=1,bpar%nbe
       if (bpar%fit_block(ib)) then
          filename = trim(nam%prefix)//'_local_diag_'//trim(diag%prefix)
+         call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
          n = 1
          if (nam%local_diag) then
             n = n+2
@@ -205,7 +205,7 @@ do ildw=1,nam%nldwv
       iproc = geom%c0_to_proc(ic0)
       if (mpl%myproc==iproc) then
          ! Build file name
-         filename = trim(nam%prefix)//'_diag_'//trim(nam%name_ldwv(ildw))//'.nc'
+         filename = trim(nam%prefix)//'_diag_'//trim(nam%name_ldwv(ildw))
 
          ! Find diagnostic point
          do ic2a=1,samp%nc2a

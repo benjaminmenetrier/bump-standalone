@@ -87,7 +87,7 @@ integer,intent(in) :: its                                       ! Timeslot index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 
 ! Local variables
-integer :: iv,il0,img
+integer :: iv,il0
 integer :: ncid,fld_id
 real(kind_real) :: fld_mg(model%nmg,model%nl0)
 character(len=1024),parameter :: subr = 'model_res_read'

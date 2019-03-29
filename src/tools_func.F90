@@ -7,7 +7,7 @@
 !----------------------------------------------------------------------
 module tools_func
 
-use fckit_geometry_module, only: unit_sphere_distance,unit_sphere_lonlat2xyz,unit_sphere_xyz2lonlat
+use fckit_geometry_module, only: sphere_distance,sphere_lonlat2xyz,sphere_xyz2lonlat
 use tools_asa007, only: asa007_cholesky,asa007_syminv
 use tools_const, only: pi,deg2rad,rad2deg
 use tools_kinds, only: kind_real
@@ -75,7 +75,7 @@ real(kind_real),intent(in) :: lat_f ! Final point longilatitudetude (radians)
 real(kind_real),intent(out) :: dist ! Great-circle distance
 
 ! Call fckit
-dist = unit_sphere_distance(lon_i*rad2deg,lat_i*rad2deg,lon_f*rad2deg,lat_f*rad2deg)
+dist = sphere_distance(lon_i*rad2deg,lat_i*rad2deg,lon_f*rad2deg,lat_f*rad2deg)
 
 end subroutine sphere_dist
 
@@ -134,7 +134,7 @@ real(kind_real),intent(out) :: z  ! Z coordinate
 
 if (mpl%msv%isnotr(lat).and.mpl%msv%isnotr(lon)) then
    ! Call fckit
-   call unit_sphere_lonlat2xyz(lon*rad2deg,lat*rad2deg,x,y,z)
+   call sphere_lonlat2xyz(lon*rad2deg,lat*rad2deg,x,y,z)
 else
    ! Missing values
    x = mpl%msv%valr
@@ -162,7 +162,7 @@ real(kind_real),intent(out) :: lat ! Latitude (radians)
 
 if (mpl%msv%isnotr(x).and.mpl%msv%isnotr(y).and.mpl%msv%isnotr(z)) then
    ! Call fckit
-   call unit_sphere_xyz2lonlat(x,y,z,lon,lat)
+   call sphere_xyz2lonlat(x,y,z,lon,lat)
    lon = lon*deg2rad
    lat = lat*deg2rad
 else

@@ -12,7 +12,6 @@ implicit none
 type fckit_log_type
 contains
    procedure :: info => fckit_log_info
-   procedure :: test => fckit_log_test
 end type fckit_log_type
 
 type(fckit_log_type) :: fckit_log
@@ -37,21 +36,5 @@ logical,intent(in),optional :: newl
 logical,intent(in),optional :: flush
 
 end subroutine fckit_log_info
-
-!----------------------------------------------------------------------
-! Subroutine: fckit_log_test
-! Purpose: test log emulator
-!----------------------------------------------------------------------
-subroutine fckit_log_test(flog,msg,newl,flush)
-
-implicit none
-
-! Passed variables
-class(fckit_log_type),intent(in) :: flog
-character(len=*),intent(in) :: msg
-logical,intent(in),optional :: newl
-logical,intent(in),optional :: flush
-
-end subroutine fckit_log_test
 
 end module fckit_log_module

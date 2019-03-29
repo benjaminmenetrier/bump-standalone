@@ -13,15 +13,15 @@ use tools_kinds, only: kind_real
 implicit none
 
 private
-public :: unit_sphere_distance,unit_sphere_lonlat2xyz,unit_sphere_xyz2lonlat
+public :: sphere_distance,sphere_lonlat2xyz,sphere_xyz2lonlat
 
 contains
 
 !----------------------------------------------------------------------
-! Function: unit_sphere_distance
+! Function: sphere_distance
 ! Purpose: unit sphere distance
 !----------------------------------------------------------------------
-function unit_sphere_distance(lon_i,lat_i,lon_f,lat_f) result(dist)
+function sphere_distance(lon_i,lat_i,lon_f,lat_f) result(dist)
 
 implicit none
 
@@ -39,13 +39,13 @@ dist = atan2(sqrt((cos(lat_f*deg2rad)*sin(lon_f*deg2rad-lon_i*deg2rad))**2 &
      & +(cos(lat_i*deg2rad)*sin(lat_f*deg2rad)-sin(lat_i*deg2rad)*cos(lat_f*deg2rad)*cos(lon_f*deg2rad-lon_i*deg2rad))**2), &
      & sin(lat_i*deg2rad)*sin(lat_f*deg2rad)+cos(lat_i*deg2rad)*cos(lat_f*deg2rad)*cos(lon_f*deg2rad-lon_i*deg2rad))
 
-end function unit_sphere_distance
+end function sphere_distance
 
 !----------------------------------------------------------------------
-! Subroutine: unit_sphere_lonlat2xyz
+! Subroutine: sphere_lonlat2xyz
 ! Purpose: convert longitude/latitude to cartesian coordinates
 !----------------------------------------------------------------------
-subroutine unit_sphere_lonlat2xyz(lon,lat,x,y,z)
+subroutine sphere_lonlat2xyz(lon,lat,x,y,z)
 
 implicit none
 
@@ -71,13 +71,13 @@ y = cos(lat*deg2rad)*sin(lon*deg2rad)
 ! Z coordinate
 z = sin(lat*deg2rad)
 
-end subroutine unit_sphere_lonlat2xyz
+end subroutine sphere_lonlat2xyz
 
 !----------------------------------------------------------------------
-! Subroutine: unit_sphere_xyz2lonlat
+! Subroutine: sphere_xyz2lonlat
 ! Purpose: convert cartesian coordinates to longitude/latitude
 !----------------------------------------------------------------------
-subroutine unit_sphere_xyz2lonlat(x,y,z,lon,lat)
+subroutine sphere_xyz2lonlat(x,y,z,lon,lat)
 
 implicit none
 
@@ -108,6 +108,6 @@ else
    lat = 0.0
 end if
 
-end subroutine unit_sphere_xyz2lonlat
+end subroutine sphere_xyz2lonlat
 
 end module fckit_geometry_module

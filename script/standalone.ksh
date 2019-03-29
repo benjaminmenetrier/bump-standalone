@@ -28,5 +28,8 @@ rsync -rtv --delete ${standalone}/model ${src}
 # Add main.F90
 rsync -rtv --delete ${standalone}/main.F90 ${src}
 
+# Add type_model.F90
+rsync -rtv --delete ${standalone}/type_model.F90 ${src}
+
 # Add type_timer.F90
 rsync -rtv --delete ${standalone}/type_timer.F90 ${src}

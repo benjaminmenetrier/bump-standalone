@@ -19,7 +19,7 @@ use type_cmat_blk, only: cmat_blk_type
 use type_com, only: com_type
 use type_geom, only: geom_type
 use type_io, only: io_type
-use type_kdtree, only: kdtree_type
+use type_tree, only: tree_type
 use type_linop, only: linop_type
 use type_mesh, only: mesh_type
 use type_mpl, only: mpl_type
@@ -75,7 +75,9 @@ type nicas_blk_type
    ! Other data
 
    ! Level selection
-   logical,allocatable :: llev(:)                  ! Level selection
+   integer :: il0_first                            ! First valid level
+   integer :: il0_last                             ! Last valid level
+   logical,allocatable :: slev(:)                  ! Selected levels
 
    ! Parameters/normalization conversion
    integer,allocatable :: s_to_c1(:)               ! Subgrid to subset Sc1
@@ -141,8 +143,8 @@ type nicas_blk_type
    integer,allocatable :: sb_to_sc_nor(:)          ! Subgrid, halo B to halo C (extended for normalization)
    type(linop_type) :: c_nor                       ! Convolution (extended for normalization)
 
-   ! KD-tree
-   type(kdtree_type) :: kdtree                     ! KD-tree
+   ! Tree
+   type(tree_type) :: tree                         ! Tree
 
    ! Required data to apply a localization
 
@@ -154,6 +156,9 @@ type nicas_blk_type
    integer :: nsc                                  ! Number of subgrid nodes on halo C
    integer :: nc0d                                 ! Number of points in subset Sc1 on halo D
    integer :: nc0dinv                              ! Number of points in subset Sc1 on halo Dinv
+
+   ! Valid levels
+   logical,allocatable :: vlev(:)                  ! Valid levels
 
    ! Inter-halo conversions
    integer,allocatable :: sa_to_sc(:)              ! Subgrid, halo A to halo C
@@ -332,7 +337,8 @@ if (allocated(nicas_blk%sfull)) then
    end do
    deallocate(nicas_blk%sfull)
 end if
-if (allocated(nicas_blk%llev)) deallocate(nicas_blk%llev)
+if (allocated(nicas_blk%vlev)) deallocate(nicas_blk%vlev)
+if (allocated(nicas_blk%slev)) deallocate(nicas_blk%slev)
 if (allocated(nicas_blk%s_to_c1)) deallocate(nicas_blk%s_to_c1)
 if (allocated(nicas_blk%s_to_l1)) deallocate(nicas_blk%s_to_l1)
 if (allocated(nicas_blk%c1_to_c0)) deallocate(nicas_blk%c1_to_c0)
@@ -409,7 +415,7 @@ if (allocated(nicas_blk%sc_nor_to_s)) deallocate(nicas_blk%sc_nor_to_s)
 if (allocated(nicas_blk%s_to_sc_nor)) deallocate(nicas_blk%s_to_sc_nor)
 if (allocated(nicas_blk%sb_to_sc_nor)) deallocate(nicas_blk%sb_to_sc_nor)
 call nicas_blk%c_nor%dealloc
-call nicas_blk%kdtree%dealloc
+call nicas_blk%tree%dealloc
 
 end subroutine nicas_blk_partial_dealloc
 
@@ -599,7 +605,8 @@ character(len=1024),parameter :: subr = 'nicas_blk_compute_sampling'
 type(mesh_type) :: mesh
 
 ! Allocation
-allocate(nicas_blk%llev(geom%nl0))
+allocate(nicas_blk%vlev(geom%nl0))
+allocate(nicas_blk%slev(geom%nl0))
 
 ! Reset random numbers seed
 if (trim(nam%strategy)=='specific_multivariate') call rng%reseed(mpl)
@@ -615,9 +622,15 @@ rvs_avg = rvs_avg*norm
 write(mpl%info,'(a10,a)') '','Average support radii (H/V): '
 call mpl%flush
 do il0=1,geom%nl0
-   write(mpl%info,'(a13,a,i3,a,f10.2,a,f10.2,a)') '','Level ',nam%levs(il0),': '//trim(mpl%aqua),rhs_avg(il0)*reqkm, &
- & trim(mpl%black)//' km  / '//trim(mpl%aqua),rvs_avg(il0),trim(mpl%black)//' vert. unit'
-   call mpl%flush
+   nicas_blk%vlev(il0) = (rhs_avg(il0)>0.0).and.(rvs_avg(il0)>0.0)
+   if (nicas_blk%vlev(il0)) then
+      write(mpl%info,'(a13,a,i3,a,f10.2,a,f10.2,a)') '','Level ',nam%levs(il0),': '//trim(mpl%aqua),rhs_avg(il0)*reqkm, &
+    & trim(mpl%black)//' km  / '//trim(mpl%aqua),rvs_avg(il0),trim(mpl%black)//' vert. unit'
+      call mpl%flush
+   else
+      write(mpl%info,'(a13,a,i3,a)') '','Level ',nam%levs(il0),': missing values'
+      call mpl%flush
+   end if
 end do
 
 if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
@@ -627,18 +640,14 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
    do ic0a=1,geom%nc0a
       ic0 = geom%c0a_to_c0(ic0a)
       do il0=1,geom%nl0
-         if (geom%mask_c0(ic0,il0)) then
+         if (geom%mask_c0(ic0,il0).and.nicas_blk%vlev(il0)) then
             rhs_min(ic0a) = min(cmat_blk%rhs(ic0a,il0),rhs_min(ic0a))
          end if
       end do
    end do
    call mpl%f_comm%allreduce(sum(rhs_min,mask=geom%mask_hor_c0a),rhs_minavg,fckit_mpi_sum())
    rhs_minavg = rhs_minavg*norm(1)
-   if (rhs_minavg>0.0) then
-      nicas_blk%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rhs_minavg**2))
-   else
-      nicas_blk%nc1 = geom%nc0
-   end if
+   nicas_blk%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rhs_minavg**2))
    write(mpl%info,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: ',nicas_blk%nc1
    call mpl%flush
    if (geom%mesh%nb>0) then
@@ -729,12 +738,12 @@ else
    nfor = 0
 end if
 
-if (nfor>0) then
-   ! Allocation
-   allocate(for(nfor))
-   ifor = 0
+! Allocation
+allocate(for(nfor))
 
+if (nfor>0) then
    ! Add boundary points
+   ifor = 0
    do ib=1,mesh%nb
       ic0 = masked_to_full(mesh%order(mesh%bnd(ib)))
       ifor = ifor+1
@@ -764,41 +773,57 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='vh').or.(trim(
    write(mpl%info,'(a10,a)') '','Compute vertical subset L1'
    call mpl%flush
 
-   il0_prev = 1
+   ! Initialization
+   nicas_blk%il0_first = mpl%msv%vali
+   nicas_blk%il0_last = mpl%msv%vali
    do il0=1,geom%nl0
-      ! Look for convolution levels
-      if ((il0==1).or.(il0==geom%nl0)) then
-         ! Keep first and last levels
-         nicas_blk%llev(il0) = .true.
-      else
-         ! Compute minimum normalized distance with level il0_prev
-         distnorm = huge(1.0)
-         do ic0a=1,geom%nc0a
-            if (geom%mask_c0a(ic0a,il0)) then
-               rv = sqrt(0.5*(cmat_blk%rvs(ic0a,il0)**2+cmat_blk%rvs(ic0a,il0_prev)**2))
-               if (rv>0.0) distnorm(ic0a) = abs(geom%vunit_c0a(ic0a,il0)-geom%vunit_c0a(ic0a,il0_prev))/rv
-            end if
-         end do
-         call mpl%f_comm%allreduce(minval(distnorm),distnormmin,fckit_mpi_min())
-         nicas_blk%llev(il0) = distnormmin>1.0/nam%resol
-      end if
+      if (nicas_blk%vlev(il0).and.mpl%msv%isi(nicas_blk%il0_first)) nicas_blk%il0_first = il0
+   end do
+   do il0=geom%nl0,1,-1
+      if (nicas_blk%vlev(il0).and.mpl%msv%isi(nicas_blk%il0_last)) nicas_blk%il0_last = il0
+   end do
+   il0_prev = nicas_blk%il0_first
+   nicas_blk%slev = .false.
 
-      ! Update
-      if (nicas_blk%llev(il0)) il0_prev = il0
+   do il0=1,geom%nl0
+      if (nicas_blk%vlev(il0)) then
+         ! Look for convolution levels
+         if ((il0==nicas_blk%il0_first).or.(il0==nicas_blk%il0_last)) then
+            ! Keep first and last levels
+            nicas_blk%slev(il0) = .true.
+         else
+            ! Compute minimum normalized distance with level il0_prev
+            distnorm = huge(1.0)
+            do ic0a=1,geom%nc0a
+               if (geom%mask_c0a(ic0a,il0)) then
+                  rv = sqrt(0.5*(cmat_blk%rvs(ic0a,il0)**2+cmat_blk%rvs(ic0a,il0_prev)**2))
+                  if (rv>0.0) distnorm(ic0a) = abs(geom%vunit_c0a(ic0a,il0)-geom%vunit_c0a(ic0a,il0_prev))/rv
+               end if
+            end do
+            call mpl%f_comm%allreduce(minval(distnorm),distnormmin,fckit_mpi_min())
+            nicas_blk%slev(il0) = distnormmin>1.0/nam%resol
+         end if
+
+         ! Update
+         if (nicas_blk%slev(il0)) il0_prev = il0
+      else
+         ! Not a valid level
+
+      end if
    end do
 else
    ! No vertical sampling
-   nicas_blk%llev = .true.
+   nicas_blk%slev = .true.
 end if
 
 ! Count effective levels
-nicas_blk%nl1 = count(nicas_blk%llev)
+nicas_blk%nl1 = count(nicas_blk%slev)
 allocate(nicas_blk%l1_to_l0(nicas_blk%nl1))
 write(mpl%info,'(a10,a)') '','Effective levels: '
 call mpl%flush(.false.)
 il1 = 0
 do il0=1,geom%nl0
-   if (nicas_blk%llev(il0)) then
+   if (nicas_blk%slev(il0)) then
       write(mpl%info,'(i3,a)') nam%levs(il0),' '
       call mpl%flush(.false.)
       il1 = il1+1
@@ -973,8 +998,8 @@ if (mpl%main.and.nam%write_grids) then
    end do
 
    ! Create file
-   filename = trim(nam%prefix)//'_'//trim(nicas_blk%name)//'_grids.nc'
-   call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
+   filename = trim(nam%prefix)//'_'//trim(nicas_blk%name)//'_grids'
+   call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_clobber,nf90_64bit_offset),ncid))
 
    ! Define dimensions
    call mpl%ncerr(subr,nf90_def_dim(ncid,'nc1',nicas_blk%nc1,nc1_id))
@@ -1063,11 +1088,11 @@ nicas_blk%vfull%prefix = 'vfull'
 nicas_blk%vfull%n_src = nicas_blk%nl1
 nicas_blk%vfull%n_dst = geom%nl0
 
-! Linear interpolation
+! Count levels
 nicas_blk%vfull%n_s = nicas_blk%nl1
-il0inf = 1
+il0inf = nicas_blk%il0_first
 do jl0=1,geom%nl0
-   if (nicas_blk%llev(jl0)) then
+   if (nicas_blk%slev(jl0)) then
       il0sup = jl0
       do il0=il0inf+1,il0sup-1
          nicas_blk%vfull%n_s = nicas_blk%vfull%n_s+2
@@ -1075,8 +1100,11 @@ do jl0=1,geom%nl0
       il0inf = jl0
    end if
 end do
+
+! Allocation
 call nicas_blk%vfull%alloc(nicas_blk%nc1)
 
+! Set identity for subsampled levels
 do jl1=1,nicas_blk%nl1
    jl0 = nicas_blk%l1_to_l0(jl1)
    nicas_blk%vfull%row(jl1) = jl0
@@ -1085,11 +1113,12 @@ do jl1=1,nicas_blk%nl1
       nicas_blk%vfull%Svec(jl1,ic1) = 1.0
    end do
 end do
-
 nicas_blk%vfull%n_s = nicas_blk%nl1
-il0inf = 1
+
+! Compute linear interpolation for other levels
+il0inf = nicas_blk%il0_first
 do jl0=1,geom%nl0
-   if (nicas_blk%llev(jl0)) then
+   if (nicas_blk%slev(jl0)) then
       il0sup = jl0
       do il0=il0inf+1,il0sup-1
          nicas_blk%vfull%n_s = nicas_blk%vfull%n_s+1
@@ -1118,7 +1147,7 @@ end do
 nicas_blk%vfull%col = nicas_blk%l0_to_l1(nicas_blk%vfull%col)
 
 ! Release memory
-deallocate(nicas_blk%llev)
+deallocate(nicas_blk%slev)
 
 end subroutine nicas_blk_compute_interp_v
 
@@ -1548,7 +1577,7 @@ integer :: c_n_s(mpl%nthread)
 integer,allocatable :: nn(:),nn_index(:),inec(:),c_ind(:,:)
 real(kind_real) :: distvsq,rvsq
 real(kind_real) :: lon_c1(nicas_blk%nc1),lat_c1(nicas_blk%nc1)
-real(kind_real),allocatable :: nn_dist(:),rh_c1a(:,:),rv_c1a(:,:),rv_rfac_c1a(:,:),rv_rfac_c1(:,:),rv_coef_c1a(:,:),rv_coef_c1(:,:)
+real(kind_real),allocatable :: rh_c1a(:,:),rv_c1a(:,:),rv_rfac_c1a(:,:),rv_rfac_c1(:,:),rv_coef_c1a(:,:),rv_coef_c1(:,:)
 real(kind_real),allocatable :: H11_c1a(:,:),H22_c1a(:,:),H33_c1a(:,:),H12_c1a(:,:),Hcoef_c1a(:,:),Hcoef_c1(:,:)
 real(kind_real),allocatable :: distnormv(:,:),rfac(:,:),coef(:,:),Hcoef(:,:)
 real(kind_real),allocatable :: c_S(:,:),c_S_conv(:)
@@ -1563,12 +1592,12 @@ nicas_blk%double_fit = cmat_blk%double_fit
 nicas_blk%anisotropic = cmat_blk%anisotropic
 
 ! Allocation
-call nicas_blk%kdtree%alloc(mpl,nicas_blk%nc1)
+call nicas_blk%tree%alloc(mpl,nicas_blk%nc1)
 
 ! Initialization
 lon_c1 = geom%lon(nicas_blk%c1_to_c0)
 lat_c1 = geom%lat(nicas_blk%c1_to_c0)
-call nicas_blk%kdtree%init(mpl,lon_c1,lat_c1)
+call nicas_blk%tree%init(lon_c1,lat_c1)
 
 ! Find largest possible radius
 call mpl%f_comm%allreduce(maxval(cmat_blk%rh),nicas_blk%rhmax,fckit_mpi_max())
@@ -1591,7 +1620,7 @@ else
       ic0 = nicas_blk%c1_to_c0(ic1)
 
       ! Count nearest neighbors
-      call nicas_blk%kdtree%count_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),nicas_blk%rhmax,nn(ic1b))
+      call nicas_blk%tree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nicas_blk%rhmax,nn(ic1b))
    end do
 
    ! Initialization
@@ -1607,10 +1636,9 @@ else
 
       ! Allocation
       allocate(nn_index(nn(ic1b)))
-      allocate(nn_dist(nn(ic1b)))
 
       ! Find nearest neighbors
-      call nicas_blk%kdtree%find_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),nn(ic1b),nn_index,nn_dist)
+      call nicas_blk%tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nn(ic1b),nn_index)
 
       ! Fill mask
       do j=1,nn(ic1b)
@@ -1620,7 +1648,6 @@ else
 
       ! Release memory
       deallocate(nn_index)
-      deallocate(nn_dist)
 
       ! Update
       call mpl%prog_print(ic1b)
@@ -2345,7 +2372,7 @@ do ic1bb=1,nicas_blk%nc1bb
    rr = sqrt(0.5*(maxval(nicas_blk%rh_c1(ic1,:))**2+nicas_blk%rhmax**2))
 
    ! Count nearest neighbors
-   call nicas_blk%kdtree%count_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),rr,nn(ic1bb))
+   call nicas_blk%tree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),rr,nn(ic1bb))
 
    ! Update
    call mpl%prog_print(ic1bb)
@@ -2375,7 +2402,7 @@ do ic1bb=1,nicas_blk%nc1bb
    ic0 = nicas_blk%c1_to_c0(ic1)
 
    ! Find nearest neighbors
-   call nicas_blk%kdtree%find_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),nn(ic1bb), &
+   call nicas_blk%tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nn(ic1bb), &
  & nn_index(1:nn(ic1bb),ic1bb),nn_dist(1:nn(ic1bb),ic1bb))
 
    ! Check arc validity
@@ -2873,87 +2900,92 @@ nicas_blk%norm = mpl%msv%valr
 
 ! Compute normalization weights
 do il0=1,geom%nl0
-   il0i = min(il0,geom%nl0i)
-   write(mpl%info,'(a10,a,i3,a)') '','Level ',nam%levs(il0),': '
-   call mpl%flush(.false.)
-   call mpl%prog_init(geom%nc0a)
+   if (nicas_blk%vlev(il0)) then
+      il0i = min(il0,geom%nl0i)
+      write(mpl%info,'(a10,a,i3,a)') '','Level ',nam%levs(il0),': '
+      call mpl%flush(.false.)
+      call mpl%prog_init(geom%nc0a)
 
-   !$omp parallel do schedule(static) private(ic0a,ic0,nlr,isc_add,S_add,ih,ic1b,ic1,jv,il1,is,ilr,ic,isc,jsc), &
-   !$omp&                             firstprivate(isc_list,S_list,S_list_tmp)
-   do ic0a=1,geom%nc0a
-      ! Index
-      ic0 = geom%c0a_to_c0(ic0a)
+      !$omp parallel do schedule(static) private(ic0a,ic0,nlr,isc_add,S_add,ih,ic1b,ic1,jv,il1,is,ilr,ic,isc,jsc), &
+      !$omp&                             firstprivate(isc_list,S_list,S_list_tmp)
+      do ic0a=1,geom%nc0a
+         ! Index
+         ic0 = geom%c0a_to_c0(ic0a)
 
-      if (geom%mask_c0(ic0,il0)) then
-         ! Allocation
-         allocate(isc_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
-         allocate(S_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
-         allocate(S_list_tmp(nicas_blk%nsc_nor))
+         if (geom%mask_c0(ic0,il0)) then
+            ! Allocation
+            allocate(isc_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
+            allocate(S_list(ineh(ic0a,il0i)*inev(il0)*maxval(ines)))
+            allocate(S_list_tmp(nicas_blk%nsc_nor))
 
-         ! Initialization
-         isc_list = 0
-         S_list = 0.0
+            ! Initialization
+            isc_list = 0
+            S_list = 0.0
 
-         ! Adjoint interpolation
-         nlr = 0
-         do ih=1,ineh(ic0a,il0i)
-            ic1b = h_col(ih,ic0a,il0i)
-            ic1 = nicas_blk%c1b_to_c1(ic1b)
-            do jv=1,inev(il0)
-               il1 = v_col(jv,il0)
-               if ((nicas_blk%l1_to_l0(il1)>=nicas_blk%vbot(ic1)).and.(nicas_blk%l1_to_l0(il1)<=nicas_blk%vtop(ic1))) then
-                  do is=1,ines(ic1b,il1)
-                     isc_add = s_col(is,ic1b,il1)
-                     S_add = h_S(ih,ic0a,il0i)*v_S(jv,ic1b,il0)*s_S(is,ic1b,il1)
-                     if (nlr==0) then
-                        ilr = 1
-                        nlr = 1
-                     else
-                        do ilr=1,nlr
-                           if (isc_add==isc_list(ilr)) exit
-                        end do
-                        if (ilr==nlr+1) nlr = nlr+1
-                     end if
-                     isc_list(ilr) = isc_add
-                     S_list(ilr) = S_list(ilr)+S_add
-                  end do
-               end if
+            ! Adjoint interpolation
+            nlr = 0
+            do ih=1,ineh(ic0a,il0i)
+               ic1b = h_col(ih,ic0a,il0i)
+               ic1 = nicas_blk%c1b_to_c1(ic1b)
+               do jv=1,inev(il0)
+                  il1 = v_col(jv,il0)
+                  if ((nicas_blk%l1_to_l0(il1)>=nicas_blk%vbot(ic1)).and.(nicas_blk%l1_to_l0(il1)<=nicas_blk%vtop(ic1))) then
+                     do is=1,ines(ic1b,il1)
+                        isc_add = s_col(is,ic1b,il1)
+                        S_add = h_S(ih,ic0a,il0i)*v_S(jv,ic1b,il0)*s_S(is,ic1b,il1)
+                        if (nlr==0) then
+                           ilr = 1
+                           nlr = 1
+                        else
+                           do ilr=1,nlr
+                              if (isc_add==isc_list(ilr)) exit
+                           end do
+                           if (ilr==nlr+1) nlr = nlr+1
+                        end if
+                        isc_list(ilr) = isc_add
+                        S_list(ilr) = S_list(ilr)+S_add
+                     end do
+                  end if
+               end do
             end do
-         end do
 
-         ! Initialization
-         S_list_tmp = 0.0
-         do ilr=1,nlr
-            isc = isc_list(ilr)
-            S_list_tmp(isc) = S_list(ilr)
-         end do
-
-         ! Convolution
-         do ilr=1,nlr
-            isc = isc_list(ilr)
-            do ic=1,inec(isc)
-               jsc = c_ind(ic,isc)
-               S_list_tmp(jsc) = S_list_tmp(jsc)+c_S(ic,isc)*S_list(ilr)
+            ! Initialization
+            S_list_tmp = 0.0
+            do ilr=1,nlr
+               isc = isc_list(ilr)
+               S_list_tmp(isc) = S_list(ilr)
             end do
-         end do
 
-         ! Sum of squared values
-         nicas_blk%norm(ic0a,il0) = sum(S_list_tmp**2)
+            ! Convolution
+            do ilr=1,nlr
+               isc = isc_list(ilr)
+               do ic=1,inec(isc)
+                  jsc = c_ind(ic,isc)
+                  S_list_tmp(jsc) = S_list_tmp(jsc)+c_S(ic,isc)*S_list(ilr)
+               end do
+            end do
 
-         ! Normalization factor
-         nicas_blk%norm(ic0a,il0) = 1.0/sqrt(nicas_blk%norm(ic0a,il0))
+            ! Sum of squared values
+            nicas_blk%norm(ic0a,il0) = sum(S_list_tmp**2)
 
-         ! Update
-         call mpl%prog_print(ic0a)
+            ! Normalization factor
+            nicas_blk%norm(ic0a,il0) = 1.0/sqrt(nicas_blk%norm(ic0a,il0))
 
-         ! Release memory
-         deallocate(isc_list)
-         deallocate(S_list)
-         deallocate(S_list_tmp)
-      end if
-   end do
-   !$omp end parallel do
-   call mpl%prog_final
+            ! Update
+            call mpl%prog_print(ic0a)
+
+            ! Release memory
+            deallocate(isc_list)
+            deallocate(S_list)
+            deallocate(S_list_tmp)
+         end if
+      end do
+      !$omp end parallel do
+      call mpl%prog_final
+   else
+      ! Not a valid level
+      nicas_blk%norm(:,il0) = 1.0
+   end if
 end do
 
 ! Release memory
@@ -3442,7 +3474,11 @@ integer :: il0
 ! Horizontal interpolation
 !$omp parallel do schedule(static) private(il0)
 do il0=1,geom%nl0
-   call nicas_blk%h(min(il0,geom%nl0i))%apply(mpl,delta(:,il0),fld(:,il0),msdst=.false.)
+   if (nicas_blk%vlev(il0)) then
+      call nicas_blk%h(min(il0,geom%nl0i))%apply(mpl,delta(:,il0),fld(:,il0),msdst=.false.)
+   else
+      fld(:,il0) = mpl%msv%valr
+   end if
 end do
 !$omp end parallel do
 
@@ -3468,7 +3504,11 @@ integer :: il0
 
 !$omp parallel do schedule(static) private(il0)
 do il0=1,geom%nl0
-   call nicas_blk%h(min(il0,geom%nl0i))%apply_ad(mpl,fld(:,il0),delta(:,il0))
+   if (nicas_blk%vlev(il0)) then
+      call nicas_blk%h(min(il0,geom%nl0i))%apply_ad(mpl,fld(:,il0),delta(:,il0))
+   else
+      delta(:,il0) = mpl%msv%valr
+   end if
 end do
 !$omp end parallel do
 
@@ -3490,11 +3530,11 @@ real(kind_real),intent(in) :: gamma(nicas_blk%nc1b,nicas_blk%nl1) ! Subset Sc1 f
 real(kind_real),intent(out) :: delta(nicas_blk%nc1b,geom%nl0)     ! Subset Sc1 field, full levels
 
 ! Local variables
-integer :: ic1b
+integer :: ic1b,il0
 real(kind_real),allocatable :: gamma_tmp(:),delta_tmp(:)
 
 ! Vertical interpolation
-!$omp parallel do schedule(static) private(ic1b) firstprivate(gamma_tmp,delta_tmp)
+!$omp parallel do schedule(static) private(ic1b,il0) firstprivate(gamma_tmp,delta_tmp)
 do ic1b=1,nicas_blk%nc1b
    ! Allocation
    allocate(gamma_tmp(nicas_blk%nl1))
@@ -3507,7 +3547,13 @@ do ic1b=1,nicas_blk%nc1b
    call nicas_blk%v%apply(mpl,gamma_tmp,delta_tmp,ivec=ic1b,msdst=.false.)
 
    ! Copy data
-   delta(ic1b,:) = delta_tmp
+   do il0=1,geom%nl0
+      if (nicas_blk%vlev(il0)) then
+         delta(ic1b,il0) = delta_tmp(il0)
+      else
+         delta(ic1b,il0) = mpl%msv%valr
+      end if
+   end do
 
    ! Release memory
    deallocate(gamma_tmp)
@@ -3676,7 +3722,7 @@ do its=2,nam%nts
       ! Interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call nicas_blk%d(il0,its)%apply(mpl,fld_d(:,il0),fld(:,il0,iv,its),msdst=.false.)
+         if (nicas_blk%vlev(il0)) call nicas_blk%d(il0,its)%apply(mpl,fld_d(:,il0),fld(:,il0,iv,its),msdst=.false.)
       end do
       !$omp end parallel do
    end do
@@ -3708,7 +3754,7 @@ do its=2,nam%nts
       ! Adjoint interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call nicas_blk%d(il0,its)%apply_ad(mpl,fld(:,il0,iv,its),fld_d(:,il0))
+         if (nicas_blk%vlev(il0)) call nicas_blk%d(il0,its)%apply_ad(mpl,fld(:,il0,iv,its),fld_d(:,il0))
       end do
       !$omp end parallel do
 
@@ -3746,7 +3792,7 @@ do its=2,nam%nts
       ! Interpolation
       !$omp parallel do schedule(static) private(il0)
       do il0=1,geom%nl0
-         call nicas_blk%dinv(il0,its)%apply(mpl,fld_dinv(:,il0),fld(:,il0,iv,its),msdst=.false.)
+         if (nicas_blk%vlev(il0)) call nicas_blk%dinv(il0,its)%apply(mpl,fld_dinv(:,il0),fld(:,il0,iv,its),msdst=.false.)
       end do
       !$omp end parallel do
    end do
@@ -4216,16 +4262,26 @@ call mpl%flush
 do idir=1,geom%ndir
    if (geom%iprocdir(idir)==mpl%myproc) val = fld(geom%ic0adir(idir),geom%il0dir(idir))
    call mpl%f_comm%broadcast(val,geom%iprocdir(idir)-1)
-   write(mpl%info,'(a10,f6.1,a,f6.1,a,f10.7)') '',geom%londir(idir)*rad2deg,' / ',geom%latdir(idir)*rad2deg,': ',val
-   call mpl%flush
+   if (mpl%msv%isnotr(val)) then
+      write(mpl%info,'(a10,f6.1,a,f6.1,a,f10.7)') '',geom%londir(idir)*rad2deg,' / ',geom%latdir(idir)*rad2deg,': ',val
+      call mpl%flush
+   else
+      write(mpl%info,'(a10,f6.1,a,f6.1,a)') '',geom%londir(idir)*rad2deg,' / ',geom%latdir(idir)*rad2deg,': missing value'
+      call mpl%flush
+   end if
 end do
 write(mpl%info,'(a7,a)') '','Min - max: '
 call mpl%flush
 do il0=1,geom%nl0
    call mpl%f_comm%allreduce(minval(fld(:,il0),mask=geom%mask_c0a(:,il0)),valmin_tot,fckit_mpi_min())
    call mpl%f_comm%allreduce(maxval(fld(:,il0),mask=geom%mask_c0a(:,il0)),valmax_tot,fckit_mpi_max())
-   write(mpl%info,'(a10,a,i3,a,f10.7,a,f10.7)') '','Level ',nam%levs(il0),': ',valmin_tot,' - ',valmax_tot
-   call mpl%flush
+   if (mpl%msv%isnotr(valmin_tot).or.mpl%msv%isnotr(valmax_tot)) then
+      write(mpl%info,'(a10,a,i3,a,f10.7,a,f10.7)') '','Level ',nam%levs(il0),': ',valmin_tot,' - ',valmax_tot
+      call mpl%flush
+   else
+      write(mpl%info,'(a10,a,i3,a)') '','Level ',nam%levs(il0),': missing values'
+      call mpl%flush
+   end if
 end do
 
 ! End associate

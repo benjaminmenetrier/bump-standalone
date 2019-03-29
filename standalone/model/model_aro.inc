@@ -12,11 +12,10 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,il0,ilon,ilat
+integer :: img,ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,pp_id,lon_id,lat_id,cmask_id,a_id,b_id
 real(kind_real) :: dx,dy
 real(kind_real),allocatable :: lon(:,:),lat(:,:),cmask(:,:),a(:),b(:)
-logical,allocatable :: cmask_pack(:)
 character(len=1024),parameter :: subr = 'model_aro_coord'
 
 ! Open file and get dimensions

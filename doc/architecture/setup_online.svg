@@ -123,29 +123,29 @@
 <path fill="none" stroke="#000000" d="M339.1441,-360.0019C356.0958,-363.049 373.5518,-366.1476 390,-369 409.9162,-372.4538 431.2187,-376.052 451.6352,-379.4534"/>
 <polygon fill="#000000" stroke="#000000" points="451.1382,-382.9187 461.5768,-381.1059 452.2861,-376.0135 451.1382,-382.9187"/>
 </g>
-<!-- Get coordinates from arguments :: geom%setup_online -->
+<!-- Get coordinates from arguments :: geom%setup -->
 <g id="node13" class="node">
-<title>Get coordinates from arguments :: geom%setup_online</title>
-<polygon fill="none" stroke="#000000" points="713,-360 393,-360 393,-324 713,-324 713,-360"/>
-<text text-anchor="middle" x="553" y="-338.3" font-family="Times,serif" font-size="14.00" fill="#000000">Get coordinates from arguments :: geom%setup_online</text>
+<title>Get coordinates from arguments :: geom%setup</title>
+<polygon fill="none" stroke="#000000" points="693,-360 413,-360 413,-324 693,-324 693,-360"/>
+<text text-anchor="middle" x="553" y="-338.3" font-family="Times,serif" font-size="14.00" fill="#000000">Get coordinates from arguments :: geom%setup</text>
 </g>
-<!-- Online setup :: bump%setup_online&#45;&gt;Get coordinates from arguments :: geom%setup_online -->
+<!-- Online setup :: bump%setup_online&#45;&gt;Get coordinates from arguments :: geom%setup -->
 <g id="edge12" class="edge">
-<title>Online setup :: bump%setup_online&#45;&gt;Get coordinates from arguments :: geom%setup_online</title>
-<path fill="none" stroke="#000000" d="M347.5001,-342C358.947,-342 370.7907,-342 382.7469,-342"/>
-<polygon fill="#000000" stroke="#000000" points="382.8104,-345.5001 392.8104,-342 382.8104,-338.5001 382.8104,-345.5001"/>
+<title>Online setup :: bump%setup_online&#45;&gt;Get coordinates from arguments :: geom%setup</title>
+<path fill="none" stroke="#000000" d="M347.5001,-342C365.307,-342 384.0738,-342 402.7312,-342"/>
+<polygon fill="#000000" stroke="#000000" points="402.774,-345.5001 412.7739,-342 402.7739,-338.5001 402.774,-345.5001"/>
 </g>
-<!-- Initialize geometry :: geom%init -->
+<!-- Initialize geometry :: geom%setup -->
 <g id="node14" class="node">
-<title>Initialize geometry :: geom%init</title>
-<polygon fill="none" stroke="#000000" points="651,-306 455,-306 455,-270 651,-270 651,-306"/>
-<text text-anchor="middle" x="553" y="-284.3" font-family="Times,serif" font-size="14.00" fill="#000000">Initialize geometry :: geom%init</text>
+<title>Initialize geometry :: geom%setup</title>
+<polygon fill="none" stroke="#000000" points="656,-306 450,-306 450,-270 656,-270 656,-306"/>
+<text text-anchor="middle" x="553" y="-284.3" font-family="Times,serif" font-size="14.00" fill="#000000">Initialize geometry :: geom%setup</text>
 </g>
-<!-- Online setup :: bump%setup_online&#45;&gt;Initialize geometry :: geom%init -->
+<!-- Online setup :: bump%setup_online&#45;&gt;Initialize geometry :: geom%setup -->
 <g id="edge13" class="edge">
-<title>Online setup :: bump%setup_online&#45;&gt;Initialize geometry :: geom%init</title>
-<path fill="none" stroke="#000000" d="M339.1441,-323.9981C356.0958,-320.951 373.5518,-317.8524 390,-315 407.6463,-311.9398 426.381,-308.7663 444.6235,-305.7167"/>
-<polygon fill="#000000" stroke="#000000" points="445.4095,-309.1341 454.6976,-304.0368 444.258,-302.2294 445.4095,-309.1341"/>
+<title>Online setup :: bump%setup_online&#45;&gt;Initialize geometry :: geom%setup</title>
+<path fill="none" stroke="#000000" d="M339.1441,-323.9981C356.0958,-320.951 373.5518,-317.8524 390,-315 406.0323,-312.2197 422.963,-309.3459 439.6067,-306.5565"/>
+<polygon fill="#000000" stroke="#000000" points="440.636,-309.933 449.922,-304.8321 439.4818,-303.0288 440.636,-309.933"/>
 </g>
 <!-- If fields regridding required -->
 <g id="node15" class="node">

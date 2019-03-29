@@ -42,8 +42,3 @@ source=`find . -type f -exec egrep -l " +$" {} \;`
 for file in ${source} ; do
    sed -i 's/ *$//' ${file}
 done
-cd ${HOME}/code/ufo-bundle_develop/oops/src/oops/generic/bump
-source=`find . -type f -exec egrep -l " +$" {} \;`
-for file in ${source} ; do
-   sed -i 's/ *$//' ${file}
-done

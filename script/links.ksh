@@ -11,9 +11,9 @@ datadir=${HOME}/data
 #datadir=/scratch/work/menetrie/data
 bumpdir=${HOME}/data/bump
 #bumpdir=/scratch/work/menetrie/data/bump
-testdir=${HOME}/bump/test
-#testdir=/home/menetrie/bump/test
-model=res
+testdir=${HOME}/code/bump-standalone/test
+#testdir=/home/menetrie/code/bump/test
+model=test
 
 # Link members
 i=0
@@ -150,9 +150,11 @@ while [ ${i} -lt ${ne} ] ; do
 
    # Test
    if test ${model} = "test" ; then
-      ne=10
+      ne=50
       mkdir -p ${testdir}
-      ncks -O -v ps,ta,ap,b -d lev,0,12,6 -d lat,50,99 -d lon,600,699 ${datadir}/gem/member_kfc_BLAC62_${i4}.nc ${testdir}/ens1_00_${i4}.nc
+      cp -f ${datadir}/qg/forecast.ens.${i}.2010-01-01T00:00:00Z.PT0S.nc ${testdir}/ens1_00_${i4}.nc
+      cp -f ${datadir}/qg/forecast.ens.${i}.2010-01-01T00:00:00Z.PT3H.nc ${testdir}/ens1_03_${i4}.nc
+      cp -f ${datadir}/qg/forecast.ens.${i}.2010-01-01T00:00:00Z.PT6H.nc ${testdir}/ens1_06_${i4}.nc
    fi
 
    # WRF
@@ -411,7 +413,7 @@ if test ${model} = "test" ; then
    origin=${testdir}/ens1_00_0001.nc
    grid=${testdir}/grid.nc
    rm -f grid.nc
-   ncks -O -v lat,lon,lev,ap,b ${origin} ${grid}
+   ncks -O -v lat,lon,z,area ${origin} ${grid}
 fi
 
 # WRF

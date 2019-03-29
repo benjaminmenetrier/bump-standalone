@@ -1,7 +1,7 @@
 &general_param
 datadir = "../test",
 prefix = "truth",
-model = "gem",
+model = "qg",
 verbosity = "all",
 colorlog = .false.,
 default_seed = .true.,
@@ -37,25 +37,23 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 3,
-levs = 1,2,3,
+nl = 2,
+levs = 1,2,
 logpres = .true.,
 nv = 1,
-varname = "ta",
+varname = "q",
 addvar2d = "",
 nts = 1,
 timeslot = 0,
 /
 
 &ens1_param
-ens1_ne = 10,
-ens1_ne_offset = 0,
+ens1_ne = 50,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 10,
-ens2_ne_offset = 0,
+ens2_ne = 0,
 ens2_nsub = 1,
 /
 
@@ -124,8 +122,8 @@ itsdir = 1,
 /
 
 &obsop_param
-nobs = 1,
-obsdis = "random",
+nobs = 200,
+obsdis = "adjusted",
 obsop_interp = "bilin",
 /
 
@@ -136,13 +134,13 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-name_ldwv = '',
+name_ldwv = "",
 diag_rhflt = 500.0e3,
 diag_interp = "natural",
 field_io = .true.,
 split_io = .false.,
 grid_output = .true.,
-grid_resol = 100.0e3,
+grid_resol = 200.0e3,
 grid_interp = "bilin",
 /
 

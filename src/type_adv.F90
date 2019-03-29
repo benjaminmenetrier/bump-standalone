@@ -200,7 +200,6 @@ integer,allocatable :: jc0_ra(:,:,:),c0d_to_c0(:)
 real(kind_real) :: m2m2,fld_1,fld_2,cov,cor_avg_max,search_rad
 real(kind_real) :: mean,stddev,dist_sum,norm,norm_tot
 real(kind_real) :: lon_c2(nam%nc2),lat_c2(nam%nc2)
-real(kind_real),allocatable :: nn_dist(:)
 real(kind_real),allocatable :: fld_ext_1(:,:),fld_ext_2(:,:)
 real(kind_real),allocatable :: m2_1(:,:,:,:,:),m2_2(:,:,:,:,:)
 real(kind_real),allocatable :: m11(:,:,:,:,:)
@@ -246,12 +245,10 @@ do its=2,nam%nts
       ! Research area center
       if (cor_tracker.and.(its>2)) then
          ! Find closer point to previous timeslot advected mesh point
-         allocate(nn_dist(1))
          do il0=1,geom%nl0
-            call geom%kdtree%find_nearest_neighbors(mpl,adv%lon_c2a_flt(ic2a,il0,its-1),adv%lat_c2a_flt(ic2a,il0,its-1),1, &
-          & ic0_rac(ic2a:ic2a,il0),nn_dist)
+            call geom%tree%find_nearest_neighbors(adv%lon_c2a_flt(ic2a,il0,its-1),adv%lat_c2a_flt(ic2a,il0,its-1),1, &
+          & ic0_rac(ic2a:ic2a,il0))
          end do
-         deallocate(nn_dist)
       else
          ! Set at origin mesh point
          ic2 = samp%c2a_to_c2(ic2a)
@@ -270,7 +267,7 @@ do its=2,nam%nts
 
          ! Count nearest neighbors
          search_rad = min(geom%mesh%bdist(geom%mesh%order_inv(ic0)),nam%adv_rad)
-         call geom%kdtree%count_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),search_rad,nn(ic2a,il0))
+         call geom%tree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),search_rad,nn(ic2a,il0))
          nn(ic2a,il0) = max(1,nn(ic2a,il0))
 
          ! Update
@@ -284,7 +281,6 @@ do its=2,nam%nts
 
    ! Allocation
    allocate(jc0_ra(nnmax,samp%nc2a,geom%nl0))
-   allocate(nn_dist(nnmax))
    allocate(mask_nn(nnmax,samp%nc2a,geom%nl0))
    allocate(m2_1(nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
    allocate(m2_2(nnmax,samp%nc2a,geom%nl0,nam%nv,ens%nsub))
@@ -301,8 +297,8 @@ do its=2,nam%nts
          ic0 = ic0_rac(ic2a,il0)
 
          ! Find nearest neighbors
-         call geom%kdtree%find_nearest_neighbors(mpl,geom%lon(ic0),geom%lat(ic0),nn(ic2a,il0), &
-       & jc0_ra(1:nn(ic2a,il0),ic2a,il0),nn_dist(1:nn(ic2a,il0)))
+         call geom%tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nn(ic2a,il0), &
+       & jc0_ra(1:nn(ic2a,il0),ic2a,il0))
 
          ! Check points
          do jn=1,nn(ic2a,il0)
@@ -541,7 +537,6 @@ do its=2,nam%nts
 
    ! Release memory
    deallocate(jc0_ra)
-   deallocate(nn_dist)
    deallocate(mask_nn)
    deallocate(m2_1)
    deallocate(m2_2)
@@ -1229,7 +1224,6 @@ if (mpl%main) then
 end if
 
 ! Write test
-call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 do ib=1,bpar%nb
    iv = bpar%b_to_v1(ib)
    jv = bpar%b_to_v2(ib)

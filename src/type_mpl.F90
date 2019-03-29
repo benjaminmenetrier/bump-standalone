@@ -40,9 +40,10 @@ type mpl_type
    ! Display parameters
    character(len=1024) :: verbosity ! Verbosity level
    character(len=1024) :: info      ! Info buffer
+   character(len=1024) :: trace     ! Trace buffer
+   character(len=1024) :: stats     ! Stats buffer
    character(len=1024) :: test      ! Test buffer
-   integer :: info_unit             ! Info listing unit
-   integer :: test_unit             ! Test listing unit
+   integer :: lunit                 ! Listing unit
 
    ! Display colors
    character(len=1024) :: black     ! Black color code
@@ -179,7 +180,20 @@ mpl%nthread = 1
 
 ! Set log at 'no message'
 mpl%info = 'no_message'
+mpl%trace = 'no_message'
+mpl%stats = 'no_message'
 mpl%test = 'no_message'
+
+! Set default listing
+mpl%black = ' '
+mpl%green = ' '
+mpl%peach = ' '
+mpl%aqua = ' '
+mpl%purple = ' '
+mpl%err = ' '
+mpl%wng = ' '
+mpl%verbosity = 'all'
+mpl%lunit = mpl%msv%vali
 
 end subroutine mpl_init
 
@@ -226,16 +240,18 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
    if (trim(mpl%info)/='no_message') then
       ! Write message
       if (ladvance_flag) then
-         if (mpl%msv%isi(mpl%info_unit)) then
+         if (mpl%msv%isi(mpl%lunit)) then
             call fckit_log%info(trim(mpl%info))
          else
-            write(mpl%info_unit,'(a)') trim(mpl%info)
+            write(mpl%lunit,'(a)') trim(mpl%info)
+            call flush(mpl%lunit)
          end if
       else
-         if (mpl%msv%isi(mpl%info_unit)) then
+         if (mpl%msv%isi(mpl%lunit)) then
             call fckit_log%info(trim(mpl%info),newl=.false.)
          else
-            write(mpl%info_unit,'(a)',advance='no') trim(mpl%info)
+            write(mpl%lunit,'(a)',advance='no') trim(mpl%info)
+            call flush(mpl%lunit)
          end if
       end if
 
@@ -243,20 +259,68 @@ if ((trim(mpl%verbosity)=='all').or.((trim(mpl%verbosity)=='main').and.mpl%main)
       mpl%info = 'no_message'
    end if
 
+   ! Check trace message
+   if (trim(mpl%trace)/='no_message') then
+      ! Write message
+      if (ladvance_flag) then
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('OOPS_TRACE: '//trim(mpl%trace))
+         else
+            write(mpl%lunit,'(a)') 'OOPS_TRACE: '//trim(mpl%trace)
+            call flush(mpl%lunit)
+         end if
+      else
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('OOPS_TRACE: '//trim(mpl%trace),newl=.false.)
+         else
+            write(mpl%lunit,'(a)',advance='no') 'OOPS_TRACE: '//trim(mpl%trace)
+            call flush(mpl%lunit)
+         end if
+      end if
+
+      ! Set at 'no message'
+      mpl%trace = 'no_message'
+   end if
+
+   ! Check stats message
+   if (trim(mpl%stats)/='no_message') then
+      ! Write message
+      if (ladvance_flag) then
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('OOPS_STATS: '//trim(mpl%stats))
+         else
+            write(mpl%lunit,'(a)') 'OOPS_STATS: '//trim(mpl%stats)
+            call flush(mpl%lunit)
+         end if
+      else
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('OOPS_STATS: '//trim(mpl%stats),newl=.false.)
+         else
+            write(mpl%lunit,'(a)',advance='no') 'OOPS_STATS: '//trim(mpl%stats)
+            call flush(mpl%lunit)
+         end if
+      end if
+
+      ! Set at 'no message'
+      mpl%stats = 'no_message'
+   end if
+
    ! Check test message
    if (trim(mpl%test)/='no_message') then
       ! Write message
       if (ladvance_flag) then
-         if (mpl%msv%isi(mpl%test_unit)) then
-            call fckit_log%test(trim(mpl%test))
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('Test     : '//trim(mpl%test))
          else
-            write(mpl%test_unit,'(a)') trim(mpl%info)
+            write(mpl%lunit,'(a)') 'Test     : '//trim(mpl%test)
+            call flush(mpl%lunit)
          end if
       else
-         if (mpl%msv%isi(mpl%info_unit)) then
-            call fckit_log%test(trim(mpl%test),newl=.false.)
+         if (mpl%msv%isi(mpl%lunit)) then
+            call fckit_log%info('Test     : '//trim(mpl%test),newl=.false.)
          else
-            write(mpl%test_unit,'(a)',advance='no') trim(mpl%info)
+            write(mpl%lunit,'(a)',advance='no') 'Test     : '//trim(mpl%test)
+            call flush(mpl%lunit)
          end if
       end if
 
@@ -486,11 +550,12 @@ real(kind_real),intent(out) :: dp     ! Global dot product
 real(kind_real) :: dp_loc(1),dp_out(1)
 
 ! Product and sum
-dp_loc(1) = sum(fld1*fld2)
+dp_loc(1) = 0.0
+dp_loc(1) = sum(fld1*fld2,mask=mpl%msv%isnotr(fld1).and.mpl%msv%isnotr(fld2))
 
 ! Allreduce
+dp_out = 0.0
 call mpl%f_comm%allreduce(dp_loc,dp_out,fckit_mpi_sum())
-
 dp = dp_out(1)
 
 ! Broadcast
@@ -516,9 +581,11 @@ real(kind_real),intent(out) :: dp       ! Global dot product
 real(kind_real) :: dp_loc(1),dp_out(1)
 
 ! Product and sum
-dp_loc(1) = sum(fld1*fld2)
+dp_loc(1) = 0.0
+dp_loc(1) = sum(fld1*fld2,mask=mpl%msv%isnotr(fld1).and.mpl%msv%isnotr(fld2))
 
 ! Allreduce
+dp_out = 0.0
 call mpl%f_comm%allreduce(dp_loc,dp_out,fckit_mpi_sum())
 dp = dp_out(1)
 
@@ -545,9 +612,11 @@ real(kind_real),intent(out) :: dp         ! Global dot product
 real(kind_real) :: dp_loc(1),dp_out(1)
 
 ! Product and sum
-dp_loc(1) = sum(fld1*fld2)
+dp_loc(1) = 0.0
+dp_loc(1) = sum(fld1*fld2,mask=mpl%msv%isnotr(fld1).and.mpl%msv%isnotr(fld2))
 
 ! Allreduce
+dp_out = 0.0
 call mpl%f_comm%allreduce(dp_loc,dp_out,fckit_mpi_sum())
 dp = dp_out(1)
 
@@ -574,9 +643,11 @@ real(kind_real),intent(out) :: dp           ! Global dot product
 real(kind_real) :: dp_loc(1),dp_out(1)
 
 ! Product and sum
-dp_loc(1) = sum(fld1*fld2)
+dp_loc(1) = 0.0
+dp_loc(1) = sum(fld1*fld2,mask=mpl%msv%isnotr(fld1).and.mpl%msv%isnotr(fld2))
 
 ! Allreduce
+dp_out = 0.0
 call mpl%f_comm%allreduce(dp_loc,dp_out,fckit_mpi_sum())
 dp = dp_out(1)
 

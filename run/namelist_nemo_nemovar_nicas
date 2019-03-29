@@ -49,14 +49,12 @@ timeslot = 1,
 
 &ens1_param
 ens1_ne = 11,
-ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
 ens2_ne = 0,
-ens2_ne_offset = 0,
-ens2_nsub = 0,
+ens2_nsub = 1,
 /
 
 &sampling_param
@@ -136,7 +134,7 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-name_ldwv = '',
+name_ldwv = "",
 diag_rhflt = 2000.0e3,
 diag_interp = "bilin",
 field_io = .true.,

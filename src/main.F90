@@ -8,6 +8,7 @@
 program main
 
 use iso_fortran_env, only : output_unit
+use tools_const, only: rad2deg,req
 use tools_kinds,only: kind_real
 use type_bump, only: bump_type
 use type_model, only: model_type
@@ -18,10 +19,8 @@ use type_timer, only: timer_type
 implicit none
 
 ! Local variables
-integer :: narg,iproc,info_unit,test_unit,ie,ifileunit
-logical :: lopened
+integer :: narg,iproc,ie,ifileunit
 character(len=1024) :: namelname,filename
-character(len=1024),parameter :: subr = 'main'
 type(bump_type) :: bump
 type(model_type) :: model
 type(mpl_type) :: mpl
@@ -61,32 +60,16 @@ do iproc=1,mpl%nproc
       ! Info listing
       if (iproc==mpl%myproc) then
          ! Find a free unit
-         call mpl%newunit(info_unit)
+         call mpl%newunit(mpl%lunit)
 
          ! Open listing file
          write(filename,'(a,i4.4)') trim(bump%nam%prefix)//'.info.',mpl%myproc-1
          inquire(file=filename,number=ifileunit)
          if (ifileunit<0) then
-            open(unit=info_unit,file=trim(filename),action='write',status='replace')
+            open(unit=mpl%lunit,file=trim(filename),action='write',status='replace')
          else
             close(ifileunit)
-            open(unit=info_unit,file=trim(filename),action='write',status='replace')
-         end if
-      end if
-
-      ! Test listing
-      if (iproc==mpl%myproc) then
-         ! Find a free unit
-         call mpl%newunit(test_unit)
-
-         ! Open listing file
-         write(filename,'(a,i4.4)') trim(bump%nam%prefix)//'.test.',mpl%myproc-1
-         inquire(file=filename,number=ifileunit)
-         if (ifileunit<0) then
-            open(unit=test_unit,file=trim(filename),action='write',status='replace')
-         else
-            close(ifileunit)
-            open(unit=test_unit,file=trim(filename),action='write',status='replace')
+            open(unit=mpl%lunit,file=trim(filename),action='write',status='replace')
          end if
       end if
 
@@ -94,6 +77,16 @@ do iproc=1,mpl%nproc
       call mpl%f_comm%barrier
    end if
 end do
+
+! Header
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+call mpl%flush
+write(mpl%info,'(a)') '--- You are running the BUMP-STANDALONE program -------------------'
+call mpl%flush
+write(mpl%info,'(a)') '--- Author: Benjamin Menetrier ------------------------------------'
+call mpl%flush
+write(mpl%info,'(a)') '--- Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT -----'
+call mpl%flush
 
 ! Initialize random number generator
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -143,14 +136,17 @@ if (bump%nam%new_obsop) then
    if (bump%nam%default_seed) call rng%reseed(mpl)
 else
    model%nobsa = 0
+   allocate(model%lonobs(model%nobsa))
+   allocate(model%latobs(model%nobsa))
 end if
 
 ! BUMP setup
 call bump%setup_online(model%nmga,model%nl0,bump%nam%nv,bump%nam%nts, &
-                     & model%lon_mga,model%lat_mga,model%area_mga,model%vunit_mga,model%mask_mga,smask=model%smask_mga, &
+                     & model%lon_mga*rad2deg,model%lat_mga*rad2deg,model%area_mga*req**2,model%vunit_mga,model%mask_mga, &
+                     & smask=model%smask_mga, &
                      & ens1_ne=model%ens1_ne,ens1_nsub=model%ens1_nsub,ens2_ne=model%ens2_ne,ens2_nsub=model%ens2_nsub, &
-                     & nobs=model%nobsa,lonobs=model%lonobs,latobs=model%latobs, &
-                     & info_unit=info_unit,test_unit=test_unit,msvali=mpl%msv%vali,msvalr=mpl%msv%valr)
+                     & nobs=model%nobsa,lonobs=model%lonobs*rad2deg,latobs=model%latobs*rad2deg, &
+                     & lunit=mpl%lunit,msvali=mpl%msv%vali,msvalr=mpl%msv%valr)
 
 ! Add members
 do ie=1,model%ens1_ne
@@ -174,19 +170,15 @@ write(mpl%info,'(a)') '--- Execution stats'
 call timer%display(mpl)
 call mpl%flush
 
-! Close listings
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Close listings'
-call mpl%flush
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
 if ((trim(bump%nam%verbosity)=='all').or.((trim(bump%nam%verbosity)=='main').and.mpl%main)) then
-   ! Close info listing
-   close(unit=mpl%info_unit)
-
-   ! Close test listing
-   close(unit=mpl%test_unit)
+   ! Close listings
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Close listings'
+   call mpl%flush
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   close(unit=mpl%lunit)
 end if
 
 ! Finalize MPL

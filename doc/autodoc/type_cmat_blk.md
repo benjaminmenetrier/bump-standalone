@@ -2,6 +2,6 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [cmat_blk%] [alloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90#L67) | allocation |
-| subroutine | [cmat_blk%] [dealloc](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90#L116) | release memory |
-| subroutine | [cmat_blk%] [copy](https://github.com/benjaminmenetrier/bump/tree/master/src/type_cmat_blk.F90#L157) | copy |
+| subroutine | [cmat_blk%] [alloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat_blk.F90#L67) | allocation |
+| subroutine | [cmat_blk%] [dealloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat_blk.F90#L116) | release memory |
+| subroutine | [cmat_blk%] [copy](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat_blk.F90#L157) | copy |

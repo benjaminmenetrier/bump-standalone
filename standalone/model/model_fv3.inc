@@ -12,7 +12,7 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,il0,ilon,ilat,itile
+integer :: img,ilon,ilat,itile
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,phis_id,a_id,b_id
 real(kind_real) :: z,h,pss
 real(kind_real),allocatable :: lon(:,:,:),lat(:,:,:),phis(:,:,:),a(:),b(:)

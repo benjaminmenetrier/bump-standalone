@@ -12,7 +12,7 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,il0
+integer :: img
 integer :: ncid,nmg_id,nlev_id,lon_id,lat_id,pres_id
 real(kind=4),allocatable :: lon(:),lat(:),pres(:)
 character(len=1024),parameter :: subr = 'model_mpas_coord'
@@ -81,7 +81,7 @@ integer,intent(in) :: its                                       ! Timeslot index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 
 ! Local variables
-integer :: iv,il0,img
+integer :: iv,il0
 integer :: ncid,fld_id
 real(kind_real) :: fld_mg(model%nmg,model%nl0)
 character(len=1024),parameter :: subr = 'model_mpas_read'
@@ -98,7 +98,7 @@ do iv=1,nam%nv
 
       ! Read data
       do il0=1,nam%nl
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_mg(:,il0),(/1,nam%levs(il0),nam%timeslot(its)/),(/model%nmg,1,1/)))
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_mg(:,il0),(/nam%levs(il0),1,nam%timeslot(its)/),(/1,model%nmg,1/)))
       end do
 
       if (trim(nam%addvar2d(iv))/='') then

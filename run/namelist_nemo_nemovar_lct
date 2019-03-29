@@ -38,7 +38,7 @@ check_obsop = .false.,
 
 &model_param
 nl = 4,
-levs = 1,3,5,7
+levs = 1,3,5,7,
 logpres = .false.,
 nv = 1,
 varname = "tn",
@@ -49,13 +49,11 @@ timeslot = 1,
 
 &ens1_param
 ens1_ne = 11,
-ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 11,
-ens2_ne_offset = 0,
+ens2_ne = 0,
 ens2_nsub = 1,
 /
 
@@ -136,7 +134,7 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-name_ldwv = '',
+name_ldwv = "",
 diag_rhflt = 500.0e3,
 diag_interp = "bilin",
 field_io = .true.,

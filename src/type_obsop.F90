@@ -117,8 +117,8 @@ character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'obsop_read'
 
 ! Create file
-write(filename,'(a,a,i4.4,a,i4.4,a)') trim(nam%prefix),'_obs_',mpl%nproc,'-',mpl%myproc,'.nc'
-call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+write(filename,'(a,a,i4.4,a,i4.4)') trim(nam%prefix),'_obs_',mpl%nproc,'-',mpl%myproc
+call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
 
 ! Get attributes
 call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'nc0b',obsop%nc0b))
@@ -155,8 +155,8 @@ character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'obsop_write'
 
 ! Create file
-write(filename,'(a,a,i4.4,a,i4.4,a)') trim(nam%prefix),'_obs_',mpl%nproc,'-',mpl%myproc,'.nc'
-call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_clobber,nf90_64bit_offset),ncid))
+write(filename,'(a,a,i4.4,a,i4.4)') trim(nam%prefix),'_obs_',mpl%nproc,'-',mpl%myproc
+call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_clobber,nf90_64bit_offset),ncid))
 
 ! Write namelist parameters
 call nam%write(mpl,ncid)
@@ -314,7 +314,7 @@ allocate(obs_to_obsa(obsop%nobs))
 hfull%prefix = 'o'
 write(mpl%info,'(a7,a)') '','Single level:'
 call mpl%flush
-call hfull%interp(mpl,geom%mesh,geom%kdtree,geom%nc0,geom%mask_hor_c0,obsop%nobs,lonobs,latobs,maskobs,nam%obsop_interp)
+call hfull%interp(mpl,geom%mesh,geom%tree,geom%nc0,geom%mask_hor_c0,obsop%nobs,lonobs,latobs,maskobs,nam%obsop_interp)
 
 ! Count interpolation points
 nop = 0
@@ -588,7 +588,7 @@ call mpl%flush
 ! Write observation operator
 if (nam%write_obsop) call obsop%write(mpl,nam)
 
-if (mpl%main) then
+if (mpl%main.and.nam%write_obsop) then
    ! Write scores
    if (mpl%nproc>1) then
       call mpl%newunit(lunit)

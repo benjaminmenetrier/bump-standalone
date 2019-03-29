@@ -7,8 +7,8 @@
 #----------------------------------------------------------------------
 
 # Directories
-doc=${HOME}/code/bump_standalone/doc
-architecture=${HOME}/code/bump_standalone/doc/architecture
+doc=${HOME}/code/bump-standalone/doc
+architecture=${HOME}/code/bump-standalone/doc/architecture
 mkdir -p ${architecture}
 
 # Build diagrams
@@ -26,8 +26,8 @@ digraph callgraph {
   "Online setup :: bump%setup_online" ->  "Set internal namelist parameters :: nam%setup_internal";
   "Online setup :: bump%setup_online" -> "Initialize listing :: mpl%init_listing";
   "Online setup :: bump%setup_online" -> "Generic setup :: setup_generic";
-  "Online setup :: bump%setup_online" -> "Get coordinates from arguments :: geom%setup_online";
-  "Online setup :: bump%setup_online" -> "Initialize geometry :: geom%init";
+  "Online setup :: bump%setup_online" -> "Get coordinates from arguments :: geom%setup";
+  "Online setup :: bump%setup_online" -> "Initialize geometry :: geom%setup";
   "Online setup :: bump%setup_online" -> "If fields regridding required";
   "If fields regridding required" -> "Initialize fields regridding :: io%grid_init";
   "Online setup :: bump%setup_online" -> "Initialize block parameters :: bpar%alloc";

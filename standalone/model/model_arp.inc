@@ -12,7 +12,7 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,il0,ilon,ilat
+integer :: img,ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,a_id,b_id
 real(kind_real),allocatable :: lon(:,:),lat(:,:),a(:),b(:)
 character(len=1024),parameter :: subr = 'model_arp_coord'
@@ -46,9 +46,6 @@ call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Grid size
 model%nmg = count(lon>-1000.0)
-
-! Allocation
-call model%alloc
 
 ! Convert to radian
 lon = lon*deg2rad

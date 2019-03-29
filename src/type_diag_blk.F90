@@ -189,13 +189,13 @@ character(len=1024),parameter :: subr = 'diag_blk_write'
 associate(ib=>diag_blk%ib,ic2a=>diag_blk%ic2a)
 
 ! Check if the file exists
-info = nf90_create(trim(nam%datadir)//'/'//trim(filename),or(nf90_noclobber,nf90_64bit_offset),ncid)
+info = nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
 if (info==nf90_noerr) then
    ! Write namelist parameters
    call nam%write(mpl,ncid)
 else
    ! Open file
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_write,ncid))
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
 
    ! Redef mode
    call mpl%ncerr(subr,nf90_redef(ncid))
@@ -457,7 +457,7 @@ end if
 ! Fast fit
 do il0=1,geom%nl0
    ! Get zero separation level
-   jl0r = bpar%il0rz(il0,ib)
+    jl0r = bpar%il0rz(il0,ib)
 
    ! Horizontal fast fit
    call fast_fit(mpl,nam%nc3,1,geom%disth,diag_blk%raw(:,jl0r,il0),diag_blk%fit_rh(il0))
@@ -655,6 +655,18 @@ if (any(mpl%msv%isnotr(diag_blk%fit_rh)).and.any(mpl%msv%isnotr(diag_blk%fit_rv)
       deallocate(minim%distv)
    end select
 end if
+
+! Set to missing values if no point available
+do il0=1,geom%nl0
+   if (mpl%msv%isallr(diag_blk%raw(:,:,il0))) then
+      diag_blk%fit_rh(il0) = mpl%msv%valr
+      diag_blk%fit_rv(il0) = mpl%msv%valr
+      if (diag_blk%double_fit) then
+         diag_blk%fit_rh(il0) = mpl%msv%valr
+         diag_blk%fit_rv(il0) = mpl%msv%valr
+      end if
+   end if
+end do
 
 ! Release memory
 deallocate(rawv)

@@ -12,7 +12,7 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,il0,ilon,ilat
+integer :: img,ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,pres_id
 real(kind_real),allocatable :: lon(:),lat(:),pres(:)
 character(len=1024),parameter :: subr = 'model_ifs_coord'

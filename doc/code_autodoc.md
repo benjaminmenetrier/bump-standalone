@@ -1,16 +1,17 @@
 # Code auto-documentation
 
-The source code is organized in five categories:
+The source code is organized in six categories:
 
 1. The main program main.F90
 2. Useful tools for the whole code: tools_[...].F90
 3. Derived types and associated methods: type_[...].F90
 4. External tools: external/[...].F90
-5. Model related routines, to get the coordinates, read and write fields: model/model_[...].F90
+5. Emulator for the fckit routines: fckit/[...].F90
+6. Model related routines, to get the coordinates and read fields: model/model_[...].inc
 
 | Category | Name | Purpose |
 | :------: | :--: | :---------- |
-| main | [main](https://github.com/benjaminmenetrier/bump/tree/master/src/main.F90) | command line arguments parsing and standalone setup (call to the BUMP routines) |
+| main | [main](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/main.F90) | command line arguments parsing and offline setup (call to the BUMP routine) |
 | tools | [tools_const](autodoc/tools_const.md) | define usual constants and missing values |
 | tools | [tools_fit](autodoc/tools_fit.md) | fit-related tools |
 | tools | [tools_func](autodoc/tools_func.md) | usual functions |
@@ -32,7 +33,6 @@ The source code is organized in five categories:
 | derived_type | [type_geom](autodoc/type_geom.md) | geometry derived type |
 | derived_type | [type_hdiag](autodoc/type_hdiag.md) | hybrid diagnostics derived type |
 | derived_type | [type_io](autodoc/type_io.md) | I/O derived type |
-| derived_type | [type_kdtree](autodoc/type_kdtree.md) | KD-tree derived type |
 | derived_type | [type_lct_blk](autodoc/type_lct_blk.md) | LCT data derived type |
 | derived_type | [type_lct](autodoc/type_lct.md) | LCT data derived type |
 | derived_type | [type_linop](autodoc/type_linop.md) | linear operator derived type |
@@ -50,24 +50,15 @@ The source code is organized in five categories:
 | derived_type | [type_rng](autodoc/type_rng.md) | random numbers generator derived type |
 | derived_type | [type_samp](autodoc/type_samp.md) | sampling derived type |
 | derived_type | [type_timer](autodoc/type_timer.md) | timer data derived type |
+| derived_type | [type_tree](autodoc/type_tree.md) | tree derived type |
 | derived_type | [type_vbal_blk](autodoc/type_vbal_blk.md) | vertical balance block derived type |
 | derived_type | [type_vbal](autodoc/type_vbal.md) | vertical balance derived type |
 | external_tools | [tools_asa007](autodoc/tools_asa007.md) | inverse of symmetric positive definite matrix routines |
-| external_tools | [tools_kdtree2](autodoc/tools_kdtree2.md) | K-d tree routines |
-| external_tools | [tools_kdtree2_pq](autodoc/tools_kdtree2_pq.md) | K-d tree priority queue routines |
 | external_tools | [tools_qsort](autodoc/tools_qsort.md) | qsort routines |
 | external_tools | [tools_stripack](autodoc/tools_stripack.md) | STRIPACK routines |
-| fckit | [fckit_geometry_module](autodoc/fckit_geometry_module.md) | fckit log emulator for standalone execution |
+| fckit | [fckit_geometry_module](autodoc/fckit_geometry_module.md) | fckit geometry emulator for standalone execution |
+| fckit | [fckit_kdtree_module](autodoc/fckit_kdtree_module.md) | fckit KDTree emulator for standalone execution |
 | fckit | [fckit_log_module](autodoc/fckit_log_module.md) | fckit log emulator for standalone execution |
 | fckit | [fckit_mpi_module](autodoc/fckit_mpi_module.md) | fckit MPI emulator for standalone execution |
-| model | [module_aro](autodoc/module_aro.md) | AROME model routines |
-| model | [module_arp](autodoc/module_arp.md) | ARPEGE model routines |
-| model | [module_fv3](autodoc/module_fv3.md) | FV3 model routines |
-| model | [module_gem](autodoc/module_gem.md) | GEM model routines |
-| model | [module_geos](autodoc/module_geos.md) | GEOS model routines |
-| model | [module_gfs](autodoc/module_gfs.md) | GFS model routines |
-| model | [module_ifs](autodoc/module_ifs.md) | IFS model routines |
-| model | [module_mpas](autodoc/module_mpas.md) | MPAS model routines |
-| model | [module_nemo](autodoc/module_nemo.md) | NEMO model routines |
-| model | [module_res](autodoc/module_res.md) | RES model routines |
-| model | [module_wrf](autodoc/module_wrf.md) | WRF model routines |
+| fckit | [tools_kdtree2](autodoc/tools_kdtree2.md) | K-d tree routines |
+| fckit | [tools_kdtree2_pq](autodoc/tools_kdtree2_pq.md) | K-d tree priority queue routines |

@@ -28,7 +28,7 @@ type nam_type
    ! general_param
    character(len=1024) :: datadir                       ! Data directory
    character(len=1024) :: prefix                        ! Files prefix
-   character(len=1024) :: model                         ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'res' or 'wrf')
+   character(len=1024) :: model                         ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'qg, 'res' or 'wrf')
    character(len=1024) :: verbosity                     ! Verbosity level ('all', 'main' or 'none')
    logical :: colorlog                                  ! Add colors to the log (for display on terminal)
    logical :: default_seed                              ! Default seed for random numbers
@@ -191,7 +191,7 @@ class(nam_type),intent(out) :: nam ! Namelist
 integer :: iv,ildwv
 
 ! general_param default
-nam%datadir = '.'
+nam%datadir = 'bump'
 nam%prefix = ''
 nam%model = ''
 nam%verbosity = 'all'
@@ -879,26 +879,28 @@ integer,intent(in) :: ens2_nsub           ! Ensemble 2 size of sub-ensembles
 ! Local variables
 integer :: il,iv,its
 
-nam%model = 'online'
-nam%colorlog = .false.
-nam%nl = nl0
-do il=1,nam%nl
-   nam%levs(il) = il
-end do
-nam%logpres = .false.
-nam%nv = nv
-do iv=1,nam%nv
-   write(nam%varname(iv),'(a,i2.2)') 'var_',iv
-   nam%addvar2d(iv) = ''
-end do
-nam%nts = nts
-do its=1,nts
-   nam%timeslot(its) = its
-end do
-nam%ens1_ne = ens1_ne
-nam%ens1_nsub = ens1_nsub
-nam%ens2_ne = ens2_ne
-nam%ens2_nsub = ens2_nsub
+if (trim(nam%model)=='') then
+   nam%model = 'online'
+   nam%colorlog = .false.
+   nam%nl = nl0
+   do il=1,nam%nl
+      nam%levs(il) = il
+   end do
+   nam%logpres = .false.
+   nam%nv = nv
+   do iv=1,nam%nv
+      write(nam%varname(iv),'(a,i2.2)') 'var_',iv
+      nam%addvar2d(iv) = ''
+   end do
+   nam%nts = nts
+   do its=1,nts
+      nam%timeslot(its) = its
+   end do
+   nam%ens1_ne = ens1_ne
+   nam%ens1_nsub = ens1_nsub
+   nam%ens2_ne = ens2_ne
+   nam%ens2_nsub = ens2_nsub
+end if
 
 end subroutine nam_setup_internal
 
@@ -949,7 +951,7 @@ nam%grid_resol = nam%grid_resol/req
 if (trim(nam%datadir)=='') call mpl%abort(subr,'datadir not specified')
 if (trim(nam%prefix)=='') call mpl%abort(subr,'prefix not specified')
 select case (trim(nam%model))
-case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','online','res','wrf')
+case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','online','qg','res','wrf')
 case default
    call mpl%abort(subr,'wrong model')
 end select
@@ -1191,10 +1193,7 @@ end if
 ! Check obsop_param
 if (nam%new_obsop) then
    select case (trim(nam%obsdis))
-   case('')
-   case ('random','local','adjusted')
-      if (trim(nam%model)=='online') &
-    & call mpl%abort(subr,'modified distribution of observations only available for offline execution')
+   case('','random','local','adjusted')
    case default
       call mpl%abort(subr,'wrong observation distribution')
    end select

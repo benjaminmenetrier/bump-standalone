@@ -26,6 +26,7 @@ cd ../script
 
 # Recompute truth
 echo '--- Recompute truth'
+rm -f ../test/truth_*
 cd ../run
 export OMP_NUM_THREADS=1;./bump namelist_truth
 

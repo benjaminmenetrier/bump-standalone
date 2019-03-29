@@ -229,6 +229,7 @@ if (allocated(mesh%barc_dist)) mesh_copy%barc_dist = mesh%barc_dist
 if (allocated(mesh%barc_vp)) mesh_copy%barc_vp = mesh%barc_vp
 mesh_copy%nt = mesh%nt
 mesh_copy%na = mesh%na
+if (allocated(mesh%bnd)) mesh_copy%bnd = mesh%bnd
 if (allocated(mesh%ltri)) mesh_copy%ltri = mesh%ltri
 if (allocated(mesh%larc)) mesh_copy%larc = mesh%larc
 if (allocated(mesh%valid)) mesh_copy%valid = mesh%valid
@@ -406,7 +407,7 @@ real(kind_real),intent(out) :: bdist ! Distance to boundary
 
 ! Local variables
 integer :: i
-real(kind_real) :: v(3),vf(3),vt(3),tlat,tlon,trad,dist_t1,dist_t2
+real(kind_real) :: v(3),vf(3),vt(3),tlat,tlon,dist_t1,dist_t2
 character(len=1024),parameter :: subr = 'mesh_find_bdist'
 
 ! Check

@@ -49,13 +49,11 @@ timeslot = 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,
 
 &ens1_param
 ens1_ne = 32,
-ens1_ne_offset = 0,
 ens1_nsub = 1,
 /
 
 &ens2_param
 ens2_ne = 0,
-ens2_ne_offset = 0,
 ens2_nsub = 1,
 /
 
@@ -136,7 +134,7 @@ ic_ldwh = 0,
 nldwv = 0,
 lon_ldwv = 0.0,
 lat_ldwv = 0.0,
-name_ldwv = '',
+name_ldwv = "",
 diag_rhflt = 500.0e3,
 diag_interp = "bilin",
 field_io = .true.,
