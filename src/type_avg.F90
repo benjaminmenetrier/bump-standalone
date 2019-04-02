@@ -302,7 +302,7 @@ do ib=1,bpar%nb
             do il0=1,geom%nl0
                do jl0r=1,bpar%nl0r(ib)
                   do jc3=1,bpar%nc3(ib)
-                     if (avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)>0.5) then
+                     if (avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)>0.0) then
                         norm = 1.0/avg%blk(ic2,ib)%nc1a(jc3,jl0r,il0)
                         avg%blk(ic2,ib)%m11(jc3,jl0r,il0) = avg%blk(ic2,ib)%m11(jc3,jl0r,il0)*norm
                         do isub=1,avg%blk(ic2,ib)%nsub
@@ -323,7 +323,7 @@ do ib=1,bpar%nb
                            if (.not.nam%gau_approx) avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub) = mpl%msv%valr
                         end do
                      end if
-                     if (avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)>0.0) then
+                     if (avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)>1.0) then
                         avg%blk(ic2,ib)%cor(jc3,jl0r,il0) = avg%blk(ic2,ib)%cor(jc3,jl0r,il0) &
                                                           & /avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)
                      else

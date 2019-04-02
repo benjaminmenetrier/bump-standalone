@@ -386,7 +386,7 @@ call geom%mesh%alloc(geom%nc0)
 call geom%mesh%init(mpl,rng,geom%lon,geom%lat)
 
 ! Compute boundary nodes
-call geom%mesh%bnodes(mpl)
+call geom%mesh%bnodes(mpl,nam%adv_diag)
 
 ! Check whether the mask is the same for all levels
 same_mask = .true.

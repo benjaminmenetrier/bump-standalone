@@ -10,4 +10,4 @@
 | subroutine | [lct%] [rmse](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_lct.F90#L426) | compute LCT fit RMSE |
 | subroutine | [lct%] [interp](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_lct.F90#L495) | interpolate LCT |
 | subroutine | [lct%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_lct.F90#L631) | write LCT |
-| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_lct.F90#L676) | write correlation and LCT fit |
+| subroutine | [lct%] [write_cor](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_lct.F90#L683) | write correlation and LCT fit |

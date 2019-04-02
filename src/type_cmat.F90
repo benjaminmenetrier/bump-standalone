@@ -80,7 +80,7 @@ if (.not.allocated(cmat%blk)) allocate(cmat%blk(bpar%nbe))
 
 ! Set block name
 do ib=1,bpar%nbe
-   cmat%blk(ib)%name = trim(prefix)//'_'//trim(bpar%blockname(ib))
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) cmat%blk(ib)%name = trim(prefix)//'_'//trim(bpar%blockname(ib))
 end do
 
 end subroutine cmat_alloc
@@ -104,8 +104,10 @@ integer :: ib
 
 ! Allocation
 do ib=1,bpar%nbe
-   cmat%blk(ib)%ib = ib
-   call cmat%blk(ib)%alloc(nam,geom,bpar)
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat%blk(ib)%ib = ib
+      call cmat%blk(ib)%alloc(nam,geom,bpar)
+   end if
 end do
 
 ! Update allocation flag
@@ -132,7 +134,11 @@ integer :: ib
 
 ! Initialize blocks
 do ib=1,bpar%nbe
-   call cmat%blk(ib)%init(mpl,nam,bpar)
+   if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
+      cmat%blk(ib)%double_fit = .false.
+      cmat%blk(ib)%anisotropic = .false.
+      call cmat%blk(ib)%init(mpl,nam,bpar)
+   end if
 end do
 
 end subroutine cmat_init
@@ -330,7 +336,7 @@ type(bpar_type),intent(in) :: bpar  ! Block parameters
 type(io_type),intent(in) :: io      ! I/O
 
 ! Local variables
-integer :: ib,ncid,its
+integer :: ib,ncid,its,info
 character(len=3) :: itschar
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'cmat_write'
@@ -339,6 +345,12 @@ do ib=1,bpar%nbe
    if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       ! Set filename
       filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
+
+      ! Remove C matrix file
+      call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(filename)//'.nc',cmdstat=info)
+      if (info/=0) call mpl%abort(subr,'C matrix file removal failed')
+
+      ! Write vertical unit
       call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 
       ! Write fields

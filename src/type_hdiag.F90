@@ -98,8 +98,21 @@ type(ens_type),intent(in) :: ens1          ! Ensemble 1
 type(ens_type),intent(in),optional :: ens2 ! Ensemble 2
 
 ! Local variables
-integer :: ib
+integer :: ib,info,ildw
 character(len=1024) :: filename
+character(len=1024),parameter :: subr = 'hdiag_run_hdiag'
+
+if (nam%write_hdiag) then
+   ! Remove diagnostic files
+   call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_diag.nc',cmdstat=info)
+   if (info/=0) call mpl%abort(subr,'diagnostic file removal failed')
+   call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_local_diag_*.nc',cmdstat=info)
+   if (info/=0) call mpl%abort(subr,'local diagnostic files removal failed')
+   do ildw=1,nam%nldwv
+      call execute_command_line('rm -f '//trim(nam%prefix)//'_diag_'//trim(nam%name_ldwv(ildw))//'.nc',cmdstat=info)
+      if (info/=0) call mpl%abort(subr,'local profile files removal failed')
+   end do
+end if
 
 ! Setup sampling
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -306,6 +319,8 @@ if (nam%write_hdiag) then
    ! Full variances
    if (nam%var_full) then
       filename = trim(nam%prefix)//'_var_full'
+      call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(filename)//'.nc',cmdstat=info)
+      if (info/=0) call mpl%abort(subr,'full variances file removal failed')
       call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
       do ib=1,bpar%nb
          if (bpar%diag_block(ib)) call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_var', &

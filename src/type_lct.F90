@@ -645,12 +645,19 @@ type(bpar_type),intent(in) :: bpar      ! Block parameters
 type(io_type),intent(in) :: io          ! I/O
 
 ! Local variables
-integer :: ib,iv,iscales
+integer :: ib,iv,iscales,info
 character(len=1) :: iscaleschar
 character(len=1024) :: filename
+character(len=1024),parameter :: subr = 'lct_write'
 
 ! Set file name
 filename = trim(nam%prefix)//'_lct'
+
+! Remove LCT file
+call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(filename)//'.nc',cmdstat=info)
+if (info/=0) call mpl%abort(subr,'LCT file removal failed')
+
+! Write vertical unit
 call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 
 do ib=1,bpar%nb
