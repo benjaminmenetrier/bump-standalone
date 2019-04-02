@@ -9,7 +9,7 @@ default_seed = .true.,
 
 &driver_param
 method = "cor",
-strategy = "diag_all",
+strategy = "common",
 new_cortrack = .false.,
 new_vbal = .false.,
 load_vbal = .false.,
@@ -37,11 +37,11 @@ check_obsop = .false.,
 /
 
 &model_param
-nl = 55,
-levs = 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,
+nl = 10,
+levs = 1,2,3,4,5,6,7,8,9,10,
 logpres = .true.,
 nv = 2,
-varname = "qg","qi",
+varname = "theta","qv",
 addvar2d = "","",
 nts = 1,
 timeslot = 1,
@@ -60,7 +60,7 @@ ens2_nsub = 1,
 &sampling_param
 sam_write = .false.,
 sam_read = .false.,
-mask_type = "qi@ens1_01_0001.nc",
+mask_type = "none",
 mask_th = 1.0e-6,
 mask_check = .false.,
 draw_type = "random_uniform",
@@ -68,9 +68,9 @@ nc1 = 3500,
 nc2 = 500,
 ntry = 3,
 nrep = 2,
-nc3 = 1,
+nc3 = 20,
 dc = 100.0e3,
-nl0r = 55,
+nl0r = 10,
 /
 
 &diag_param
@@ -91,7 +91,7 @@ adv_rhflt = 500.0e3,
 /
 
 &fit_param
-minim_algo = "none",
+minim_algo = "hooke",
 double_fit = .false.,
 lhomh = .false.,
 lhomv = .false.,

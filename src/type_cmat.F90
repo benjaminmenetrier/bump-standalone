@@ -39,6 +39,7 @@ contains
    procedure :: cmat_alloc
    procedure :: cmat_alloc_blk
    generic :: alloc => cmat_alloc,cmat_alloc_blk
+   procedure :: init => cmat_init
    procedure :: dealloc => cmat_dealloc
    procedure :: copy => cmat_copy
    procedure :: read => cmat_read
@@ -64,9 +65,9 @@ subroutine cmat_alloc(cmat,bpar,prefix)
 implicit none
 
 ! Passed variables
-class(cmat_type),intent(inout) :: cmat    ! C matrix
-type(bpar_type),intent(in) :: bpar        ! Block parameters
-character(len=*),intent(in) :: prefix     ! Prefix
+class(cmat_type),intent(inout) :: cmat ! C matrix
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+character(len=*),intent(in) :: prefix  ! Prefix
 
 ! Local variables
 integer :: ib
@@ -93,10 +94,10 @@ subroutine cmat_alloc_blk(cmat,nam,geom,bpar)
 implicit none
 
 ! Passed variables
-class(cmat_type),intent(inout) :: cmat    ! C matrix
-type(nam_type),intent(in) :: nam          ! Namelist
-type(geom_type),intent(in) :: geom        ! Geometry
-type(bpar_type),intent(in) :: bpar        ! Block parameters
+class(cmat_type),intent(inout) :: cmat ! C matrix
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+type(bpar_type),intent(in) :: bpar     ! Block parameters
 
 ! Local variables
 integer :: ib
@@ -111,6 +112,30 @@ end do
 cmat%allocated = .true.
 
 end subroutine cmat_alloc_blk
+
+!----------------------------------------------------------------------
+! Subroutine: cmat_init
+! Purpose: C matrix initialization
+!----------------------------------------------------------------------
+subroutine cmat_init(cmat,mpl,nam,bpar)
+
+implicit none
+
+! Passed variables
+class(cmat_type),intent(inout) :: cmat ! C matrix
+type(mpl_type),intent(in) :: mpl       ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(bpar_type),intent(in) :: bpar     ! Block parameters
+
+! Local variables
+integer :: ib
+
+! Initialize blocks
+do ib=1,bpar%nbe
+   call cmat%blk(ib)%init(mpl,nam,bpar)
+end do
+
+end subroutine cmat_init
 
 !----------------------------------------------------------------------
 ! Subroutine: cmat_dealloc

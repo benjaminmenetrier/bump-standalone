@@ -846,12 +846,8 @@ do ic2=0,nam%nc2
       end if
       avg%blk(ic2,bpar%nbe)%cor = 0.0
       cor = 0.0
-      if (ic2==0) then
-         avg%blk(ic2,bpar%nbe)%nc1a_cor = 0.0
-         nc1a_cor = 0.0
-      else
-         avg%blk(ic2,bpar%nbe)%nc1a_cor = mpl%msv%valr
-      end if
+      avg%blk(ic2,bpar%nbe)%nc1a_cor = 0.0
+      nc1a_cor = 0.0
       avg%blk(ic2,bpar%nbe)%m11asysq = 0.0
       m11asysq = 0.0
       avg%blk(ic2,bpar%nbe)%m11sq = 0.0
@@ -885,7 +881,7 @@ do ic2=0,nam%nc2
                   ! Compute sum
                   do jc3=1,nam%nc3
                      call add(mpl,avg%blk(ic2,ib)%cor(jc3,jl0r,il0),avg%blk(ic2,bpar%nbe)%cor(jc3,jl0r,il0),cor(jc3,jl0r,il0))
-                     if (ic2==0)call add(mpl,avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0),avg%blk(ic2,bpar%nbe)%nc1a_cor(jc3,jl0r,il0), &
+                     call add(mpl,avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0),avg%blk(ic2,bpar%nbe)%nc1a_cor(jc3,jl0r,il0), &
                    & nc1a_cor(jc3,jl0r,il0))
                      call add(mpl,avg%blk(ic2,ib)%m11asysq(jc3,jl0r,il0),avg%blk(ic2,bpar%nbe)%m11asysq(jc3,jl0r,il0), &
                    & m11asysq(jc3,jl0r,il0),bwgtsq)
@@ -916,7 +912,7 @@ do ic2=0,nam%nc2
          do jl0r=1,bpar%nl0r(ib)
             do jc3=1,nam%nc3
                call divide(mpl,avg%blk(ic2,bpar%nbe)%cor(jc3,jl0r,il0),cor(jc3,jl0r,il0))
-               if (ic2==0) call divide(mpl,avg%blk(ic2,bpar%nbe)%nc1a_cor(jc3,jl0r,il0),nc1a_cor(jc3,jl0r,il0))
+               call divide(mpl,avg%blk(ic2,bpar%nbe)%nc1a_cor(jc3,jl0r,il0),nc1a_cor(jc3,jl0r,il0))
                call divide(mpl,avg%blk(ic2,bpar%nbe)%m11asysq(jc3,jl0r,il0),m11asysq(jc3,jl0r,il0))
                call divide(mpl,avg%blk(ic2,bpar%nbe)%m11sq(jc3,jl0r,il0),m11sq(jc3,jl0r,il0))
                select case (trim(nam%method))

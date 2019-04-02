@@ -33,6 +33,7 @@ integer,parameter :: irmax = 10000                           ! Maximum number of
 real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req ! Length-scale to increase sampling density along coasts
 real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to increase sampling density along coasts
 integer,parameter :: ncontigth = 0                           ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
+logical,parameter :: forced_points = .true.                  ! Force boundary point into subsampling
 
 ! Sampling derived type
 type samp_type
@@ -1148,10 +1149,12 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
 
    ! Count forced points
    samp%nfor = 0
-   do ib=1,geom%mesh%nb
-      ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-      if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
-   end do
+   if (forced_points) then
+      do ib=1,geom%mesh%nb
+         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+         if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+      end do
+   end if
    do ildwv=1,nam%nldwv
       ic0 = samp%ldwv_to_c0(ildwv)
       valid = .true.
@@ -1175,14 +1178,16 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
       ! Allocation
       ifor = 0
 
-      ! Add boundary points
-      do ib=1,geom%mesh%nb
-         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-         if (samp%mask_hor_c0(ic0)) then
-            ifor = ifor+1
-            for(ifor) = ic0
-         end if
-      end do
+      if (forced_points) then
+         ! Add boundary points
+         do ib=1,geom%mesh%nb
+            ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+            if (samp%mask_hor_c0(ic0)) then
+               ifor = ifor+1
+               for(ifor) = ic0
+            end if
+         end do
+      end if
 
       ! Add local diagnostic profiles
       do ildwv=1,nam%nldwv

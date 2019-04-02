@@ -7,4 +7,4 @@
 | subroutine | [nam%] [bcast](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nam.F90#L710) | broadcast |
 | subroutine | [nam%] [setup_internal](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nam.F90#L861) | setup namelist parameters internally (model 'online') |
 | subroutine | [nam%] [check](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nam.F90#L907) | check namelist parameters |
-| subroutine | [nam%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nam.F90#L1275) | write namelist parameters into a log file or into a NetCDF file |
+| subroutine | [nam%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nam.F90#L1273) | write namelist parameters into a log file or into a NetCDF file |
