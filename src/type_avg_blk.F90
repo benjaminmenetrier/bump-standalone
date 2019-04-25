@@ -344,6 +344,7 @@ if (info/=nf90_noerr) then
  & (/nbins_id,nc3_id,nl0r_id,nl0_id/),cor_hist_id))
    call mpl%ncerr(subr,nf90_put_att(ncid,cor_hist_id,'_FillValue',mpl%msv%valr))
 end if
+
 ! End definition mode
 call mpl%ncerr(subr,nf90_enddef(ncid))
 
@@ -438,7 +439,8 @@ if ((ic2==0).or.nam%local_diag) then
    if (involved) then
       ! Average
       !$omp parallel do schedule(static) private(il0,jl0r,jl0,nc1amax,jc3,nc1a,ic1a,ic1,valid,m2_1,m2_2,isub,jsub), &
-      !$omp&                             firstprivate(list_m11,list_m11m11,list_m2m2,list_m22,list_cor)
+      !$omp&                             firstprivate(list_m11,list_m11m11,list_m2m2,list_m22,list_cor), &
+      !$omp&                             firstprivate(list_m11m11_tot,list_m2m2_tot,list_m22_tot)
       do il0=1,geom%nl0
          do jl0r=1,bpar%nl0r(ib)
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
@@ -452,7 +454,7 @@ if ((ic2==0).or.nam%local_diag) then
             allocate(list_m11(nc1amax))
             allocate(list_m11m11(nc1amax,avg_blk%nsub,avg_blk%nsub))
             allocate(list_m2m2(nc1amax,avg_blk%nsub,avg_blk%nsub))
-            allocate(list_m22(nc1amax,avg_blk%nsub))
+            if (.not.nam%gau_approx) allocate(list_m22(nc1amax,avg_blk%nsub))
             allocate(list_cor(nc1amax))
 
             do jc3=1,bpar%nc3(ib)
@@ -559,7 +561,7 @@ if ((ic2==0).or.nam%local_diag) then
             deallocate(list_m11)
             deallocate(list_m11m11)
             deallocate(list_m2m2)
-            deallocate(list_m22)
+            if (.not.nam%gau_approx) deallocate(list_m22)
             deallocate(list_cor)
          end do
       end do
