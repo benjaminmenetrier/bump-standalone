@@ -57,13 +57,12 @@ call bump%nam%bcast(mpl)
 ! Define info unit and open file
 do iproc=1,mpl%nproc
    if ((trim(bump%nam%verbosity)=='all').or.((trim(bump%nam%verbosity)=='main').and.(iproc==mpl%ioproc))) then
-      ! Info listing
       if (iproc==mpl%myproc) then
          ! Find a free unit
          call mpl%newunit(mpl%lunit)
 
          ! Open listing file
-         write(filename,'(a,i4.4)') trim(bump%nam%prefix)//'.info.',mpl%myproc-1
+         write(filename,'(a,i4.4,a)') trim(bump%nam%prefix)//'.',mpl%myproc-1,'.out'
          inquire(file=filename,number=ifileunit)
          if (ifileunit<0) then
             open(unit=mpl%lunit,file=trim(filename),action='write',status='replace')
@@ -72,8 +71,6 @@ do iproc=1,mpl%nproc
             open(unit=mpl%lunit,file=trim(filename),action='write',status='replace')
          end if
       end if
-
-      ! Wait
       call mpl%f_comm%barrier
    end if
 end do

@@ -143,9 +143,7 @@ character(len=1024),parameter :: subr = 'diag_write'
 if (mpl%main) then
    filename = trim(nam%prefix)//'_diag'
    do ib=1,bpar%nbe
-      if (bpar%diag_block(ib)) then
-        call diag%blk(0,ib)%write(mpl,nam,geom,bpar,filename)
-      end if
+      if (bpar%diag_block(ib)) call diag%blk(0,ib)%write(mpl,nam,geom,bpar,filename)
    end do
 end if
 

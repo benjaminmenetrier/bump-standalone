@@ -25,6 +25,7 @@ implicit none
 
 ! Averaged statistics derived type
 type avg_type
+   character(len=1024) :: prefix              ! Prefix
    integer :: ne                              ! Ensemble size
    integer :: nsub                            ! Number of sub-ensembles
    type(avg_blk_type),allocatable :: blk(:,:) ! Averaged statistics blocks
@@ -32,6 +33,7 @@ contains
    procedure :: alloc => avg_alloc
    procedure :: dealloc => avg_dealloc
    procedure :: copy => avg_copy
+   procedure :: write => avg_write
    procedure :: gather => avg_gather
    procedure :: normalize => avg_normalize
    procedure :: gather_lr => avg_gather_lr
@@ -52,22 +54,24 @@ contains
 ! Subroutine: avg_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine avg_alloc(avg,nam,geom,bpar,ne,nsub)
+subroutine avg_alloc(avg,nam,geom,bpar,ne,nsub,prefix)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg ! Averaged statistics
-type(nam_type),intent(in) :: nam     ! Namelist
-type(geom_type),intent(in) :: geom   ! Geometry
-type(bpar_type),intent(in) :: bpar   ! Block parameters
-integer,intent(in) :: ne             ! Ensemble size
-integer,intent(in) :: nsub           ! Number of sub-ensembles
+class(avg_type),intent(inout) :: avg  ! Averaged statistics
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(in) :: geom    ! Geometry
+type(bpar_type),intent(in) :: bpar    ! Block parameters
+integer,intent(in) :: ne              ! Ensemble size
+integer,intent(in) :: nsub            ! Number of sub-ensembles
+character(len=*),intent(in) :: prefix ! Prefix
 
 ! Local variables
 integer :: ib,ic2
 
 ! Set attributes
+avg%prefix = trim(prefix)
 avg%ne = ne
 avg%nsub = nsub
 
@@ -76,7 +80,7 @@ allocate(avg%blk(0:nam%nc2,bpar%nbe))
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
       do ic2=0,nam%nc2
-         call avg%blk(ic2,ib)%alloc(nam,geom,bpar,ic2,ib,ne,nsub)
+         call avg%blk(ic2,ib)%alloc(nam,geom,bpar,ic2,ib,ne,nsub,prefix)
       end do
    end if
 end do
@@ -130,7 +134,7 @@ integer :: ib,ic2
 call avg_copy%dealloc
 
 ! Allocation
-call avg_copy%alloc(nam,geom,bpar,avg%ne,avg%nsub)
+call avg_copy%alloc(nam,geom,bpar,avg%ne,avg%nsub,avg%prefix)
 
 ! Copy
 do ib=1,bpar%nbe
@@ -142,6 +146,34 @@ do ib=1,bpar%nbe
 end do
 
 end function avg_copy
+
+!----------------------------------------------------------------------
+! Subroutine: avg_write
+! Purpose: write
+!----------------------------------------------------------------------
+subroutine avg_write(avg,mpl,nam,geom,bpar)
+
+implicit none
+
+! Passed variables
+class(avg_type),intent(inout) :: avg ! Diagnostic
+type(mpl_type),intent(inout) :: mpl  ! MPI data
+type(nam_type),intent(in) :: nam     ! Namelist
+type(geom_type),intent(in) :: geom   ! Geometry
+type(bpar_type),intent(in) :: bpar   ! Block parameters
+
+! Local variables
+integer :: ib
+character(len=1024) :: filename
+
+if (mpl%main) then
+   filename = trim(nam%prefix)//'_avg'
+   do ib=1,bpar%nbe
+      if (bpar%diag_block(ib)) call avg%blk(0,ib)%write(mpl,nam,geom,bpar,filename)
+   end do
+end if
+
+end subroutine avg_write
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_gather
@@ -323,7 +355,7 @@ do ib=1,bpar%nb
                            if (.not.nam%gau_approx) avg%blk(ic2,ib)%m22(jc3,jl0r,il0,isub) = mpl%msv%valr
                         end do
                      end if
-                     if (avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)>1.0) then
+                     if (avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)>0.0) then
                         avg%blk(ic2,ib)%cor(jc3,jl0r,il0) = avg%blk(ic2,ib)%cor(jc3,jl0r,il0) &
                                                           & /avg%blk(ic2,ib)%nc1a_cor(jc3,jl0r,il0)
                      else
@@ -603,25 +635,26 @@ end subroutine avg_var_filter
 ! Subroutine: avg_compute
 ! Purpose: compute averaged statistics
 !----------------------------------------------------------------------
-subroutine avg_compute(avg,mpl,nam,geom,bpar,samp,mom,ne)
+subroutine avg_compute(avg,mpl,nam,geom,bpar,samp,mom,ne,prefix)
 
 implicit none
 
 ! Passed variables
-class(avg_type),intent(inout) :: avg ! Averaged statistics
-type(mpl_type),intent(inout) :: mpl  ! MPI data
-type(nam_type),intent(in) :: nam     ! Namelist
-type(geom_type),intent(in) :: geom   ! Geometry
-type(bpar_type),intent(in) :: bpar   ! Block parameters
-type(samp_type),intent(in) :: samp   ! Sampling
-type(mom_type),intent(in) :: mom     ! Moments
-integer,intent(in) :: ne             ! Ensemble size
+class(avg_type),intent(inout) :: avg  ! Averaged statistics
+type(mpl_type),intent(inout) :: mpl   ! MPI data
+type(nam_type),intent(in) :: nam      ! Namelist
+type(geom_type),intent(in) :: geom    ! Geometry
+type(bpar_type),intent(in) :: bpar    ! Block parameters
+type(samp_type),intent(in) :: samp    ! Sampling
+type(mom_type),intent(in) :: mom      ! Moments
+integer,intent(in) :: ne              ! Ensemble size
+character(len=*),intent(in) :: prefix ! Prefix
 
 ! Local variables
 integer :: ib,ic2
 
 ! Allocation
-call avg%alloc(nam,geom,bpar,mom%ne,mom%nsub)
+call avg%alloc(nam,geom,bpar,mom%ne,mom%nsub,prefix)
 
 ! Compute averaged statistics
 write(mpl%info,'(a10,a)') '','Compute averaged statistics'
@@ -638,6 +671,13 @@ do ib=1,bpar%nb
       call mpl%prog_final
    end if
 end do
+
+if (nam%avg_nbins>0) then
+   ! Write histograms
+   write(mpl%info,'(a10,a)') '','Write histograms'
+   call mpl%flush
+   call avg%write(mpl,nam,geom,bpar)
+end if
 
 if (mpl%nproc>1) then
    ! Gather averaged statistics
@@ -699,7 +739,7 @@ class(avg_type),intent(inout) :: avg_1 ! Ensemble 1 averaged statistics
 integer :: ib,ic2
 
 ! Allocation
-if (.not.allocated(avg_2%blk)) call avg_2%alloc(nam,geom,bpar,avg_2%ne,avg_2%nsub)
+if (.not.allocated(avg_2%blk)) call avg_2%alloc(nam,geom,bpar,avg_2%ne,avg_2%nsub,'avg_2')
 
 do ib=1,bpar%nb
    if (bpar%diag_block(ib)) then
@@ -945,5 +985,7 @@ case ('dual-ens')
 end select
 
 end subroutine avg_compute_bwavg
+
+
 
 end module type_avg

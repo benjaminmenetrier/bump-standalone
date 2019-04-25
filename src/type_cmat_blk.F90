@@ -132,7 +132,7 @@ type(bpar_type),intent(in) :: bpar             ! Block parameters
 associate(ib=>cmat_blk%ib)
 
 if (bpar%diag_block(ib)) then
-   ! Allocation
+   ! Initialization
    cmat_blk%coef_ens = mpl%msv%valr
    cmat_blk%coef_sta = mpl%msv%valr
    cmat_blk%rh = mpl%msv%valr
@@ -153,7 +153,7 @@ if (bpar%diag_block(ib)) then
 end if
 
 if ((ib==bpar%nbe).and.nam%adv_diag) then
-   ! Allocation
+   ! Initialization
    cmat_blk%adv_lon = mpl%msv%valr
    cmat_blk%adv_lat = mpl%msv%valr
 end if

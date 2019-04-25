@@ -22,3 +22,4 @@
 | function | [matern](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L821) | compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3) |
 | subroutine | [cholesky](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L864) | compute cholesky decomposition |
 | subroutine | [syminv](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L916) | compute inverse of a symmetric matrix |
+| subroutine | [histogram](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L968) | compute bins and histogram from a list of values |

@@ -83,7 +83,9 @@ type nam_type
    logical :: sam_write                                 ! Write sampling
    logical :: sam_read                                  ! Read sampling
    character(len=1024) :: mask_type                     ! Mask restriction type
+   character(len=1024) :: mask_lu                       ! Mask threshold side ("lower" if mask_th is the lower bound, "upper" if mask_th is the upper bound)
    real(kind_real) ::  mask_th                          ! Mask threshold
+   integer :: ncontig_th                                ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
    logical :: mask_check                                ! Check that sampling couples and interpolations do not cross mask boundaries
    character(len=1024) :: draw_type                     ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
    integer :: nc1                                       ! Number of sampling points
@@ -97,6 +99,7 @@ type nam_type
    ! diag_param
    integer :: ne                                        ! Ensemble size
    logical :: gau_approx                                ! Gaussian approximation for asymptotic quantities
+   integer :: avg_nbins                                 ! Number of bins for averaged statistics histograms
    logical :: vbal_block(nvmax*(nvmax-1)/2)             ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
    real(kind_real) :: vbal_rad                          ! Vertical balance diagnostic radius
    logical :: var_filter                                ! Filter variances
@@ -190,7 +193,7 @@ class(nam_type),intent(out) :: nam ! Namelist
 integer :: iv,ildwv
 
 ! general_param default
-nam%datadir = 'bump'
+nam%datadir = '.'
 nam%prefix = ''
 nam%model = ''
 nam%verbosity = 'all'
@@ -249,7 +252,9 @@ nam%ens2_nsub = 0
 nam%sam_write = .false.
 nam%sam_read = .false.
 nam%mask_type = 'none'
+nam%mask_lu = 'lower'
 nam%mask_th = 0.0
+nam%ncontig_th = 0
 nam%mask_check = .false.
 nam%draw_type = 'random_uniform'
 nam%nc1 = 0
@@ -263,6 +268,7 @@ nam%nl0r = 0
 ! diag_param default
 nam%ne = 0
 nam%gau_approx = .false.
+nam%avg_nbins = 0
 do iv=1,nvmax*(nvmax-1)/2
    nam%vbal_block(iv) = .false.
 end do
@@ -355,8 +361,8 @@ character(len=1024),parameter :: subr = 'nam_read'
 ! Namelist variables
 integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_nsub,ens2_ne,ens2_nsub
-integer :: nc1,nc2,ntry,nrep,nc3,nl0r,ne,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir,levdir(ndirmax),ivdir(ndirmax)
-integer :: itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,ildwv
+integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,ne,avg_nbins,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir,levdir(ndirmax)
+integer :: ivdir(ndirmax),itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,ildwv
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas
 logical :: load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def
@@ -366,7 +372,7 @@ logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,net
 logical :: grid_output
 real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax)
 real(kind_real) :: diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
-character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,draw_type,minim_algo,subsamp,nicas_interp
+character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu,draw_type,minim_algo,subsamp,nicas_interp
 character(len=1024) :: obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
 character(len=1024),dimension(nldwvmax) :: name_ldwv
@@ -379,8 +385,8 @@ namelist/driver_param/method,strategy,new_cortrack,new_vbal,load_vbal,write_vbal
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_nsub
-namelist/sampling_param/sam_write,sam_read,mask_type,mask_th,mask_check,draw_type,nc1,nc2,ntry,nrep,nc3,dc,nl0r
-namelist/diag_param/ne,gau_approx,vbal_block,vbal_rad,var_filter,var_full,var_niter,var_rhflt,local_diag,local_rad, &
+namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,nc1,nc2,ntry,nrep,nc3,dc,nl0r
+namelist/diag_param/ne,gau_approx,avg_nbins,vbal_block,vbal_rad,var_filter,var_full,var_niter,var_rhflt,local_diag,local_rad, &
                   & adv_diag,adv_rad,adv_niter,adv_rhflt
 namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
@@ -450,7 +456,9 @@ if (mpl%main) then
    sam_write = .false.
    sam_read = .false.
    mask_type = 'none'
+   mask_lu = 'lower'
    mask_th = 0.0
+   ncontig_th = 0
    mask_check = .false.
    draw_type = 'random_uniform'
    nc1 = 0
@@ -464,6 +472,7 @@ if (mpl%main) then
    ! diag_param default
    ne = 0
    gau_approx = .false.
+   avg_nbins = 0
    do iv=1,nvmax*(nvmax-1)/2
       vbal_block(iv) = .false.
    end do
@@ -605,7 +614,9 @@ if (mpl%main) then
    nam%sam_write = sam_write
    nam%sam_read = sam_read
    nam%mask_type = mask_type
+   nam%mask_lu = mask_lu
    nam%mask_th = mask_th
+   nam%ncontig_th = ncontig_th
    nam%mask_check = mask_check
    nam%draw_type = draw_type
    nam%nc1 = nc1
@@ -620,6 +631,7 @@ if (mpl%main) then
    read(lunit,nml=diag_param)
    nam%ne = ne
    nam%gau_approx = gau_approx
+   nam%avg_nbins = avg_nbins
    if (nv>1) nam%vbal_block(1:nam%nv*(nam%nv-1)/2) = vbal_block(1:nam%nv*(nam%nv-1)/2)
    nam%vbal_rad = vbal_rad
    nam%var_filter = var_filter
@@ -772,7 +784,9 @@ call mpl%f_comm%broadcast(nam%ens2_nsub,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%sam_write,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%sam_read,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_type,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%mask_lu,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_th,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%ncontig_th,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_check,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%draw_type,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nc1,mpl%ioproc-1)
@@ -786,6 +800,7 @@ call mpl%f_comm%broadcast(nam%nl0r,mpl%ioproc-1)
 ! diag_param
 call mpl%f_comm%broadcast(nam%ne,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%gau_approx,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%avg_nbins,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%vbal_block,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%vbal_rad,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%var_filter,mpl%ioproc-1)
@@ -911,8 +926,7 @@ class(nam_type),intent(inout) :: nam ! Namelist
 type(mpl_type),intent(inout) :: mpl  ! MPI data
 
 ! Local variables
-integer :: iv,its,il,idir,ildwv,info
-logical :: ldatadir
+integer :: iv,its,il,idir,ildwv
 character(len=2) :: ivchar,ildwvchar
 character(len=1024),parameter :: subr = 'nam_check'
 
@@ -1239,28 +1253,6 @@ if (nam%new_hdiag.or.nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or
    end if
 end if
 
-! Check data directory existence
-if  ((nam%new_cortrack.or.nam%write_hdiag.or.nam%write_lct.or.nam%write_cmat.or.nam%write_nicas.or.nam%write_obsop &
- & .or.nam%write_vbal.or.nam%check_dirac.or.nam%check_randomization.or.nam%sam_write.or.nam%sam_read.or.nam%var_full &
- & .or.nam%write_grids).and.(trim(nam%datadir)/='.')) then
-   ! Work is done by the main processor
-   if (mpl%main) then
-      inquire(file=trim(nam%datadir),exist=ldatadir)
-      if (.not.ldatadir) then
-         call mpl%warning(subr,'data directory does not exist, BUMP will try to create it')
-         call execute_command_line('mkdir -p '//trim(nam%datadir),cmdstat=info)
-         if (info==0) then
-            call mpl%warning(subr,'data directory creation successful')
-         else
-            call mpl%abort(subr,'data directory creation failed')
-         end if
-      end if
-   end if
-
-   ! Wait
-   call mpl%f_comm%barrier
-end if
-
 end subroutine nam_check
 
 !----------------------------------------------------------------------
@@ -1366,7 +1358,9 @@ end if
 call mpl%write(lncid,'sam_write',nam%sam_write)
 call mpl%write(lncid,'sam_read',nam%sam_read)
 call mpl%write(lncid,'mask_type',nam%mask_type)
+call mpl%write(lncid,'mask_lu',nam%mask_lu)
 call mpl%write(lncid,'mask_th',nam%mask_th)
+call mpl%write(lncid,'ncontig_th',nam%ncontig_th)
 call mpl%write(lncid,'mask_check',nam%mask_check)
 call mpl%write(lncid,'draw_type',nam%draw_type)
 call mpl%write(lncid,'nc1',nam%nc1)
@@ -1383,6 +1377,7 @@ if (mpl%msv%isi(lncid)) then
 end if
 call mpl%write(lncid,'ne',nam%ne)
 call mpl%write(lncid,'gau_approx',nam%gau_approx)
+call mpl%write(lncid,'avg_nbins',nam%avg_nbins)
 call mpl%write(lncid,'vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_block(1:nam%nv*(nam%nv-1)/2))
 call mpl%write(lncid,'var_filter',nam%var_filter)
 call mpl%write(lncid,'var_full',nam%var_full)

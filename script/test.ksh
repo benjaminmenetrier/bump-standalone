@@ -21,7 +21,8 @@ sampling'
 if test ! -e "../test/test_dirac.nc" ; then
    # Execute
    cd ../run
-   export OMP_NUM_THREADS=1;./bump namelist_test
+   export OMP_NUM_THREADS=1
+   ./bump namelist_test
    if test -e "../test/test_dirac.nc" ; then
       echo -e "[32mExecution successful[m"
    else

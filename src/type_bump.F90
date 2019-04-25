@@ -389,17 +389,7 @@ else
    end if
 end if
 
-if (bump%nam%new_nicas.and.(.not.bump%cmat%allocated)) then
-   ! Allocate and initialize C matrix
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Allocate and initialize C matrix'
-   call bump%mpl%flush
-   call bump%cmat%alloc(bump%bpar,'cmat')
-   call bump%cmat%init(bump%mpl,bump%nam,bump%bpar)
-end if
-
-if (bump%cmat%allocated) then
+if (bump%cmat%allocated.or.bump%nam%new_nicas) then
    ! Get C matrix from BUMP interface
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush

@@ -447,6 +447,8 @@ case default
       filename = trim(nam%mask_type(i+1:))
       write(mpl%info,'(a7,a)') '','Read sampling mask from variable '//trim(varname)//' in file '//trim(filename)
       call mpl%flush
+      write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th,' used as a '//trim(nam%mask_lu)//' bound'
+      call mpl%flush
 
       ! Save namelist parameters
       nv_save = nam%nv
@@ -461,7 +463,14 @@ case default
       ! Read file
       allocate(fld(model%nmga,model%nl0,nam%nv))
       call model%read(mpl,nam,filename,1,fld)
-      model%smask_mga = (fld(:,:,1)>nam%mask_th)
+      if (trim(nam%mask_lu)=='lower') then
+         model%smask_mga = (fld(:,:,1)>nam%mask_th)
+      elseif (trim(nam%mask_lu)=='upper') then
+         model%smask_mga = (fld(:,:,1)<nam%mask_th)
+      else
+         call mpl%abort(subr,'mask_lu not recognized')
+      end if
+
 
       ! Reset namelist parameters
       nam%nv = nv_save

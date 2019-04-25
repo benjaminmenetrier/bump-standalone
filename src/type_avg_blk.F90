@@ -7,7 +7,9 @@
 !----------------------------------------------------------------------
 module type_avg_blk
 
-use tools_kinds, only: kind_real
+use netcdf
+use tools_func, only: histogram
+use tools_kinds, only: kind_real,nc_kind_real
 use tools_repro, only: sup,inf
 use type_bpar, only: bpar_type
 use type_geom, only: geom_type
@@ -25,6 +27,7 @@ real(kind_real),parameter :: nc1a_cor_th = 0.1           ! Threshold on the effe
 type avg_blk_type
    integer :: ic2                                        ! Global index
    integer :: ib                                         ! Block index
+   character(len=1024) :: name                           ! Name
    integer :: ne                                         ! Ensemble size
    integer :: nsub                                       ! Sub-ensembles number
    real(kind_real),allocatable :: m2(:,:)                ! Variance
@@ -46,10 +49,21 @@ type avg_blk_type
    real(kind_real),allocatable :: m11lrm11sub(:,:,:,:,:) ! LR covariance/HR covariance product average
    real(kind_real),allocatable :: m11lrm11(:,:,:)        ! LR covariance/HR covariance product average, averaged over sub-ensembles
    real(kind_real),allocatable :: m11lrm11asy(:,:,:)     ! LR covariance/HR asymptotic covariance product average
+   real(kind_real),allocatable :: m11_bins(:,:,:,:)      ! Covariance histrogram bins
+   real(kind_real),allocatable :: m11_hist(:,:,:,:)      ! Covariance histrogram values
+   real(kind_real),allocatable :: m11m11_bins(:,:,:,:)   ! Product of covariances  histrogram bins
+   real(kind_real),allocatable :: m11m11_hist(:,:,:,:)   ! Product of covariances  histrogram values
+   real(kind_real),allocatable :: m2m2_bins(:,:,:,:)     ! Product of variances  histrogram bins
+   real(kind_real),allocatable :: m2m2_hist(:,:,:,:)     ! Product of variances  histrogram values
+   real(kind_real),allocatable :: m22_bins(:,:,:,:)      ! Fourth-order centered moment  histrogram bins
+   real(kind_real),allocatable :: m22_hist(:,:,:,:)      ! Fourth-order centered moment  histrogram values
+   real(kind_real),allocatable :: cor_bins(:,:,:,:)      ! Correlation histrogram bins
+   real(kind_real),allocatable :: cor_hist(:,:,:,:)      ! Correlation histrogram values
 contains
    procedure :: alloc => avg_blk_alloc
    procedure :: dealloc => avg_blk_dealloc
    procedure :: copy => avg_blk_copy
+   procedure :: write => avg_blk_write
    procedure :: compute => avg_blk_compute
    procedure :: compute_asy => avg_blk_compute_asy
    procedure :: compute_hyb => avg_blk_compute_hyb
@@ -66,7 +80,7 @@ contains
 ! Subroutine: avg_blk_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine avg_blk_alloc(avg_blk,nam,geom,bpar,ic2,ib,ne,nsub)
+subroutine avg_blk_alloc(avg_blk,nam,geom,bpar,ic2,ib,ne,nsub,prefix)
 
 implicit none
 
@@ -75,16 +89,18 @@ class(avg_blk_type),intent(inout) :: avg_blk ! Averaged statistics block
 type(nam_type),intent(in) :: nam             ! Namelist
 type(geom_type),intent(in) :: geom           ! Geometry
 type(bpar_type),intent(in) :: bpar           ! Block parameters
-integer,intent(in) :: ne                     ! Ensemble size
-integer,intent(in) :: nsub                   ! Sub-ensembles number
 integer,intent(in) :: ic2                    ! Global index
 integer,intent(in) :: ib                     ! Block index
+integer,intent(in) :: ne                     ! Ensemble size
+integer,intent(in) :: nsub                   ! Sub-ensembles number
+character(len=*),intent(in) :: prefix        ! Prefix
 
 ! Set attributes
 avg_blk%ic2 = ic2
 avg_blk%ib = ib
 avg_blk%ne = ne
 avg_blk%nsub = nsub
+avg_blk%name = trim(prefix)//'_'//trim(bpar%blockname(ib))
 
 ! Allocation
 if (.not.allocated(avg_blk%nc1a)) then
@@ -114,6 +130,18 @@ if (.not.allocated(avg_blk%nc1a)) then
          allocate(avg_blk%m11lrm11(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
          allocate(avg_blk%m11lrm11asy(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       end select
+   end if
+   if ((nam%avg_nbins>0).and.(ic2==0)) then
+      allocate(avg_blk%m11_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m11_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m11m11_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m11m11_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m2m2_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m2m2_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m22_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%m22_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%cor_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(avg_blk%cor_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
    end if
 end if
 
@@ -148,6 +176,16 @@ if (allocated(avg_blk%stasq)) deallocate(avg_blk%stasq)
 if (allocated(avg_blk%m11lrm11sub)) deallocate(avg_blk%m11lrm11sub)
 if (allocated(avg_blk%m11lrm11)) deallocate(avg_blk%m11lrm11)
 if (allocated(avg_blk%m11lrm11asy)) deallocate(avg_blk%m11lrm11asy)
+if (allocated(avg_blk%m11_bins)) deallocate(avg_blk%m11_bins)
+if (allocated(avg_blk%m11_hist)) deallocate(avg_blk%m11_hist)
+if (allocated(avg_blk%m11m11_bins)) deallocate(avg_blk%m11m11_bins)
+if (allocated(avg_blk%m11m11_hist)) deallocate(avg_blk%m11m11_hist)
+if (allocated(avg_blk%m2m2_bins)) deallocate(avg_blk%m2m2_bins)
+if (allocated(avg_blk%m2m2_hist)) deallocate(avg_blk%m2m2_hist)
+if (allocated(avg_blk%m22_bins)) deallocate(avg_blk%m22_bins)
+if (allocated(avg_blk%m22_hist)) deallocate(avg_blk%m22_hist)
+if (allocated(avg_blk%cor_bins)) deallocate(avg_blk%cor_bins)
+if (allocated(avg_blk%cor_hist)) deallocate(avg_blk%cor_hist)
 
 end subroutine avg_blk_dealloc
 
@@ -182,8 +220,158 @@ if (allocated(avg_blk%stasq)) avg_blk_copy%stasq = avg_blk%stasq
 if (allocated(avg_blk%m11lrm11sub)) avg_blk_copy%m11lrm11sub = avg_blk%m11lrm11sub
 if (allocated(avg_blk%m11lrm11sub)) avg_blk_copy%m11lrm11sub = avg_blk%m11lrm11sub
 if (allocated(avg_blk%m11lrm11asy)) avg_blk_copy%m11lrm11asy = avg_blk%m11lrm11asy
+if (allocated(avg_blk%m11_bins)) avg_blk_copy%m11_bins = avg_blk%m11_bins
+if (allocated(avg_blk%m11_hist)) avg_blk_copy%m11_hist = avg_blk%m11_hist
+if (allocated(avg_blk%m11m11_bins)) avg_blk_copy%m11m11_bins = avg_blk%m11m11_bins
+if (allocated(avg_blk%m11m11_hist)) avg_blk_copy%m11m11_hist = avg_blk%m11m11_hist
+if (allocated(avg_blk%m2m2_bins)) avg_blk_copy%m2m2_bins = avg_blk%m2m2_bins
+if (allocated(avg_blk%m2m2_hist)) avg_blk_copy%m2m2_hist = avg_blk%m2m2_hist
+if (allocated(avg_blk%m22_bins)) avg_blk_copy%m22_bins = avg_blk%m22_bins
+if (allocated(avg_blk%m22_hist)) avg_blk_copy%m22_hist = avg_blk%m22_hist
+if (allocated(avg_blk%cor_bins)) avg_blk_copy%cor_bins = avg_blk%cor_bins
+if (allocated(avg_blk%cor_hist)) avg_blk_copy%cor_hist = avg_blk%cor_hist
 
 end function avg_blk_copy
+
+!----------------------------------------------------------------------
+! Subroutine: avg_blk_write
+! Purpose: write
+!----------------------------------------------------------------------
+subroutine avg_blk_write(avg_blk,mpl,nam,geom,bpar,filename)
+
+implicit none
+
+! Passed variables
+class(avg_blk_type),intent(inout) :: avg_blk ! Averaged statistics block
+type(mpl_type),intent(inout) :: mpl          ! MPI data
+type(nam_type),intent(in) :: nam             ! Namelist
+type(geom_type),intent(in) :: geom           ! Geometry
+type(bpar_type),intent(in) :: bpar           ! Block parameters
+character(len=*),intent(in) :: filename      ! File name
+
+! Local variables
+integer :: info,info_coord,ncid,nc3_id,nl0r_id,nl0_id,nbinsp1_id,nbins_id,disth_id,vunit_id
+integer :: m11_bins_id,m11_hist_id,m11m11_bins_id,m11m11_hist_id,m2m2_bins_id,m2m2_hist_id,m22_bins_id,m22_hist_id
+integer :: cor_bins_id,cor_hist_id
+character(len=1024),parameter :: subr = 'avg_blk_write'
+
+! Associate
+associate(ib=>avg_blk%ib)
+
+! Check if the file exists
+info = nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
+if (info==nf90_noerr) then
+   ! Write namelist parameters
+   call nam%write(mpl,ncid)
+else
+   ! Open file
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
+
+   ! Redef mode
+   call mpl%ncerr(subr,nf90_redef(ncid))
+end if
+
+! Define dimensions and coordinates if necessary
+nc3_id = mpl%ncdimcheck(subr,ncid,'nc3',nam%nc3,.true.)
+nl0r_id = mpl%ncdimcheck(subr,ncid,'nl0r',bpar%nl0rmax,.true.)
+nl0_id = mpl%ncdimcheck(subr,ncid,'nl0',geom%nl0,.true.)
+nbinsp1_id = mpl%ncdimcheck(subr,ncid,'nbinsp1',nam%avg_nbins+1,.true.)
+nbins_id = mpl%ncdimcheck(subr,ncid,'nbins',nam%avg_nbins,.true.)
+info_coord = nf90_inq_varid(ncid,'disth',disth_id)
+if (info_coord/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,'disth',nc_kind_real,(/nc3_id/),disth_id))
+   call mpl%ncerr(subr,nf90_def_var(ncid,'vunit',nc_kind_real,(/nl0_id/),vunit_id))
+end if
+
+! Define variables if necessary
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m11_bins',m11_bins_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m11_bins',nc_kind_real, &
+ & (/nbinsp1_id,nc3_id,nl0r_id,nl0_id/),m11_bins_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m11_bins_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m11_hist',m11_hist_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m11_hist',nc_kind_real, &
+ & (/nbins_id,nc3_id,nl0r_id,nl0_id/),m11_hist_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m11_hist_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m11m11_bins',m11m11_bins_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m11m11_bins',nc_kind_real, &
+ & (/nbinsp1_id,nc3_id,nl0r_id,nl0_id/),m11m11_bins_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m11m11_bins_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m11m11_hist',m11m11_hist_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m11m11_hist',nc_kind_real, &
+ & (/nbins_id,nc3_id,nl0r_id,nl0_id/),m11m11_hist_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m11m11_hist_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m2m2_bins',m2m2_bins_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m2m2_bins',nc_kind_real, &
+ & (/nbinsp1_id,nc3_id,nl0r_id,nl0_id/),m2m2_bins_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m2m2_bins_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m2m2_hist',m2m2_hist_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m2m2_hist',nc_kind_real, &
+ & (/nbins_id,nc3_id,nl0r_id,nl0_id/),m2m2_hist_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m2m2_hist_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m22_bins',m22_bins_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m22_bins',nc_kind_real, &
+ & (/nbinsp1_id,nc3_id,nl0r_id,nl0_id/),m22_bins_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m22_bins_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_m22_hist',m22_hist_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_m22_hist',nc_kind_real, &
+ & (/nbins_id,nc3_id,nl0r_id,nl0_id/),m22_hist_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,m22_hist_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_cor_bins',cor_bins_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_cor_bins',nc_kind_real, &
+ & (/nbinsp1_id,nc3_id,nl0r_id,nl0_id/),cor_bins_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,cor_bins_id,'_FillValue',mpl%msv%valr))
+end if
+info = nf90_inq_varid(ncid,trim(avg_blk%name)//'_cor_hist',cor_hist_id)
+if (info/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_def_var(ncid,trim(avg_blk%name)//'_cor_hist',nc_kind_real, &
+ & (/nbins_id,nc3_id,nl0r_id,nl0_id/),cor_hist_id))
+   call mpl%ncerr(subr,nf90_put_att(ncid,cor_hist_id,'_FillValue',mpl%msv%valr))
+end if
+! End definition mode
+call mpl%ncerr(subr,nf90_enddef(ncid))
+
+! Write coordinates if necessary
+if (info_coord/=nf90_noerr) then
+   call mpl%ncerr(subr,nf90_put_var(ncid,disth_id,geom%disth(1:nam%nc3)))
+   call mpl%ncerr(subr,nf90_put_var(ncid,vunit_id,geom%vunitavg))
+end if
+
+! Write variables
+call mpl%ncerr(subr,nf90_put_var(ncid,m11_bins_id,avg_blk%m11_bins))
+call mpl%ncerr(subr,nf90_put_var(ncid,m11_hist_id,avg_blk%m11_hist))
+call mpl%ncerr(subr,nf90_put_var(ncid,m11m11_bins_id,avg_blk%m11m11_bins))
+call mpl%ncerr(subr,nf90_put_var(ncid,m11m11_hist_id,avg_blk%m11m11_hist))
+call mpl%ncerr(subr,nf90_put_var(ncid,m2m2_bins_id,avg_blk%m2m2_bins))
+call mpl%ncerr(subr,nf90_put_var(ncid,m2m2_hist_id,avg_blk%m2m2_hist))
+call mpl%ncerr(subr,nf90_put_var(ncid,m22_bins_id,avg_blk%m22_bins))
+call mpl%ncerr(subr,nf90_put_var(ncid,m22_hist_id,avg_blk%m22_hist))
+call mpl%ncerr(subr,nf90_put_var(ncid,cor_bins_id,avg_blk%cor_bins))
+call mpl%ncerr(subr,nf90_put_var(ncid,cor_hist_id,avg_blk%cor_hist))
+
+! Close file
+call mpl%ncerr(subr,nf90_close(ncid))
+
+! End associate
+end associate
+
+end subroutine avg_blk_write
 
 !----------------------------------------------------------------------
 ! Subroutine: avg_blk_compute
@@ -206,6 +394,7 @@ type(mom_blk_type),intent(in) :: mom_blk     ! Moments
 integer :: il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1amax,nc1a
 real(kind_real) :: m2_1,m2_2
 real(kind_real),allocatable :: list_m11(:),list_m11m11(:,:,:),list_m2m2(:,:,:),list_m22(:,:),list_cor(:)
+real(kind_real),allocatable :: list_m11m11_tot(:),list_m2m2_tot(:),list_m22_tot(:)
 logical :: involved,valid
 
 ! Associate
@@ -320,6 +509,36 @@ if ((ic2==0).or.nam%local_diag) then
                      avg_blk%cor(jc3,jl0r,il0) = sum(list_cor(1:nc1a),mask=mpl%msv%isnotr(list_cor(1:nc1a)))
                   else
                      avg_blk%cor(jc3,jl0r,il0) = 0.0
+                  end if
+
+                  ! Histograms
+                  if ((nam%avg_nbins>0).and.(ic2==0)) then
+                     ! Allocation
+                     allocate(list_m11m11_tot(nc1a*avg_blk%nsub**2))
+                     allocate(list_m2m2_tot(nc1a*avg_blk%nsub**2))
+                     if (.not.nam%gau_approx) allocate(list_m22_tot(nc1a*avg_blk%nsub))
+
+                     ! Compute histograms
+                     call histogram(mpl,nc1a,list_m11(1:nc1a),nam%avg_nbins,avg_blk%m11_bins(:,jc3,jl0r,il0), &
+                   & avg_blk%m11_hist(:,jc3,jl0r,il0))
+                     list_m11m11_tot = pack(list_m11m11(1:nc1a,:,:),mask=.true.)
+                     call histogram(mpl,nc1a*avg_blk%nsub**2,list_m11m11_tot,nam%avg_nbins, &
+                   & avg_blk%m11m11_bins(:,jc3,jl0r,il0),avg_blk%m11m11_hist(:,jc3,jl0r,il0))
+                     list_m2m2_tot = pack(list_m2m2(1:nc1a,:,:),mask=.true.)
+                     call histogram(mpl,nc1a*avg_blk%nsub**2,list_m2m2_tot,nam%avg_nbins, &
+                   & avg_blk%m2m2_bins(:,jc3,jl0r,il0),avg_blk%m2m2_hist(:,jc3,jl0r,il0))
+                     if (.not.nam%gau_approx) then
+                        list_m22_tot = pack(list_m22(1:nc1a,:),mask=.true.)
+                        call histogram(mpl,nc1a*avg_blk%nsub,list_m22_tot,nam%avg_nbins, &
+                      & avg_blk%m22_bins(:,jc3,jl0r,il0),avg_blk%m22_hist(:,jc3,jl0r,il0))
+                     end if
+                     call histogram(mpl,nc1a,list_cor(1:nc1a),nam%avg_nbins,avg_blk%cor_bins(:,jc3,jl0r,il0), &
+                   & avg_blk%cor_hist(:,jc3,jl0r,il0))
+
+                     ! Release memory
+                     deallocate(list_m11m11_tot)
+                     deallocate(list_m2m2_tot)
+                     if (.not.nam%gau_approx) deallocate(list_m22_tot)
                   end if
                else
                   ! Set to zero for this task

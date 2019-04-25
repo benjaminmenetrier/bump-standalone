@@ -305,6 +305,7 @@ do ib=1,bpar%nbe
             call io%fld_read(mpl,nam,geom,filename,'H22',cmat%blk(ib)%H22)
             call io%fld_read(mpl,nam,geom,filename,'H33',cmat%blk(ib)%H33)
             call io%fld_read(mpl,nam,geom,filename,'H12',cmat%blk(ib)%H12)
+            call io%fld_read(mpl,nam,geom,filename,'Hcoef',cmat%blk(ib)%Hcoef)
          end if
       end if
       if ((ib==bpar%nbe).and.nam%adv_diag) then
@@ -336,7 +337,7 @@ type(bpar_type),intent(in) :: bpar  ! Block parameters
 type(io_type),intent(in) :: io      ! I/O
 
 ! Local variables
-integer :: ib,ncid,its,info
+integer :: ib,ncid,its
 character(len=3) :: itschar
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'cmat_write'
@@ -345,10 +346,7 @@ do ib=1,bpar%nbe
    if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
       ! Set filename
       filename = trim(nam%prefix)//'_'//trim(cmat%blk(ib)%name)
-
-      ! Remove C matrix file
-      call execute_command_line('rm -f '//trim(nam%datadir)//'/'//trim(filename)//'.nc',cmdstat=info)
-      if (info/=0) call mpl%abort(subr,'C matrix file removal failed')
+      call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 
       ! Write vertical unit
       call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
@@ -370,6 +368,7 @@ do ib=1,bpar%nbe
             call io%fld_write(mpl,nam,geom,filename,'H22',cmat%blk(ib)%H22)
             call io%fld_write(mpl,nam,geom,filename,'H33',cmat%blk(ib)%H33)
             call io%fld_write(mpl,nam,geom,filename,'H12',cmat%blk(ib)%H12)
+            call io%fld_write(mpl,nam,geom,filename,'Hcoef',cmat%blk(ib)%Hcoef)
          end if
       end if
       if ((ib==bpar%nbe).and.nam%adv_diag) then
@@ -675,7 +674,7 @@ do ib=1,bpar%nbe
       end do
 
       ! Set coefficients
-      cmat%blk(ib)%coef_ens = 1.0
+      cmat%blk(ib)%coef_ens = lct%blk(ib)%coef_ens
       cmat%blk(ib)%coef_sta = 0.0
       cmat%blk(ib)%wgt = 1.0
    end if
@@ -764,6 +763,19 @@ type(bpar_type),intent(in) :: bpar     ! Block parameters
 ! Local variables
 integer :: ib,il0,ic0a
 logical :: import_standard(bpar%nbe),import_static(bpar%nbe),import_double_fit(bpar%nbe),import_anisotropic(bpar%nbe)
+
+if (.not.cmat%allocated) then
+   ! Allocation
+   call cmat%alloc(bpar,'cmat')
+   do ib=1,bpar%nbe
+      cmat%blk(ib)%double_fit = .false.
+      cmat%blk(ib)%anisotropic = .false.
+   end do
+   call cmat%alloc(nam,geom,bpar)
+
+   ! Initialization
+   call cmat%init(mpl,nam,bpar)
+end if
 
 do ib=1,bpar%nbe
    ! Initialization

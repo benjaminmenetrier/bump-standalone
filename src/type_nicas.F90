@@ -1024,7 +1024,7 @@ case ('specific_univariate')
             !$omp end parallel do
          end if
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(ib)%apply(mpl,nam,geom,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
@@ -1164,7 +1164,7 @@ case ('common_univariate')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(bpar%nbe)%apply_sqrt(mpl,geom,cv%blk(ib)%alpha,fld_4d(:,:,iv))
 
          if (nam%nonunit_diag) then
@@ -1224,7 +1224,7 @@ case ('common_weighted')
          ! Variable index
          iv = bpar%b_to_v1(ib)
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(bpar%nbe)%apply_sqrt(mpl,geom,cv%blk(ib)%alpha,fld_4d(:,:,iv))
 
          if (nam%nonunit_diag) then
@@ -1267,7 +1267,7 @@ case ('specific_univariate')
          iv = bpar%b_to_v1(ib)
          its = bpar%b_to_ts1(ib)
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(ib)%alpha,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
@@ -1290,7 +1290,7 @@ case ('specific_multivariate')
          iv = bpar%b_to_v1(ib)
          its = bpar%b_to_ts1(ib)
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(ib)%apply_sqrt(mpl,geom,cv%blk(bpar%nbe)%alpha,fld(:,:,iv,its))
 
          if (nam%nonunit_diag) then
@@ -1402,7 +1402,7 @@ case ('common_univariate')
             !$omp end parallel do
          end if
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(bpar%nbe)%apply_sqrt_ad(mpl,geom,fld_4d(:,:,iv),cv%blk(ib)%alpha)
       end if
    end do
@@ -1471,7 +1471,7 @@ case ('common_weighted')
             !$omp end parallel do
          end if
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(bpar%nbe)%apply_sqrt_ad(mpl,geom,fld_4d_tmp(:,:,iv),cv%blk(ib)%alpha)
       end if
    end do
@@ -1501,7 +1501,7 @@ case ('specific_univariate')
             !$omp end parallel do
          end if
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_5d(:,:,iv,its),cv%blk(ib)%alpha)
       end if
    end do
@@ -1530,7 +1530,7 @@ case ('specific_multivariate')
             !$omp end parallel do
          end if
 
-         ! Apply specific NICAS (same for all timeslots)
+         ! Apply specific NICAS
          call nicas%blk(ib)%apply_sqrt_ad(mpl,geom,fld_5d(:,:,iv,its),cv_tmp%blk(bpar%nbe)%alpha)
 
          ! Sum control variable
@@ -2098,11 +2098,10 @@ type(bpar_type),intent(in) :: bpar    ! Block parameters
 type(io_type),intent(in) :: io        ! I/O
 
 ! Local variables
-integer :: ib,ifac,itest,info
+integer :: ib,ifac,itest
 real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
 real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),fac(nfac),mse(ntest,nfac)
 character(len=1024) :: prefix,method
-character(len=1024),parameter :: subr = 'nicas_test_optimality'
 type(cmat_type) :: cmat_save,cmat_test
 type(hdiag_type) :: hdiag_save
 type(ens_type) :: ens
@@ -2127,11 +2126,6 @@ call mpl%flush
 write(mpl%info,'(a)') '--- Randomize ensemble'
 call mpl%flush
 call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
-
-! Copy sampling
-call execute_command_line('cp -f '//trim(nam%datadir)//'/'//trim(nam%prefix)//'_sampling.nc ' &
- & //trim(nam%datadir)//'/'//trim(nam%prefix)//'_optimality-test_sampling.nc',cmdstat=info)
-if (info/=0) call mpl%abort(subr,'sampling copy failed')
 
 ! Save namelist variables
 prefix = nam%prefix

@@ -8,11 +8,7 @@ ncl/fig
 run/bump
 
 # Listings
-run/*.info.*
-run/*.test.*
-
-# Library source
-src_lib
+run/*.out
 
 # Test
 test/test_*.nc

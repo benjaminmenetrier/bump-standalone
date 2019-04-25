@@ -73,7 +73,7 @@ allocate(bpar%l0rl0b_to_l0(bpar%nl0rmax,geom%nl0,bpar%nbe))
 allocate(bpar%il0rz(geom%nl0,bpar%nbe))
 allocate(bpar%nl0r(bpar%nbe))
 allocate(bpar%nc3(bpar%nbe))
-allocate(bpar%vbal_block(nam%nv,nam%nv))
+allocate(bpar%vbal_block(0:nam%nv,0:nam%nv))
 allocate(bpar%diag_block(bpar%nbe))
 allocate(bpar%avg_block(bpar%nbe))
 allocate(bpar%fit_block(bpar%nbe))
@@ -106,6 +106,9 @@ type(geom_type),intent(in) :: geom     ! Geometry
 integer :: ib,iv,jv,its,jts,il0,jl0r,jl0off
 
 ! Initialization
+bpar%vbal_block = .false.
+
+! Loop over variables and timeslots
 ib = 1
 do iv=1,nam%nv
    do jv=1,nam%nv
@@ -258,29 +261,32 @@ end if
 do ib=1,bpar%nbe
    iv = bpar%b_to_v1(ib)
    jv = bpar%b_to_v2(ib)
-   write(mpl%info,'(a7,a,a,a)') '','Block ',trim(bpar%blockname(ib)),':'
-   call mpl%flush
-   write(mpl%info,'(a10,a,i3)') '','Effective number of levels:    ',bpar%nl0r(ib)
-   call mpl%flush
-   write(mpl%info,'(a10,a,i3)') '','Maximum class:                 ',bpar%nc3(ib)
-   call mpl%flush
-   if ((iv>0).and.(jv>0)) then
-      write(mpl%info,'(a10,a,l1)') '','Vertical balance block:          ',bpar%vbal_block(iv,jv)
+   if (bpar%vbal_block(iv,jv).or.bpar%diag_block(ib).or.bpar%avg_block(ib).or.bpar%fit_block(ib).or.bpar%B_block(ib) &
+     & .or.bpar%nicas_block(ib).or.mpl%msv%isnoti(bpar%cv_block(ib))) then
+      write(mpl%info,'(a7,a,a,a)') '','Block ',trim(bpar%blockname(ib)),':'
       call mpl%flush
-   end if
-   write(mpl%info,'(a10,a,l1)') '','HDIAG block:                     ',bpar%diag_block(ib)
-   call mpl%flush
-   write(mpl%info,'(a10,a,l1)') '','Averaging block:                 ',bpar%avg_block(ib)
-   call mpl%flush
-   write(mpl%info,'(a10,a,l1)') '','Fit block:                       ',bpar%fit_block(ib)
-   call mpl%flush
-   write(mpl%info,'(a10,a,l1)') '','B-involved block:                ',bpar%B_block(ib)
-   call mpl%flush
-   write(mpl%info,'(a10,a,l1)') '','NICAS block:                     ',bpar%nicas_block(ib)
-   call mpl%flush
-   if (mpl%msv%isnoti(bpar%cv_block(ib))) then
-      write(mpl%info,'(a10,a,i3)') '','Control variable block index:  ',bpar%cv_block(ib)
+      write(mpl%info,'(a10,a,i3)') '','Effective number of levels:    ',bpar%nl0r(ib)
       call mpl%flush
+      write(mpl%info,'(a10,a,i3)') '','Maximum class:                 ',bpar%nc3(ib)
+      call mpl%flush
+      if ((iv>0).and.(jv>0)) then
+         write(mpl%info,'(a10,a,l1)') '','Vertical balance block:          ',bpar%vbal_block(iv,jv)
+         call mpl%flush
+      end if
+      write(mpl%info,'(a10,a,l1)') '','HDIAG block:                     ',bpar%diag_block(ib)
+      call mpl%flush
+      write(mpl%info,'(a10,a,l1)') '','Averaging block:                 ',bpar%avg_block(ib)
+      call mpl%flush
+      write(mpl%info,'(a10,a,l1)') '','Fit block:                       ',bpar%fit_block(ib)
+      call mpl%flush
+      write(mpl%info,'(a10,a,l1)') '','B-involved block:                ',bpar%B_block(ib)
+      call mpl%flush
+      write(mpl%info,'(a10,a,l1)') '','NICAS block:                     ',bpar%nicas_block(ib)
+      call mpl%flush
+      if (mpl%msv%isnoti(bpar%cv_block(ib))) then
+         write(mpl%info,'(a10,a,i3)') '','Control variable block index:  ',bpar%cv_block(ib)
+         call mpl%flush
+      end if
    end if
 end do
 

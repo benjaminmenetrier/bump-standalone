@@ -11,7 +11,7 @@ use fckit_geometry_module, only: sphere_distance,sphere_lonlat2xyz,sphere_xyz2lo
 use tools_asa007, only: asa007_cholesky,asa007_syminv
 use tools_const, only: pi,deg2rad,rad2deg
 use tools_kinds, only: kind_real
-use tools_repro, only: inf,sup
+use tools_repro, only: inf,sup,infeq
 use type_mpl, only: mpl_type
 
 implicit none
@@ -25,7 +25,7 @@ integer,parameter :: M = 0                            ! Number of implicit itera
 private
 public :: gc2gau,gau2gc,Dmin,M
 public :: lonlatmod,sphere_dist,reduce_arc,lonlat2xyz,xyz2lonlat,vector_product,vector_triple_product,add,divide, &
-        & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,lct_h2r,lct_r2d,check_cond,cholesky,syminv
+        & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,lct_h2r,lct_r2d,check_cond,cholesky,syminv,histogram
 
 contains
 
@@ -964,5 +964,72 @@ deallocate(apack)
 deallocate(cpack)
 
 end subroutine syminv
+
+!----------------------------------------------------------------------
+! Subroutine: histogram
+! Purpose: compute bins and histogram from a list of values
+!----------------------------------------------------------------------
+subroutine histogram(mpl,nlist,list,nbins,bins,hist)
+
+implicit none
+
+! Passed variables
+type(mpl_type),intent(inout) :: mpl          ! MPI data
+integer,intent(in) :: nlist                  ! List size
+real(kind_real),intent(in) :: list(nlist)    ! List
+integer,intent(in) :: nbins                  ! Number of bins
+real(kind_real),intent(out) :: bins(nbins+1) ! Bins
+real(kind_real),intent(out) :: hist(nbins)   ! Histogram
+
+! Local variables
+integer :: ibins,ilist
+real(kind_real) :: delta
+character(len=1024) :: subr = 'histogram'
+
+! Check data
+if (nbins<=0) call mpl%abort(subr,'the number of bins should be positive')
+if (mpl%msv%isallr(list)) then
+   bins = mpl%msv%valr
+   hist = mpl%msv%valr
+   return
+end if
+
+! Compute bins
+delta = (maxval(list,mask=mpl%msv%isnotr(list))-minval(list,mask=mpl%msv%isnotr(list)))/real(nbins,kind_real)
+if (delta>0.0) then
+   bins(1) = minval(list,mask=mpl%msv%isnotr(list))
+   do ibins=2,nbins
+      bins(ibins) = minval(list,mask=mpl%msv%isnotr(list))+real(ibins-1,kind_real)*delta
+   end do
+   bins(nbins+1) = maxval(list,mask=mpl%msv%isnotr(list))
+else
+   bins = mpl%msv%valr
+   hist = mpl%msv%valr
+   return
+end if
+
+! Extend first and last bins
+bins(1) = bins(1)-1.0e-6*delta
+bins(nbins+1) = bins(nbins+1)+1.0e-6*delta
+
+! Compute histogram
+hist = 0.0
+do ilist=1,nlist
+   if (mpl%msv%isnotr(list(ilist))) then
+      do ibins=1,nbins
+         if (infeq(bins(ibins),list(ilist)).and.inf(list(ilist),bins(ibins+1))) then
+            hist(ibins) = hist(ibins)+1.0
+            exit
+         end if
+      end do
+   end if
+end do
+if (abs(sum(hist)-real(count(mpl%msv%isnotr(list)),kind_real))>0.5) &
+ & call mpl%abort(subr,'histogram sum is not equal to the number of valid elements')
+
+! Normalization
+hist = hist/real(count(mpl%msv%isnotr(list)),kind_real)
+
+end subroutine histogram
 
 end module tools_func

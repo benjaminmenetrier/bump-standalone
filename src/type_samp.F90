@@ -10,7 +10,7 @@ module type_samp
 use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
-use tools_const, only: pi,req,deg2rad,rad2deg
+use tools_const, only: pi,req,reqkm,deg2rad,rad2deg
 use tools_func, only: gc99,sphere_dist
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
@@ -32,8 +32,6 @@ implicit none
 integer,parameter :: irmax = 10000                           ! Maximum number of random number draws
 real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req ! Length-scale to increase sampling density along coasts
 real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to increase sampling density along coasts
-integer,parameter :: ncontigth = 0                           ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
-logical,parameter :: forced_points = .true.                  ! Force boundary points into subsampling
 
 ! Sampling derived type
 type samp_type
@@ -245,8 +243,7 @@ logical,intent(out) :: new_sampling    ! Status flag
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
-integer :: nl0_test,nl0r_test,nc_test,nc1_test,nc2_test,nc2_1_test,nc2_2_test
-integer :: info,ncid,nl0_id,nc3_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id
+integer :: info,ncid,nl0_id,nl0r_id,nc3_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id
 integer :: c1_to_c0_id,c1l0_log_id,c1c3_to_c0_id,c1c3l0_log_id
 integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,nn_c2_index_id,nn_c2_dist_id
 integer :: c1l0_logint(nam%nc1,geom%nl0),c1c3l0_logint(nam%nc1,nam%nc3,geom%nl0)
@@ -266,39 +263,22 @@ if (info/=nf90_noerr) then
 end if
 
 ! Check dimensions
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nl0',nl0_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nl0_id,len=nl0_test))
-call mpl%ncerr(subr,nf90_get_att(ncid,nf90_global,'nl0r',nl0r_test))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc3',nc3_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc3_id,len=nc_test))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc1',nc1_id))
-call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc1_id,len=nc1_test))
+nl0_id = mpl%ncdimcheck(subr,ncid,'nl0',geom%nl0,.false.)
+nl0r_id = mpl%ncdimcheck(subr,ncid,'nl0r',bpar%nl0rmax,.false.)
+nc3_id = mpl%ncdimcheck(subr,ncid,'nc3',nam%nc3,.false.)
+nc1_id = mpl%ncdimcheck(subr,ncid,'nc1',nam%nc1,.false.)
 if (nam%new_lct.or.nam%local_diag.or.nam%adv_diag) then
-   info = nf90_inq_dimid(ncid,'nc2',nc2_id)
-   if (info==nf90_noerr) then
-      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2_id,len=nc2_test))
-   else
-      call mpl%warning(subr,'cannot find nc2 when reading sampling, recomputing sampling')
-      call mpl%ncerr(subr,nf90_close(ncid))
-      new_sampling = .true.
-      return
-   end if
+   nc2_id = mpl%ncdimcheck(subr,ncid,'nc2',nam%nc2,.false.)
+else
+   nc2_id = 0
 end if
-if ((geom%nl0/=nl0_test).or.(bpar%nl0rmax/=nl0r_test).or.(nam%nc3/=nc_test).or.(nam%nc1/=nc1_test)) then
+if (mpl%msv%isi(nl0_id).or.mpl%msv%isi(nl0r_id).or.mpl%msv%isi(nc3_id).or.mpl%msv%isi(nc1_id) &
+ & .or.mpl%msv%isi(nc2_id)) then
    call mpl%warning(subr,'wrong dimension when reading sampling, recomputing sampling')
    call mpl%ncerr(subr,nf90_close(ncid))
    new_sampling = .true.
    return
 end if
-if (nam%new_lct.or.nam%local_diag.or.nam%adv_diag) then
-   if (nam%nc2/=nc2_test) then
-      call mpl%warning(subr,'wrong dimension when reading sampling, recomputing sampling')
-      call mpl%ncerr(subr,nf90_close(ncid))
-      new_sampling = .true.
-      return
-   end if
-end if
-
 write(mpl%info,'(a7,a)') '','Read sampling'
 call mpl%flush
 
@@ -361,11 +341,9 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv
    end if
 
    ! Check dimensions
-   call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc1',nc1_id))
-   call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc1_id,len=nc1_test))
-   call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc2',nc2_1_id))
-   call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2_1_id,len=nc2_1_test))
-   if ((nam%nc1/=nc1_test).or.(nam%nc2/=nc2_1_test)) then
+   nc1_id = mpl%ncdimcheck(subr,ncid,'nc1',nam%nc1,.false.)
+   nc2_id = mpl%ncdimcheck(subr,ncid,'nc2',nam%nc2,.false.)
+   if (mpl%msv%isi(nc1_id).or.mpl%msv%isi(nc2_2_id)) then
       call mpl%warning(subr,'wrong dimension when reading sampling, recomputing sampling')
       call mpl%ncerr(subr,nf90_close(ncid))
       new_sampling = .true.
@@ -443,11 +421,9 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv
       end if
 
       ! Check dimensions
-      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc2_1',nc2_1_id))
-      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2_1_id,len=nc2_1_test))
-      call mpl%ncerr(subr,nf90_inq_dimid(ncid,'nc2_2',nc2_2_id))
-      call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nc2_2_id,len=nc2_2_test))
-      if ((nam%nc2/=nc2_1_test).or.(nam%nc2/=nc2_2_test)) then
+      nc2_1_id = mpl%ncdimcheck(subr,ncid,'nc2_1',nam%nc2,.false.)
+      nc2_2_id = mpl%ncdimcheck(subr,ncid,'nc2_2',nam%nc2,.false.)
+      if (mpl%msv%isi(nc2_1_id).or.mpl%msv%isi(nc2_2_id)) then
          call mpl%warning(subr,'wrong dimension when reading sampling, recomputing sampling')
          call mpl%ncerr(subr,nf90_close(ncid))
          new_sampling = .true.
@@ -495,7 +471,7 @@ type(bpar_type),intent(in) :: bpar  ! Block parameters
 
 ! Local variables
 integer :: il0,il0i,ic1,jc3,ic2
-integer :: ncid,nl0_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id,nc3_id
+integer :: ncid,nl0_id,nl0r_id,nc1_id,nc2_id,nc2_1_id,nc2_2_id,nc3_id
 integer :: lat_id,lon_id,smax_id,c1_to_c0_id,c1l0_log_id,c1c3_to_c0_id,c1c3l0_log_id
 integer :: c2_to_c1_id,c2_to_c0_id,vbal_mask_id,local_mask_id,nn_c2_index_id,nn_c2_dist_id
 integer :: c1l0_logint(nam%nc1,geom%nl0),c1c3l0_logint(nam%nc1,nam%nc3,geom%nl0)
@@ -517,7 +493,7 @@ call nam%write(mpl,ncid)
 
 ! Define dimensions
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0',geom%nl0,nl0_id))
-call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'nl0r',bpar%nl0rmax))
+call mpl%ncerr(subr,nf90_def_dim(ncid,'nl0r',bpar%nl0rmax,nl0r_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc3',nam%nc3,nc3_id))
 call mpl%ncerr(subr,nf90_def_dim(ncid,'nc1',nam%nc1,nc1_id))
 if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv_diag))) &
@@ -984,13 +960,8 @@ logical :: valid,mask_c0a(geom%nc0a,geom%nl0)
 character(len=1024),parameter :: subr = 'samp_compute_mask'
 
 ! Compute sampling mask
-if (min(ncontigth,geom%nl0)>0) then
-   write(mpl%info,'(a7,a,i3,a)') '','Compute sampling mask with at least ',min(ncontigth,geom%nl0),' vertically contiguous points'
-   call mpl%flush
-else
-   write(mpl%info,'(a7,a)') '','Compute sampling mask'
-   call mpl%flush
-end if
+write(mpl%info,'(a7,a)') '','Compute sampling mask'
+call mpl%flush
 
 ! Copy geometry mask
 mask_c0a = geom%mask_c0a
@@ -998,9 +969,11 @@ if (allocated(geom%smask_c0a)) mask_c0a = mask_c0a.and.geom%smask_c0a
 
 ! Mask restriction
 if (nam%mask_type(1:3)=='lat') then
-   ! Latitude mask
+   ! Latitude band
    read(nam%mask_type(4:6),'(i3)') latmin
    read(nam%mask_type(7:9),'(i3)') latmax
+   write(mpl%info,'(a10,a,i3,a,i3)') '','Latitude band between ',latmin,' and ',latmax
+   call mpl%flush
    if (latmin>=latmax) call mpl%abort(subr,'latmin should be lower than latmax')
    do ic0a=1,geom%nc0a
       ic0 = geom%c0a_to_c0(ic0a)
@@ -1010,7 +983,9 @@ if (nam%mask_type(1:3)=='lat') then
       end do
    end do
 elseif (trim(nam%mask_type)=='ldwv') then
-   ! Compute distance to the vertical diagnostic points
+   ! Disk around vertical diagnostic points
+   write(mpl%info,'(a10,a,e10.3,a)') '','Disk of ',1.1*nam%local_rad*reqkm,' km around vertical diagonstic points'
+   call mpl%flush
    do ic0a=1,geom%nc0a
       ic0 = geom%c0a_to_c0(ic0a)
       valid = .false.
@@ -1023,6 +998,10 @@ elseif (trim(nam%mask_type)=='ldwv') then
       end do
    end do
 elseif (trim(nam%mask_type)=='stddev') then
+   ! Standard-deviation threshold
+   write(mpl%info,'(a10,a,e10.3,a)') '','Threshold ',nam%mask_th,' used as a '//trim(nam%mask_lu)//' bound for standard-deviation'
+   call mpl%flush
+
    ! Allocation
    allocate(var(geom%nc0a,geom%nl0,nam%nv,nam%nts))
 
@@ -1033,10 +1012,16 @@ elseif (trim(nam%mask_type)=='stddev') then
    end do
    var = var/real(ens%ne-ens%nsub,kind_real)
 
-   ! Check whether standard-deviation is over the threshold
+   ! Check standard-deviation value
    do its=1,nam%nts
       do iv=1,nam%nv
-         mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
+         if (trim(nam%mask_lu)=='lower') then
+            mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
+         elseif (trim(nam%mask_lu)=='upper') then
+            mask_c0a = mask_c0a.and.(var(:,:,iv,its)<nam%mask_th**2)
+         else
+            call mpl%abort(subr,'mask_lu not recognized')
+         end if
       end do
    end do
 
@@ -1049,7 +1034,9 @@ else
 end if
 
 ! Check vertically contiguous points
-if (ncontigth>0) then
+if (nam%ncontig_th>0) then
+   write(mpl%info,'(a10,a,i3,a)') '','Mask restricted with at least ',min(nam%ncontig_th,geom%nl0),' vertically contiguous points'
+   call mpl%flush
    do ic0a=1,geom%nc0a
       ncontig = 0
       ncontigmax = 0
@@ -1061,7 +1048,7 @@ if (ncontigth>0) then
          end if
          if (ncontig>ncontigmax) ncontigmax = ncontig
       end do
-      mask_c0a(ic0a,:) = mask_c0a(ic0a,:).and.(ncontigmax>min(ncontigth,geom%nl0))
+      mask_c0a(ic0a,:) = mask_c0a(ic0a,:).and.(ncontigmax>=min(nam%ncontig_th,geom%nl0))
    end do
 end if
 
@@ -1149,12 +1136,10 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
 
    ! Count forced points
    samp%nfor = 0
-   if (forced_points) then
-      do ib=1,geom%mesh%nb
-         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-         if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
-      end do
-   end if
+   do ib=1,geom%mesh%nb
+      ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+      if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
+   end do
    do ildwv=1,nam%nldwv
       ic0 = samp%ldwv_to_c0(ildwv)
       valid = .true.
@@ -1178,16 +1163,14 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
       ! Allocation
       ifor = 0
 
-      if (forced_points) then
-         ! Add boundary points
-         do ib=1,geom%mesh%nb
-            ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-            if (samp%mask_hor_c0(ic0)) then
-               ifor = ifor+1
-               for(ifor) = ic0
-            end if
-         end do
-      end if
+      ! Add boundary points
+      do ib=1,geom%mesh%nb
+         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
+         if (samp%mask_hor_c0(ic0)) then
+            ifor = ifor+1
+            for(ifor) = ic0
+         end if
+      end do
 
       ! Add local diagnostic profiles
       do ildwv=1,nam%nldwv
