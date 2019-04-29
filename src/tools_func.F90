@@ -988,7 +988,7 @@ character(len=1024) :: subr = 'histogram'
 
 ! Check data
 if (nbins<=0) call mpl%abort(subr,'the number of bins should be positive')
-if (mpl%msv%isallr(list)) then
+if (count(mpl%msv%isnotr(list))<1) then
    bins = mpl%msv%valr
    hist = mpl%msv%valr
    return
@@ -1024,8 +1024,8 @@ do ilist=1,nlist
       end do
    end if
 end do
-if (abs(sum(hist)-real(count(mpl%msv%isnotr(list)),kind_real))>0.5) &
- & call mpl%abort(subr,'histogram sum is not equal to the number of valid elements')
+!if (abs(sum(hist)-real(count(mpl%msv%isnotr(list)),kind_real))>0.5) &
+! & call mpl%abort(subr,'histogram sum is not equal to the number of valid elements')
 
 ! Normalization
 hist = hist/real(count(mpl%msv%isnotr(list)),kind_real)
