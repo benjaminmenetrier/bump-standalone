@@ -15,9 +15,9 @@
 | subroutine | [fit_diag_dble](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L416) | compute diagnostic fit function |
 | function | [gc99](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L565) | Gaspari and Cohn (1999) function, with the support radius as a parameter |
 | subroutine | [fit_lct](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L598) | LCT fit |
-| subroutine | [lct_d2h](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L670) | inversion from D (Daley tensor) to H (local correlation tensor) |
-| subroutine | [lct_h2r](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L712) | inversion from H (local correlation tensor) to support radii |
-| subroutine | [lct_r2d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L763) | conversion from support radius to Daley tensor diagonal element |
+| subroutine | [lct_d2h](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L670) | from D (Daley tensor) to H (local correlation tensor) |
+| subroutine | [lct_h2r](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L712) | from H (local correlation tensor) to support radii |
+| subroutine | [lct_r2d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L763) | from support radius to Daley tensor diagonal element |
 | subroutine | [check_cond](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L780) | check tensor conditioning |
 | function | [matern](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L821) | compute the normalized diffusion function from eq. (55) of Mirouze and Weaver (2013), for the 3d case (d = 3) |
 | subroutine | [cholesky](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/tools_func.F90#L864) | compute cholesky decomposition |

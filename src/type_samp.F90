@@ -710,7 +710,7 @@ samp%c1c3_to_c0 = mpl%msv%vali
 
 ! Compute nearest neighbors for local diagnostics output
 if (nam%nldwv>0) then
-   write(mpl%info,'(a7,a)') '','Compute nearest neighbors for local diagnostics output'
+   write(mpl%info,'(a7,a)') '','Compute local diagnostics locations:'
    call mpl%flush
 
    ! Allocation
@@ -722,9 +722,22 @@ if (nam%nldwv>0) then
       ic0 = 0
       do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
          ic0 = ic0+1
-         call geom%tree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0))
-         if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
+         if (nam%ic0_ldwv(ildw)>0) then
+            if (nam%ic0_ldwv(ildw)<=geom%nc0) then
+               ! Based on subset Sc0 index
+               samp%ldwv_to_c0(ildw) = ic0
+            else
+               call mpl%abort(subr,'subset Sc0 index is positive but too large')
+            end if
+         else
+            ! Based on lat/lon
+            call geom%tree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0))
+            if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
+         end if
       end do
+      write(mpl%info,'(a10,a,i3,a,i8,a,f6.1,a,f6.1)') '','Profile ',ildw,' at Sc0 index ',samp%ldwv_to_c0(ildw),': ', &
+    & geom%lon(samp%ldwv_to_c0(ildw))*rad2deg,' / ',geom%lat(samp%ldwv_to_c0(ildw))*rad2deg
+      call mpl%flush
    end do
 end if
 

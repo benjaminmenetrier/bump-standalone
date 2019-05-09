@@ -12,7 +12,6 @@ diag
 dirac
 local_diag_cor
 local_diag_loc
-local_diag_ncor
 nicas-2-sqrt_0001-0001_01_01_01_01
 obs_0001-0001
 sampling_001

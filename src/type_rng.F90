@@ -478,9 +478,25 @@ if (mpl%main) then
    elseif (nval==ns) then
       write(mpl%info,'(a)') ' all points are used'
       call mpl%flush
+
+      ! Allocation
+      allocate(lmask(n))
+
+      ! Initialization
+      lmask = mask
       is = 0
+
+      ! Forced points
+      do ifor=1,nfor
+         is = is+1
+         ir = for(ifor)
+         ihor(ifor) = ir
+         lmask(ir) = .false.
+      end do
+
+      ! Other points
       do i=1,n
-         if (mask(i)) then
+         if (lmask(i)) then
             is = is+1
             ihor(is) = i
          end if
@@ -514,7 +530,7 @@ if (mpl%main) then
       lfast = .false.
       if (present(fast)) lfast = fast
 
-      ! Boundary nodes
+      ! Forced points
       do ifor=1,nfor
          ir = for(ifor)
          irval = mpl%msv%vali

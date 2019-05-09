@@ -19,7 +19,6 @@ type mom_blk_type
    real(kind_real),allocatable :: m2_2(:,:,:,:)   ! Variance
    real(kind_real),allocatable :: m11(:,:,:,:,:)  ! Covariance
    real(kind_real),allocatable :: m22(:,:,:,:,:)  ! Fourth-order centered moment
-   real(kind_real),allocatable :: m2full(:,:,:)   ! Full variance
 end type mom_blk_type
 
 private

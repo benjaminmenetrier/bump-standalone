@@ -519,7 +519,7 @@ do its=2,nam%nts
       call mpl%loc_to_glb(samp%nc2a,adv%lon_c2a_raw(:,il0,its),nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lon_c2)
       call mpl%loc_to_glb(samp%nc2a,adv%lat_c2a_raw(:,il0,its),nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lat_c2)
       if (mpl%main) then
-         mesh = samp%mesh%copy()
+         call mesh%copy(samp%mesh)
          call mesh%store(mpl,lon_c2,lat_c2)
          call mesh%check(mpl,valid_c2)
       end if
@@ -648,7 +648,7 @@ do its=2,nam%nts
          call mpl%loc_to_glb(samp%nc2a,lon_c2a,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lon_c2)
          call mpl%loc_to_glb(samp%nc2a,lat_c2a,nam%nc2,samp%c2_to_proc,samp%c2_to_c2a,.false.,lat_c2)
          if (mpl%main) then
-            mesh = samp%mesh%copy()
+            call mesh%copy(samp%mesh)
             call mesh%store(mpl,lon_c2,lat_c2)
             call mesh%check(mpl,valid_c2)
          end if

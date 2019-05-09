@@ -164,12 +164,21 @@ if (nam%diag_rhflt>0.0) then
    call lct%samp%compute_mpi_f(mpl,nam,geom)
 end if
 
-! Compute sample moments
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Compute sample moments'
-call mpl%flush
-call lct%mom%compute(mpl,nam,geom,bpar,lct%samp,ens)
+if (nam%new_mom) then
+   ! Compute sample moments
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Compute sample moments'
+   call mpl%flush
+   call lct%mom%compute(mpl,nam,geom,bpar,lct%samp,ens,'mom')
+else
+   ! Load sample moments
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Load sample moments'
+   call mpl%flush
+   call lct%mom%read(mpl,nam,geom,bpar,lct%samp,ens,'mom')
+end if
 
 ! Compute LCT
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

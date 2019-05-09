@@ -7,7 +7,7 @@
 | subroutine | [diag%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L120) | write |
 | subroutine | [diag%] [fit_filter](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L225) | filter fit diagnostics |
 | subroutine | [diag%] [covariance](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L361) | compute covariance |
-| subroutine | [diag%] [correlation](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L417) | compute correlation |
-| subroutine | [diag%] [localization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L524) | compute diagnostic localization |
-| subroutine | [diag%] [hybridization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L606) | compute diagnostic hybridization |
-| subroutine | [diag%] [dualens](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L688) | compute diagnostic dualens |
+| subroutine | [diag%] [correlation](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L418) | compute correlation |
+| subroutine | [diag%] [localization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L515) | compute diagnostic localization |
+| subroutine | [diag%] [hybridization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L597) | compute diagnostic hybridization |
+| subroutine | [diag%] [dualens](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag.F90#L679) | compute diagnostic dualens |

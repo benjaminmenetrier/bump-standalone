@@ -669,7 +669,7 @@ end subroutine fit_lct
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_d2h
-! Purpose: inversion from D (Daley tensor) to H (local correlation tensor)
+! Purpose: from D (Daley tensor) to H (local correlation tensor)
 !----------------------------------------------------------------------
 subroutine lct_d2h(mpl,D11,D22,D33,D12,H11,H22,H33,H12)
 
@@ -711,7 +711,7 @@ end subroutine lct_d2h
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_h2r
-! Purpose: inversion from H (local correlation tensor) to support radii
+! Purpose: from H (local correlation tensor) to support radii
 !----------------------------------------------------------------------
 subroutine lct_h2r(mpl,H11,H22,H33,H12,rh,rv)
 
@@ -762,7 +762,7 @@ end subroutine lct_h2r
 
 !----------------------------------------------------------------------
 ! Subroutine: lct_r2d
-! Purpose: conversion from support radius to Daley tensor diagonal element
+! Purpose: from support radius to Daley tensor diagonal element
 !----------------------------------------------------------------------
 subroutine lct_r2d(r,D)
 

@@ -396,6 +396,7 @@ do ib=1,bpar%nb
             ic2 = 0
          end if
          diag%blk(ic2a,ib)%raw = avg%blk(ic2,ib)%m11
+         diag%blk(ic2a,ib)%valid = avg%blk(ic2,ib)%nc1a
       end do
 
       ! Print results
@@ -435,11 +436,9 @@ character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
 integer :: ib,ic2a,ic2,il0
-type(diag_type) :: ndiag
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.true.)
-call ndiag%alloc(mpl,nam,geom,bpar,samp,'n'//trim(prefix),.false.)
 
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
@@ -475,12 +474,10 @@ do ib=1,bpar%nbe
 
          ! Copy
          diag%blk(ic2a,ib)%raw = avg%blk(ic2,ib)%cor
+         diag%blk(ic2a,ib)%valid = avg%blk(ic2,ib)%nc1a_cor
 
          ! Fitting
          if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
-
-         ! Number of valid couples
-         if (ic2a==0) ndiag%blk(ic2a,ib)%raw = avg%blk(ic2a,ib)%nc1a_cor
 
          ! Update
          call mpl%prog_print(ic2a+1)
@@ -510,14 +507,8 @@ end do
 ! Filtering
 call diag%fit_filter(mpl,nam,geom,bpar,samp)
 
-if (nam%write_hdiag) then
-   ! Write
-   call diag%write(mpl,nam,geom,bpar,io,samp)
-   call ndiag%write(mpl,nam,geom,bpar,io,samp)
-end if
-
-! Release memory
-call ndiag%dealloc
+! Write
+if (nam%write_hdiag) call diag%write(mpl,nam,geom,bpar,io,samp)
 
 end subroutine diag_correlation
 
@@ -607,7 +598,7 @@ end subroutine diag_localization
 ! Subroutine: diag_hybridization
 ! Purpose: compute diagnostic hybridization
 !----------------------------------------------------------------------
-subroutine diag_hybridization(diag,mpl,nam,geom,bpar,io,samp,avg,avg_sta,prefix)
+subroutine diag_hybridization(diag,mpl,nam,geom,bpar,io,samp,avg,prefix)
 
 implicit none
 
@@ -620,7 +611,6 @@ type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(io_type),intent(in) :: io         ! I/O
 type(samp_type),intent(in) :: samp     ! Sampling
 type(avg_type),intent(in) :: avg       ! Averaged statistics
-type(avg_type),intent(in) :: avg_sta   ! Static averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
@@ -643,7 +633,7 @@ do ib=1,bpar%nbe
          else
             ic2 = 0
          end if
-         call diag%blk(ic2a,ib)%hybridization(mpl,geom,bpar,avg%blk(ic2,ib),avg_sta%blk(ic2,ib))
+         call diag%blk(ic2a,ib)%hybridization(mpl,geom,bpar,avg%blk(ic2,ib))
 
          ! Normalization
          call diag%blk(ic2a,ib)%normalization(mpl,geom,bpar,.true.)
@@ -659,7 +649,7 @@ do ib=1,bpar%nbe
       ! Print results
       do il0=1,geom%nl0
          if (mpl%msv%isnotr(diag%blk(0,ib)%raw_coef_ens(il0))) then
-            write(mpl%info,'(a13,a,i3,a4,a21,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','loc. at class zero: ', &
+            write(mpl%info,'(a13,a,i3,a4,a20,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','loc. at class zero: ', &
           & trim(mpl%peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(mpl%black)
             call mpl%flush
          end if
@@ -672,7 +662,8 @@ do ib=1,bpar%nbe
             end if
          end if
       end do
-      write(mpl%info,'(a13,a,a,f10.2,a)') '','Raw static coeff.: ',trim(mpl%purple),diag%blk(0,ib)%raw_coef_sta,trim(mpl%black)
+      write(mpl%info,'(a13,a,a,f4.2,a)') '','Raw static coeff.:                      ',trim(mpl%purple), &
+    & diag%blk(0,ib)%raw_coef_sta,trim(mpl%black)
       call mpl%flush
    end if
 end do

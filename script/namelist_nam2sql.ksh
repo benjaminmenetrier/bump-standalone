@@ -95,8 +95,10 @@ save_namelist() {
 dbname="namelist.sqlite"
 
 if test $# = 0 ; then
-   # Save all namelists
-
+   # Save all namelists, starting with default
+   suffix="default"
+   filename="../run/namelist_"${suffix}
+   save_namelist ${filename}
    for namelist in ../run/namelist_* ; do
       suffix=`echo ${namelist} | cut -c 17-`
       filename="../run/namelist_"${suffix}

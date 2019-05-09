@@ -2,15 +2,14 @@
 
 | Type | Name | Purpose |
 | :--: | :--: | :---------- |
-| subroutine | [cmat%] [alloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L59) | C matrix allocation |
-| subroutine | [cmat%] [alloc_blk](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L88) | allocation |
-| subroutine | [cmat%] [init](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L118) | C matrix initialization |
-| subroutine | [cmat%] [dealloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L146) | release memory |
-| function | [cmat%] [copy](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L173) | copy |
-| subroutine | [cmat%] [read](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L229) | read |
-| subroutine | [cmat%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L323) | write |
-| subroutine | [cmat%] [from_hdiag](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L403) | import HDIAG into C matrix |
-| subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L610) | import LCT into C matrix |
-| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L685) | import radii into C matrix |
-| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L748) | import C matrix from BUMP |
-| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L858) | setup C matrix sampling |
+| subroutine | [cmat%] [alloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L58) | C matrix allocation |
+| subroutine | [cmat%] [alloc_blk](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L87) | allocation |
+| subroutine | [cmat%] [init](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L117) | C matrix initialization |
+| subroutine | [cmat%] [dealloc](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L145) | release memory |
+| subroutine | [cmat%] [read](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L172) | read |
+| subroutine | [cmat%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L266) | write |
+| subroutine | [cmat%] [from_hdiag](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L346) | import HDIAG into C matrix |
+| subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L553) | import LCT into C matrix |
+| subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L628) | import radii into C matrix |
+| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L689) | import C matrix from BUMP |
+| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L797) | setup C matrix sampling |

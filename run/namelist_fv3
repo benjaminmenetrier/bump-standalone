@@ -2,7 +2,6 @@
 datadir = "../../../data/bump/fv3",
 prefix = "fv3",
 model = "fv3",
-verbosity = "all",
 colorlog = .true.,
 default_seed = .true.,
 /
@@ -10,29 +9,14 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-new_cortrack = .false.,
-new_vbal = .false.,
-load_vbal = .false.,
 write_vbal = .false.,
-new_hdiag = .false.,
 write_hdiag = .false.,
-new_lct = .false.,
 write_lct = .false.,
-load_cmat = .false.,
 write_cmat = .false.,
-new_nicas = .false.,
 load_nicas = .true.,
 write_nicas = .false.,
-new_obsop = .false.,
-load_obsop = .false.,
 write_obsop = .false.,
-check_adjoints = .false.,
-check_pos_def = .false.,
 check_dirac = .true.,
-check_randomization = .false.,
-check_consistency = .false.,
-check_optimality = .false.,
-check_obsop = .false.,
 /
 
 &model_param
@@ -41,7 +25,6 @@ levs = 35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,5
 logpres = .true.,
 nv = 1,
 varname = "T",
-addvar2d = "",
 nts = 1,
 timeslot = 1,
 /
@@ -52,19 +35,12 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 0,
 ens2_nsub = 1,
 /
 
 &sampling_param
-sam_write = .false.,
 sam_read = .true.,
-mask_type = "none",
-mask_lu = "lower",
 mask_th = 0,
-ncontig_th = 0,
-mask_check = .false.,
-draw_type = "random_uniform",
 nc1 = 3500,
 nc2 = 500,
 ntry = 3,
@@ -76,46 +52,25 @@ nl0r = 7,
 
 &diag_param
 ne = 10,
-gau_approx = .false.,
-avg_nbins = 0,
-vbal_block = .false.,
 vbal_rad = 1000.0e3,
-var_filter = .false.,
-var_niter = 0,
-var_rhflt = 0.0,
-var_full = .false.,
-local_diag = .false.,
 local_rad = 1000.0e3,
-adv_diag = .false.,
 adv_rad = 1000.0e3,
 adv_niter = 10,
 adv_rhflt = 500.0e3,
 /
 
 &fit_param
-minim_algo = "hooke",
-double_fit = .false.,
-lhomh = .false.,
-lhomv = .false.,
-rvflt = 0.0,
-lct_nscales = 0,
 lct_diag = .true.,
 /
 
 &nicas_param
-nonunit_diag = .false.,
-lsqrt = .true.,
 resol = 10.0,
-fast_sampling = .false.,
 subsamp = "hvh",
-nicas_interp = "bilin",
 network = .true.,
 mpicom = 2,
-adv_mode = 0,
 forced_radii = .true.,
 rh = 2500.0e3,
 rv = 0.3,
-write_grids = .false.,
 ndir = 1,
 londir = 72.0,
 latdir = 32.28,
@@ -131,19 +86,8 @@ obsop_interp = "natural",
 /
 
 &output_param
-nldwh = 0,
-il_ldwh = 0,
-ic_ldwh = 0,
-nldwv = 0,
-lon_ldwv = 0.0,
-lat_ldwv = 0.0,
-name_ldwv = "",
 diag_rhflt = 500.0e3,
-diag_interp = "bilin",
-field_io = .true.,
-split_io = .false.,
 grid_output = .true.,
 grid_resol = 50.0e3,
-grid_interp = "bilin",
 /
 

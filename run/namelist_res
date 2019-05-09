@@ -2,7 +2,6 @@
 datadir = "../../../data/bump/res",
 prefix = "res",
 model = "res",
-verbosity = "all",
 colorlog = .true.,
 default_seed = .true.,
 /
@@ -10,35 +9,17 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "specific_univariate",
-new_cortrack = .false.,
-new_vbal = .false.,
-load_vbal = .false.,
 write_vbal = .false.,
 new_hdiag = .true.,
-write_hdiag = .true.,
-new_lct = .false.,
 write_lct = .false.,
-load_cmat = .false.,
 write_cmat = .false.,
-new_nicas = .false.,
-load_nicas = .false.,
 write_nicas = .false.,
-new_obsop = .false.,
-load_obsop = .false.,
 write_obsop = .false.,
-check_adjoints = .false.,
-check_pos_def = .false.,
-check_dirac = .false.,
-check_randomization = .false.,
-check_consistency = .false.,
-check_optimality = .false.,
-check_obsop = .false.,
 /
 
 &model_param
 nl = 5,
 levs = 1,2,3,4,5,
-logpres = .false.,
 nv = 4,
 varname = "POROSITY","NET_TO_GROSS_RATIO","PERM_I","FIPNUM",
 addvar2d = "","","","",
@@ -52,23 +33,14 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 0,
 ens2_nsub = 1,
 /
 
 &sampling_param
-sam_write = .false.,
-sam_read = .false.,
-mask_type = "none",
-mask_lu = "lower",
 mask_th = 0,
-ncontig_th = 0,
-mask_check = .false.,
-draw_type = "random_uniform",
 nc1 = 1500,
 nc2 = 500,
 ntry = 30,
-nrep = 0,
 nc3 = 20,
 dc = 50.0,
 nl0r = 5,
@@ -76,52 +48,21 @@ nl0r = 5,
 
 &diag_param
 ne = 101,
-gau_approx = .false.,
-avg_nbins = 0,
-vbal_block = .false.,
 vbal_rad = 0.0e3,
-var_filter = .false.,
-var_niter = 0,
-var_rhflt = 0.0,
-var_full = .false.,
 local_diag = .true.,
 local_rad = 1.0e3,
-adv_diag = .false.,
 adv_rad = 0.0e3,
-adv_niter = 0,
 adv_rhflt = 0.0e3,
 /
 
 &fit_param
-minim_algo = "hooke",
-double_fit = .false.,
-lhomh = .false.,
-lhomv = .false.,
-rvflt = 0.0,
-lct_nscales = 0,
 lct_diag = .true.,
 /
 
 &nicas_param
-nonunit_diag = .false.,
-lsqrt = .true.,
 resol = 8.0,
-fast_sampling = .false.,
 subsamp = "hvh",
-nicas_interp = "bilin",
-network = .false.,
 mpicom = 2,
-adv_mode = 0,
-forced_radii = .false.,
-rh = 0.0,
-rv = 0.0,
-write_grids = .false.,
-ndir = 0,
-londir = 0.0,
-latdir = 0.0,
-levdir = 0,
-ivdir = 0,
-itsdir = 0,
 /
 
 &obsop_param
@@ -131,19 +72,11 @@ obsop_interp = "natural",
 /
 
 &output_param
-nldwh = 0,
-il_ldwh = 0,
-ic_ldwh = 0,
 nldwv = 5,
 lon_ldwv = 84.895126444825820,84.882319066403127,84.894194181368690,84.891136597810728,84.904473057859164,
 lat_ldwv = 7.2904688099050023,7.2829864254462890,7.2644155397222407,7.2752575961254031,7.2731982236701826,
 name_ldwv = "I1","I2","P1","P2","P3",
 diag_rhflt = 500.0e3,
-diag_interp = "bilin",
-field_io = .true.,
-split_io = .false.,
-grid_output = .false.,
 grid_resol = 200.0e3,
-grid_interp = "bilin",
 /
 

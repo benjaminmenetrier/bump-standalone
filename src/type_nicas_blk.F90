@@ -58,7 +58,7 @@ type nicas_blk_type
    character(len=1024) :: name                     ! Name
    character(len=1024) :: subsamp                  ! Subsampling structure
    logical :: double_fit                           ! Double fit
-   logical :: anisotropic                          ! Anisoptropic tensor
+   logical :: anisotropic                          ! Anisotropic tensor
 
    ! Specific geometry
    integer :: nc1                                  ! Number of points in subset Sc1
@@ -726,7 +726,7 @@ if (geom%mesh%nb>0) then
       deallocate(lat_masked)
    else
       ! Copy mesh
-      mesh = geom%mesh%copy()
+      call mesh%copy(geom%mesh)
       do ic0=1,geom%nc0
          masked_to_full(ic0) = ic0
       end do
@@ -1735,11 +1735,11 @@ if (nicas_blk%anisotropic) then
    allocate(H33_c1a(nicas_blk%nc1a,nicas_blk%nl1))
    allocate(H12_c1a(nicas_blk%nc1a,nicas_blk%nl1))
    allocate(Hcoef_c1a(nicas_blk%nc1a,nicas_blk%nl1))
-   allocate(Hcoef_c1(nicas_blk%nc1,nicas_blk%nl1))
    allocate(nicas_blk%H11_c1(nicas_blk%nc1,nicas_blk%nl1))
    allocate(nicas_blk%H22_c1(nicas_blk%nc1,nicas_blk%nl1))
    allocate(nicas_blk%H33_c1(nicas_blk%nc1,nicas_blk%nl1))
    allocate(nicas_blk%H12_c1(nicas_blk%nc1,nicas_blk%nl1))
+   allocate(Hcoef_c1(nicas_blk%nc1,nicas_blk%nl1))
    allocate(nicas_blk%Hcoef(nicas_blk%nsbb))
 end if
 
@@ -1943,7 +1943,7 @@ if (nicas_blk%anisotropic) deallocate(nicas_blk%Hcoef)
 
 if (nam%lsqrt) then
    ! Copy
-   nicas_blk%c = ctmp%copy()
+   call nicas_blk%c%copy(ctmp)
 else
    ! Compute convolution inverse mapping
    allocate(inec(nicas_blk%ns))
@@ -2177,7 +2177,7 @@ do ic1_loc=1,nc1_loc(mpl%myproc)
             dx = geom%lon(jc0)-geom%lon(ic0)
             dy = geom%lat(jc0)-geom%lat(ic0)
             call lonlatmod(dx,dy)
-            dx = dx*cos(geom%lat(ic0))
+            dx = dx*cos(0.5*(geom%lat(ic0)+geom%lat(jc0)))
          else
             ! Compute horizontal distance
             call sphere_dist(geom%lon(ic0),geom%lat(ic0),geom%lon(jc0),geom%lat(jc0),dnb)
@@ -2458,7 +2458,7 @@ do isbb=1,nicas_blk%nsbb
                   dx = geom%lon(jc0)-geom%lon(ic0)
                   dy = geom%lat(jc0)-geom%lat(ic0)
                   call lonlatmod(dx,dy)
-                  dx = dx*cos(geom%lat(ic0))
+                  dx = dx*cos(0.5*(geom%lat(ic0)+geom%lat(jc0)))
                   dz = geom%vunit_c0(ic0,il0)-geom%vunit_c0(jc0,jl0)
                   H11 = 0.5*(nicas_blk%H11_c1(ic1,il1)+nicas_blk%H11_c1(jc1,jl1))
                   H22 = 0.5*(nicas_blk%H22_c1(ic1,il1)+nicas_blk%H22_c1(jc1,jl1))

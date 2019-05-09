@@ -38,8 +38,11 @@ generate_namelist() {
          # Loop over keys/values
          i=1
          while [[ ${i} -lt ${n} ]] ; do
-            printf ${keys[$i]}" = "${values[$i]}"," >> ${filename}
-            printf "\n" >> ${filename}
+            value_def=`sqlite3 -header -column ${dbname}  "select ${keys[$i]} from ${table} where name=='default'" | sed -n 3p | sed -e 's/[[:space:]]*$//'`
+            if test "${values[$i]}" != "${value_def}" || test "${suffix}" = "default" ; then
+               printf ${keys[$i]}" = "${values[$i]}"," >> ${filename}
+               printf "\n" >> ${filename}
+            fi
             let i=i+1
          done
 
@@ -57,7 +60,6 @@ dbname="namelist.sqlite"
 # Get tables and order them alphabetically
 list=`sqlite3 ${dbname} ".tables"`
 tables=`for t in ${list};do echo ${t};done | sort`
-
 if test $# = 0 ; then
    # Generate all namelists
    table=`echo ${tables} | gawk '{print $1}'`

@@ -2,7 +2,6 @@
 datadir = "../../../data/bump/arp/877D",
 prefix = "arp_877D",
 model = "arp",
-verbosity = "all",
 colorlog = .true.,
 default_seed = .true.,
 /
@@ -10,29 +9,11 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-new_cortrack = .false.,
-new_vbal = .false.,
-load_vbal = .false.,
 write_vbal = .false.,
 new_hdiag = .true.,
-write_hdiag = .true.,
-new_lct = .false.,
 write_lct = .false.,
-load_cmat = .false.,
-write_cmat = .true.,
-new_nicas = .false.,
-load_nicas = .false.,
 write_nicas = .false.,
-new_obsop = .false.,
-load_obsop = .false.,
 write_obsop = .false.,
-check_adjoints = .false.,
-check_pos_def = .false.,
-check_dirac = .false.,
-check_randomization = .false.,
-check_consistency = .false.,
-check_optimality = .false.,
-check_obsop = .false.,
 /
 
 &model_param
@@ -52,23 +33,15 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_ne = 0,
 ens2_nsub = 1,
 /
 
 &sampling_param
-sam_write = .false.,
 sam_read = .true.,
-mask_type = "none",
-mask_lu = "lower",
 mask_th = 0,
-ncontig_th = 0,
-mask_check = .false.,
-draw_type = "random_uniform",
 nc1 = 3500,
 nc2 = 3500,
 ntry = 30,
-nrep = 0,
 nc3 = 50,
 dc = 100.0e3,
 nl0r = 1,
@@ -76,15 +49,10 @@ nl0r = 1,
 
 &diag_param
 ne = 50,
-gau_approx = .false.,
-avg_nbins = 0,
 vbal_block = .false.,.false.,false.,
 vbal_rad = 3000.0e3,
-var_filter = .false.,
 var_niter = 10,
 var_rhflt = 500.0e3,
-var_full = .false.,
-local_diag = .false.,
 local_rad = 3000.0e3,
 adv_diag = .true.,
 adv_rad = 1000.0e3,
@@ -93,29 +61,16 @@ adv_rhflt = 100.0e3,
 /
 
 &fit_param
-minim_algo = "hooke",
-double_fit = .false.,
-lhomh = .false.,
-lhomv = .false.,
-rvflt = 0.0,
 lct_nscales = 1,
-lct_diag = .false.,
 /
 
 &nicas_param
-nonunit_diag = .false.,
-lsqrt = .true.,
 resol = 6.0,
 fast_sampling = .true.,
 subsamp = "hvh",
-nicas_interp = "bilin",
-network = .false.,
 mpicom = 2,
-adv_mode = 0,
-forced_radii = .false.,
 rh = 2500.0e3,
 rv = 0.05,
-write_grids = .false.,
 ndir = 132,
 londir = -165.0,-135.0,-105.0,-75.0,-45.0,-15.0,15.0,45.0,75.0,105.0,135.0,165.0,-165.0,-135.0,-105.0,-75.0,-45.0,-15.0,15.0,45.0,75.0,105.0,135.0,165.0,-165.0,-135.0,-105.0,-75.0,-45.0,-15.0,15.0,45.0,75.0,105.0,135.0,165.0,-165.0,-135.0,-105.0,-75.0,-45.0,-15.0,15.0,45.0,75.0,105.0,135.0,165.0,-165.0,-135.0,-105.0,-75.0,-45.0,-15.0,15.0,4,
 latdir = -75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-75.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-60.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-45.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-30.0,-15.0,-15.0,-15.0,-15.0,-15.0,-15.0,-15.0,-15,
@@ -127,23 +82,11 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 &obsop_param
 nobs = 100,
 obsdis = "adjusted",
-obsop_interp = "bilin",
 /
 
 &output_param
-nldwh = 0,
-il_ldwh = 0,
-ic_ldwh = 0,
-nldwv = 0,
-lon_ldwv = 0.0,
-lat_ldwv = 0.0,
-name_ldwv = "",
 diag_rhflt = 1000.0e3,
-diag_interp = "bilin",
-field_io = .true.,
-split_io = .false.,
 grid_output = .true.,
 grid_resol = 100.0e3,
-grid_interp = "bilin",
 /
 

@@ -378,8 +378,11 @@ write(mpl%info,'(a)') '--- Compute MPI distribution, halos A-B'
 call mpl%flush
 call vbal%samp%compute_mpi_ab(mpl,nam,geom)
 
+! Allocation
+call ensu%alloc(nam,geom,ens%ne,ens%nsub)
+
 ! Copy ensemble
-ensu = ens%copy(nam,geom)
+call ensu%copy(ens)
 
 ! Allocation
 allocate(fld_1(vbal%samp%nc1a,geom%nl0))
