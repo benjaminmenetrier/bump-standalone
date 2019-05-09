@@ -408,9 +408,10 @@ if ((ic2==0).or.nam%local_diag) then
       do isub=1,avg_blk%nsub
          do il0=1,geom%nl0
             jl0r = bpar%il0rz(il0,ib)
-            avg_blk%m2(il0,isub) = sum(mom_blk%m2_1(:,1,il0,isub))/real(nam%nc1,kind_real)
-            if (nam%var_filter.and.(.not.nam%gau_approx)) avg_blk%m4(il0,isub) = sum(mom_blk%m22(:,1,jl0r,il0,isub)) &
-                                                                               & /real(nam%nc1,kind_real)
+            avg_blk%m2(il0,isub) = sum(mom_blk%m2_1(:,il0,isub),mask=mpl%msv%isnotr(mom_blk%m2_1(:,il0,isub))) &
+                                 & /real(count(samp%c1l0_log(:,il0)),kind_real)
+            if (nam%var_filter.and.(.not.nam%gau_approx)) avg_blk%m4(il0,isub) = sum(mom_blk%m22(:,1,jl0r,il0,isub), &
+          & mask=mpl%msv%isnotr(mom_blk%m22(:,1,jl0r,il0,isub)))/real(count(samp%c1l0_log(:,il0)),kind_real)
          end do
       end do
    else
@@ -422,7 +423,7 @@ if ((ic2==0).or.nam%local_diag) then
             do isub=1,avg_blk%nsub
                do il0=1,geom%nl0
                   jl0r = bpar%il0rz(il0,ib)
-                  avg_blk%m2(il0,isub) = mom_blk%m2_1(ic1a,1,il0,isub)
+                  avg_blk%m2(il0,isub) = mom_blk%m2_1(ic1a,il0,isub)
                   if (nam%var_filter.and.(.not.nam%gau_approx)) avg_blk%m4(il0,isub) = mom_blk%m22(ic1a,1,jl0r,il0,isub)
                end do
             end do
@@ -469,7 +470,7 @@ if ((ic2==0).or.nam%local_diag) then
                   valid = samp%c1l0_log(ic1,il0).and.samp%c1c3l0_log(ic1,jc3,jl0)
                   if (ic2>0) valid = valid.and.samp%local_mask(ic1,ic2)
                   if (trim(nam%mask_type)=='stddev') then
-                     m2_1 = sum(mom_blk%m2_1(ic1a,jc3,il0,:))/real(avg_blk%nsub,kind_real)
+                     m2_1 = sum(mom_blk%m2_1(ic1a,il0,:))/real(avg_blk%nsub,kind_real)
                      m2_2 = sum(mom_blk%m2_2(ic1a,jc3,jl0,:))/real(avg_blk%nsub,kind_real)
                      if (trim(nam%mask_lu)=='lower') then
                         valid = valid.and.(m2_1>nam%mask_th**2).and.(m2_2>nam%mask_th**2)
@@ -489,19 +490,18 @@ if ((ic2==0).or.nam%local_diag) then
                      do isub=1,avg_blk%nsub
                         do jsub=1,avg_blk%nsub
                            list_m11m11(nc1a,jsub,isub) = mom_blk%m11(ic1a,jc3,jl0r,il0,isub)*mom_blk%m11(ic1a,jc3,jl0r,il0,jsub)
-                           list_m2m2(nc1a,jsub,isub) = mom_blk%m2_1(ic1a,jc3,il0,isub)*mom_blk%m2_2(ic1a,jc3,jl0,jsub)
+                           list_m2m2(nc1a,jsub,isub) = mom_blk%m2_1(ic1a,il0,isub)*mom_blk%m2_2(ic1a,jc3,jl0,jsub)
                         end do
                         if (.not.nam%gau_approx) list_m22(nc1a,isub) = mom_blk%m22(ic1a,jc3,jl0r,il0,isub)
                      end do
 
                      ! Correlation
-                     m2_1 = sum(mom_blk%m2_1(ic1a,jc3,il0,:))/real(avg_blk%nsub,kind_real)
+                     m2_1 = sum(mom_blk%m2_1(ic1a,il0,:))/real(avg_blk%nsub,kind_real)
                      m2_2 = sum(mom_blk%m2_2(ic1a,jc3,jl0,:))/real(avg_blk%nsub,kind_real)
                      if ((m2_1>0.0).and.(m2_2>0.0)) then
                         list_cor(nc1a) = list_m11(nc1a)/sqrt(m2_1*m2_2)
                         if (sup(abs(list_cor(nc1a)),1.0_kind_real)) list_cor(nc1a) = mpl%msv%valr
                      else
-                        call mpl%warning(subr,'variances are not positive, consider using a stddev mask')
                         list_cor(nc1a) = mpl%msv%valr
                      end if
                   end if

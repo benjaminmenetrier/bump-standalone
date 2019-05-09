@@ -1,48 +1,27 @@
 &general_param
-datadir = NULL,
 prefix = "bump_${XPID}",
-model = NULL,
-colorlog = NULL,
 default_seed = .true.,
 /
 
 &driver_param
 method = "loc",
 strategy = "common",
-write_vbal = .false.,
 new_hdiag = _NEW_HDIAG_,
-write_hdiag = _NEW_HDIAG_,
-write_lct = .false.,
 new_nicas = _NEW_PARAM_,
-write_nicas = .false.,
-write_obsop = .false.,
 check_adjoints = .true.,
 /
 
 &model_param
-nl = NULL,
-levs = NULL,
-logpres = NULL,
-nv = NULL,
-varname = NULL,
-addvar2d = NULL,
-nts = NULL,
-timeslot = NULL,
 /
 
 &ens1_param
-ens1_ne = NULL,
-ens1_nsub = NULL,
 /
 
 &ens2_param
-ens2_ne = NULL,
-ens2_nsub = NULL,
 /
 
 &sampling_param
 sam_read = .true.,
-mask_th = 0,
 nc1 = 3000,
 nc2 = 500,
 ntry = 3,
@@ -57,40 +36,21 @@ ne = _NBE_LOC_,
 vbal_rad = 500.0e3,
 local_diag = .true.,
 local_rad = 500.0e3,
-adv_rad = NULL,
-adv_niter = NULL,
-adv_rhflt = NULL,
 /
 
 &fit_param
 rvflt = 2.0,
-lct_diag = .true.,
 /
 
 &nicas_param
 resol = 8.0,
 subsamp = "hvh",
 mpicom = 2,
-londir = NULL,
-latdir = NULL,
-levdir = NULL,
-ivdir = NULL,
-itsdir = NULL,
 /
 
 &obsop_param
-nobs = NULL,
-obsdis = NULL,
-obsop_interp = NULL,
 /
 
 &output_param
-il_ldwh = NULL,
-ic_ldwh = NULL,
-lon_ldwv = NULL,
-lat_ldwv = NULL,
-field_io = .false.,
-grid_resol = NULL,
-grid_interp = NULL,
 /
 

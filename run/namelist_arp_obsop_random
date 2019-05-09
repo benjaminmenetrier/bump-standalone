@@ -9,12 +9,7 @@ default_seed = .true.,
 &driver_param
 method = "cor",
 strategy = "common",
-write_vbal = .false.,
-write_hdiag = .false.,
-write_lct = .false.,
-write_nicas = .false.,
 new_obsop = .true.,
-write_obsop = .false.,
 /
 
 &model_param
@@ -23,21 +18,17 @@ levs = 1,
 logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE",
-addvar2d = "","",
 nts = 1,
 /
 
 &ens1_param
-ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
 sam_read = .true.,
-mask_th = 0,
 nc1 = 3000,
 nc2 = 500,
 ntry = 3,
@@ -50,16 +41,11 @@ nl0r = 15,
 &diag_param
 ne = 50,
 vbal_rad = 500.0e3,
-local_rad = 500.0e3,
-adv_rad = 3000.0e3,
-adv_niter = 10,
-adv_rhflt = 500.0e3,
 /
 
 &fit_param
 minim_algo = "fast",
 rvflt = 2.0,
-lct_diag = .true.,
 /
 
 &nicas_param
@@ -81,7 +67,6 @@ obsdis = "random",
 /
 
 &output_param
-diag_rhflt = 3000.0e3,
 grid_output = .true.,
 grid_resol = 200.0e3,
 /

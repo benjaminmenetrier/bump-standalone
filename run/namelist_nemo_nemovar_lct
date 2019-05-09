@@ -9,11 +9,7 @@ default_seed = .true.,
 &driver_param
 method = "cor",
 strategy = "specific_univariate",
-write_vbal = .false.,
-write_hdiag = .false.,
 new_lct = .true.,
-write_nicas = .false.,
-write_obsop = .false.,
 /
 
 &model_param
@@ -31,12 +27,10 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
 sam_read = .true.,
-mask_th = 0,
 nc1 = 1000,
 nc2 = 1000,
 ntry = 30,
@@ -48,15 +42,10 @@ nl0r = 4,
 &diag_param
 ne = 11,
 vbal_rad = 0.0e3,
-local_rad = 2000.0e3,
-adv_rad = 0.0e3,
-adv_niter = 10,
-adv_rhflt = 0.0e3,
 /
 
 &fit_param
 lct_nscales = 1,
-lct_diag = .true.,
 /
 
 &nicas_param
@@ -74,13 +63,8 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,1,
 /
 
 &obsop_param
-nobs = 200,
-obsdis = "random",
-obsop_interp = "natural",
 /
 
 &output_param
-diag_rhflt = 500.0e3,
-grid_resol = 100.0e3,
 /
 

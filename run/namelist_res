@@ -9,12 +9,7 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "specific_univariate",
-write_vbal = .false.,
 new_hdiag = .true.,
-write_lct = .false.,
-write_cmat = .false.,
-write_nicas = .false.,
-write_obsop = .false.,
 /
 
 &model_param
@@ -28,17 +23,16 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 101,
+ens1_ne = 10,
 ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
-mask_th = 0,
-nc1 = 1500,
+mask_type = "ldwv",
+nc1 = 1000,
 nc2 = 500,
 ntry = 30,
 nc3 = 20,
@@ -47,36 +41,23 @@ nl0r = 5,
 /
 
 &diag_param
-ne = 101,
-vbal_rad = 0.0e3,
+ne = 10,
 local_diag = .true.,
 local_rad = 1.0e3,
-adv_rad = 0.0e3,
-adv_rhflt = 0.0e3,
 /
 
 &fit_param
-lct_diag = .true.,
 /
 
 &nicas_param
-resol = 8.0,
-subsamp = "hvh",
-mpicom = 2,
 /
 
 &obsop_param
-nobs = 200,
-obsdis = "random",
-obsop_interp = "natural",
 /
 
 &output_param
 nldwv = 5,
-lon_ldwv = 84.895126444825820,84.882319066403127,84.894194181368690,84.891136597810728,84.904473057859164,
-lat_ldwv = 7.2904688099050023,7.2829864254462890,7.2644155397222407,7.2752575961254031,7.2731982236701826,
+img_ldwv = 1043,2007,2283,1934,1382,
 name_ldwv = "I1","I2","P1","P2","P3",
-diag_rhflt = 500.0e3,
-grid_resol = 200.0e3,
 /
 

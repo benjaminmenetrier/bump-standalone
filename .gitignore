@@ -10,5 +10,8 @@ run/bump
 # Listings
 run/*.out
 
+# Namelist SQLite database save
+script/namelist.sqlite_save
+
 # Test
 test/test_*.nc

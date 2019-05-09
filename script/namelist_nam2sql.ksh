@@ -72,9 +72,6 @@ save_namelist() {
                   value=`echo ${line} | cut -d"=" -f 2 | cut -c 2-`
                   value=${value%','}
                   value=`echo ${value} | sed -e "s/'/\\\\\"/g"`
-                  if test ${value} == "" ; then
-                     value="NULL"
-                  fi
                   if test -z  "${newrecord}" ; then
                      keys=${keys}","${key}
                      values=${values}",'"${value}"'"

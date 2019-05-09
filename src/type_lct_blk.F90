@@ -193,8 +193,8 @@ do jsub=1,mom_blk%nsub
          do jc3=1,nam%nc3
             do ic1a=1,samp%nc1a
                ic1 = samp%c1a_to_c1(ic1a)
-               if (samp%c1l0_log(ic1,il0)) then
-                  den = mom_blk%m2_1(ic1a,jc3,il0,jsub)*mom_blk%m2_2(ic1a,jc3,jl0,jsub)
+               if (samp%c1l0_log(ic1,il0).and.samp%c1c3l0_log(ic1,jc3,jl0)) then
+                  den = mom_blk%m2_1(ic1a,il0,jsub)*mom_blk%m2_2(ic1a,jc3,jl0,jsub)
                   if (den>0.0) then
                      lct_blk%raw(jc3,jl0r,ic1a,il0) = lct_blk%raw(jc3,jl0r,ic1a,il0)+mom_blk%m11(ic1a,jc3,jl0r,il0,jsub)/sqrt(den)
                      norm_raw(jc3,jl0r,ic1a,il0) = norm_raw(jc3,jl0r,ic1a,il0)+1.0
@@ -208,7 +208,7 @@ do jsub=1,mom_blk%nsub
       do ic1a=1,samp%nc1a
          ic1 = samp%c1a_to_c1(ic1a)
          if (samp%c1l0_log(ic1,il0)) then
-            lct_blk%m2(ic1a,il0) = lct_blk%m2(ic1a,il0)+mom_blk%m2_1(ic1a,1,il0,jsub)
+            lct_blk%m2(ic1a,il0) = lct_blk%m2(ic1a,il0)+mom_blk%m2_1(ic1a,il0,jsub)
             norm_m2(ic1a,il0) = norm_m2(ic1a,il0)+1.0
          end if
       end do

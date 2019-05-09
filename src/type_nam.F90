@@ -155,7 +155,7 @@ type nam_type
    integer :: il_ldwh(nlmax*nc3max)                     ! Levels of local diagnostics fields to write (for local_diag = .true.)
    integer :: ic_ldwh(nlmax*nc3max)                     ! Classes of local diagnostics fields to write (for local_diag = .true.)
    integer :: nldwv                                     ! Number of local diagnostics profiles to write (for local_diag = .true.)
-   integer ::  ic0_ldwv(nldwvmax)                       ! Index in Sc0 subset of the local diagnostics profiles to write
+   integer ::  img_ldwv(nldwvmax)                       ! Index on model grid of the local diagnostics profiles to write
    real(kind_real) ::  lon_ldwv(nldwvmax)               ! Longitudes (in degrees) of the local diagnostics profiles to write
    real(kind_real) ::  lat_ldwv(nldwvmax)               ! Latitudes (in degrees) of the local diagnostics profiles to write
    character(len=1024),dimension(nldwvmax) :: name_ldwv ! Name of the local diagnostics profiles to write
@@ -331,7 +331,7 @@ nam%nldwh = 0
 nam%il_ldwh = 0
 nam%ic_ldwh = 0
 nam%nldwv = 0
-nam%ic0_ldwv = 0
+nam%img_ldwv = 0
 nam%lon_ldwv = 0.0
 nam%lat_ldwv = 0.0
 do ildwv=1,nldwvmax
@@ -368,7 +368,7 @@ character(len=1024),parameter :: subr = 'nam_read'
 integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_nsub,ens2_ne,ens2_nsub
 integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,ne,avg_nbins,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir,levdir(ndirmax)
-integer :: ivdir(ndirmax),itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,ic0_ldwv(nldwvmax),ildwv
+integer :: ivdir(ndirmax),itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,img_ldwv(nldwvmax),ildwv
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat
 logical :: write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def
@@ -399,7 +399,7 @@ namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
                    & write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
-namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,ic0_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
+namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
                     & grid_output,grid_resol,grid_interp
 
 if (mpl%main) then
@@ -539,7 +539,7 @@ if (mpl%main) then
    il_ldwh = 0
    ic_ldwh = 0
    nldwv = 0
-   ic0_ldwv = 0
+   img_ldwv = 0
    lon_ldwv = 0.0
    lat_ldwv = 0.0
    do ildwv=1,nldwvmax
@@ -709,7 +709,7 @@ if (mpl%main) then
    end if
    nam%nldwv = nldwv
    if (nldwv>0) then
-      nam%ic0_ldwv(1:nldwv) = ic0_ldwv(1:nldwv)
+      nam%img_ldwv(1:nldwv) = img_ldwv(1:nldwv)
       nam%lon_ldwv(1:nldwv) = lon_ldwv(1:nldwv)
       nam%lat_ldwv(1:nldwv) = lat_ldwv(1:nldwv)
       nam%name_ldwv(1:nldwv) = name_ldwv(1:nldwv)
@@ -870,7 +870,7 @@ call mpl%f_comm%broadcast(nam%nldwh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%il_ldwh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%ic_ldwh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nldwv,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%ic0_ldwv,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%img_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lon_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%ioproc-1)
 call mpl%bcast(nam%name_ldwv,mpl%ioproc-1)
@@ -1242,7 +1242,7 @@ if (nam%new_hdiag) then
       if (nam%nldwv<0) call mpl%abort(subr,'nldwv should be non-negative')
       if (nam%nldwv>0) then
          if (.not.nam%local_diag) call mpl%abort(subr,'nldwv>0 requires local_diag')
-         if (.not.all(nam%ic0_ldwv(1:nam%nldwv)>0)) then
+         if (.not.all(nam%img_ldwv(1:nam%nldwv)>0)) then
             if (any(nam%lon_ldwv(1:nam%nldwv)<-180.0).or.any(nam%lon_ldwv(1:nam%nldwv)>180.0)) &
           & call mpl%abort(subr,'wrong lon_ldwv')
             if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call mpl%abort(subr,'wrong lat_ldwv')
@@ -1474,7 +1474,7 @@ call mpl%write(lncid,'nldwh',nam%nldwh)
 call mpl%write(lncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
 call mpl%write(lncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
 call mpl%write(lncid,'nldwv',nam%nldwv)
-call mpl%write(lncid,'ic0_ldwv',nam%nldwv,nam%ic0_ldwv(1:nam%nldwv))
+call mpl%write(lncid,'img_ldwv',nam%nldwv,nam%img_ldwv(1:nam%nldwv))
 allocate(lon_ldwv(nam%nldwv))
 allocate(lat_ldwv(nam%nldwv))
 if (nam%nldwv>0) then

@@ -9,12 +9,8 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-write_vbal = .false.,
 new_hdiag = .true.,
-write_lct = .false.,
 new_nicas = .true.,
-write_nicas = .false.,
-write_obsop = .false.,
 check_dirac = .true.,
 /
 
@@ -24,7 +20,6 @@ levs = 30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,
 logpres = .true.,
 nv = 1,
 varname = "ta","hus",
-addvar2d = "","",
 nts = 1,
 /
 
@@ -34,12 +29,10 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
 sam_read = .true.,
-mask_th = 0,
 nc1 = 3500,
 nc2 = 500,
 ntry = 3,
@@ -52,14 +45,9 @@ nl0r = 7,
 &diag_param
 ne = 10,
 vbal_rad = 1000.0e3,
-local_rad = 1000.0e3,
-adv_rad = 1000.0e3,
-adv_niter = 10,
-adv_rhflt = 500.0e3,
 /
 
 &fit_param
-lct_diag = .true.,
 /
 
 &nicas_param
@@ -75,13 +63,9 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
 
 &obsop_param
-nobs = 200,
-obsdis = "random",
-obsop_interp = "natural",
 /
 
 &output_param
-diag_rhflt = 500.0e3,
 grid_output = .true.,
 grid_resol = 200.0e3,
 /

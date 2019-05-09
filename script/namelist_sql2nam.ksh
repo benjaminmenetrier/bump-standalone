@@ -1,6 +1,6 @@
-#!/bin/ksh
+#!/bin/bash
 #----------------------------------------------------------------------
-# Korn shell script: namelist_sql2nam
+# Bash script: namelist_sql2nam
 # Author: Benjamin Menetrier
 # Licensing: this code is distributed under the CeCILL-C license
 # Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
@@ -25,12 +25,12 @@ generate_namelist() {
          printf "&"${block}"\n" >> ${filename}
 
          # Get keys
-         list=`sqlite3 -header -column ${dbname}  "select * from ${table} where name=='${suffix}'" | sed -n 1p`
-         set -A keys ${list}
+         list=`sqlite3 -header -list ${dbname}  "select * from ${table} where name=='${suffix}'" | sed -n 1p | sed 's/^|//; s/|$//; s/[ ]*|[ ]*/|/g;'`
+         IFS='|' read -ra keys <<< "$list"
 
          # Get values
-         list=`sqlite3 -header -column ${dbname}  "select * from ${table} where name=='${suffix}'" | sed -n 3p`
-         set -A values ${list}
+         list=`sqlite3 -header -list ${dbname}  "select * from ${table} where name=='${suffix}'" | sed -n 2p | sed 's/^|//; s/|$//; s/[ ]*|[ ]*/|/g;'`
+         IFS='|' read -ra values <<< "$list"
 
          # Count keys/values
          n=${#keys[@]}
@@ -38,10 +38,12 @@ generate_namelist() {
          # Loop over keys/values
          i=1
          while [[ ${i} -lt ${n} ]] ; do
-            value_def=`sqlite3 -header -column ${dbname}  "select ${keys[$i]} from ${table} where name=='default'" | sed -n 3p | sed -e 's/[[:space:]]*$//'`
-            if test "${values[$i]}" != "${value_def}" || test "${suffix}" = "default" ; then
-               printf ${keys[$i]}" = "${values[$i]}"," >> ${filename}
-               printf "\n" >> ${filename}
+            if test ! -z "${values[$i]}" ; then
+               value_def=`sqlite3 -header -column ${dbname}  "select ${keys[$i]} from ${table} where name=='default'" | sed -n 3p | sed -e 's/[[:space:]]*$//'`
+               if test "${values[$i]}" != "${value_def}" || test "${suffix}" = "default" ; then
+                  printf ${keys[$i]}" = "${values[$i]}"," >> ${filename}
+                  printf "\n" >> ${filename}
+               fi
             fi
             let i=i+1
          done

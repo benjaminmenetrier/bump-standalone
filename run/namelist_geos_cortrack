@@ -10,11 +10,6 @@ default_seed = .true.,
 method = "loc",
 strategy = "common",
 new_cortrack = .true.,
-write_vbal = .false.,
-write_hdiag = .false.,
-write_lct = .false.,
-write_nicas = .false.,
-write_obsop = .false.,
 /
 
 &model_param
@@ -33,12 +28,10 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
 sam_read = .true.,
-mask_th = 0,
 nc1 = 10000,
 nc2 = 3500,
 ntry = 30,
@@ -50,7 +43,6 @@ nl0r = 1,
 &diag_param
 ne = 32,
 vbal_rad = 1000.0e3,
-local_rad = 1000.0e3,
 adv_diag = .true.,
 adv_rad = 1000.0e3,
 adv_niter = 10,
@@ -58,7 +50,6 @@ adv_rhflt = 100.0e3,
 /
 
 &fit_param
-lct_diag = .true.,
 /
 
 &nicas_param
@@ -74,13 +65,9 @@ itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
 
 &obsop_param
-nobs = 200,
-obsdis = "random",
-obsop_interp = "natural",
 /
 
 &output_param
-diag_rhflt = 500.0e3,
 grid_output = .true.,
 grid_resol = 200.0e3,
 /

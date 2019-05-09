@@ -719,23 +719,23 @@ if (nam%nldwv>0) then
    ! Find nearest neighbors
    samp%ldwv_to_c0 = mpl%msv%vali
    do ildw=1,nam%nldwv
-      ic0 = 0
-      do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
-         ic0 = ic0+1
-         if (nam%ic0_ldwv(ildw)>0) then
-            if (nam%ic0_ldwv(ildw)<=geom%nc0) then
-               ! Based on subset Sc0 index
-               samp%ldwv_to_c0(ildw) = ic0
-            else
-               call mpl%abort(subr,'subset Sc0 index is positive but too large')
-            end if
+      if (nam%img_ldwv(ildw)>0) then
+         ! Based on model grid index
+         if (nam%img_ldwv(ildw)<=geom%nmg) then
+            samp%ldwv_to_c0(ildw) = geom%mg_to_c0(nam%img_ldwv(ildw))
          else
-            ! Based on lat/lon
+            call mpl%abort(subr,'model grid index is positive but too large')
+         end if
+      else
+         ! Based on lat/lon
+         ic0 = 0
+         do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
+            ic0 = ic0+1
             call geom%tree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0))
             if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
-         end if
-      end do
-      write(mpl%info,'(a10,a,i3,a,i8,a,f6.1,a,f6.1)') '','Profile ',ildw,' at Sc0 index ',samp%ldwv_to_c0(ildw),': ', &
+         end do
+      end if
+      write(mpl%info,'(a10,a,i3,a,f6.1,a,f6.1)') '','Profile ',ildw,' at lon/lat: ', &
     & geom%lon(samp%ldwv_to_c0(ildw))*rad2deg,' / ',geom%lat(samp%ldwv_to_c0(ildw))*rad2deg
       call mpl%flush
    end do
@@ -1003,7 +1003,7 @@ elseif (trim(nam%mask_type)=='ldwv') then
       ic0 = geom%c0a_to_c0(ic0a)
       valid = .false.
       do ildw=1,nam%nldwv
-         call sphere_dist(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),geom%lon(ic0),geom%lat(ic0),dist)
+         call sphere_dist(geom%lon(samp%ldwv_to_c0(ildw)),geom%lat(samp%ldwv_to_c0(ildw)),geom%lon(ic0),geom%lat(ic0),dist)
          valid = valid.or.(dist<1.1*nam%local_rad)
       end do
       do il0=1,geom%nl0

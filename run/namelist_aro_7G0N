@@ -9,11 +9,7 @@ default_seed = .true.,
 &driver_param
 method = "loc",
 strategy = "common",
-write_vbal = .false.,
 new_hdiag = .true.,
-write_lct = .false.,
-write_nicas = .false.,
-write_obsop = .false.,
 /
 
 &model_param
@@ -22,7 +18,6 @@ levs = 10,15,20,25,30,35,40,45,50,55,60,
 logpres = .true.,
 nv = 1,
 varname = "TEMPERATURE","HUMI_SPECIFI",
-addvar2d = "","",
 nts = 1,
 timeslot = 3,
 /
@@ -33,7 +28,6 @@ ens1_nsub = 1,
 /
 
 &ens2_param
-ens2_nsub = 1,
 /
 
 &sampling_param
@@ -53,14 +47,9 @@ nl0r = 5,
 ne = 10,
 avg_nbins = 50,
 vbal_rad = 500.0e3,
-local_rad = 500.0e3,
-adv_rad = 500.0e3,
-adv_niter = 10,
-adv_rhflt = 250.0e3,
 /
 
 &fit_param
-lct_diag = .true.,
 /
 
 &nicas_param
@@ -70,13 +59,9 @@ mpicom = 2,
 /
 
 &obsop_param
-nobs = 200,
-obsdis = "random",
-obsop_interp = "natural",
 /
 
 &output_param
-diag_rhflt = 250.0e3,
 grid_output = .true.,
 grid_resol = 200.0e3,
 /
