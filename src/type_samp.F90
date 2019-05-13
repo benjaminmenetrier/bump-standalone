@@ -735,7 +735,7 @@ if (nam%nldwv>0) then
             if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
          end do
       end if
-      write(mpl%info,'(a10,a,i3,a,f6.1,a,f6.1)') '','Profile ',ildw,' at lon/lat: ', &
+      write(mpl%info,'(a10,a,i3,a,i8,a,e15.8,a,e15.8)') '','Profile ',ildw,' at Sc0 point ',samp%ldwv_to_c0(ildw),' : lon/lat = ', &
     & geom%lon(samp%ldwv_to_c0(ildw))*rad2deg,' / ',geom%lat(samp%ldwv_to_c0(ildw))*rad2deg
       call mpl%flush
    end do

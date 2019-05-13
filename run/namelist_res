@@ -1,5 +1,5 @@
 &general_param
-datadir = "../../../data/bump/res",
+datadir = "./res",
 prefix = "res",
 model = "res",
 colorlog = .true.,
@@ -32,7 +32,7 @@ ens1_nsub = 1,
 
 &sampling_param
 mask_type = "ldwv",
-nc1 = 1000,
+nc1 = 900,
 nc2 = 500,
 ntry = 30,
 nc3 = 20,

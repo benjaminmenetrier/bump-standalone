@@ -140,7 +140,7 @@ end if
 ! BUMP setup
 call bump%setup_online(model%nmga,model%nl0,bump%nam%nv,bump%nam%nts, &
                      & model%lon_mga*rad2deg,model%lat_mga*rad2deg,model%area_mga*req**2,model%vunit_mga,model%mask_mga, &
-                     & smask=model%smask_mga, &
+                     & smask=model%smask_mga,mga_to_mg=model%mga_to_mg, &
                      & ens1_ne=model%ens1_ne,ens1_nsub=model%ens1_nsub,ens2_ne=model%ens2_ne,ens2_nsub=model%ens2_nsub, &
                      & nobs=model%nobsa,lonobs=model%lonobs*rad2deg,latobs=model%latobs*rad2deg, &
                      & lunit=mpl%lunit,msvali=mpl%msv%vali,msvalr=mpl%msv%valr)

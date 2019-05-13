@@ -39,7 +39,7 @@ type model_type
    integer,allocatable :: mg_to_tile(:)          ! Model grid to tile index
 
    ! Coordinates
-   real(kind_real),allocatable :: lon(:)
+   real(kind_real),allocatable :: lon(:)         ! TODO
    real(kind_real),allocatable :: lat(:)
    real(kind_real),allocatable :: area(:)
    real(kind_real),allocatable :: vunit(:,:)
@@ -49,6 +49,7 @@ type model_type
    integer :: nmga
    integer,allocatable :: mg_to_proc(:)
    integer,allocatable :: mg_to_mga(:)
+   integer,allocatable :: mga_to_mg(:)
 
    ! Local coordinates
    real(kind_real),allocatable :: lon_mga(:)
@@ -167,6 +168,7 @@ if (allocated(model%area)) deallocate(model%area)
 if (allocated(model%mask)) deallocate(model%mask)
 if (allocated(model%mg_to_proc)) deallocate(model%mg_to_proc)
 if (allocated(model%mg_to_mga)) deallocate(model%mg_to_mga)
+if (allocated(model%mga_to_mg)) deallocate(model%mga_to_mg)
 if (allocated(model%lon_mga)) deallocate(model%lon_mga)
 if (allocated(model%lat_mga)) deallocate(model%lat_mga)
 if (allocated(model%area_mga)) deallocate(model%area_mga)
@@ -414,6 +416,7 @@ end if
 model%nmga = count(model%mg_to_proc==mpl%myproc)
 
 ! Allocation
+allocate(model%mga_to_mg(model%nmga))
 allocate(model%lon_mga(model%nmga))
 allocate(model%lat_mga(model%nmga))
 allocate(model%area_mga(model%nmga))
@@ -426,6 +429,7 @@ imga = 0
 do img=1,model%nmg
    if (model%mg_to_proc(img)==mpl%myproc) then
       imga = imga+1
+      model%mga_to_mg(imga) = img
       model%lon_mga(imga) = model%lon(img)
       model%lat_mga(imga) = model%lat(img)
       model%area_mga(imga) = model%area(img)

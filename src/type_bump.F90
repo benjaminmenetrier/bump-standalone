@@ -80,7 +80,7 @@ contains
 ! Subroutine: bump_setup_online
 ! Purpose: online setup
 !----------------------------------------------------------------------
-subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,gmask,smask,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
+subroutine bump_setup_online(bump,nmga,nl0,nv,nts,lon,lat,area,vunit,gmask,smask,mga_to_mg,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub, &
                            & nobs,lonobs,latobs,namelname,lunit,msvali,msvalr)
 
 implicit none
@@ -97,6 +97,7 @@ real(kind_real),intent(in) :: area(nmga)          ! Area (in m^2)
 real(kind_real),intent(in) :: vunit(nmga,nl0)     ! Vertical unit
 logical,intent(in) :: gmask(nmga,nl0)             ! Geometry mask
 logical,intent(in),optional :: smask(nmga,nl0)    ! Sampling mask
+integer,intent(in),optional :: mga_to_mg(nmga)    ! Specific model grid ordering
 integer,intent(in),optional :: ens1_ne            ! Ensemble 1 size
 integer,intent(in),optional :: ens1_nsub          ! Ensemble 1 number of sub-ensembles
 integer,intent(in),optional :: ens2_ne            ! Ensemble 2 size
@@ -205,7 +206,11 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 call bump%mpl%flush
 write(bump%mpl%info,'(a)') '--- Initialize geometry'
 call bump%mpl%flush
-call bump%geom%setup(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,gmask)
+if (present(mga_to_mg)) then
+   call bump%geom%setup(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,gmask,mga_to_mg)
+else
+   call bump%geom%setup(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,gmask)
+end if
 if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 
 if (bump%nam%grid_output) then

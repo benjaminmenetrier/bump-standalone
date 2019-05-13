@@ -28,8 +28,8 @@ use type_rng, only: rng_type
 
 implicit none
 
-integer,parameter :: ne_rand = 300          ! Ensemble size for randomization
-integer,parameter :: nfac = 10              ! Number of length-scale factors
+integer,parameter :: ne_rand = 50           ! Ensemble size for randomization
+integer,parameter :: nfac = 5               ! Number of length-scale factors
 integer,parameter :: ntest = 100            ! Number of tests
 logical,parameter :: pos_def_test = .false. ! Positive-definiteness test
 
@@ -176,7 +176,7 @@ type(bpar_type),intent(in) :: bpar       ! Block parameters
 integer :: ib,il0i,il1,its,il0
 integer :: info
 integer :: ncid,nl0_id,nc0a_id,nc1b_id,nl1_id,nsa_id,nsb_id,nc0d_id,nc0dinv_id
-integer :: vlev_id,sb_to_c1b_id,sb_to_l1_id,sa_to_sc_id,sb_to_sc_id,norm_id,coef_ens_id
+integer :: vlev_id,sb_to_c1b_id,sb_to_l1_id,sa_to_s_id,sa_to_sc_id,sb_to_sc_id,norm_id,coef_ens_id
 integer :: vlev_int(geom%nl0)
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'nicas_read'
@@ -230,6 +230,7 @@ do ib=1,bpar%nbe
          allocate(nicas%blk(ib)%vlev(geom%nl0))
          if (nicas%blk(ib)%nsb>0) allocate(nicas%blk(ib)%sb_to_c1b(nicas%blk(ib)%nsb))
          if (nicas%blk(ib)%nsb>0) allocate(nicas%blk(ib)%sb_to_l1(nicas%blk(ib)%nsb))
+         if (nicas%blk(ib)%nsa>0) allocate(nicas%blk(ib)%sa_to_s(nicas%blk(ib)%nsa))
          if (nicas%blk(ib)%nsa>0) allocate(nicas%blk(ib)%sa_to_sc(nicas%blk(ib)%nsa))
          if (nicas%blk(ib)%nsb>0) allocate(nicas%blk(ib)%sb_to_sc(nicas%blk(ib)%nsb))
          allocate(nicas%blk(ib)%norm(geom%nc0a,geom%nl0))
@@ -247,6 +248,7 @@ do ib=1,bpar%nbe
          call mpl%ncerr(subr,nf90_inq_varid(ncid,'vlev',vlev_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,'sb_to_c1b',sb_to_c1b_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,'sb_to_l1',sb_to_l1_id))
+         if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,'sa_to_s',sa_to_s_id))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,'sa_to_sc',sa_to_sc_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_inq_varid(ncid,'sb_to_sc',sb_to_sc_id))
          call mpl%ncerr(subr,nf90_inq_varid(ncid,'norm',norm_id))
@@ -267,6 +269,7 @@ do ib=1,bpar%nbe
          end do
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_get_var(ncid,sb_to_c1b_id,nicas%blk(ib)%sb_to_c1b))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_get_var(ncid,sb_to_l1_id,nicas%blk(ib)%sb_to_l1))
+         if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_get_var(ncid,sa_to_s_id,nicas%blk(ib)%sa_to_s))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_get_var(ncid,sa_to_sc_id,nicas%blk(ib)%sa_to_sc))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_get_var(ncid,sb_to_sc_id,nicas%blk(ib)%sb_to_sc))
          if (geom%nc0a>0) call mpl%ncerr(subr,nf90_get_var(ncid,norm_id,nicas%blk(ib)%norm))
@@ -327,7 +330,7 @@ type(bpar_type),intent(in) :: bpar    ! Block parameters
 ! Local variables
 integer :: ib,il0i,il1,its,il0
 integer :: ncid,nl0_id,nc0a_id,nc1b_id,nl1_id,nsa_id,nsb_id,nc0d_id,nc0dinv_id
-integer :: vlev_id,sb_to_c1b_id,sb_to_l1_id,sa_to_sc_id,sb_to_sc_id,norm_id,coef_ens_id
+integer :: vlev_id,sb_to_c1b_id,sb_to_l1_id,sa_to_s_id,sa_to_sc_id,sb_to_sc_id,norm_id,coef_ens_id
 integer :: vlev_int(geom%nl0)
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'nicas_write'
@@ -365,10 +368,12 @@ do ib=1,bpar%nbe
          call mpl%ncerr(subr,nf90_def_var(ncid,'vlev',nf90_int,(/nl0_id/),vlev_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sb_to_c1b',nf90_int,(/nsb_id/),sb_to_c1b_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sb_to_l1',nf90_int,(/nsb_id/),sb_to_l1_id))
+         if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sa_to_s',nf90_int,(/nsa_id/),sa_to_s_id))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sa_to_sc',nf90_int,(/nsa_id/),sa_to_sc_id))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_def_var(ncid,'sb_to_sc',nf90_int,(/nsb_id/),sb_to_sc_id))
          if (geom%nc0a>0) call mpl%ncerr(subr,nf90_def_var(ncid,'norm',nc_kind_real,(/nc0a_id,nl0_id/),norm_id))
          if (geom%nc0a>0) call mpl%ncerr(subr,nf90_def_var(ncid,'coef_ens',nc_kind_real,(/nc0a_id,nl0_id/),coef_ens_id))
+         if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_att(ncid,sa_to_s_id,'_FillValue',mpl%msv%vali))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_att(ncid,sa_to_sc_id,'_FillValue',mpl%msv%vali))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_att(ncid,sb_to_sc_id,'_FillValue',mpl%msv%vali))
          if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_att(ncid,norm_id,'_FillValue',mpl%msv%valr))
@@ -390,6 +395,7 @@ do ib=1,bpar%nbe
          call mpl%ncerr(subr,nf90_put_var(ncid,vlev_id,vlev_int))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_var(ncid,sb_to_c1b_id,nicas%blk(ib)%sb_to_c1b))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_var(ncid,sb_to_l1_id,nicas%blk(ib)%sb_to_l1))
+         if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_var(ncid,sa_to_s_id,nicas%blk(ib)%sa_to_s))
          if (nicas%blk(ib)%nsa>0) call mpl%ncerr(subr,nf90_put_var(ncid,sa_to_sc_id,nicas%blk(ib)%sa_to_sc))
          if (nicas%blk(ib)%nsb>0) call mpl%ncerr(subr,nf90_put_var(ncid,sb_to_sc_id,nicas%blk(ib)%sb_to_sc))
          if (geom%nc0a>0) call mpl%ncerr(subr,nf90_put_var(ncid,norm_id,nicas%blk(ib)%norm))
@@ -772,14 +778,45 @@ type(bpar_type),intent(in) :: bpar    ! Block parameters
 type(cv_type),intent(out) :: cv       ! Control vector
 
 ! Local variables
-integer :: ib
+integer :: ib,jb,ns
+integer,allocatable :: s_to_sa(:),s_to_proc(:)
+real(kind_real),allocatable :: alpha(:)
 
 ! Allocation
 call nicas%alloc_cv(mpl,bpar,cv)
 
 ! Random initialization
 do ib=1,bpar%nbe
-   if (mpl%msv%isnoti(bpar%cv_block(ib))) call rng%rand_gau(cv%blk(ib)%alpha)
+   ! CV block
+   jb = bpar%cv_block(ib)
+
+   if (mpl%msv%isnoti(jb)) then
+      ! Get total size
+      call mpl%f_comm%allreduce(nicas%blk(jb)%nsa,ns,fckit_mpi_sum())
+
+      ! Allocation
+      allocate(s_to_sa(ns))
+      allocate(s_to_proc(ns))
+
+      ! Get conversions
+      call mpl%glb_to_loc_index(nicas%blk(jb)%nsa,nicas%blk(jb)%sa_to_s,ns,s_to_sa,s_to_proc)
+
+      if (mpl%main) then
+         ! Allocation
+         allocate(alpha(ns))
+
+         ! Random vector
+         call rng%rand_gau(alpha)
+      end if
+
+      ! Global to local
+      call mpl%glb_to_loc(ns,s_to_proc,s_to_sa,alpha,nicas%blk(jb)%nsa,cv%blk(ib)%alpha)
+
+      ! Release memory
+      deallocate(s_to_sa)
+      deallocate(s_to_proc)
+      if (mpl%main) deallocate(alpha)
+   end if
 end do
 
 end subroutine nicas_random_cv
@@ -1600,7 +1637,7 @@ do its=1,nam%nts
       do il0=1,geom%nl0
          do ic0a=1,geom%nc0a
             if (geom%mask_c0a(ic0a,il0)) ens%fld(ic0a,il0,iv,its,:) = ens%fld(ic0a,il0,iv,its,:) &
-                                                                                & /std(ic0a,il0,iv,its)
+                                                                    & /std(ic0a,il0,iv,its)
          end do
       end do
    end do
@@ -1844,11 +1881,13 @@ type(io_type),intent(in) :: io        ! I/O
 
 ! Local variables
 integer :: ifac,itest,nefac(nfac),ens1_ne,iv,its
+integer :: ncid,ntest_id,nfac_id,mse_id,mse_th_id
 real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
-real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),mse(ntest,nfac),mse_th(ntest,nfac)
+real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),mse(ntest,nfac),mse_th(ntest,nfac),mse_avg,mse_th_avg
 character(len=2) :: itschar
-character(len=4) :: nechar,itestchar
+character(len=4) :: itestchar
 character(len=1024) :: filename
+character(len=1024),parameter :: subr = 'nicas_test_randomization'
 type(ens_type) :: ens
 
 ! Define test vectors
@@ -1857,25 +1896,18 @@ call mpl%flush
 call define_test_vectors(mpl,rng,nam,geom,ntest,fld_save)
 
 ! Apply NICAS to test vectors
-write(mpl%info,'(a4,a)') '','Apply NICAS to test vectors'
-call mpl%flush
+write(mpl%info,'(a4,a)') '','Apply NICAS to test vectors: '
+call mpl%flush(.false.)
+call mpl%prog_init(ntest)
 fld_ref = fld_save
 do itest=1,ntest
+   ! Apply vector
    call nicas%apply_from_sqrt(mpl,nam,geom,bpar,fld_ref(:,:,:,:,itest))
-end do
 
-! Write first 10 test vectors
-do itest=1,min(ntest,10)
-   ! Write field
-   write(itestchar,'(i4.4)') itest
-   filename = trim(nam%prefix)//'_randomize_'//itestchar
-   do its=1,nam%nts
-      write(itschar,'(i2.2)') its
-      do iv=1,nam%nv
-         call io%fld_write(mpl,nam,geom,filename,trim(nam%varname(iv))//'_ref_'//itschar,fld_ref(:,:,iv,its,itest))
-      end do
-   end do
+   ! Update
+   call mpl%prog_print(itest)
 end do
+call mpl%prog_final
 
 ! Save namelist variables
 ens1_ne = nam%ens1_ne
@@ -1884,39 +1916,40 @@ write(mpl%info,'(a4,a)') '','Test randomization for various ensemble sizes:'
 call mpl%flush
 do ifac=1,nfac
    ! Ensemble size
-   nefac(ifac) = max(int(5.0*real(ifac,kind_real)/real(nfac,kind_real)*real(ne_rand,kind_real)),3)
+   nefac(ifac) = max(int(real(ifac,kind_real)/real(nfac,kind_real)*real(ne_rand,kind_real)),3)
    nam%ens1_ne = nefac(ifac)
-   write(nechar,'(i4.4)') nefac(ifac)
+   write(mpl%info,'(a7,a,i4,a)') '','Ensemble sizes: ',nefac(ifac),' members'
+   call mpl%flush
 
    ! Randomize ensemble
+   write(mpl%info,'(a10,a)') '','Randomization'
+   call mpl%flush
    call nicas%randomize(mpl,rng,nam,geom,bpar,nefac(ifac),ens)
 
+   ! Test randomized ensemble
+   write(mpl%info,'(a10,a)') '','Apply NICAS to test vectors: '
+   call mpl%flush(.false.)
+   call mpl%prog_init(ntest)
    do itest=1,ntest
       ! Test NICAS
       fld = fld_save(:,:,:,:,itest)
       call ens%apply_bens(mpl,nam,geom,fld)
 
       ! RMSE
-      mse(itest,ifac) = sum((fld-fld_ref(:,:,:,:,itest))**2)
-      mse_th(itest,ifac) = 1.0/real(nam%ens1_ne-1,kind_real)*sum(1+fld_ref(:,:,:,:,itest)**2)
+      fld = fld-fld_ref(:,:,:,:,itest)
+      call mpl%dot_prod(fld,fld,mse(itest,ifac))
+      call mpl%dot_prod(fld_ref(:,:,:,:,itest),fld_ref(:,:,:,:,itest),mse_th(itest,ifac))
+      mse_th(itest,ifac) = 1.0/real(nam%ens1_ne-1,kind_real)*(mse_th(itest,ifac)+real(geom%nc0*geom%nl0*nam%nv*nam%nts,kind_real))
 
-      ! Write first 10 test vectors
-      if (itest<=min(ntest,10)) then
-         ! Write field
-         write(itestchar,'(i4.4)') itest
-         filename = trim(nam%prefix)//'_randomize_'//itestchar
-         do its=1,nam%nts
-            write(itschar,'(i2.2)') its
-            do iv=1,nam%nv
-               call io%fld_write(mpl,nam,geom,filename,trim(nam%varname(iv))//'_rand_'//nechar//'_'//itschar,fld(:,:,iv,its))
-            end do
-         end do
-      end if
+      ! Update
+      call mpl%prog_print(itest)
    end do
+   call mpl%prog_final
 
    ! Print scores
-   write(mpl%info,'(a7,a,i4,a,e15.8,a,e15.8)') '','Ensemble size ',nefac(ifac),', MSE (exp. / th.): ', &
- & sum(mse(:,ifac))/real(ntest,kind_real),' / ',sum(mse_th(:,ifac))/real(ntest,kind_real)
+   mse_avg = sum(mse(:,ifac))/real(ntest,kind_real)
+   mse_th_avg = sum(mse_th(:,ifac))/real(ntest,kind_real)
+   write(mpl%info,'(a10,a,e15.8,a,e15.8,a,f5.3)') '','MSE (exp. / th. / ratio): ',mse_avg,' / ',mse_th_avg,' / ',mse_avg/mse_th_avg
    call mpl%flush
 
    ! Release memory
@@ -1925,6 +1958,31 @@ end do
 
 ! Reset namelist variables
 nam%ens1_ne = ens1_ne
+
+! Create file
+filename = trim(nam%prefix)//'_randomization'
+call mpl%ncerr(subr,nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_clobber,nf90_64bit_offset),ncid))
+
+! Write namelist parameters
+call nam%write(mpl,ncid)
+
+! Define dimensions
+call mpl%ncerr(subr,nf90_def_dim(ncid,'ntest',ntest,ntest_id))
+call mpl%ncerr(subr,nf90_def_dim(ncid,'nfac',nfac,nfac_id))
+
+! Define variables
+call mpl%ncerr(subr,nf90_def_var(ncid,'mse',nc_kind_real,(/ntest_id,nfac_id/),mse_id))
+call mpl%ncerr(subr,nf90_def_var(ncid,'mse_th',nc_kind_real,(/ntest_id,nfac_id/),mse_th_id))
+
+! End definition mode
+call mpl%ncerr(subr,nf90_enddef(ncid))
+
+! Write variables
+call mpl%ncerr(subr,nf90_put_var(ncid,mse_id,mse))
+call mpl%ncerr(subr,nf90_put_var(ncid,mse_th_id,mse_th))
+
+! Close file
+call mpl%ncerr(subr,nf90_close(ncid))
 
 end subroutine nicas_test_randomization
 

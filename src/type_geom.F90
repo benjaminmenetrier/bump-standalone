@@ -191,26 +191,27 @@ end subroutine geom_dealloc
 ! Subroutine: geom_setup
 ! Purpose: setup geometry
 !----------------------------------------------------------------------
-subroutine geom_setup(geom,mpl,rng,nam,nmga,nl0,lon,lat,area,vunit,lmask)
+subroutine geom_setup(geom,mpl,rng,nam,nmga,nl0,lon,lat,area,vunit,lmask,mga_to_mg)
 
 implicit none
 
 ! Passed variables
-class(geom_type),intent(inout) :: geom        ! Geometry
-type(mpl_type),intent(inout) :: mpl           ! MPI data
-type(rng_type),intent(inout) :: rng           ! Random number generator
-type(nam_type),intent(in) :: nam              ! Namelist
-integer,intent(in) :: nmga                    ! Halo A size
-integer,intent(in) :: nl0                     ! Number of levels in subset Sl0
-real(kind_real),intent(in) :: lon(nmga)       ! Longitudes
-real(kind_real),intent(in) :: lat(nmga)       ! Latitudes
-real(kind_real),intent(in) :: area(nmga)      ! Area
-real(kind_real),intent(in) :: vunit(nmga,nl0) ! Vertical unit
-logical,intent(in) :: lmask(nmga,nl0)         ! Mask
+class(geom_type),intent(inout) :: geom         ! Geometry
+type(mpl_type),intent(inout) :: mpl            ! MPI data
+type(rng_type),intent(inout) :: rng            ! Random number generator
+type(nam_type),intent(in) :: nam               ! Namelist
+integer,intent(in) :: nmga                     ! Halo A size
+integer,intent(in) :: nl0                      ! Number of levels in subset Sl0
+real(kind_real),intent(in) :: lon(nmga)        ! Longitudes
+real(kind_real),intent(in) :: lat(nmga)        ! Latitudes
+real(kind_real),intent(in) :: area(nmga)       ! Area
+real(kind_real),intent(in) :: vunit(nmga,nl0)  ! Vertical unit
+logical,intent(in) :: lmask(nmga,nl0)          ! Mask
+integer,intent(in),optional :: mga_to_mg(nmga) ! Specific model grid ordering
 
 ! Local variables
 integer :: ic0,jc0,kc0,i,j,k,ic0a,jc3,il0,offset,iproc,img,imga,iend,ibnda
-integer,allocatable :: bnda_to_c0(:,:)
+integer,allocatable :: order(:),order_tot(:),bnda_to_c0(:,:)
 real(kind_real) :: lat_arc(2),lon_arc(2),xbnda(2),ybnda(2),zbnda(2)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:),vunit_mg(:,:),list(:)
 logical :: same_mask,init
@@ -242,7 +243,7 @@ allocate(geom%mga_to_mg(geom%nmga))
 
 ! Communication of model grid points
 if (mpl%main) then
-   ! Allocation
+   ! Receive data on ioproc
    offset = 0
    do iproc=1,mpl%nproc
       if (iproc==mpl%ioproc) then
@@ -255,7 +256,7 @@ if (mpl%main) then
             lmask_mg(offset+1:offset+geom%proc_to_nmga(iproc),il0) = lmask(:,il0)
          end do
       else
-         ! Receive data on ioproc
+         ! Receive data
          call mpl%f_comm%receive(lon_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag,status)
          call mpl%f_comm%receive(lat_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag+1,status)
          call mpl%f_comm%receive(area_mg(offset+1:offset+geom%proc_to_nmga(iproc)),iproc-1,mpl%tag+2,status)
@@ -266,7 +267,7 @@ if (mpl%main) then
          end do
       end if
 
-      !  Update offset
+      ! Update offset
       offset = offset+geom%proc_to_nmga(iproc)
    end do
 else
@@ -280,6 +281,39 @@ else
    end do
 end if
 call mpl%update_tag(3+2*geom%nl0)
+
+if (present(mga_to_mg)) then
+   ! Allocation
+   allocate(order(geom%nmg))
+   allocate(order_tot(geom%nmg))
+
+   ! Set reordering
+   offset = 0
+   order = 0
+   do iproc=1,mpl%nproc
+      if (iproc==mpl%myproc) then
+         do imga=1,geom%nmga
+            img = offset+imga
+            order(img) = mga_to_mg(imga)
+         end do
+      end if
+      offset = offset+geom%proc_to_nmga(iproc)
+   end do
+   call mpl%f_comm%allreduce(order,order_tot,fckit_mpi_sum())
+
+   ! Reorder data
+   lon_mg(order_tot) = lon_mg
+   lat_mg(order_tot) = lat_mg
+   area_mg(order_tot) = area_mg
+   do il0=1,geom%nl0
+      vunit_mg(order_tot,il0) = vunit_mg(:,il0)
+      lmask_mg(order_tot,il0) = lmask_mg(:,il0)
+   end do
+
+   ! Release memory
+   deallocate(order)
+   deallocate(order_tot)
+end if
 
 if (mpl%main) then
    ! Convert to radians

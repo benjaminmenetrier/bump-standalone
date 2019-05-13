@@ -36,7 +36,7 @@ real(kind_real),parameter :: sqrt_rfac = 0.9_kind_real    ! Square-root factor (
 real(kind_real),parameter :: sqrt_coef = 0.54_kind_real   ! Square-root factor (empirical)
 real(kind_real),parameter :: S_inf = 1.0e-2_kind_real     ! Minimum value for the convolution coefficients
 real(kind_real),parameter :: tol = 1.0e-3_kind_real       ! Positive-definiteness test tolerance
-integer,parameter :: nitermax = 50                        ! Number of iterations for the positive-definiteness test
+integer,parameter :: nitermax = 1000                      ! Number of iterations for the positive-definiteness test
 logical,parameter :: test_no_point = .false.              ! Test NICAS with no subgrid point on the last MPI task
 
 ! Ball data derived type
@@ -92,7 +92,6 @@ type nicas_blk_type
    integer,allocatable :: c1_to_proc(:)            ! Subset Sc1 to local task
    integer,allocatable :: s_to_proc(:)             ! Subgrid to local task
 
-
    ! MPI distribution
    integer :: nc1a                                 ! Number of points in subset Sc1 on halo A
    integer :: nc1bb                                ! Number of points in subset Sc1 on halo B (extended)
@@ -112,7 +111,6 @@ type nicas_blk_type
    integer,allocatable :: sa_to_l0(:)              ! Halo A, subgrid to subset Sl0
    integer,allocatable :: sa_to_sb(:)              ! Subgrid, halo A to halo B
    integer,allocatable :: sc_to_sb(:)              ! Subgrid, halo C to halo B
-   integer,allocatable :: sa_to_s(:)               ! Subgrid, halo A to global
    integer,allocatable :: s_to_sa(:)               ! Subgrid, global to halo A
    integer,allocatable :: sb_to_s(:)               ! Subgrid, halo B to global
    integer,allocatable :: s_to_sb(:)               ! Subgrid, global to halo B
@@ -159,6 +157,9 @@ type nicas_blk_type
 
    ! Valid levels
    logical,allocatable :: vlev(:)                  ! Valid levels
+
+   ! Local to global
+   integer,allocatable :: sa_to_s(:)               ! Subgrid, halo A to global
 
    ! Inter-halo conversions
    integer,allocatable :: sa_to_sc(:)              ! Subgrid, halo A to halo C
@@ -364,7 +365,6 @@ if (allocated(nicas_blk%sa_to_c0a)) deallocate(nicas_blk%sa_to_c0a)
 if (allocated(nicas_blk%sa_to_l0)) deallocate(nicas_blk%sa_to_l0)
 if (allocated(nicas_blk%sa_to_sb)) deallocate(nicas_blk%sa_to_sb)
 if (allocated(nicas_blk%sc_to_sb)) deallocate(nicas_blk%sc_to_sb)
-if (allocated(nicas_blk%sa_to_s)) deallocate(nicas_blk%sa_to_s)
 if (allocated(nicas_blk%s_to_sa)) deallocate(nicas_blk%s_to_sa)
 if (allocated(nicas_blk%sb_to_s)) deallocate(nicas_blk%sb_to_s)
 if (allocated(nicas_blk%s_to_sb)) deallocate(nicas_blk%s_to_sb)
@@ -434,6 +434,7 @@ integer :: il0,il1,its
 
 ! Release memory
 call nicas_blk%partial_dealloc
+if (allocated(nicas_blk%sa_to_s)) deallocate(nicas_blk%sa_to_s)
 if (allocated(nicas_blk%sa_to_sc)) deallocate(nicas_blk%sa_to_sc)
 if (allocated(nicas_blk%sb_to_sc)) deallocate(nicas_blk%sb_to_sc)
 call nicas_blk%c%dealloc
@@ -4161,7 +4162,7 @@ type(io_type),intent(in) :: io                ! I/O
 integer :: il0,idir
 real(kind_real) :: val,valmin_tot,valmax_tot
 real(kind_real) :: fld(geom%nc0a,geom%nl0)
-character(len=1024) :: suffix,filename
+character(len=1024) :: filename
 
 ! Associate
 associate(ib=>nicas_blk%ib)
@@ -4179,16 +4180,10 @@ else
    call nicas_blk%apply(mpl,nam,geom,fld)
 end if
 
-if (nam%lsqrt) then
-   suffix = '_sqrt'
-else
-   suffix = ''
-end if
-
 ! Write field
 filename = trim(nam%prefix)//'_dirac'
 call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
-call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_dirac'//trim(suffix),fld)
+call io%fld_write(mpl,nam,geom,filename,trim(bpar%blockname(ib))//'_dirac',fld)
 
 ! Print results
 write(mpl%info,'(a7,a)') '','Values at dirac points:'

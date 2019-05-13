@@ -674,6 +674,8 @@ do ib=1,bpar%nbe
       if ((iv/=jv).or.(its/=jts)) call mpl%abort(subr,'only diagonal blocks for cmat_from_nam')
 
       ! Copy support radii
+      cmat%blk(ib)%rh = nam%rh
+      cmat%blk(ib)%rhs = nam%rh
       cmat%blk(ib)%rv = nam%rv
       cmat%blk(ib)%rvs = nam%rv
 
