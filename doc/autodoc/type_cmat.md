@@ -11,5 +11,5 @@
 | subroutine | [cmat%] [from_hdiag](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L346) | import HDIAG into C matrix |
 | subroutine | [cmat%] [from_lct](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L553) | import LCT into C matrix |
 | subroutine | [cmat%] [from_nam](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L628) | import radii into C matrix |
-| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L689) | import C matrix from BUMP |
-| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L797) | setup C matrix sampling |
+| subroutine | [cmat%] [from_bump](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L691) | import C matrix from BUMP |
+| subroutine | [cmat%] [setup_sampling](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_cmat.F90#L799) | setup C matrix sampling |

@@ -480,7 +480,7 @@ if ((ic2==0).or.nam%local_diag) then
                         call mpl%abort(subr,'mask_lu not recognized')
                      end if
                   end if
-                  
+
                   if (valid) then
                      ! Update
                      nc1a = nc1a+1

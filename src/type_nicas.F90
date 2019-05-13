@@ -686,7 +686,7 @@ if (nam%check_randomization) then
    call mpl%flush
    write(mpl%info,'(a)') '--- Test NICAS randomization'
    call mpl%flush
-   call nicas%test_randomization(mpl,rng,nam,geom,bpar,io)
+   call nicas%test_randomization(mpl,rng,nam,geom,bpar)
 end if
 
 if (nam%check_consistency) then
@@ -1866,7 +1866,7 @@ end subroutine nicas_test_dirac
 ! Subroutine: nicas_test_randomization
 ! Purpose: test NICAS randomization method with respect to theoretical error statistics
 !----------------------------------------------------------------------
-subroutine nicas_test_randomization(nicas,mpl,rng,nam,geom,bpar,io)
+subroutine nicas_test_randomization(nicas,mpl,rng,nam,geom,bpar)
 
 implicit none
 
@@ -1877,15 +1877,12 @@ type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(inout) :: nam   ! Namelist variables
 type(geom_type),intent(in) :: geom    ! Geometry
 type(bpar_type),intent(in) :: bpar    ! Block parameters
-type(io_type),intent(in) :: io        ! I/O
 
 ! Local variables
-integer :: ifac,itest,nefac(nfac),ens1_ne,iv,its
+integer :: ifac,itest,nefac(nfac),ens1_ne
 integer :: ncid,ntest_id,nfac_id,mse_id,mse_th_id
 real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
 real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),mse(ntest,nfac),mse_th(ntest,nfac),mse_avg,mse_th_avg
-character(len=2) :: itschar
-character(len=4) :: itestchar
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'nicas_test_randomization'
 type(ens_type) :: ens
