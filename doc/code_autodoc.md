@@ -31,3 +31,34 @@ The source code is organized in six categories:
 | derived_type | [type_diag](autodoc/type_diag.md) | diagnostic derived type |
 | derived_type | [type_ens](autodoc/type_ens.md) | ensemble derived type |
 | derived_type | [type_geom](autodoc/type_geom.md) | geometry derived type |
+| derived_type | [type_hdiag](autodoc/type_hdiag.md) | hybrid diagnostics derived type |
+| derived_type | [type_io](autodoc/type_io.md) | I/O derived type |
+| derived_type | [type_lct_blk](autodoc/type_lct_blk.md) | LCT data derived type |
+| derived_type | [type_lct](autodoc/type_lct.md) | LCT data derived type |
+| derived_type | [type_linop](autodoc/type_linop.md) | linear operator derived type |
+| derived_type | [type_mesh](autodoc/type_mesh.md) | mesh derived type |
+| derived_type | [type_minim](autodoc/type_minim.md) | minimization data derived type |
+| derived_type | [type_model](autodoc/type_model.md) | model routines |
+| derived_type | [type_mom_blk](autodoc/type_mom_blk.md) | moments block derived type |
+| derived_type | [type_mom](autodoc/type_mom.md) | moments derived type |
+| derived_type | [type_mpl](autodoc/type_mpl.md) | MPI parameters derived type |
+| derived_type | [type_msv](autodoc/type_msv.md) | deal with missing values |
+| derived_type | [type_nam](autodoc/type_nam.md) | namelist derived type |
+| derived_type | [type_nicas_blk](autodoc/type_nicas_blk.md) | NICAS data block derived type |
+| derived_type | [type_nicas](autodoc/type_nicas.md) | NICAS data derived type |
+| derived_type | [type_obsop](autodoc/type_obsop.md) | observation operator data derived type |
+| derived_type | [type_rng](autodoc/type_rng.md) | random numbers generator derived type |
+| derived_type | [type_samp](autodoc/type_samp.md) | sampling derived type |
+| derived_type | [type_timer](autodoc/type_timer.md) | timer data derived type |
+| derived_type | [type_tree](autodoc/type_tree.md) | tree derived type |
+| derived_type | [type_vbal_blk](autodoc/type_vbal_blk.md) | vertical balance block derived type |
+| derived_type | [type_vbal](autodoc/type_vbal.md) | vertical balance derived type |
+| external_tools | [tools_asa007](autodoc/tools_asa007.md) | inverse of symmetric positive definite matrix routines |
+| external_tools | [tools_qsort](autodoc/tools_qsort.md) | qsort routines |
+| external_tools | [tools_stripack](autodoc/tools_stripack.md) | STRIPACK routines |
+| fckit | [fckit_geometry_module](autodoc/fckit_geometry_module.md) | fckit geometry emulator for standalone execution |
+| fckit | [fckit_kdtree_module](autodoc/fckit_kdtree_module.md) | fckit KDTree emulator for standalone execution |
+| fckit | [fckit_log_module](autodoc/fckit_log_module.md) | fckit log emulator for standalone execution |
+| fckit | [fckit_mpi_module](autodoc/fckit_mpi_module.md) | fckit MPI emulator for standalone execution |
+| fckit | [tools_kdtree2](autodoc/tools_kdtree2.md) | K-d tree routines |
+| fckit | [tools_kdtree2_pq](autodoc/tools_kdtree2_pq.md) | K-d tree priority queue routines |

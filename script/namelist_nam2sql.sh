@@ -63,7 +63,9 @@ save_namelist() {
                   sqlite3 ${dbname} "insert into ${table} (${keys}) values (${values})"
                else
                   echo "   Update data of table "${table}
-                  sqlite3 ${dbname} "update ${table} set ${update} where name = '"${suffix}"'"
+                  if  test ! -z "${update}" ; then
+                     sqlite3 ${dbname} "update ${table} set ${update} where name = '"${suffix}"'"
+                  fi
                fi
             else
                if test ! -z  "${test}" ; then
