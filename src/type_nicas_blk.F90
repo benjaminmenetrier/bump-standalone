@@ -30,8 +30,8 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max
 implicit none
 
 integer,parameter :: nc1max = 15000                       ! Maximum size of the Sc1 subset
-real(kind_real),parameter :: sqrt_r = 0.721_kind_real     ! Square-root factor (empirical)
-real(kind_real),parameter :: sqrt_r_dble = 0.86_kind_real ! Square-root factor (empirical)
+real(kind_real),parameter :: sqrt_r = 0.81_kind_real      ! Square-root factor (empirical)
+real(kind_real),parameter :: sqrt_r_dble = 0.96_kind_real ! Square-root factor (empirical)
 real(kind_real),parameter :: sqrt_rfac = 0.9_kind_real    ! Square-root factor (empirical)
 real(kind_real),parameter :: sqrt_coef = 0.54_kind_real   ! Square-root factor (empirical)
 real(kind_real),parameter :: S_inf = 1.0e-2_kind_real     ! Minimum value for the convolution coefficients

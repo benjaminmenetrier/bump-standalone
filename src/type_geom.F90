@@ -191,7 +191,7 @@ end subroutine geom_dealloc
 ! Subroutine: geom_setup
 ! Purpose: setup geometry
 !----------------------------------------------------------------------
-subroutine geom_setup(geom,mpl,rng,nam,nmga,nl0,lon,lat,area,vunit,lmask,mga_to_mg)
+subroutine geom_setup(geom,mpl,rng,nam,nmga,nl0,lon,lat,area,vunit,lmask)
 
 implicit none
 
@@ -207,11 +207,10 @@ real(kind_real),intent(in) :: lat(nmga)        ! Latitudes
 real(kind_real),intent(in) :: area(nmga)       ! Area
 real(kind_real),intent(in) :: vunit(nmga,nl0)  ! Vertical unit
 logical,intent(in) :: lmask(nmga,nl0)          ! Mask
-integer,intent(in),optional :: mga_to_mg(nmga) ! Specific model grid ordering
 
 ! Local variables
 integer :: ic0,jc0,kc0,i,j,k,ic0a,jc3,il0,offset,iproc,img,imga,iend,ibnda
-integer,allocatable :: order(:),order_tot(:),bnda_to_c0(:,:)
+integer,allocatable :: bnda_to_c0(:,:)
 real(kind_real) :: lat_arc(2),lon_arc(2),xbnda(2),ybnda(2),zbnda(2)
 real(kind_real),allocatable :: lon_mg(:),lat_mg(:),area_mg(:),vunit_mg(:,:),list(:)
 logical :: same_mask,init
@@ -281,39 +280,6 @@ else
    end do
 end if
 call mpl%update_tag(3+2*geom%nl0)
-
-if (present(mga_to_mg)) then
-   ! Allocation
-   allocate(order(geom%nmg))
-   allocate(order_tot(geom%nmg))
-
-   ! Set reordering
-   offset = 0
-   order = 0
-   do iproc=1,mpl%nproc
-      if (iproc==mpl%myproc) then
-         do imga=1,geom%nmga
-            img = offset+imga
-            order(img) = mga_to_mg(imga)
-         end do
-      end if
-      offset = offset+geom%proc_to_nmga(iproc)
-   end do
-   call mpl%f_comm%allreduce(order,order_tot,fckit_mpi_sum())
-
-   ! Reorder data
-   lon_mg(order_tot) = lon_mg
-   lat_mg(order_tot) = lat_mg
-   area_mg(order_tot) = area_mg
-   do il0=1,geom%nl0
-      vunit_mg(order_tot,il0) = vunit_mg(:,il0)
-      lmask_mg(order_tot,il0) = lmask_mg(:,il0)
-   end do
-
-   ! Release memory
-   deallocate(order)
-   deallocate(order_tot)
-end if
 
 if (mpl%main) then
    ! Convert to radians
@@ -451,7 +417,7 @@ do jc3=1,nam%nc3
 end do
 
 ! Define dirac points
-if ((nam%check_dirac.or.nam%check_consistency).and.(nam%ndir>0)) call geom%define_dirac(mpl,nam)
+if (nam%check_dirac.and.(nam%ndir>0)) call geom%define_dirac(mpl,nam)
 
 if (nam%mask_check) then
    ! Allocation

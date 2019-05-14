@@ -12,7 +12,7 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
-integer :: img,ilon,ilat
+integer :: img,ilon,ilat,il0
 integer :: ncid,nx_id,ny_id,nz_id,lon_id,lat_id,z_id,area_id
 real(kind_real),allocatable :: lon(:,:),lat(:,:),z(:),area(:,:)
 character(len=1024),parameter :: subr = 'model_qg_coord'
@@ -64,8 +64,8 @@ end do
 model%mask = .true.
 
 ! Vertical unit
-do img=1,model%nmg
-   model%vunit(img,:) = z
+do il0=1,model%nl0
+   model%vunit(1:model%nmg,il0) = z(nam%levs(il0))
 end do
 
 ! Release memory

@@ -7,7 +7,7 @@ default_seed = .true.,
 /
 
 &driver_param
-method = "loc",
+method = "cor",
 strategy = "specific_univariate",
 new_hdiag = .true.,
 /
@@ -15,7 +15,7 @@ new_hdiag = .true.,
 &model_param
 nl = 5,
 levs = 1,2,3,4,5,
-nv = 4,
+nv = 1,
 varname = "POROSITY","NET_TO_GROSS_RATIO","PERM_I","FIPNUM",
 addvar2d = "","","","",
 nts = 1,

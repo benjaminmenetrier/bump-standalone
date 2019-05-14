@@ -196,7 +196,7 @@ type(rng_type),intent(inout) :: rng      ! Random number generator
 type(nam_type),intent(inout) :: nam      ! Namelist variables
 
 ! Local variables
-integer :: iv,img,info,iproc,imga,nmga,ny,nres,iy,delta,ix,i,nv_save
+integer :: iv,img,info,iproc,imga,nmga,ny,nres,iy,delta,ix,i,nv_save,ildw
 integer :: ncid,nmg_id,mg_to_proc_id,mg_to_mga_id,lon_id,lat_id
 integer :: nn_index(1),bnd(0)
 integer,allocatable :: center_to_mg(:),nx(:),imga_arr(:)
@@ -440,9 +440,29 @@ end do
 
 ! Define sampling mask
 select case(trim(nam%mask_type))
-case ('none','lat','ldwv','stddev')
+case ('none','lat','stddev')
    ! All points accepted in sampling
    model%smask_mga = .true.
+case ('ldwv')
+   ! All points accepted in sampling
+   model%smask_mga = .true.
+
+   ! Print points coordinates
+   do ildw=1,nam%nldwv
+      if (nam%img_ldwv(ildw)>0) then
+         ! Find lon/lat based on model grid index
+         if (nam%img_ldwv(ildw)<=model%nmg) then
+            nam%lon_ldwv(ildw) = model%lon(nam%img_ldwv(ildw))*rad2deg
+            nam%lat_ldwv(ildw) = model%lat(nam%img_ldwv(ildw))*rad2deg
+         else
+            call mpl%abort(subr,'model grid index is positive but too large')
+         end if
+      end if
+      write(mpl%info,'(a7,a,e15.8,a,e15.8)') '','Profile '//trim(nam%name_ldwv(ildw))//' required at lon/lat: ', &
+    & nam%lon_ldwv(ildw),' / ',nam%lat_ldwv(ildw)
+      call mpl%flush
+      if (.not.any(model%mask(nam%img_ldwv(ildw),:))) call mpl%warning(subr,'profile '//trim(nam%name_ldwv(ildw))//' is not valid')
+   end do
 case default
    i = index(trim(nam%mask_type),'@')
    if (i>1) then
@@ -526,7 +546,7 @@ end subroutine model_read
 ! Subroutine: model_read_member
 ! Purpose: read member field
 !----------------------------------------------------------------------
-subroutine model_read_member(model,mpl,nam,filename,ie,jsub,fld)
+subroutine model_read_member(model,mpl,nam,filename,ie,fld)
 
 implicit none
 
@@ -536,7 +556,6 @@ type(mpl_type),intent(inout) :: mpl                                     ! MPI da
 type(nam_type),intent(in) :: nam                                        ! Namelist
 character(len=*),intent(in) :: filename                                 ! File name
 integer,intent(in) :: ie                                                ! Ensemble member index
-integer,intent(in) :: jsub                                              ! Sub-ensemble index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv,nam%nts) ! Field
 
 ! Local variables
@@ -548,11 +567,7 @@ fld = mpl%msv%valr
 
 do its=1,nam%nts
    ! Define filename
-   if (jsub==0) then
-      write(fullname,'(a,a,i2.2,a,i4.4,a)') trim(filename),'_',nam%timeslot(its),'_',ie,'.nc'
-   else
-      write(fullname,'(a,a,i2.2,a,i4.4,a,i4.4,a)') trim(filename),'_',nam%timeslot(its),'_',jsub,'_',ie,'.nc'
-   end if
+   write(fullname,'(a,a,i2.2,a,i4.4,a)') trim(filename),'_',nam%timeslot(its),'_',ie,'.nc'
 
    ! Read file
    call model%read(mpl,nam,fullname,its,fld(:,:,:,its))
@@ -575,7 +590,7 @@ type(nam_type),intent(in) :: nam         ! Namelist
 character(len=*),intent(in) :: filename  ! Filename ('ens1' or 'ens2')
 
 ! Local variables
-integer :: ne,nsub,isub,jsub,ie,ietot
+integer :: ne,nsub,isub,ie,ietot
 real(kind_real),allocatable :: mean(:,:,:,:,:)
 character(len=1024),parameter :: subr = 'model_load_ens'
 
@@ -624,13 +639,8 @@ ietot = 1
 
 ! Loop over sub-ensembles
 do isub=1,nsub
-   if (nsub==1) then
-      write(mpl%info,'(a7,a)') '','Full ensemble, member:'
-      call mpl%flush(.false.)
-   else
-      write(mpl%info,'(a7,a,i4,a)') '','Sub-ensemble ',isub,', member:'
-      call mpl%flush(.false.)
-   end if
+   write(mpl%info,'(a7,a)') '','Reading ensemble member:'
+   call mpl%flush(.false.)
 
    ! Loop over members for a given sub-ensemble
    do ie=1,ne/nsub
@@ -638,16 +648,11 @@ do isub=1,nsub
       call mpl%flush(.false.)
 
       ! Read member
-      if (nsub==1) then
-         jsub = 0
-      else
-         jsub = isub
-      end if
       select case (trim(filename))
       case ('ens1')
-         call model%read_member(mpl,nam,filename,ie,jsub,model%ens1(:,:,:,:,ietot))
+         call model%read_member(mpl,nam,filename,ie,model%ens1(:,:,:,:,ietot))
       case ('ens2')
-         call model%read_member(mpl,nam,filename,ie,jsub,model%ens2(:,:,:,:,ietot))
+         call model%read_member(mpl,nam,filename,ie,model%ens2(:,:,:,:,ietot))
       end select
 
       ! Update

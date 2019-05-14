@@ -108,7 +108,9 @@ type samp_type
    type(com_type) :: com_AB                         ! Communication between halos A and B
    type(com_type) :: com_AF                         ! Communication between halos A and F (filtering)
 contains
-   procedure :: alloc => samp_alloc
+   procedure :: samp_alloc_mask
+   procedure :: samp_alloc_other
+   generic :: alloc => samp_alloc_mask,samp_alloc_other
    procedure :: dealloc => samp_dealloc
    procedure :: read => samp_read
    procedure :: write => samp_write
@@ -132,10 +134,29 @@ public :: samp_type
 contains
 
 !----------------------------------------------------------------------
-! Subroutine: samp_alloc
-! Purpose: allocation
+! Subroutine: samp_alloc_mask
+! Purpose: allocation for mask
 !----------------------------------------------------------------------
-subroutine samp_alloc(samp,nam,geom)
+subroutine samp_alloc_mask(samp,geom)
+
+implicit none
+
+! Passed variables
+class(samp_type),intent(inout) :: samp ! Sampling
+type(geom_type),intent(in) :: geom     ! Geometry
+
+! Allocation
+allocate(samp%mask_c0(geom%nc0,geom%nl0))
+allocate(samp%mask_hor_c0(geom%nc0))
+allocate(samp%nc0_mask(geom%nl0))
+
+end subroutine samp_alloc_mask
+
+!----------------------------------------------------------------------
+! Subroutine: samp_alloc_other
+! Purpose: allocation for other variables
+!----------------------------------------------------------------------
+subroutine samp_alloc_other(samp,nam,geom)
 
 implicit none
 
@@ -146,9 +167,6 @@ type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Allocation
 allocate(samp%rh_c0(geom%nc0,geom%nl0))
-allocate(samp%mask_c0(geom%nc0,geom%nl0))
-allocate(samp%mask_hor_c0(geom%nc0))
-allocate(samp%nc0_mask(geom%nl0))
 allocate(samp%c1_to_c0(nam%nc1))
 allocate(samp%c1l0_log(nam%nc1,geom%nl0))
 allocate(samp%c1c3_to_c0(nam%nc1,nam%nc3))
@@ -169,7 +187,7 @@ if (nam%adv_diag) then
    allocate(samp%adv_lat(geom%nc0a,geom%nl0,nam%nts))
 end if
 
-end subroutine samp_alloc
+end subroutine samp_alloc_other
 
 !----------------------------------------------------------------------
 ! Subroutine: samp_dealloc
@@ -684,29 +702,20 @@ type(ens_type),intent(in) :: ens       ! Ensemble
 ! Local variables
 integer :: ic0,il0,ic1,ic2,ildw,jc3,il0i,jc1,kc1,ifor,ival,nn_index(geom%nc0)
 integer,allocatable :: vbot(:),vtop(:),nn_c1_index(:),for(:)
-real(kind_real) :: lon_c1(nam%nc1),lat_c1(nam%nc1)
-real(kind_real) :: lon_c2(nam%nc2),lat_c2(nam%nc2)
 real(kind_real) :: rh_c0a(geom%nc0a,geom%nl0)
+real(kind_real),allocatable :: lon_c1(:),lat_c1(:)
+real(kind_real),allocatable :: lon_c2(:),lat_c2(:)
 real(kind_real),allocatable :: rh_c1(:),nn_c1_dist(:)
-logical :: new_sampling,mask_c1(nam%nc1)
+logical :: new_sampling
+logical,allocatable :: mask_c1(:)
 character(len=8) :: ivalformat
 character(len=1024) :: filename,color
 character(len=1024),parameter :: subr = 'samp_setup_sampling'
 type(tree_type) :: tree
 type(linop_type) :: hbase
 
-! Check subsampling size
-if (nam%nc1>maxval(geom%nc0_mask)) then
-   call mpl%warning(subr,'nc1 is too large for then mask, reset nc1 to the largest possible value')
-   nam%nc1 = maxval(geom%nc0_mask)
-end if
-
 ! Allocation
-call samp%alloc(nam,geom)
-
-! Initialization
-samp%c1_to_c0 = mpl%msv%vali
-samp%c1c3_to_c0 = mpl%msv%vali
+call samp%alloc(geom)
 
 ! Compute nearest neighbors for local diagnostics output
 if (nam%nldwv>0) then
@@ -719,27 +728,42 @@ if (nam%nldwv>0) then
    ! Find nearest neighbors
    samp%ldwv_to_c0 = mpl%msv%vali
    do ildw=1,nam%nldwv
-      if (nam%img_ldwv(ildw)>0) then
-         ! Based on model grid index
-         if (nam%img_ldwv(ildw)<=geom%nmg) then
-            samp%ldwv_to_c0(ildw) = geom%mg_to_c0(nam%img_ldwv(ildw))
-         else
-            call mpl%abort(subr,'model grid index is positive but too large')
-         end if
-      else
-         ! Based on lat/lon
-         ic0 = 0
-         do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
-            ic0 = ic0+1
-            call geom%tree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0))
-            if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
-         end do
-      end if
-      write(mpl%info,'(a10,a,i3,a,i8,a,e15.8,a,e15.8)') '','Profile ',ildw,' at Sc0 point ',samp%ldwv_to_c0(ildw),' : lon/lat = ', &
+      ic0 = 0
+      do while (mpl%msv%isi(samp%ldwv_to_c0(ildw)))
+         ic0 = ic0+1
+         call geom%tree%find_nearest_neighbors(nam%lon_ldwv(ildw),nam%lat_ldwv(ildw),ic0,nn_index(1:ic0))
+         if (geom%mask_hor_c0(nn_index(ic0))) samp%ldwv_to_c0(ildw) = nn_index(ic0)
+      end do
+      write(mpl%info,'(a10,a,e15.8,a,e15.8)') '','Profile '//trim(nam%name_ldwv(ildw))//' computed at lon/lat: ', &
     & geom%lon(samp%ldwv_to_c0(ildw))*rad2deg,' / ',geom%lat(samp%ldwv_to_c0(ildw))*rad2deg
       call mpl%flush
    end do
 end if
+
+! Compute sampling mask
+call samp%compute_mask(mpl,nam,geom,ens)
+
+! Check subsampling size
+if (nam%nc1>count(samp%mask_hor_c0)) then
+   ! Not enough points remaining in the sampling mask
+   call mpl%warning(subr,'not enough points remaining in sampling mask, resetting nc1 to the largest possible value')
+   nam%nc1 = count(samp%mask_hor_c0)
+end if
+if (nam%nc2>nam%nc1) then
+   ! Subsampling should have less points
+   call mpl%warning(subr,'subsampling should have less points, resetting nc2 to nc1')
+   nam%nc2 = nam%nc1
+end if
+
+! Allocation
+call samp%alloc(nam,geom)
+allocate(lon_c1(nam%nc1))
+allocate(lat_c1(nam%nc1))
+allocate(mask_c1(nam%nc1))
+
+! Initialization
+samp%c1_to_c0 = mpl%msv%vali
+samp%c1c3_to_c0 = mpl%msv%vali
 
 ! Read or compute sampling data
 new_sampling = .true.
@@ -748,16 +772,13 @@ if (nam%sam_read) then
    if (new_sampling) nam%sam_write = .true.
 end if
 if (new_sampling) then
-   ! Compute sampling mask
-   call samp%compute_mask(mpl,nam,geom,ens)
-
    ! Compute zero-separation sampling
    call samp%compute_sampling_zs(mpl,rng,nam,geom)
 
    if (nam%new_lct) then
       ! Compute LCT sampling
       call samp%compute_sampling_lct(mpl,nam,geom)
-   elseif (nam%new_vbal.or.nam%new_hdiag.or.nam%check_consistency) then
+   elseif (nam%new_vbal.or.nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
       ! Compute positive separation sampling
       call samp%compute_sampling_ps(mpl,rng,nam,geom)
    end if
@@ -768,14 +789,18 @@ end if
 
 if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv_diag))) then
    if (new_sampling) then
+      ! Allocation
+      allocate(rh_c1(nam%nc1))
+      allocate(for(samp%nfor))
+      allocate(lon_c2(nam%nc2))
+      allocate(lat_c2(nam%nc2))
+
       ! Define subsampling
       write(mpl%info,'(a7,a)') '','Define subsampling:'
       call mpl%flush(.false.)
-      allocate(rh_c1(nam%nc1))
       lon_c1 = geom%lon(samp%c1_to_c0)
       lat_c1 = geom%lat(samp%c1_to_c0)
       mask_c1 = any(samp%c1l0_log(:,:),dim=2)
-      allocate(for(samp%nfor))
       do ifor=1,samp%nfor
          for(ifor) = ifor
       end do
@@ -783,7 +808,6 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv
       call rng%initialize_sampling(mpl,nam%nc1,lon_c1,lat_c1,mask_c1,samp%nfor,for,rh_c1, &
     & nam%ntry,nam%nrep,nam%nc2,samp%c2_to_c1)
       samp%c2_to_c0 = samp%c1_to_c0(samp%c2_to_c1)
-      deallocate(rh_c1)
 
       ! Find nearest neighbors
       write(mpl%info,'(a7,a)') '','Find nearest neighbors'
@@ -813,6 +837,12 @@ if (nam%new_vbal.or.nam%new_lct.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv
             call tree%dealloc
          end if
       end do
+
+      ! Release memory
+      deallocate(rh_c1)
+      deallocate(for)
+      deallocate(lon_c2)
+      deallocate(lat_c2)
    end if
 
    ! Define mask on subset Sc2
@@ -1097,7 +1127,7 @@ implicit none
 class(samp_type),intent(inout) :: samp ! Sampling
 type(mpl_type),intent(inout) :: mpl    ! MPI data
 type(rng_type),intent(inout) :: rng    ! Random number generator
-type(nam_type),intent(in) :: nam       ! Namelist
+type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
@@ -1210,11 +1240,13 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
    call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,samp%nfor,for,samp%rh_c0(:,1), &
  & nam%ntry,nam%nrep,nam%nc1,samp%c1_to_c0)
 elseif (count(samp%mask_hor_c0)==nam%nc1) then
-   ! Just the right number of remaining points
+   ! Keep all remaining points
    ic1 = 0
    do ic0=1,geom%nc0
-      ic1 = ic1+1
-      samp%c1_to_c0(ic1) = ic0
+      if (samp%mask_hor_c0(ic0)) then
+         ic1 = ic1+1
+         samp%c1_to_c0(ic1) = ic0
+      end if
    end do
 else
    ! Not enough points remaining in the sampling mask

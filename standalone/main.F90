@@ -101,7 +101,7 @@ call model%setup(mpl,rng,bump%nam)
 if (bump%nam%default_seed) call rng%reseed(mpl)
 
 ! Load ensembles
-if (bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct.or. &
+if ((bump%nam%new_mom.and.(bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct)).or. &
  & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
    write(mpl%info,'(a)') '-------------------------------------------------------------------'
    call mpl%flush
@@ -112,7 +112,7 @@ else
    model%ens1_ne = 0
    model%ens1_nsub = 0
 end if
-if (bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
+if (bump%nam%new_mom.and.bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
    write(mpl%info,'(a)') '-------------------------------------------------------------------'
    call mpl%flush
    write(mpl%info,'(a)') '--- Load ensemble 2'
@@ -140,18 +140,35 @@ end if
 ! BUMP setup
 call bump%setup_online(model%nmga,model%nl0,bump%nam%nv,bump%nam%nts, &
                      & model%lon_mga*rad2deg,model%lat_mga*rad2deg,model%area_mga*req**2,model%vunit_mga,model%mask_mga, &
-                     & smask=model%smask_mga,mga_to_mg=model%mga_to_mg, &
+                     & smask=model%smask_mga, &
                      & ens1_ne=model%ens1_ne,ens1_nsub=model%ens1_nsub,ens2_ne=model%ens2_ne,ens2_nsub=model%ens2_nsub, &
                      & nobs=model%nobsa,lonobs=model%lonobs*rad2deg,latobs=model%latobs*rad2deg, &
                      & lunit=mpl%lunit,msvali=mpl%msv%vali,msvalr=mpl%msv%valr)
 
 ! Add members
-do ie=1,model%ens1_ne
-   call bump%add_member(model%ens1(:,:,:,:,ie),ie,1)
-end do
-do ie=1,model%ens2_ne
-   call bump%add_member(model%ens2(:,:,:,:,ie),ie,2)
-end do
+if ((bump%nam%new_mom.and.(bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct)).or. &
+ & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Add members of ensemble 1'
+   call mpl%flush
+   do ie=1,model%ens1_ne
+      write(mpl%info,'(a7,a,i4,a,i4)') '','Member ',ie,' of ',model%ens1_ne
+      call mpl%flush
+      call bump%add_member(model%ens1(:,:,:,:,ie),ie,1)
+   end do
+end if
+if (bump%nam%new_mom.and.bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Add members of ensemble 2'
+   call mpl%flush
+   do ie=1,model%ens2_ne
+      write(mpl%info,'(a7,a,i4,a,i4)') '','Member ',ie,' of ',model%ens2_ne
+      call mpl%flush
+      call bump%add_member(model%ens2(:,:,:,:,ie),ie,2)
+   end do
+end if
 
 ! Run drivers
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

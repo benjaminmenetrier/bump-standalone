@@ -488,7 +488,7 @@ do ib=1,bpar%nbe
       do il0=1,geom%nl0
          if (bpar%fit_block(ib)) then
             if (mpl%msv%isnotr(diag%blk(0,ib)%fit_rh(il0))) then
-               write(mpl%info,'(a13,a,i3,a4,a16,a,f10.2,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','cor. support radii: ', &
+               write(mpl%info,'(a13,a,i3,a,a,f10.2,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> cor. support radii: ', &
              & trim(mpl%aqua),diag%blk(0,ib)%fit_rh(il0)*reqkm,trim(mpl%black)//' km  / '//trim(mpl%aqua), &
              & diag%blk(0,ib)%fit_rv(il0),trim(mpl%black)//' vert. unit'
                call mpl%flush
@@ -569,7 +569,7 @@ do ib=1,bpar%nbe
          select case (trim(nam%method))
          case ('loc','hyb-avg','hyb-rnd','dual-ens')
             if (mpl%msv%isnotr(diag%blk(0,ib)%raw_coef_ens(il0))) then
-               write(mpl%info,'(a13,a,i3,a4,a20,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> ','loc. at class zero: ', &
+               write(mpl%info,'(a13,a,i3,a,a,f10.2,a)') '','Level: ',nam%levs(il0),' ~> loc. at class zero: ', &
              & trim(mpl%peach),diag%blk(0,ib)%raw_coef_ens(il0),trim(mpl%black)
                call mpl%flush
             end if

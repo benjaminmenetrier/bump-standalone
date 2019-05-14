@@ -107,7 +107,7 @@ if ((ic2a==0).or.nam%local_diag) then
    end if
 end if
 
-! Intialization
+! Initialization
 diag_blk%raw_coef_ens = mpl%msv%valr
 diag_blk%raw_coef_sta = mpl%msv%valr
 if ((ic2a==0).or.nam%local_diag) then

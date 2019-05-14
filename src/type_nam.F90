@@ -10,7 +10,7 @@ module type_nam
 use iso_c_binding
 use netcdf, only: nf90_put_att,nf90_global
 !$ use omp_lib, only: omp_get_num_procs
-use tools_const, only: req,deg2rad,rad2deg
+use tools_const, only: pi,req,deg2rad,rad2deg
 use tools_kinds,only: kind_real
 use type_mpl, only: mpl_type
 
@@ -995,13 +995,11 @@ if (nam%new_hdiag.or.nam%check_optimality) then
    end select
 end if
 if (nam%new_lct) then
-   if (trim(nam%method)/='cor') call mpl%abort(subr,'new_lct requires cor method')
+   if (trim(nam%method)/='cor') call mpl%abort(subr,'cor method required for new_lct')
 end if
-if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas) then
    select case (trim(nam%strategy))
-   case ('diag_all','common','common_univariate','common_weighted','specific_univariate')
-   case ('specific_multivariate')
-      if (.not.nam%lsqrt) call mpl%abort(subr,'specific multivariate strategy requires a square-root formulation')
+   case ('diag_all','common','common_univariate','common_weighted','specific_univariate','specific_multivariate')
    case default
       call mpl%abort(subr,'wrong strategy')
    end select
@@ -1012,22 +1010,30 @@ if (nam%new_hdiag.and.nam%new_lct) call mpl%abort(subr,'new_hdiag and new_lct ar
 if ((nam%new_hdiag.or.nam%new_lct).and.nam%load_cmat) call mpl%abort(subr,'new_hdiag or new_lct and load_cmat are exclusive')
 if (nam%new_nicas.and.nam%load_nicas) call mpl%abort(subr,'new_nicas and load_nicas are exclusive')
 if (nam%new_obsop.and.nam%load_obsop) call mpl%abort(subr,'new_obsop and load_obsop are exclusive')
-if (nam%new_hdiag.and.nam%check_consistency) call mpl%abort(subr,'new_hdiag and check_consistency are exclusive')
-if (nam%new_nicas.and.nam%check_consistency) call mpl%abort(subr,'new_nicas and check_consistency are exclusive')
-if (nam%check_vbal.and..not.(nam%new_vbal.or.nam%load_vbal)) call mpl%abort(subr,'check_vbal requires new_vbal or load_vbal')
+if (nam%check_vbal.and..not.(nam%new_vbal.or.nam%load_vbal)) call mpl%abort(subr,'new_vbal or load_vbal required for check_vbal')
 if ((nam%new_hdiag.or.nam%new_lct).and.(.not.(nam%new_mom.or.nam%load_mom))) &
- & call mpl%abort(subr,'new_hdiag and new_lct requires new_mom or load_mom')
+ & call mpl%abort(subr,'new_mom or load_mom required for new_hdiag and new_lct')
 if (nam%check_adjoints.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'check_adjoints requires new_nicas or load_nicas')
+ & call mpl%abort(subr,'new_nicas or load_nicas required for check_adjoints')
 if (nam%check_pos_def.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'check_pos_def requires new_nicas or load_nicas')
-if (nam%check_dirac.and..not.(nam%new_nicas.or.nam%load_nicas)) call mpl%abort(subr,'check_dirac requires new_nicas or load_nicas')
-if (nam%check_randomization.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'check_randomization requires new_nicas or load_nicas')
-if (nam%check_consistency.and..not.(nam%forced_radii)) call mpl%abort(subr,'check_consistency requires forced_radii')
-if (nam%check_optimality.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'check_optimality requires new_nicas or load_nicas')
-if (nam%check_obsop.and..not.(nam%new_obsop.or.nam%load_obsop)) call mpl%abort(subr,'check_obsop requires new_obsop or load_obsop')
+ & call mpl%abort(subr,'new_nicas or load_nicas required for check_pos_def')
+if (nam%check_dirac.and..not.(nam%new_nicas.or.nam%load_nicas)) &
+ & call mpl%abort(subr,'new_nicas or load_nicas required for check_dirac')
+if (nam%check_randomization) then
+   if (trim(nam%method)/='cor') call mpl%abort(subr,'cor method required for check_randomization')
+   if (.not.nam%new_nicas) call mpl%abort(subr,'new_nicas required for check_randomization')
+end if
+if (nam%check_consistency) then
+   if (trim(nam%method)/='cor') call mpl%abort(subr,'cor method required for check_consistency')
+   if (.not.nam%new_nicas) call mpl%abort(subr,'new_nicas required for check_consistency')
+end if
+if (nam%check_optimality) then
+   if (trim(nam%method)/='cor') call mpl%abort(subr,'cor method required for check_optimality')
+   if (.not.nam%new_nicas) call mpl%abort(subr,'new_nicas required for check_optimality')
+   if (.not.nam%write_hdiag) call mpl%abort(subr,'write_hdiag required for check_optimality')
+end if
+if (nam%check_obsop.and..not.(nam%new_obsop.or.nam%load_obsop)) &
+ & call mpl%abort(subr,'new_obsop or load_obsop required for check_obsop')
 
 ! Check model_param
 if (nam%nl<=0) call mpl%abort(subr,'nl should be positive')
@@ -1035,8 +1041,7 @@ do il=1,nam%nl
    if (nam%levs(il)<=0) call mpl%abort(subr,'levs should be positive')
    if (count(nam%levs(1:nam%nl)==nam%levs(il))>1) call mpl%abort(subr,'redundant levels')
 end do
-if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas.or. &
- & nam%check_consistency) then
+if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas) then
    if (nam%nv<=0) call mpl%abort(subr,'nv should be positive')
    do iv=1,nam%nv
       write(ivchar,'(i2.2)') iv
@@ -1052,7 +1057,8 @@ if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cm
 end if
 
 ! Check ens1_param
-if (nam%new_cortrack.or.nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct) then
+if (nam%new_cortrack.or.nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_randomization &
+ & .or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%ens1_nsub<1) call mpl%abort(subr,'ens1_nsub should be positive')
    if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call mpl%abort(subr,'ens1_nsub should be a divider of ens1_ne')
    if (nam%ens1_ne/nam%ens1_nsub<=3) call mpl%abort(subr,'ens1_ne/ens1_nsub should be larger than 3')
@@ -1069,12 +1075,20 @@ if (nam%new_hdiag) then
 end if
 
 ! Check sampling_param
-if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
+if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%sam_write.and.nam%sam_read) call mpl%abort(subr,'sam_write and sam_read are both true')
    select case (trim(nam%draw_type))
    case ('random_uniform','random_coast','icosahedron')
    case default
       call mpl%abort(subr,'wrong draw_type')
+   end select
+   if (trim(nam%mask_type)=='ldwv') then
+      if (nam%nldwv<=0) call mpl%abort(subr,'nldwv should not be negative for mask_type = ldwv')
+   end if
+   select case (trim(nam%mask_lu))
+   case ('lower','upper')
+   case default
+      call mpl%abort(subr,'wrong mask_lu')
    end select
    if (nam%nc1<3) call mpl%abort(subr,'nc1 should be larger than 2')
    if (nam%new_vbal.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv_diag))) then
@@ -1092,19 +1106,17 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
       end if
    end if
 end if
-if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%new_nicas.or.nam%check_consistency) then
+if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%new_nicas) then
    if (nam%ntry<=0) call mpl%abort(subr,'ntry should be positive')
    if (nam%nrep<0) call mpl%abort(subr,'nrep should be non-negative')
 end if
-if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nc3<=0) call mpl%abort(subr,'nc3 should be positive')
-else
-   nam%nc3 = 1
 end if
-if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nl0r<1) call mpl%abort (subr,'nl0r should be positive')
 end if
-if (nam%new_hdiag.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%dc<0.0) call mpl%abort(subr,'dc should be positive')
 end if
 
@@ -1116,12 +1128,12 @@ if (nam%new_vbal) then
 
    if (nam%vbal_rad<0.0) call mpl%abort(subr,'vbal_rad should be non-negative')
 end if
-if (nam%new_hdiag.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
    select case (trim(nam%method))
    case ('loc','hyb-avg','hyb-rnd','dual-ens')
       if (nam%ne<=3) call mpl%abort(subr,'ne should be larger than 3')
    end select
-   if (nam%var_filter.and.(.not.nam%local_diag)) call mpl%abort(subr,'var_filter requires local_diag')
+   if (nam%var_filter.and.(.not.nam%local_diag)) call mpl%abort(subr,'local_diag required for var_filter')
    if (nam%var_filter) then
       if (nam%var_niter<=0) call mpl%abort(subr,'var_niter should be positive')
       if (nam%var_rhflt<0.0) call mpl%abort(subr,'var_rhflt should be non-negative')
@@ -1137,7 +1149,7 @@ if (nam%new_hdiag.or.nam%check_consistency) then
 end if
 
 ! Check fit_param
-if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency) then
+if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    select case (trim(nam%minim_algo))
    case ('none','fast','hooke')
    case default
@@ -1163,29 +1175,34 @@ if (nam%new_hdiag) then
 end if
 
 ! Check nicas_param
-if (nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_dirac.or.nam%check_randomization &
- & .or.nam%check_consistency.or.nam%check_optimality) then
+if (nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_dirac.or.nam%check_randomization) then
    if (nam%lsqrt) then
       if (nam%mpicom==1) call mpl%abort(subr,'mpicom should be 2 for square-root application')
    end if
+   if (trim(nam%method)=='specific_multivariate') then
+      if (.not.nam%lsqrt) call mpl%abort(subr,'square-root formulation required for specific multivariate strategy')
+   end if
    if (nam%check_randomization) then
       if (.not.nam%lsqrt) call mpl%abort(subr,'lsqrt required for check_randomization')
+      if (.not.nam%forced_radii) call mpl%abort(subr,'forced_radii required for check_randomization')
    end if
    if (nam%check_consistency) then
       if (.not.nam%lsqrt) call mpl%abort(subr,'lsqrt required for check_consistency')
+      if (.not.nam%forced_radii) call mpl%abort(subr,'forced_radii required for check_consistency')
    end if
    if (nam%check_optimality) then
       if (.not.nam%lsqrt) call mpl%abort(subr,'lsqrt required for check_optimality')
+      if (.not.nam%forced_radii) call mpl%abort(subr,'forced_radii required for check_optimality')
    end if
-   if (nam%new_nicas.or.nam%check_consistency) then
+   if (nam%new_nicas) then
       if (.not.(nam%resol>0.0)) call mpl%abort(subr,'resol should be positive')
    end if
-   if (nam%new_nicas.or.nam%load_nicas.or.nam%check_consistency) then
+   if (nam%new_nicas.or.nam%load_nicas) then
       if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call mpl%abort(subr,'mpicom should be 1 or 2')
    end if
    if (nam%forced_radii) then
       if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat) &
-    & call mpl%abort(subr,'forced_radii requires new_hdiag, new_lct and load_cmat to be inactive')
+    & call mpl%abort(subr,'new_hdiag, new_lct and load_cmat forbidden for forced_radii')
       if (nam%rh<0.0) call mpl%abort(subr,'rh should be non-negative')
       if (nam%rv<0.0) call mpl%abort(subr,'rv should be non-negative')
    end if
@@ -1193,10 +1210,10 @@ if (nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_dirac.
    if (nam%check_dirac) then
       if (nam%ndir<1) call mpl%abort(subr,'ndir should be positive')
       do idir=1,nam%ndir
-         if ((nam%londir(idir)<-180.0).or.(nam%londir(idir)>180.0)) &
-       & call mpl%abort(subr,'Dirac longitude should lie between -180 and 180')
-         if ((nam%latdir(idir)<-90.0).or.(nam%latdir(idir)>90.0)) &
-       & call mpl%abort(subr,'Dirac latitude should lie between -90 and 90')
+         if ((nam%londir(idir)<-pi).or.(nam%londir(idir)>pi)) &
+       & call mpl%abort(subr,'londir should lie between -180 and 180')
+         if ((nam%latdir(idir)<-0.5*pi).or.(nam%latdir(idir)>0.5*pi)) &
+       & call mpl%abort(subr,'latdir should lie between -90 and 90')
          if (.not.(any(nam%levs(1:nam%nl)==nam%levdir(idir)).or.(any(nam%addvar2d(1:nam%nv)/='') &
        & .and.(nam%levs(nam%nl+1)==nam%levdir(idir))))) call mpl%abort(subr,'wrong level for a Dirac')
          if ((nam%ivdir(idir)<1).or.(nam%ivdir(idir)>nam%nv)) call mpl%abort(subr,'wrong variable for a Dirac')
@@ -1241,11 +1258,12 @@ if (nam%new_hdiag) then
       end if
       if (nam%nldwv<0) call mpl%abort(subr,'nldwv should be non-negative')
       if (nam%nldwv>0) then
-         if (.not.nam%local_diag) call mpl%abort(subr,'nldwv>0 requires local_diag')
+         if (.not.nam%local_diag) call mpl%abort(subr,'local_diag required for nldwv>0')
          if (.not.all(nam%img_ldwv(1:nam%nldwv)>0)) then
-            if (any(nam%lon_ldwv(1:nam%nldwv)<-180.0).or.any(nam%lon_ldwv(1:nam%nldwv)>180.0)) &
-          & call mpl%abort(subr,'wrong lon_ldwv')
-            if (any(nam%lat_ldwv(1:nam%nldwv)<-90.0).or.any(nam%lat_ldwv(1:nam%nldwv)>90.0)) call mpl%abort(subr,'wrong lat_ldwv')
+            if (any(nam%lon_ldwv(1:nam%nldwv)<-pi).or.any(nam%lon_ldwv(1:nam%nldwv)>pi)) &
+          & call mpl%abort(subr,'lon_ldwv should lie between -180 and 180')
+            if (any(nam%lat_ldwv(1:nam%nldwv)<-0.5*pi).or.any(nam%lat_ldwv(1:nam%nldwv)>0.5*pi)) &
+          & call mpl%abort(subr,'lat_ldwv should lie between -90 and 90')
             do ildwv=1,nam%nldwv
                write(ildwvchar,'(i2.2)') ildwv
                if (trim(nam%name_ldwv(ildwv))=='') call mpl%abort(subr,'name_ldwv not specified for profile '//ildwvchar)
@@ -1265,7 +1283,7 @@ if (nam%new_hdiag.or.nam%new_lct) then
    end select
 end if
 if (nam%new_hdiag.or.nam%new_nicas.or.nam%check_adjoints.or.nam%check_pos_def.or.nam%check_dirac &
- & .or.nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality.or.nam%new_lct) then
+ & .or.nam%check_randomization.or.nam%new_lct) then
    if (nam%grid_output) then
       if (.not.(nam%grid_resol>0.0)) call mpl%abort(subr,'grid_resol should be positive')
       select case (trim(nam%grid_interp))

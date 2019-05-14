@@ -10,12 +10,13 @@ module type_nicas
 use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min
 use netcdf
 use tools_const, only: rad2deg,reqkm,pi
-use tools_func, only: sphere_dist,cholesky
+use tools_func, only: sphere_dist,cholesky,fit_diag
 use tools_kinds, only: kind_real,nc_kind_real
 use type_bpar, only: bpar_type
 use type_cmat, only: cmat_type
 use type_com, only: com_type
 use type_cv, only: cv_type
+use type_diag, only: diag_type
 use type_ens, only: ens_type
 use type_geom, only: geom_type
 use type_hdiag, only: hdiag_type
@@ -28,9 +29,8 @@ use type_rng, only: rng_type
 
 implicit none
 
-integer,parameter :: ne_rand = 50           ! Ensemble size for randomization
-integer,parameter :: nfac = 5               ! Number of length-scale factors
-integer,parameter :: ntest = 100            ! Number of tests
+integer,parameter :: nfac = 9               ! Number of length-scale factors
+integer,parameter :: ntest = 50             ! Number of tests
 logical,parameter :: pos_def_test = .false. ! Positive-definiteness test
 
 ! NICAS derived type
@@ -1676,7 +1676,7 @@ if (nam%adv_mode==-1) call nicas%blk(bpar%nbe)%apply_adv_ad(mpl,nam,geom,fld_cop
 
 ! Apply localized ensemble covariance formula
 fld = 0.0
-do ie=1,nam%ens1_ne
+do ie=1,ens%ne
    ! Compute perturbation
    pert = ens%fld(:,:,:,:,ie)
 
@@ -1697,7 +1697,7 @@ do ie=1,nam%ens1_ne
    fld = fld+fld_tmp*pert
 
    ! Normalization
-   fld = fld/real(nam%ens1_ne-1,kind_real)
+   fld = fld/real(ens%ne-1,kind_real)
 end do
 
 ! Advection
@@ -1913,7 +1913,7 @@ write(mpl%info,'(a4,a)') '','Test randomization for various ensemble sizes:'
 call mpl%flush
 do ifac=1,nfac
    ! Ensemble size
-   nefac(ifac) = max(int(real(ifac,kind_real)/real(nfac,kind_real)*real(ne_rand,kind_real)),3)
+   nefac(ifac) = max(int(real(ifac,kind_real)/real(nfac,kind_real)*real(nam%ens1_ne,kind_real)),3)
    nam%ens1_ne = nefac(ifac)
    write(mpl%info,'(a7,a,i4,a)') '','Ensemble sizes: ',nefac(ifac),' members'
    call mpl%flush
@@ -2001,88 +2001,16 @@ type(bpar_type),intent(in) :: bpar       ! Block parameters
 type(io_type),intent(in) :: io           ! I/O
 
 ! Local variables
-integer :: ens1_ne,ens1_nsub,ic0a,ic0,ic0dir,ib,il0
-real(kind_real) :: resol,dist,dist_min,dist_min_tot
-real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
-logical :: local_diag
-character(len=1024) :: prefix,method
-character(len=1024),parameter :: subr = 'nicas_test_consistency'
-type(cmat_type) :: cmat
+integer :: ib,il0
 type(ens_type) :: ens
 type(hdiag_type) :: hdiag
-
-! Release memory
-call nicas%dealloc
-
-! Save namelist variables
-prefix = nam%prefix
-method = nam%method
-ens1_ne = nam%ens1_ne
-ens1_nsub = nam%ens1_nsub
-local_diag = nam%local_diag
-resol = nam%resol
-
-! Set namelist variables
-nam%prefix = trim(nam%prefix)//'_consistency-test'
-nam%method = 'cor'
-nam%ens1_ne = ne_rand
-nam%ens1_nsub = 1
-nam%local_diag = .false.
-nam%resol = 12.0
-
-! Copy namelist support radii into C matrix
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Copy namelist support radii into C matrix'
-call mpl%flush
-call cmat%from_nam(mpl,nam,geom,bpar)
-
-! Run NICAS driver
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Run NICAS driver'
-call mpl%flush
-call nicas%run_nicas(mpl,rng,nam,geom,bpar,cmat)
-if (nam%default_seed) call rng%reseed(mpl)
-
-! Generate dirac field
-if (nam%ndir<1) call mpl%abort(subr,'check_consistency requires ndir>0')
-fld = 0.0
-if (geom%iprocdir(1)==mpl%myproc) then
-   fld(geom%ic0adir(1),geom%il0dir(1),geom%ivdir(1),geom%itsdir(1)) = 1.0
-   ic0dir = geom%c0a_to_c0(geom%ic0adir(1))
-end if
-call mpl%f_comm%broadcast(ic0dir,geom%iprocdir(1)-1)
-
-! Apply NICAS to dirac
-call nicas%apply_from_sqrt(mpl,nam,geom,bpar,fld)
-
-! Estimate horizontal support radius from Dirac
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Estimate horizontal support radius from Dirac'
-call mpl%flush
-dist_min = huge(1.0)
-do ic0a=1,geom%nc0a
-   if (fld(ic0a,geom%il0dir(1),geom%ivdir(1),geom%itsdir(1))<1.0e-12) then
-      ! Compute distance to the origin
-      ic0 = geom%c0a_to_c0(ic0a)
-      call sphere_dist(geom%lon(ic0),geom%lat(ic0),geom%lon(ic0dir),geom%lat(ic0dir),dist)
-
-      ! Check distance to the origin
-      if (dist<dist_min) dist_min = dist
-   end if
-end do
-call mpl%f_comm%allreduce(dist_min,dist_min_tot,fckit_mpi_min())
-write(mpl%info,'(a7,a,f8.1,a)') '','Estimated horizontal support radius:'//trim(mpl%aqua),dist_min_tot*reqkm,trim(mpl%black)//' km'
-call mpl%flush
 
 ! Randomize ensemble
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 call mpl%flush
 write(mpl%info,'(a)') '--- Randomize ensemble'
 call mpl%flush
-call nicas%randomize(mpl,rng,nam,geom,bpar,ne_rand,ens)
+call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
 if (nam%default_seed) call rng%reseed(mpl)
 
 ! Run HDIAG driver
@@ -2096,37 +2024,27 @@ if (nam%default_seed) call rng%reseed(mpl)
 ! Print scores
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 call mpl%flush
-write(mpl%info,'(a)') '--- HDIAG/NICAS consistency results'
+write(mpl%info,'(a)') '--- NICAS/HDIAG consistency results'
 call mpl%flush
 do ib=1,bpar%nbe
    if (bpar%nicas_block(ib)) then
       write(mpl%info,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
       call mpl%flush
       do il0=1,geom%nl0
-         write(mpl%info,'(a10,a7,i3,a4,a35,f8.1,a,f8.1,a)') '','Level: ',nam%levs(il0),' ~> ', &
-       & 'horizontal length-scale (th./exp.): ',nam%rh,' km / ',hdiag%cor_1%blk(0,ib)%fit_rh(il0),' km'
+         write(mpl%info,'(a10,a7,i3,a4,a,f8.1,a,f8.1,a,f5.3)') '','Level: ',nam%levs(il0),' ~> ', &
+       & 'horizontal length-scale (exp./th./ratio): ',hdiag%cor_1%blk(0,ib)%fit_rh(il0)*reqkm,' km         / ',nam%rh*reqkm, &
+       & ' km         / ',hdiag%cor_1%blk(0,ib)%fit_rh(il0)/nam%rh
          call mpl%flush
-         if (nam%rv>0.0) then
-            write(mpl%info,'(a59,f8.1,a,f8.1,a)') 'vertical length-scale (th./exp.): ', &
-          & nam%rv,' km / ',hdiag%cor_1%blk(0,ib)%fit_rv(il0),' km'
+         if ((nam%nl>1).and.(nam%rv>0.0)) then
+            write(mpl%info,'(a24,a,f8.1,a,f8.1,a,f5.3)') '','vertical length-scale (exp./th./ratio):   ', &
+          & hdiag%cor_1%blk(0,ib)%fit_rv(il0),' vert. unit / ',nam%rv,' vert. unit / ',hdiag%cor_1%blk(0,ib)%fit_rv(il0)/nam%rv
             call mpl%flush
          end if
       end do
    end if
 end do
 
-
-! Reset namelist variables
-nam%prefix = prefix
-nam%method = method
-nam%ens1_ne = ens1_ne
-nam%ens1_nsub = ens1_nsub
-nam%local_diag = local_diag
-nam%resol = resol
-
 ! Release memory
-call cmat%dealloc
-call nicas%dealloc
 call ens%dealloc
 call hdiag%dealloc
 
@@ -2150,13 +2068,14 @@ type(bpar_type),intent(in) :: bpar    ! Block parameters
 type(io_type),intent(in) :: io        ! I/O
 
 ! Local variables
-integer :: ib,ifac,itest
+integer :: ib,ifac,itest,il0
 real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
-real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),fac(nfac),mse(ntest,nfac)
-character(len=1024) :: prefix,method
+real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),fac(nfac),mse(ntest,nfac),mse_max,rh_avg,rv_avg
+character(len=1024) :: method
 type(cmat_type) :: cmat
+type(diag_type) :: loc_opt
 type(hdiag_type) :: hdiag
-type(ens_type) :: ens
+type(ens_type) :: ens_loc,ens_test
 type(nicas_type) :: nicas_test
 
 ! Define test vectors
@@ -2172,48 +2091,63 @@ do itest=1,ntest
    call nicas%apply_from_sqrt(mpl,nam,geom,bpar,fld_ref(:,:,:,:,itest))
 end do
 
-! Randomize ensemble
+! Randomize ensemble to compute localization
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 call mpl%flush
-write(mpl%info,'(a)') '--- Randomize ensemble'
+write(mpl%info,'(a)') '--- Randomize ensemble to compute localization'
 call mpl%flush
-call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
+call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens_loc)
+if (nam%default_seed) call rng%reseed(mpl)
 
 ! Save namelist variables
-prefix = nam%prefix
 method = nam%method
 
 ! Set namelist variables
-nam%prefix = trim(nam%prefix)//'_optimality-test'
 nam%method = 'loc'
 
-! Allocation
-call nicas_test%alloc(mpl,nam,bpar,'nicas_test')
-
 ! Call HDIAG driver
-call hdiag%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+call hdiag%run_hdiag(mpl,rng,nam,geom,bpar,io,ens_loc)
+if (nam%default_seed) call rng%reseed(mpl)
+
+! Randomize ensemble to test localization
+write(mpl%info,'(a)') '-------------------------------------------------------------------'
+call mpl%flush
+write(mpl%info,'(a)') '--- Randomize ensemble to test localization'
+call mpl%flush
+call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ne,ens_test)
+if (nam%default_seed) call rng%reseed(mpl)
+
+! Allocation
+call loc_opt%alloc(mpl,nam,geom,bpar,hdiag%samp,'loc_opt',.false.)
+
+! Initialization
+mse_max = huge(1.0)
 
 do ifac=1,nfac
    ! Copy HDIAG into C matrix
    call cmat%from_hdiag(mpl,nam,geom,bpar,hdiag)
 
+   ! Setup C matrix sampling
+   call cmat%setup_sampling(nam,geom,bpar)
+
    ! Multiplication factor
-   fac(ifac) = 2.0*real(ifac,kind_real)/real(nfac,kind_real)
+   fac(ifac) = 1.0+real(nfac/2+ifac-nfac,kind_real)/real(nfac/2+1,kind_real)
 
    write(mpl%info,'(a)') '-------------------------------------------------------------------'
    call mpl%flush
-   write(mpl%info,'(a,f4.2,a)') '--- Apply a multiplicative factor ',fac(ifac),' to length-scales'
+   write(mpl%info,'(a,f4.2,a)') '--- Generate NICAS with a multiplicative factor ',fac(ifac),' to length-scales'
    call mpl%flush
+
+   ! Allocation
+   call nicas_test%alloc(mpl,nam,bpar,'nicas_test')
 
    do ib=1,bpar%nbe
       if (bpar%nicas_block(ib)) then
          ! Length-scales multiplication
+         cmat%blk(ib)%rhs = fac(ifac)*cmat%blk(ib)%rhs
+         cmat%blk(ib)%rvs = fac(ifac)*cmat%blk(ib)%rvs
          cmat%blk(ib)%rh = fac(ifac)*cmat%blk(ib)%rh
          cmat%blk(ib)%rv = fac(ifac)*cmat%blk(ib)%rv
-         if (trim(nam%strategy)=='specific_multivariate') then
-            cmat%blk(ib)%rhs = fac(ifac)*cmat%blk(ib)%rhs
-            cmat%blk(ib)%rvs = fac(ifac)*cmat%blk(ib)%rvs
-         end if
 
          ! Compute NICAS parameters
          call nicas_test%blk(ib)%compute_parameters(mpl,rng,nam,geom,cmat%blk(ib))
@@ -2229,14 +2163,36 @@ do ifac=1,nfac
       end if
    end do
 
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a)') '--- Apply ensemble B to test vectors'
+   call mpl%flush
+
    do itest=1,ntest
       ! Test NICAS
       fld = fld_save(:,:,:,:,itest)
-      call nicas_test%apply_bens(mpl,nam,geom,bpar,ens,fld)
+      call nicas_test%apply_bens(mpl,nam,geom,bpar,ens_test,fld)
 
       ! RMSE
       mse(itest,ifac) = sum((fld-fld_ref(:,:,:,:,itest))**2)
    end do
+
+   ! Test score
+   if (sum(mse(:,ifac))<mse_max) then
+      mse_max = sum(mse(:,ifac))
+      do ib=1,bpar%nbe
+         if (bpar%diag_block(ib)) then
+            do il0=1,geom%nl0
+               call mpl%f_comm%allreduce(sum(cmat%blk(ib)%rh(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rh(:,il0))), &
+             & rh_avg,fckit_mpi_sum())
+               loc_opt%blk(0,ib)%fit_rh = rh_avg/real(geom%nc0_mask(il0),kind_real)
+               call mpl%f_comm%allreduce(sum(cmat%blk(ib)%rv(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rv(:,il0))), &
+             & rv_avg,fckit_mpi_sum())
+               loc_opt%blk(0,ib)%fit_rv = rv_avg/real(geom%nc0_mask(il0),kind_real)
+            end do
+         end if
+      end do
+   end if
 
    ! Print scores
    write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -2244,6 +2200,10 @@ do ifac=1,nfac
    write(mpl%info,'(a,f4.2,a,e15.8)') '--- Optimality results for a factor ',fac(ifac),', MSE: ', &
  & sum(mse(:,ifac))/real(ntest,kind_real)
    call mpl%flush
+
+   ! Release memory
+   call cmat%dealloc
+   call nicas_test%dealloc
 end do
 
 ! Print scores summary
@@ -2256,15 +2216,23 @@ do ifac=1,nfac
    call mpl%flush
 end do
 
+! Best fit
+do ib=1,bpar%nbe
+   if (bpar%diag_block(ib)) then
+      call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,loc_opt%blk(0,ib)%distv, &
+    & loc_opt%blk(0,ib)%fit_rh,loc_opt%blk(0,ib)%fit_rv,loc_opt%blk(0,ib)%fit)
+      call loc_opt%blk(0,ib)%write(mpl,nam,geom,bpar,trim(nam%prefix)//'_diag')
+   end if
+end do
+
+
 ! Reset namelist variables
-nam%prefix = prefix
 nam%method = method
 
 ! Release memory
-call ens%dealloc
+call ens_loc%dealloc
+call ens_test%dealloc
 call hdiag%dealloc
-call cmat%dealloc
-call nicas_test%dealloc
 
 end subroutine nicas_test_optimality
 

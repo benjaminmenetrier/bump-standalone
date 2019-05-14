@@ -22,5 +22,5 @@
 | subroutine | [nicas%] [test_dirac](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L1801) | apply NICAS to diracs |
 | subroutine | [nicas%] [test_randomization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L1865) | test NICAS randomization method with respect to theoretical error statistics |
 | subroutine | [nicas%] [test_consistency](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L1986) | test HDIAG-NICAS consistency with a randomization method |
-| subroutine | [nicas%] [test_optimality](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L2135) | test HDIAG localization optimality with a randomization method |
-| subroutine | [define_test_vectors](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L2271) | define test vectors |
+| subroutine | [nicas%] [test_optimality](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L2053) | test HDIAG localization optimality with a randomization method |
+| subroutine | [define_test_vectors](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_nicas.F90#L2239) | define test vectors |

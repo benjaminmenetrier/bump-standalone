@@ -675,9 +675,7 @@ do ib=1,bpar%nbe
 
       ! Copy support radii
       cmat%blk(ib)%rh = nam%rh
-      cmat%blk(ib)%rhs = nam%rh
       cmat%blk(ib)%rv = nam%rv
-      cmat%blk(ib)%rvs = nam%rv
 
       ! Set coefficients
       cmat%blk(ib)%coef_ens = 1.0

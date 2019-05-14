@@ -6,7 +6,7 @@
 # Copyright © 2015-... UCAR, CERFACS, METEO-FRANCE and IRIT
 #----------------------------------------------------------------------
 # Parameters
-src_origin="${HOME}/code/ufo-bundle/oops/src/oops/generic/bump"
+src_origin="${HOME}/code/saber/src/bump"
 src="${HOME}/code/bump-standalone/src"
 standalone="${HOME}/code/bump-standalone/standalone"
 

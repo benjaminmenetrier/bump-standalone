@@ -51,7 +51,7 @@ echo '--- Recompile documentation'
 # Save all namelists
 echo '--- Save all namelists'
 cd ../script
-./namelist_nam2sql.ksh
+./namelist_nam2sql.sh
 
 # Git commands
 echo 'git status'
