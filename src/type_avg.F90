@@ -55,12 +55,13 @@ contains
 ! Subroutine: avg_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine avg_alloc(avg,nam,geom,bpar,ne,nsub,prefix)
+subroutine avg_alloc(avg,mpl,nam,geom,bpar,ne,nsub,prefix)
 
 implicit none
 
 ! Passed variables
 class(avg_type),intent(inout) :: avg  ! Averaged statistics
+type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(in) :: geom    ! Geometry
 type(bpar_type),intent(in) :: bpar    ! Block parameters
@@ -80,7 +81,7 @@ avg%nsub = nsub
 allocate(avg%blk(0:nam%nc2,bpar%nbe))
 do ib=1,bpar%nbe
    do ic2=0,nam%nc2
-      call avg%blk(ic2,ib)%alloc(nam,geom,bpar,ic2,ib,ne,nsub,prefix)
+      call avg%blk(ic2,ib)%alloc(mpl,nam,geom,bpar,ic2,ib,ne,nsub,prefix)
    end do
 end do
 
@@ -404,8 +405,10 @@ do ib=1,bpar%nb
             m2sq = 0.0
             m4 = 0.0
             do ic2=1,nam%nc2
-               m2sq = m2sq+avg%blk(ic2,ib)%m2(il0,isub)**2
-               if (.not.nam%gau_approx) m4 = m4+avg%blk(ic2,ib)%m4(il0,isub)
+               if (mpl%msv%isnotr(avg%blk(ic2,ib)%m2(il0,isub))) then
+                  m2sq = m2sq+avg%blk(ic2,ib)%m2(il0,isub)**2
+                  if (.not.nam%gau_approx) m4 = m4+avg%blk(ic2,ib)%m4(il0,isub)
+               end if
             end do
 
             ! Asymptotic statistics
@@ -438,14 +441,17 @@ do ib=1,bpar%nb
                call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,m2)
 
                ! Compute product
-               m2prod = sum(m2*m2_ini)
+               m2prod = 0.0
+               do ic2a=1,samp%nc2a
+                  if (mpl%msv%isnotr(m2_ini(ic2a))) m2prod = m2prod+m2(ic2a)*m2_ini(ic2a)
+               end do
 
                ! Reduce product
                call mpl%f_comm%allreduce(m2prod,m2prod_tot,fckit_mpi_sum())
 
                ! Print result
-               write(mpl%info,'(a19,a,i2,a,f10.2,a,f10.2)') '','Iteration ',iter,': rhflt = ', &
-             & rhflt*reqkm,' km, difference = ',m2prod_tot-m2sqasy
+               write(mpl%info,'(a19,a,i2,a,f10.2,a,e12.5)') '','Iteration ',iter,': rhflt = ', &
+             & rhflt*reqkm,' km, rel. diff. = ',(m2prod_tot-m2sqasy)/m2sqasy
                call mpl%flush
 
                ! Update support radius
@@ -511,7 +517,7 @@ character(len=*),intent(in) :: prefix ! Prefix
 integer :: ib,ic2
 
 ! Allocation
-call avg%alloc(nam,geom,bpar,mom%ne,mom%nsub,prefix)
+call avg%alloc(mpl,nam,geom,bpar,mom%ne,mom%nsub,prefix)
 
 ! Compute averaged statistics
 write(mpl%info,'(a10,a)') '','Compute averaged statistics'
@@ -529,7 +535,7 @@ do ib=1,bpar%nb
    end if
 end do
 
-if (nam%avg_nbins>0) then
+if (mpl%main.and.(nam%avg_nbins>0)) then
    ! Write histograms
    write(mpl%info,'(a10,a)') '','Write histograms'
    call mpl%flush

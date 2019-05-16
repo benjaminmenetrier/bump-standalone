@@ -91,6 +91,8 @@ type nam_type
    integer :: ncontig_th                                ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
    logical :: mask_check                                ! Check that sampling couples and interpolations do not cross mask boundaries
    character(len=1024) :: draw_type                     ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
+   real(kind_real) ::  Lcoast                           ! Length-scale to increase sampling density along coasts
+   real(kind_real) ::  rcoast                           ! Minimum value to increase sampling density along coasts
    integer :: nc1                                       ! Number of sampling points
    integer :: nc2                                       ! Number of diagnostic points
    integer :: ntry                                      ! Number of tries to get the most separated point for the zero-separation sampling
@@ -98,6 +100,7 @@ type nam_type
    integer :: nc3                                       ! Number of classes
    real(kind_real) ::  dc                               ! Class size (for sam_type='hor'), should be larger than the typical grid cell size
    integer :: nl0r                                      ! Reduced number of levels for diagnostics
+   integer :: irmax                                     ! Maximum number of random number draws
 
    ! diag_param
    integer :: ne                                        ! Ensemble size
@@ -151,9 +154,6 @@ type nam_type
    character(len=1024) :: obsop_interp                  ! Observation operator interpolation type
 
    ! output_param
-   integer :: nldwh                                     ! Number of local diagnostics fields to write (for local_diag = .true.)
-   integer :: il_ldwh(nlmax*nc3max)                     ! Levels of local diagnostics fields to write (for local_diag = .true.)
-   integer :: ic_ldwh(nlmax*nc3max)                     ! Classes of local diagnostics fields to write (for local_diag = .true.)
    integer :: nldwv                                     ! Number of local diagnostics profiles to write (for local_diag = .true.)
    integer ::  img_ldwv(nldwvmax)                       ! Index on model grid of the local diagnostics profiles to write
    real(kind_real) ::  lon_ldwv(nldwvmax)               ! Longitudes (in degrees) of the local diagnostics profiles to write
@@ -161,7 +161,6 @@ type nam_type
    character(len=1024),dimension(nldwvmax) :: name_ldwv ! Name of the local diagnostics profiles to write
    real(kind_real) ::  diag_rhflt                       ! Diagnostics filtering radius
    character(len=1024) :: diag_interp                   ! Diagnostics interpolation type
-   logical :: field_io                                  ! Field I/O
    logical :: split_io                                  ! Split I/O (each task read and write its own file)
    logical :: grid_output                               ! Write regridded fields
    real(kind_real) :: grid_resol                        ! Regridded fields resolution
@@ -263,6 +262,8 @@ nam%mask_th = 0.0
 nam%ncontig_th = 0
 nam%mask_check = .false.
 nam%draw_type = 'random_uniform'
+nam%Lcoast = 0.0
+nam%rcoast = 0.0
 nam%nc1 = 0
 nam%nc2 = 0
 nam%ntry = 0
@@ -270,6 +271,7 @@ nam%nrep = 0
 nam%nc3 = 0
 nam%dc = 0.0
 nam%nl0r = 0
+nam%irmax = 10000
 
 ! diag_param default
 nam%ne = 0
@@ -327,9 +329,6 @@ nam%obsdis = ''
 nam%obsop_interp = 'bilin'
 
 ! output_param default
-nam%nldwh = 0
-nam%il_ldwh = 0
-nam%ic_ldwh = 0
 nam%nldwv = 0
 nam%img_ldwv = 0
 nam%lon_ldwv = 0.0
@@ -339,7 +338,6 @@ do ildwv=1,nldwvmax
 end do
 nam%diag_rhflt = 0.0
 nam%diag_interp = 'bilin'
-nam%field_io = .true.
 nam%split_io = .false.
 nam%grid_output = .false.
 nam%grid_resol = 0.0
@@ -367,17 +365,16 @@ character(len=1024),parameter :: subr = 'nam_read'
 ! Namelist variables
 integer :: lunit
 integer :: nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_nsub,ens2_ne,ens2_nsub
-integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,ne,avg_nbins,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir,levdir(ndirmax)
-integer :: ivdir(ndirmax),itsdir(ndirmax),nobs,nldwh,il_ldwh(nlmax*nc3max),ic_ldwh(nlmax*nc3max),nldwv,img_ldwv(nldwvmax),ildwv
+integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,irmax,ne,avg_nbins,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,ndir
+integer :: levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs,nldwv,img_ldwv(nldwvmax),ildwv
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat
 logical :: write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def
 logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,sam_write,sam_read,mask_check
 logical :: vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag,double_fit(0:nvmax)
-logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids,field_io,split_io
-logical :: grid_output
-real(kind_real) :: mask_th,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax)
-real(kind_real) :: diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
+logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids,split_io,grid_output
+real(kind_real) :: mask_th,Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
+real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
 character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu,draw_type,minim_algo,subsamp,nicas_interp
 character(len=1024) :: obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
@@ -392,15 +389,15 @@ namelist/driver_param/method,strategy,new_cortrack,new_vbal,load_vbal,new_mom,lo
 namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
 namelist/ens1_param/ens1_ne,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_nsub
-namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,nc1,nc2,ntry,nrep,nc3,dc,nl0r
+namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,Lcoast,rcoast,nc1,nc2,ntry, &
+                      & nrep,nc3,dc,nl0r,irmax
 namelist/diag_param/ne,gau_approx,avg_nbins,vbal_block,vbal_rad,var_filter,var_niter,var_rhflt,local_diag,local_rad, &
                   & adv_diag,adv_rad,adv_niter,adv_rhflt
 namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
                    & write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
-namelist/output_param/nldwh,il_ldwh,ic_ldwh,nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,field_io,split_io, &
-                    & grid_output,grid_resol,grid_interp
+namelist/output_param/nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,split_io,grid_output,grid_resol,grid_interp
 
 if (mpl%main) then
    ! general_param default
@@ -471,6 +468,8 @@ if (mpl%main) then
    ncontig_th = 0
    mask_check = .false.
    draw_type = 'random_uniform'
+   Lcoast = 0.0
+   rcoast = 0.0
    nc1 = 0
    nc2 = 0
    ntry = 0
@@ -478,6 +477,7 @@ if (mpl%main) then
    nc3 = 0
    dc = 0.0
    nl0r = 0
+   irmax = 10000
 
    ! diag_param default
    ne = 0
@@ -535,9 +535,6 @@ if (mpl%main) then
    obsop_interp = 'bilin'
 
    ! output_param default
-   nldwh = 0
-   il_ldwh = 0
-   ic_ldwh = 0
    nldwv = 0
    img_ldwv = 0
    lon_ldwv = 0.0
@@ -547,7 +544,6 @@ if (mpl%main) then
    end do
    diag_rhflt = 0.0
    diag_interp = 'bilin'
-   field_io = .true.
    split_io = .false.
    grid_output = .false.
    grid_resol = 0.0
@@ -633,6 +629,8 @@ if (mpl%main) then
    nam%ncontig_th = ncontig_th
    nam%mask_check = mask_check
    nam%draw_type = draw_type
+   nam%Lcoast = Lcoast
+   nam%rcoast = rcoast
    nam%nc1 = nc1
    nam%nc2 = nc2
    nam%ntry = ntry
@@ -640,6 +638,7 @@ if (mpl%main) then
    nam%nc3 = nc3
    nam%dc = dc
    nam%nl0r = nl0r
+   nam%irmax = irmax
 
    ! diag_param
    read(lunit,nml=diag_param)
@@ -700,13 +699,6 @@ if (mpl%main) then
 
    ! output_param
    read(lunit,nml=output_param)
-   if (nldwh>nlmax*nc3max) call mpl%abort(subr,'nldwh is too large')
-   if (nldwv>nldwvmax) call mpl%abort(subr,'nldwv is too large')
-   nam%nldwh = nldwh
-   if (nldwh>0) then
-      nam%il_ldwh(1:nldwh) = il_ldwh(1:nldwh)
-      nam%ic_ldwh(1:nldwh) = ic_ldwh(1:nldwh)
-   end if
    nam%nldwv = nldwv
    if (nldwv>0) then
       nam%img_ldwv(1:nldwv) = img_ldwv(1:nldwv)
@@ -716,7 +708,6 @@ if (mpl%main) then
    end if
    nam%diag_rhflt = diag_rhflt
    nam%diag_interp = diag_interp
-   nam%field_io = field_io
    nam%split_io = split_io
    nam%grid_output = grid_output
    nam%grid_resol = grid_resol
@@ -806,6 +797,8 @@ call mpl%f_comm%broadcast(nam%mask_th,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%ncontig_th,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_check,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%draw_type,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%Lcoast,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%rcoast,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nc1,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nc2,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%ntry,mpl%ioproc-1)
@@ -813,6 +806,7 @@ call mpl%f_comm%broadcast(nam%nrep,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nc3,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%dc,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nl0r,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%irmax,mpl%ioproc-1)
 
 ! diag_param
 call mpl%f_comm%broadcast(nam%ne,mpl%ioproc-1)
@@ -866,9 +860,6 @@ call mpl%f_comm%broadcast(nam%obsdis,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%obsop_interp,mpl%ioproc-1)
 
 ! output_param
-call mpl%f_comm%broadcast(nam%nldwh,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%il_ldwh,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%ic_ldwh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%img_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lon_ldwv,mpl%ioproc-1)
@@ -876,7 +867,6 @@ call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%ioproc-1)
 call mpl%bcast(nam%name_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_interp,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%field_io,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%split_io,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%grid_output,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%grid_resol,mpl%ioproc-1)
@@ -954,10 +944,10 @@ if (nam%nts>ntsmax) call mpl%abort(subr,'nts is too large')
 if (nam%nc3>nc3max) call mpl%abort(subr,'nc3 is too large')
 if (nam%lct_nscales>nscalesmax) call mpl%abort(subr,'lct_nscales is too large')
 if (nam%ndir>ndirmax) call mpl%abort(subr,'ndir is too large')
-if (nam%nldwh>nlmax*nc3max) call mpl%abort(subr,'nldwh is too large')
 if (nam%nldwv>nldwvmax) call mpl%abort(subr,'nldwv is too large')
 
 ! Namelist parameters normalization (meters to radians and degrees to radians)
+nam%Lcoast = nam%Lcoast/req
 nam%dc = nam%dc/req
 nam%vbal_rad = nam%vbal_rad/req
 nam%var_rhflt = nam%var_rhflt/req
@@ -1078,17 +1068,22 @@ end if
 if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%sam_write.and.nam%sam_read) call mpl%abort(subr,'sam_write and sam_read are both true')
    select case (trim(nam%draw_type))
-   case ('random_uniform','random_coast','icosahedron')
+   case ('random_uniform')
+   case ('random_coast')
+      if (.not.(nam%Lcoast>0.0)) call mpl%abort (subr,'Lcoast should be positive')
+      if (.not.(nam%rcoast>0.0)) call mpl%abort (subr,'rcoast should be positive')
    case default
       call mpl%abort(subr,'wrong draw_type')
    end select
-   if (trim(nam%mask_type)=='ldwv') then
+   select case (trim(nam%mask_type))
+   case ('ldwv')
       if (nam%nldwv<=0) call mpl%abort(subr,'nldwv should not be negative for mask_type = ldwv')
-   end if
-   select case (trim(nam%mask_lu))
-   case ('lower','upper')
-   case default
-      call mpl%abort(subr,'wrong mask_lu')
+   case ('stddev')
+      select case (trim(nam%mask_lu))
+      case ('lower','upper')
+      case default
+         call mpl%abort(subr,'wrong mask_lu')
+      end select
    end select
    if (nam%nc1<3) call mpl%abort(subr,'nc1 should be larger than 2')
    if (nam%new_vbal.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv_diag))) then
@@ -1113,11 +1108,14 @@ end if
 if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nc3<=0) call mpl%abort(subr,'nc3 should be positive')
 end if
+if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
+   if (nam%dc<0.0) call mpl%abort(subr,'dc should be positive')
+end if
 if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nl0r<1) call mpl%abort (subr,'nl0r should be positive')
 end if
 if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
-   if (nam%dc<0.0) call mpl%abort(subr,'dc should be positive')
+   if (nam%irmax<1) call mpl%abort (subr,'irmax should be positive')
 end if
 
 ! Check diag_param
@@ -1248,27 +1246,18 @@ end if
 
 ! Check output_param
 if (nam%new_hdiag) then
-   if (nam%local_diag) then
-      if (nam%nldwh<0) call mpl%abort(subr,'nldwh should be non-negative')
-      if (nam%nldwh>0) then
-         if (any(nam%il_ldwh(1:nam%nldwh)<0)) call mpl%abort(subr,'il_ldwh should be non-negative')
-         if (any(nam%il_ldwh(1:nam%nldwh)>nam%nl)) call mpl%abort(subr,'il_ldwh should be lower than nl')
-         if (any(nam%ic_ldwh(1:nam%nldwh)<0)) call mpl%abort(subr,'ic_ldwh should be non-negative')
-         if (any(nam%ic_ldwh(1:nam%nldwh)>nam%nc3)) call mpl%abort(subr,'ic_ldwh should be lower than nc3')
-      end if
-      if (nam%nldwv<0) call mpl%abort(subr,'nldwv should be non-negative')
-      if (nam%nldwv>0) then
-         if (.not.nam%local_diag) call mpl%abort(subr,'local_diag required for nldwv>0')
+   if (nam%nldwv<0) call mpl%abort(subr,'nldwv should be non-negative')
+   if (nam%nldwv>0) then
+      if (.not.nam%local_diag) call mpl%abort(subr,'local_diag required for nldwv>0')
          if (.not.all(nam%img_ldwv(1:nam%nldwv)>0)) then
-            if (any(nam%lon_ldwv(1:nam%nldwv)<-pi).or.any(nam%lon_ldwv(1:nam%nldwv)>pi)) &
-          & call mpl%abort(subr,'lon_ldwv should lie between -180 and 180')
-            if (any(nam%lat_ldwv(1:nam%nldwv)<-0.5*pi).or.any(nam%lat_ldwv(1:nam%nldwv)>0.5*pi)) &
-          & call mpl%abort(subr,'lat_ldwv should lie between -90 and 90')
-            do ildwv=1,nam%nldwv
-               write(ildwvchar,'(i2.2)') ildwv
-               if (trim(nam%name_ldwv(ildwv))=='') call mpl%abort(subr,'name_ldwv not specified for profile '//ildwvchar)
-            end do
-         end if
+         if (any(nam%lon_ldwv(1:nam%nldwv)<-pi).or.any(nam%lon_ldwv(1:nam%nldwv)>pi)) &
+       & call mpl%abort(subr,'lon_ldwv should lie between -180 and 180')
+         if (any(nam%lat_ldwv(1:nam%nldwv)<-0.5*pi).or.any(nam%lat_ldwv(1:nam%nldwv)>0.5*pi)) &
+       & call mpl%abort(subr,'lat_ldwv should lie between -90 and 90')
+         do ildwv=1,nam%nldwv
+            write(ildwvchar,'(i2.2)') ildwv
+            if (trim(nam%name_ldwv(ildwv))=='') call mpl%abort(subr,'name_ldwv not specified for profile '//ildwvchar)
+         end do
       end if
    end if
    if (nam%local_diag.or.nam%adv_diag) then
@@ -1407,12 +1396,15 @@ call mpl%write(lncid,'mask_th',nam%mask_th)
 call mpl%write(lncid,'ncontig_th',nam%ncontig_th)
 call mpl%write(lncid,'mask_check',nam%mask_check)
 call mpl%write(lncid,'draw_type',nam%draw_type)
+call mpl%write(lncid,'Lcoast',nam%Lcoast*req)
+call mpl%write(lncid,'rcoast',nam%rcoast)
 call mpl%write(lncid,'nc1',nam%nc1)
 call mpl%write(lncid,'ntry',nam%ntry)
 call mpl%write(lncid,'nrep',nam%nrep)
 call mpl%write(lncid,'nc3',nam%nc3)
 call mpl%write(lncid,'dc',nam%dc*req)
 call mpl%write(lncid,'nl0r',nam%nl0r)
+call mpl%write(lncid,'irmax',nam%irmax)
 
 ! diag_param
 if (mpl%msv%isi(lncid)) then
@@ -1491,9 +1483,6 @@ if (mpl%msv%isi(lncid)) then
    write(mpl%info,'(a7,a)') '','Output parameters'
    call mpl%flush
 end if
-call mpl%write(lncid,'nldwh',nam%nldwh)
-call mpl%write(lncid,'il_ldwh',nam%nldwh,nam%il_ldwh(1:nam%nldwh))
-call mpl%write(lncid,'ic_ldwh',nam%nldwh,nam%ic_ldwh(1:nam%nldwh))
 call mpl%write(lncid,'nldwv',nam%nldwv)
 call mpl%write(lncid,'img_ldwv',nam%nldwv,nam%img_ldwv(1:nam%nldwv))
 allocate(lon_ldwv(nam%nldwv))
@@ -1507,7 +1496,6 @@ call mpl%write(lncid,'lat_ldwv',nam%nldwv,lat_ldwv)
 call mpl%write(lncid,'name_ldwv',nam%nldwv,nam%name_ldwv(1:nam%nldwv))
 call mpl%write(lncid,'diag_rhflt',nam%diag_rhflt*req)
 call mpl%write(lncid,'diag_interp',nam%diag_interp)
-call mpl%write(lncid,'field_io',nam%field_io)
 call mpl%write(lncid,'split_io',nam%split_io)
 call mpl%write(lncid,'grid_output',nam%grid_output)
 call mpl%write(lncid,'grid_resol',nam%grid_resol*req)

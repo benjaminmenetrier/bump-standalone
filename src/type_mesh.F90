@@ -8,7 +8,7 @@
 module type_mesh
 
 !$ use omp_lib
-use tools_const, only: req
+use tools_const, only: pi,req
 use tools_func, only: sphere_dist,lonlat2xyz,xyz2lonlat,vector_product
 use tools_kinds, only: kind_real
 use tools_stripack, only: addnod,areas,bnodes,crlist,inside,trfind,trlist,trmesh
@@ -395,6 +395,9 @@ if (lbdist) then
    do i=1,mesh%n
       call mesh%find_bdist(mpl,mesh%lon(i),mesh%lat(i),mesh%bdist(i))
    end do
+else
+   ! Missing
+   mesh%bdist = mpl%msv%valr
 end if
 
 end subroutine mesh_bnodes
@@ -423,7 +426,7 @@ character(len=1024),parameter :: subr = 'mesh_find_bdist'
 if (mpl%msv%isi(mesh%nb)) call mpl%abort(subr,'boundary arcs have not been computed')
 
 ! Initialization
-bdist = huge(1.0)
+bdist = pi
 
 if (mesh%nb>0) then
    ! Transform to cartesian coordinates

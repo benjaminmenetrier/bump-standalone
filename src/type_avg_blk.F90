@@ -7,6 +7,7 @@
 !----------------------------------------------------------------------
 module type_avg_blk
 
+use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use netcdf
 use tools_func, only: histogram
 use tools_kinds, only: kind_real,nc_kind_real
@@ -19,8 +20,6 @@ use type_nam, only: nam_type
 use type_samp, only: samp_type
 
 implicit none
-
-real(kind_real),parameter :: nc1a_cor_th = 0.1           ! Threshold on the effective sampling size for asymptotic statistics
 
 ! Averaged statistics block derived type
 type avg_blk_type
@@ -79,13 +78,15 @@ contains
 ! Subroutine: avg_blk_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine avg_blk_alloc(avg_blk,nam,geom,bpar,ic2,ib,ne,nsub,prefix)
+subroutine avg_blk_alloc(avg_blk,mpl,nam,geom,bpar,ic2,ib,ne,nsub,prefix)
 
 implicit none
 
 ! Passed variables
 class(avg_blk_type),intent(inout) :: avg_blk ! Averaged statistics block
+
 type(nam_type),intent(in) :: nam             ! Namelist
+type(mpl_type),intent(inout) :: mpl          ! MPI data
 type(geom_type),intent(in) :: geom           ! Geometry
 type(bpar_type),intent(in) :: bpar           ! Block parameters
 integer,intent(in) :: ic2                    ! Global index
@@ -130,7 +131,7 @@ if (bpar%diag_block(ib).and.(.not.allocated(avg_blk%nc1a))) then
          allocate(avg_blk%m11lrm11asy(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       end select
    end if
-   if ((nam%avg_nbins>0).and.(ic2==0)) then
+   if (mpl%main.and.(nam%avg_nbins>0).and.(ic2==0)) then
       allocate(avg_blk%m11_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       allocate(avg_blk%m11_hist(nam%avg_nbins,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       allocate(avg_blk%m11m11_bins(nam%avg_nbins+1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
@@ -392,15 +393,29 @@ type(samp_type),intent(in) :: samp           ! Sampling
 type(mom_blk_type),intent(in) :: mom_blk     ! Moments
 
 ! Local variables
-integer :: il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1amax,nc1a
+integer :: il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1amax,nc1a,iproc,offset,nbuf
+integer,allocatable :: nc1a_arr(:,:,:,:),nc1a_tot(:,:,:,:),offset_0(:,:,:),offset_1(:,:,:),offset_2(:,:,:)
 real(kind_real) :: m2_1,m2_2
 real(kind_real),allocatable :: list_m11(:),list_m11m11(:,:,:),list_m2m2(:,:,:),list_m22(:,:),list_cor(:)
-real(kind_real),allocatable :: list_m11m11_tot(:),list_m2m2_tot(:),list_m22_tot(:)
+real(kind_real),allocatable :: list_m11_tot(:,:,:,:),list_m11m11_tot(:,:,:,:),list_m2m2_tot(:,:,:,:),list_m22_tot(:,:,:,:)
+real(kind_real),allocatable :: list_cor_tot(:,:,:,:)
+real(kind_real),allocatable :: list_m11_full(:,:,:,:),list_m11m11_full(:,:,:,:),list_m2m2_full(:,:,:,:),list_m22_full(:,:,:,:)
+real(kind_real),allocatable :: list_cor_full(:,:,:,:)
+real(kind_real),allocatable :: sbuf(:),rbuf(:)
 logical :: involved,valid
-character(len=1024),parameter :: subr = 'avg_blk_compute'
+type(fckit_mpi_status) :: status
 
 ! Associate
 associate(ic2=>avg_blk%ic2,ib=>avg_blk%ib)
+
+! Allocation
+if ((nam%avg_nbins>0).and.(ic2==0)) then
+   allocate(list_m11_tot(samp%nc1a,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   allocate(list_m11m11_tot(samp%nc1a*avg_blk%nsub**2,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   allocate(list_m2m2_tot(samp%nc1a*avg_blk%nsub**2,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   if (.not.nam%gau_approx) allocate(list_m22_tot(samp%nc1a*avg_blk%nsub,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   allocate(list_cor_tot(samp%nc1a,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+end if
 
 if ((ic2==0).or.nam%local_diag) then
    ! Copy variance
@@ -441,8 +456,7 @@ if ((ic2==0).or.nam%local_diag) then
    if (involved) then
       ! Average
       !$omp parallel do schedule(static) private(il0,jl0r,jl0,nc1amax,jc3,nc1a,ic1a,ic1,valid,m2_1,m2_2,isub,jsub), &
-      !$omp&                             firstprivate(list_m11,list_m11m11,list_m2m2,list_m22,list_cor), &
-      !$omp&                             firstprivate(list_m11m11_tot,list_m2m2_tot,list_m22_tot)
+      !$omp&                             firstprivate(list_m11,list_m11m11,list_m2m2,list_m22,list_cor)
       do il0=1,geom%nl0
          do jl0r=1,bpar%nl0r(ib)
             jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
@@ -476,8 +490,6 @@ if ((ic2==0).or.nam%local_diag) then
                         valid = valid.and.(m2_1>nam%mask_th**2).and.(m2_2>nam%mask_th**2)
                      elseif (trim(nam%mask_lu)=='upper') then
                         valid = valid.and.(m2_1<nam%mask_th**2).and.(m2_2<nam%mask_th**2)
-                     else
-                        call mpl%abort(subr,'mask_lu not recognized')
                      end if
                   end if
 
@@ -526,34 +538,14 @@ if ((ic2==0).or.nam%local_diag) then
                      avg_blk%cor(jc3,jl0r,il0) = 0.0
                   end if
 
-                  ! Histograms
+                  ! Store histograms data
                   if ((nam%avg_nbins>0).and.(ic2==0)) then
-                     ! Allocation
-                     allocate(list_m11m11_tot(nc1a*avg_blk%nsub**2))
-                     allocate(list_m2m2_tot(nc1a*avg_blk%nsub**2))
-                     if (.not.nam%gau_approx) allocate(list_m22_tot(nc1a*avg_blk%nsub))
-
-                     ! Compute histograms
-                     call histogram(mpl,nc1a,list_m11(1:nc1a),nam%avg_nbins,avg_blk%m11_bins(:,jc3,jl0r,il0), &
-                   & avg_blk%m11_hist(:,jc3,jl0r,il0))
-                     list_m11m11_tot = pack(list_m11m11(1:nc1a,:,:),mask=.true.)
-                     call histogram(mpl,nc1a*avg_blk%nsub**2,list_m11m11_tot,nam%avg_nbins, &
-                   & avg_blk%m11m11_bins(:,jc3,jl0r,il0),avg_blk%m11m11_hist(:,jc3,jl0r,il0))
-                     list_m2m2_tot = pack(list_m2m2(1:nc1a,:,:),mask=.true.)
-                     call histogram(mpl,nc1a*avg_blk%nsub**2,list_m2m2_tot,nam%avg_nbins, &
-                   & avg_blk%m2m2_bins(:,jc3,jl0r,il0),avg_blk%m2m2_hist(:,jc3,jl0r,il0))
-                     if (.not.nam%gau_approx) then
-                        list_m22_tot = pack(list_m22(1:nc1a,:),mask=.true.)
-                        call histogram(mpl,nc1a*avg_blk%nsub,list_m22_tot,nam%avg_nbins, &
-                      & avg_blk%m22_bins(:,jc3,jl0r,il0),avg_blk%m22_hist(:,jc3,jl0r,il0))
-                     end if
-                     call histogram(mpl,nc1a,list_cor(1:nc1a),nam%avg_nbins,avg_blk%cor_bins(:,jc3,jl0r,il0), &
-                   & avg_blk%cor_hist(:,jc3,jl0r,il0))
-
-                     ! Release memory
-                     deallocate(list_m11m11_tot)
-                     deallocate(list_m2m2_tot)
-                     if (.not.nam%gau_approx) deallocate(list_m22_tot)
+                     list_m11_tot(1:nc1a,jc3,jl0r,il0) = list_m11(1:nc1a)
+                     list_m11m11_tot(1:nc1a*avg_blk%nsub**2,jc3,jl0r,il0) = pack(list_m11m11(1:nc1a,:,:),mask=.true.)
+                     list_m2m2_tot(1:nc1a*avg_blk%nsub**2,jc3,jl0r,il0) = pack(list_m2m2(1:nc1a,:,:),mask=.true.)
+                     if (.not.nam%gau_approx) list_m22_tot(1:nc1a*avg_blk%nsub,jc3,jl0r,il0) = pack(list_m22(1:nc1a,:), &
+                                                                                             & mask=.true.)
+                     list_cor_tot(1:nc1a,jc3,jl0r,il0) = list_cor(1:nc1a)
                   end if
                else
                   ! Set to zero for this task
@@ -588,6 +580,198 @@ if ((ic2==0).or.nam%local_diag) then
       if (.not.nam%gau_approx) avg_blk%m22 = 0.0
       avg_blk%nc1a_cor = 0.0
       avg_blk%cor = 0.0
+   end if
+end if
+
+
+! Compute histograms
+if ((nam%avg_nbins>0).and.(ic2==0)) then
+   ! Allocation
+   allocate(nc1a_arr(mpl%nproc,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   allocate(nc1a_tot(mpl%nproc,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   if (mpl%main) then
+      allocate(list_m11_full(nam%nc1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(list_m11m11_full(nam%nc1*avg_blk%nsub**2,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(list_m2m2_full(nam%nc1*avg_blk%nsub**2,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      if (.not.nam%gau_approx) allocate(list_m22_full(nam%nc1*avg_blk%nsub,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(list_cor_full(nam%nc1,bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(offset_0(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(offset_1(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+      allocate(offset_2(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
+   end if
+
+   ! Gather nc1a
+   nc1a_arr = 0
+   do il0=1,geom%nl0
+      do jl0r=1,bpar%nl0r(ib)
+         do jc3=1,bpar%nc3(ib)
+            nc1a_arr(mpl%myproc,jc3,jl0r,il0) = int(avg_blk%nc1a(jc3,jl0r,il0))
+         end do
+      end do
+   end do
+   call mpl%f_comm%allreduce(nc1a_arr,nc1a_tot,fckit_mpi_sum())
+
+   if (mpl%nproc>1) then
+   ! Sent buffer size
+   nbuf = sum(nc1a_tot(mpl%myproc,1:bpar%nc3(ib),1:bpar%nl0r(ib),1:geom%nl0))*(2+2*avg_blk%nsub**2)
+   if (.not.nam%gau_approx) nbuf = nbuf+sum(nc1a_tot(mpl%myproc,1:bpar%nc3(ib),1:bpar%nl0r(ib),1:geom%nl0))*avg_blk%nsub
+
+   ! Allocation
+   allocate(sbuf(nbuf))
+
+   ! Prepare sent buffer
+   offset = 0
+   do il0=1,geom%nl0
+      do jl0r=1,bpar%nl0r(ib)
+         do jc3=1,bpar%nc3(ib)
+            if (nc1a_tot(mpl%myproc,jc3,jl0r,il0)>0) then
+               sbuf(offset+1:offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)) =  &
+             & list_m11_tot(1:nc1a_tot(mpl%myproc,jc3,jl0r,il0),jc3,jl0r,il0)
+               offset = offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)
+               sbuf(offset+1:offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2) =  &
+             & list_m11m11_tot(1:nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2,jc3,jl0r,il0)
+               offset = offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2
+               sbuf(offset+1:offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2) =  &
+             & list_m2m2_tot(1:nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2,jc3,jl0r,il0)
+               offset = offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub**2
+               if (.not.nam%gau_approx) then
+                  sbuf(offset+1:offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub) =  &
+                & list_m22_tot(1:nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub,jc3,jl0r,il0)
+                  offset = offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)*avg_blk%nsub
+               end if
+               sbuf(offset+1:offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)) =  &
+             & list_cor_tot(1:nc1a_tot(mpl%myproc,jc3,jl0r,il0),jc3,jl0r,il0)
+               offset = offset+nc1a_tot(mpl%myproc,jc3,jl0r,il0)
+            end if
+         end do
+      end do
+   end do
+
+   ! Get full list on main task
+   if (mpl%main) then
+      ! Initialization
+      offset_0 = 0
+      offset_1 = 0
+      offset_2 = 0
+
+      do iproc=1,mpl%nproc
+         ! Received buffer size
+         nbuf = sum(nc1a_tot(iproc,1:bpar%nc3(ib),1:bpar%nl0r(ib),1:geom%nl0))*(2+2*avg_blk%nsub**2)
+         if (.not.nam%gau_approx) nbuf = nbuf+sum(nc1a_tot(iproc,1:bpar%nc3(ib),1:bpar%nl0r(ib),1:geom%nl0))*avg_blk%nsub
+         if (nbuf>0) then
+            ! Allocation
+            allocate(rbuf(nbuf))
+            if (iproc==mpl%ioproc) then
+               ! Copy data
+               rbuf = sbuf
+            else
+               ! Receive data on ioproc
+               call mpl%f_comm%receive(rbuf,iproc-1,mpl%tag,status)
+            end if
+
+            ! Unpack received buffer
+            offset = 0
+            do il0=1,geom%nl0
+               do jl0r=1,bpar%nl0r(ib)
+                  do jc3=1,bpar%nc3(ib)
+                     if (nc1a_tot(iproc,jc3,jl0r,il0)>0) then
+                        list_m11_full(offset_0(jc3,jl0r,il0)+1:offset_0(jc3,jl0r,il0) &
+                      & +nc1a_tot(iproc,jc3,jl0r,il0),jc3,jl0r,il0) = rbuf(offset+1:offset+nc1a_tot(iproc,jc3,jl0r,il0))
+                        offset = offset+nc1a_tot(iproc,jc3,jl0r,il0)
+                        list_m11m11_full(offset_2(jc3,jl0r,il0)+1:offset_2(jc3,jl0r,il0) &
+                      & +nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2,jc3,jl0r,il0) = &
+                      & rbuf(offset+1:offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2)
+                        offset = offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2
+                        list_m2m2_full(offset_2(jc3,jl0r,il0)+1:offset_2(jc3,jl0r,il0) &
+                      & +nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2,jc3,jl0r,il0) = &
+                      & rbuf(offset+1:offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2)
+                        offset = offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2
+                        if (.not.nam%gau_approx) then
+                           list_m22_full(offset_1(jc3,jl0r,il0)+1:offset_1(jc3,jl0r,il0) &
+                         & +nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub,jc3,jl0r,il0) = &
+                         & rbuf(offset+1:offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub)
+                           offset = offset+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub
+                        end if
+                        list_cor_full(offset_0(jc3,jl0r,il0)+1:offset_0(jc3,jl0r,il0) &
+                      & +nc1a_tot(iproc,jc3,jl0r,il0),jc3,jl0r,il0) = &
+                      & rbuf(offset+1:offset+nc1a_tot(iproc,jc3,jl0r,il0))
+                        offset = offset+nc1a_tot(iproc,jc3,jl0r,il0)
+
+                        ! Update offsets
+                        offset_0(jc3,jl0r,il0) = offset_0(jc3,jl0r,il0)+nc1a_tot(iproc,jc3,jl0r,il0)
+                        offset_1(jc3,jl0r,il0) = offset_1(jc3,jl0r,il0)+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub
+                        offset_2(jc3,jl0r,il0) = offset_2(jc3,jl0r,il0)+nc1a_tot(iproc,jc3,jl0r,il0)*avg_blk%nsub**2
+                     end if
+                  end do
+               end do
+            end do
+
+            ! Release memory
+            deallocate(rbuf)
+         end if
+      end do
+   else
+      if (nbuf>0) then
+         ! Send data to ioproc
+         call mpl%f_comm%send(sbuf,mpl%ioproc-1,mpl%tag)
+      end if
+   end if
+   call mpl%update_tag(1)
+
+   ! Release memory
+   deallocate(sbuf)
+
+   else
+      ! Copy arrays
+      list_m11_full = list_m11_tot
+      list_m11m11_full = list_m11m11_tot
+      list_m2m2_full = list_m2m2_tot
+      if (.not.nam%gau_approx) list_m22_full = list_m22_tot
+      list_cor_full = list_cor_tot
+      offset_0 = sum(nc1a_tot,dim=1)
+      offset_1 = sum(nc1a_tot,dim=1)*avg_blk%nsub
+      offset_2 = sum(nc1a_tot,dim=1)*avg_blk%nsub**2
+   end if
+
+   ! Compute histograms
+   if (mpl%main) then
+      do il0=1,geom%nl0
+         do jl0r=1,bpar%nl0r(ib)
+            do jc3=1,bpar%nc3(ib)
+               call histogram(mpl,offset_0(jc3,jl0r,il0),list_m11_full(1:offset_0(jc3,jl0r,il0),jc3,jl0r,il0),nam%avg_nbins, &
+             & avg_blk%m11_bins(:,jc3,jl0r,il0),avg_blk%m11_hist(:,jc3,jl0r,il0))
+               call histogram(mpl,offset_2(jc3,jl0r,il0),list_m11m11_full(1:offset_2(jc3,jl0r,il0),jc3,jl0r,il0),nam%avg_nbins, &
+             & avg_blk%m11m11_bins(:,jc3,jl0r,il0),avg_blk%m11m11_hist(:,jc3,jl0r,il0))
+               call histogram(mpl,offset_2(jc3,jl0r,il0),list_m2m2_full(1:offset_2(jc3,jl0r,il0),jc3,jl0r,il0),nam%avg_nbins, &
+             & avg_blk%m2m2_bins(:,jc3,jl0r,il0),avg_blk%m2m2_hist(:,jc3,jl0r,il0))
+               if (.not.nam%gau_approx) then
+                  call histogram(mpl,offset_1(jc3,jl0r,il0),list_m22_full(1:offset_1(jc3,jl0r,il0),jc3,jl0r,il0),nam%avg_nbins, &
+                & avg_blk%m22_bins(:,jc3,jl0r,il0),avg_blk%m22_hist(:,jc3,jl0r,il0))
+               end if
+               call histogram(mpl,offset_0(jc3,jl0r,il0),list_cor_full(1:offset_0(jc3,jl0r,il0),jc3,jl0r,il0),nam%avg_nbins, &
+             & avg_blk%cor_bins(:,jc3,jl0r,il0),avg_blk%cor_hist(:,jc3,jl0r,il0))
+            end do
+         end do
+      end do
+   end if
+
+   ! Release memory
+   deallocate(list_m11_tot)
+   deallocate(list_m11m11_tot)
+   deallocate(list_m2m2_tot)
+   if (.not.nam%gau_approx) deallocate(list_m22_tot)
+   deallocate(list_cor_tot)
+   deallocate(nc1a_arr)
+   deallocate(nc1a_tot)
+   if (mpl%main) then
+      deallocate(list_m11_full)
+      deallocate(list_m11m11_full)
+      deallocate(list_m2m2_full)
+      if (.not.nam%gau_approx) deallocate(list_m22_full)
+      deallocate(list_cor_full)
+      deallocate(offset_0)
+      deallocate(offset_1)
+      deallocate(offset_2)
    end if
 end if
 
@@ -646,88 +830,80 @@ if ((ic2==0).or.nam%local_diag) then
    do il0=1,geom%nl0
       do jl0r=1,bpar%nl0r(ib)
          do jc3=1,bpar%nc3(ib)
-            if (avg_blk%nc1a_cor(jc3,jl0r,il0)>nc1a_cor_th*avg_blk%nc1a(jc3,jl0r,il0)) then
-               ! Allocation
-               allocate(m11asysq(avg_blk%nsub,avg_blk%nsub))
-               allocate(m2m2asy(avg_blk%nsub,avg_blk%nsub))
-               allocate(m22asy(avg_blk%nsub))
+            ! Allocation
+            allocate(m11asysq(avg_blk%nsub,avg_blk%nsub))
+            allocate(m2m2asy(avg_blk%nsub,avg_blk%nsub))
+            allocate(m22asy(avg_blk%nsub))
 
-               ! Asymptotic statistics
-               do isub=1,avg_blk%nsub
-                  do jsub=1,avg_blk%nsub
-                     if (isub==jsub) then
-                        ! Diagonal terms
-                        if (nam%gau_approx) then
-                           ! Gaussian approximation
-                           m11asysq(jsub,isub) = P17*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
-                                               & +P13*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
-                           m2m2asy(jsub,isub) = 2.0*P13*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
-                                              & +P12*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
-                        else
-                           ! General case
-                           m11asysq(jsub,isub) = P15*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
-                                               & +P8*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)+P9*avg_blk%m22(jc3,jl0r,il0,jsub)
-                           m2m2asy(jsub,isub) = 2.0*P8*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
-                                              & +P7*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)+P9*avg_blk%m22(jc3,jl0r,il0,jsub)
-                           m22asy(jsub) = P10*(2.0*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub)+avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)) &
-                                        & +P11*avg_blk%m22(jc3,jl0r,il0,jsub)
-                        end if
+            ! Asymptotic statistics
+            do isub=1,avg_blk%nsub
+               do jsub=1,avg_blk%nsub
+                  if (isub==jsub) then
+                     ! Diagonal terms
+                     if (nam%gau_approx) then
+                        ! Gaussian approximation
+                        m11asysq(jsub,isub) = P17*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
+                                            & +P13*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
+                        m2m2asy(jsub,isub) = 2.0*P13*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
+                                           & +P12*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
                      else
-                        ! Off-diagonal terms
-                        m11asysq(jsub,isub) = avg_blk%m11m11(jc3,jl0r,il0,jsub,isub)
-                        m2m2asy(jsub,isub) = avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
+                        ! General case
+                        m11asysq(jsub,isub) = P15*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
+                                            & +P8*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)+P9*avg_blk%m22(jc3,jl0r,il0,jsub)
+                        m2m2asy(jsub,isub) = 2.0*P8*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub) &
+                                           & +P7*avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)+P9*avg_blk%m22(jc3,jl0r,il0,jsub)
+                        m22asy(jsub) = P10*(2.0*avg_blk%m11m11(jc3,jl0r,il0,jsub,isub)+avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)) &
+                                     & +P11*avg_blk%m22(jc3,jl0r,il0,jsub)
                      end if
-                  end do
+                  else
+                     ! Off-diagonal terms
+                     m11asysq(jsub,isub) = avg_blk%m11m11(jc3,jl0r,il0,jsub,isub)
+                     m2m2asy(jsub,isub) = avg_blk%m2m2(jc3,jl0r,il0,jsub,isub)
+                  end if
                end do
+            end do
 
-               ! Sum
-               avg_blk%m11asysq(jc3,jl0r,il0) = sum(m11asysq)/real(avg_blk%nsub**2,kind_real)
-               avg_blk%m2m2asy(jc3,jl0r,il0) = sum(m2m2asy)/real(avg_blk%nsub**2,kind_real)
-               if (.not.nam%gau_approx) avg_blk%m22asy(jc3,jl0r,il0) = sum(m22asy)/real(avg_blk%nsub,kind_real)
+            ! Sum
+            avg_blk%m11asysq(jc3,jl0r,il0) = sum(m11asysq)/real(avg_blk%nsub**2,kind_real)
+            avg_blk%m2m2asy(jc3,jl0r,il0) = sum(m2m2asy)/real(avg_blk%nsub**2,kind_real)
+            if (.not.nam%gau_approx) avg_blk%m22asy(jc3,jl0r,il0) = sum(m22asy)/real(avg_blk%nsub,kind_real)
 
-               ! Check positivity
-               if (avg_blk%m11asysq(jc3,jl0r,il0)<0.0) avg_blk%m11asysq(jc3,jl0r,il0) = mpl%msv%valr
-               if (avg_blk%m2m2asy(jc3,jl0r,il0)<0.0) avg_blk%m2m2asy(jc3,jl0r,il0) = mpl%msv%valr
-               if (.not.nam%gau_approx) then
-                  if (avg_blk%m22asy(jc3,jl0r,il0)<0.0) avg_blk%m22asy(jc3,jl0r,il0) = mpl%msv%valr
-               end if
-
-               ! Squared covariance average
-               if (nam%gau_approx) then
-                  ! Gaussian approximation
-                  if (mpl%msv%isnotr(avg_blk%m11asysq(jc3,jl0r,il0)).and.mpl%msv%isnotr(avg_blk%m2m2asy(jc3,jl0r,il0))) then
-                     avg_blk%m11sq(jc3,jl0r,il0) = P16*avg_blk%m11asysq(jc3,jl0r,il0)+P4*avg_blk%m2m2asy(jc3,jl0r,il0)
-                  else
-                     avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
-                  end if
-               else
-                  ! General case
-                  if (mpl%msv%isnotr(avg_blk%m22asy(jc3,jl0r,il0)).and.mpl%msv%isnotr(avg_blk%m11asysq(jc3,jl0r,il0)) &
-                & .and.mpl%msv%isnotr(avg_blk%m2m2asy(jc3,jl0r,il0))) then
-                     avg_blk%m11sq(jc3,jl0r,il0) = P1*avg_blk%m22asy(jc3,jl0r,il0)+P14*avg_blk%m11asysq(jc3,jl0r,il0) &
-                                         & +P3*avg_blk%m2m2asy(jc3,jl0r,il0)
-                  else
-                     avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
-                  end if
-               end if
-
-               ! Check value
-               if (mpl%msv%isr(avg_blk%m11sq(jc3,jl0r,il0))) then
-                  if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11asysq(jc3,jl0r,il0))) avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
-                  if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11(jc3,jl0r,il0)**2)) avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
-               end if
-
-               ! Release memory
-               deallocate(m11asysq)
-               deallocate(m2m2asy)
-               deallocate(m22asy)
-            else
-               ! Missing values
-               avg_blk%m11asysq(jc3,jl0r,il0) = mpl%msv%valr
-               avg_blk%m2m2asy(jc3,jl0r,il0) = mpl%msv%valr
-               if (.not.nam%gau_approx) avg_blk%m22asy(jc3,jl0r,il0) = mpl%msv%valr
-               avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
+            ! Check positivity
+            if (avg_blk%m11asysq(jc3,jl0r,il0)<0.0) avg_blk%m11asysq(jc3,jl0r,il0) = mpl%msv%valr
+            if (avg_blk%m2m2asy(jc3,jl0r,il0)<0.0) avg_blk%m2m2asy(jc3,jl0r,il0) = mpl%msv%valr
+            if (.not.nam%gau_approx) then
+               if (avg_blk%m22asy(jc3,jl0r,il0)<0.0) avg_blk%m22asy(jc3,jl0r,il0) = mpl%msv%valr
             end if
+
+            ! Squared covariance average
+            if (nam%gau_approx) then
+               ! Gaussian approximation
+               if (mpl%msv%isnotr(avg_blk%m11asysq(jc3,jl0r,il0)).and.mpl%msv%isnotr(avg_blk%m2m2asy(jc3,jl0r,il0))) then
+                  avg_blk%m11sq(jc3,jl0r,il0) = P16*avg_blk%m11asysq(jc3,jl0r,il0)+P4*avg_blk%m2m2asy(jc3,jl0r,il0)
+               else
+                  avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
+               end if
+            else
+               ! General case
+               if (mpl%msv%isnotr(avg_blk%m22asy(jc3,jl0r,il0)).and.mpl%msv%isnotr(avg_blk%m11asysq(jc3,jl0r,il0)) &
+             & .and.mpl%msv%isnotr(avg_blk%m2m2asy(jc3,jl0r,il0))) then
+                  avg_blk%m11sq(jc3,jl0r,il0) = P1*avg_blk%m22asy(jc3,jl0r,il0)+P14*avg_blk%m11asysq(jc3,jl0r,il0) &
+                                      & +P3*avg_blk%m2m2asy(jc3,jl0r,il0)
+               else
+                  avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
+               end if
+            end if
+
+            ! Check value
+            if (mpl%msv%isr(avg_blk%m11sq(jc3,jl0r,il0))) then
+               if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11asysq(jc3,jl0r,il0))) avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
+               if (inf(avg_blk%m11sq(jc3,jl0r,il0),avg_blk%m11(jc3,jl0r,il0)**2)) avg_blk%m11sq(jc3,jl0r,il0) = mpl%msv%valr
+            end if
+
+            ! Release memory
+            deallocate(m11asysq)
+            deallocate(m2m2asy)
+            deallocate(m22asy)
          end do
       end do
    end do

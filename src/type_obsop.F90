@@ -7,6 +7,7 @@
 !----------------------------------------------------------------------
 module type_obsop
 
+use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max,fckit_mpi_status
 use netcdf
 use tools_const, only: pi,deg2rad,rad2deg,req,reqkm
 use tools_func, only: sphere_dist
@@ -19,7 +20,6 @@ use type_linop, only: linop_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type
 use type_rng, only: rng_type
-use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max,fckit_mpi_status
 
 implicit none
 

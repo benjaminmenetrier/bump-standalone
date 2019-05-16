@@ -440,7 +440,7 @@ end do
 
 ! Define sampling mask
 select case(trim(nam%mask_type))
-case ('none','lat','stddev')
+case ('none','stddev')
    ! All points accepted in sampling
    model%smask_mga = .true.
 case ('ldwv')
@@ -464,44 +464,47 @@ case ('ldwv')
       if (.not.any(model%mask(nam%img_ldwv(ildw),:))) call mpl%warning(subr,'profile '//trim(nam%name_ldwv(ildw))//' is not valid')
    end do
 case default
-   i = index(trim(nam%mask_type),'@')
-   if (i>1) then
-      ! Get variable and filename
-      varname = nam%mask_type(1:i-1)
-      filename = trim(nam%mask_type(i+1:))
-      write(mpl%info,'(a7,a)') '','Read sampling mask from variable '//trim(varname)//' in file '//trim(filename)
-      call mpl%flush
-      write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th,' used as a '//trim(nam%mask_lu)//' bound'
-      call mpl%flush
-
-      ! Save namelist parameters
-      nv_save = nam%nv
-      varname_save = nam%varname
-      addvar2d_save = nam%addvar2d
-
-      ! Set namelist parameters
-      nam%nv = 1
-      nam%varname(1) = varname
-      if (nam%nl<model%nl0) nam%addvar2d(1) = varname
-
-      ! Read file
-      allocate(fld(model%nmga,model%nl0,nam%nv))
-      call model%read(mpl,nam,filename,1,fld)
-      if (trim(nam%mask_lu)=='lower') then
-         model%smask_mga = (fld(:,:,1)>nam%mask_th)
-      elseif (trim(nam%mask_lu)=='upper') then
-         model%smask_mga = (fld(:,:,1)<nam%mask_th)
-      else
-         call mpl%abort(subr,'mask_lu not recognized')
-      end if
-
-
-      ! Reset namelist parameters
-      nam%nv = nv_save
-      nam%varname = varname_save
-      nam%addvar2d = addvar2d_save
+   if (nam%mask_type(1:3)=='lat') then
+      ! Latitude band mask
    else
-      call mpl%abort(subr,'mask_type should be formatted as VARIABLE@FILE to read a mask from file')
+      i = index(trim(nam%mask_type),'@')
+      if (i>1) then
+         ! Get variable and filename
+         varname = nam%mask_type(1:i-1)
+         filename = trim(nam%mask_type(i+1:))
+         write(mpl%info,'(a7,a)') '','Read sampling mask from variable '//trim(varname)//' in file '//trim(filename)
+         call mpl%flush
+         write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th,' used as a '//trim(nam%mask_lu)//' bound'
+         call mpl%flush
+
+         ! Save namelist parameters
+         nv_save = nam%nv
+         varname_save = nam%varname
+         addvar2d_save = nam%addvar2d
+
+         ! Set namelist parameters
+         nam%nv = 1
+         nam%varname(1) = varname
+         if (nam%nl<model%nl0) nam%addvar2d(1) = varname
+
+         ! Read file
+         allocate(fld(model%nmga,model%nl0,nam%nv))
+         call model%read(mpl,nam,filename,1,fld)
+         if (trim(nam%mask_lu)=='lower') then
+            model%smask_mga = (fld(:,:,1)>nam%mask_th)
+         elseif (trim(nam%mask_lu)=='upper') then
+            model%smask_mga = (fld(:,:,1)<nam%mask_th)
+         else
+            call mpl%abort(subr,'mask_lu not recognized')
+         end if
+
+         ! Reset namelist parameters
+         nam%nv = nv_save
+         nam%varname = varname_save
+         nam%addvar2d = addvar2d_save
+      else
+         call mpl%abort(subr,'mask_type should be formatted as VARIABLE@FILE to read a mask from file')
+      end if
    end if
 end select
 

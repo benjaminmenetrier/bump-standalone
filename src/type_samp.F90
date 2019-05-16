@@ -29,14 +29,10 @@ use type_rng, only: rng_type
 
 implicit none
 
-integer,parameter :: irmax = 10000                           ! Maximum number of random number draws
-real(kind_real),parameter :: Lcoast = 1000.0e3_kind_real/req ! Length-scale to increase sampling density along coasts
-real(kind_real),parameter :: rcoast = 0.2_kind_real          ! Minimum value to increase sampling density along coasts
-
 ! Sampling derived type
 type samp_type
    ! Sampling
-   real(kind_real),allocatable :: rh_c0(:,:)        ! Sampling radius on subset Sc0
+   real(kind_real),allocatable :: rh_c0(:)          ! Sampling radius on subset Sc0
    logical,allocatable :: mask_c0(:,:)              ! Mask on subset Sc0
    logical,allocatable :: mask_hor_c0(:)            ! Union of horizontal masks on subset Sc0, global
    integer,allocatable :: nc0_mask(:)               ! Horizontal mask size on subset Sc0
@@ -166,7 +162,7 @@ type(nam_type),intent(in) :: nam       ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Allocation
-allocate(samp%rh_c0(geom%nc0,geom%nl0))
+allocate(samp%rh_c0(geom%nc0))
 allocate(samp%c1_to_c0(nam%nc1))
 allocate(samp%c1l0_log(nam%nc1,geom%nl0))
 allocate(samp%c1c3_to_c0(nam%nc1,nam%nc3))
@@ -938,7 +934,8 @@ if (nam%sam_write) then
 
    ! Write rh_c0
    if (trim(nam%draw_type)=='random_coast') then
-      call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,samp%rh_c0,geom%nc0a,rh_c0a)
+      rh_c0a = mpl%msv%valr
+      call mpl%glb_to_loc(geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,samp%rh_c0,geom%nc0a,rh_c0a(:,1))
       filename = trim(nam%prefix)//'_sampling_rh_c0'
       call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
       call io%fld_write(mpl,nam,geom,filename,'rh_c0',rh_c0a)
@@ -1062,8 +1059,6 @@ elseif (trim(nam%mask_type)=='stddev') then
             mask_c0a = mask_c0a.and.(var(:,:,iv,its)>nam%mask_th**2)
          elseif (trim(nam%mask_lu)=='upper') then
             mask_c0a = mask_c0a.and.(var(:,:,iv,its)<nam%mask_th**2)
-         else
-            call mpl%abort(subr,'mask_lu not recognized')
          end if
       end do
    end do
@@ -1098,20 +1093,21 @@ end if
 ! Local to global
 call mpl%loc_to_glb(geom%nl0,geom%nc0a,mask_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.true.,samp%mask_c0)
 
+! Check mask size
+if (count(samp%mask_c0)==0) call mpl%abort(subr,'no more points in the sampling mask')
+
 ! Other masks
 samp%mask_hor_c0 = any(samp%mask_c0,dim=2)
 samp%nc0_mask = count(samp%mask_c0,dim=1)
 
 ! Print results
-if (count(geom%mask_c0)/=count(samp%mask_c0)) then
-   write(mpl%info,'(a7,a)') '','Number of points excluded from HDIAG sampling:'
+write(mpl%info,'(a7,a)') '','HDIAG sampling valid points (% of domain mask):'
+call mpl%flush
+do il0=1,geom%nl0
+   write(mpl%info,'(a10,a,i3,a,f5.1,a)') '','Level',nam%levs(il0),' ~> ',100.0*real(count(samp%mask_c0(:,il0)),kind_real) &
+ & /real(count(geom%mask_c0(:,il0)),kind_real),'%'
    call mpl%flush
-   do il0=1,geom%nl0
-      write(mpl%info,'(a10,a,i3,a,i8,a,i8)') '','Level',nam%levs(il0),': ',count(geom%mask_c0(:,il0))-count(samp%mask_c0(:,il0)), &
-    & ' of ',count(geom%mask_c0(:,il0))
-      call mpl%flush
-   end do
-end if
+end do
 
 end subroutine samp_compute_mask
 
@@ -1131,12 +1127,10 @@ type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: ic0,jc0,ic1,il0,ib,jb,ildwv,jldwv,ifor
-integer :: nn_index(1)
+integer :: ic0,jc0,ic1,il0i,ib,jb,ildwv,jldwv,ifor
 integer,allocatable :: for(:)
-real(kind_real) :: nn_dist(1)
+real(kind_real) :: norm
 logical :: valid
-type(tree_type) :: tree
 character(len=1024),parameter :: subr = 'samp_compute_sampling_zs'
 
 ! Compute subset
@@ -1147,34 +1141,26 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
    case ('random_uniform')
       ! Random draw
       do ic0=1,geom%nc0
-         if (samp%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 1.0
+         if (samp%mask_hor_c0(ic0)) samp%rh_c0(ic0) = 1.0
       end do
    case ('random_coast')
       ! More points around coasts
-      do ic0=1,geom%nc0
-         if (samp%mask_hor_c0(ic0)) samp%rh_c0(ic0,1) = 0.0
+      if (all(samp%mask_c0)) call mpl%abort(subr,'random_coast is not relevant if there is no coast')
+      samp%rh_c0 = 0.0
+      norm = 0.0
+      do il0i=1,geom%nl0i
+         if (any(.not.samp%mask_c0(:,il0i))) then
+            do ic0=1,geom%nc0
+               if (samp%mask_c0(ic0,il0i)) then
+                  samp%rh_c0(ic0) = samp%rh_c0(ic0)+exp(-geom%mdist(ic0,il0i)/nam%Lcoast)
+               else
+                  samp%rh_c0(ic0) = samp%rh_c0(ic0)+1.0
+               end if
+            end do
+            norm = norm+1.0
+         end if
       end do
-      do il0=1,geom%nl0
-         ! Allocation
-         call tree%alloc(mpl,geom%nc0,mask=.not.samp%mask_c0(:,il0))
-
-         ! Initialization
-         call tree%init(geom%lon,geom%lat)
-
-         ! Find nearest neighbors
-         do ic0=1,geom%nc0
-            if (samp%mask_c0(ic0,il0)) then
-               call tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,nn_dist)
-               samp%rh_c0(ic0,1) = samp%rh_c0(ic0,1)+exp(-nn_dist(1)/Lcoast)
-            else
-               samp%rh_c0(ic0,1) = samp%rh_c0(ic0,1)+1.0
-            end if
-         end do
-
-         ! Release memory
-         call tree%dealloc
-      end do
-      samp%rh_c0(:,1) = rcoast+(1.0-rcoast)*(1.0-samp%rh_c0(:,1)/real(geom%nl0,kind_real))
+      samp%rh_c0 = nam%rcoast+(1.0-nam%rcoast)*(1.0-samp%rh_c0/norm)
    end select
 
    ! Count forced points
@@ -1237,7 +1223,7 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
    end if
 
    ! Initialize sampling
-   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,samp%nfor,for,samp%rh_c0(:,1), &
+   call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,samp%mask_hor_c0,samp%nfor,for,samp%rh_c0, &
  & nam%ntry,nam%nrep,nam%nc1,samp%c1_to_c0)
 elseif (count(samp%mask_hor_c0)==nam%nc1) then
    ! Keep all remaining points
@@ -1302,7 +1288,7 @@ if (nam%nc3>1) then
    call mpl%flush(.false.)
    call mpl%prog_init(nam%nc3*nam%nc1)
    ir = 0
-   irmaxloc = irmax
+   irmaxloc = nam%irmax
    do while ((.not.all(mpl%msv%isnoti(samp%c1c3_to_c0))).and.(nvc0>1).and.(ir<=irmaxloc))
       ! Try a random point
       if (mpl%main) call rng%rand_integer(1,nvc0,i)

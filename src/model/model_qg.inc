@@ -13,8 +13,8 @@ type(nam_type),intent(in) :: nam         ! Namelist
 
 ! Local variables
 integer :: img,ilon,ilat,il0
-integer :: ncid,nx_id,ny_id,nz_id,lon_id,lat_id,z_id,area_id
-real(kind_real),allocatable :: lon(:,:),lat(:,:),z(:),area(:,:)
+integer :: ncid,nx_id,ny_id,nz_id,lon_id,lat_id,z_id,area_id,lmask_id
+real(kind_real),allocatable :: lon(:,:),lat(:,:),z(:),area(:,:),lmask(:,:,:)
 character(len=1024),parameter :: subr = 'model_qg_coord'
 
 ! Open file and get dimensions
@@ -33,16 +33,19 @@ allocate(lon(model%nlon,model%nlat))
 allocate(lat(model%nlon,model%nlat))
 allocate(z(model%nlev))
 allocate(area(model%nlon,model%nlat))
+allocate(lmask(model%nlon,model%nlat,model%nlev))
 
 ! Read data and close file
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'z',z_id))
 call mpl%ncerr(subr,nf90_inq_varid(ncid,'area',area_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'lmask',lmask_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call mpl%ncerr(subr,nf90_get_var(ncid,z_id,z))
 call mpl%ncerr(subr,nf90_get_var(ncid,area_id,area))
+call mpl%ncerr(subr,nf90_get_var(ncid,lmask_id,lmask))
 call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Convert to radian
@@ -59,9 +62,11 @@ do ilon=1,model%nlon
       model%lon(img) = lon(ilon,ilat)
       model%lat(img) = lat(ilon,ilat)
       model%area(img) = area(ilon,ilat)/req**2
+      do il0=1,model%nl0
+        model%mask(img,il0) = (lmask(ilon,ilat,nam%levs(il0))>0.5)
+      end do
    end do
 end do
-model%mask = .true.
 
 ! Vertical unit
 do il0=1,model%nl0
@@ -72,6 +77,8 @@ end do
 deallocate(lon)
 deallocate(lat)
 deallocate(z)
+deallocate(area)
+deallocate(lmask)
 
 end subroutine model_qg_coord
 

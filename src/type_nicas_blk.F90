@@ -632,6 +632,7 @@ do il0=1,geom%nl0
       call mpl%flush
    end if
 end do
+if (.not.any(nicas_blk%vlev)) call mpl%abort(subr,'no valid level')
 
 if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
    ! Basic horizontal mesh defined with the minimum support radius
@@ -654,6 +655,10 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
       nicas_blk%nc1 = nicas_blk%nc1+geom%mesh%nb
       write(mpl%info,'(a10,a,i8)') '','Updated nc1 after taking boundary nodes into account: ',nicas_blk%nc1
       call mpl%flush
+   end if
+   if (nicas_blk%nc1>count(geom%mask_hor_c0)) then
+      call mpl%warning(subr,'required nc1 larger than mask size, resetting to mask size')
+      nicas_blk%nc1 = count(geom%mask_hor_c0)
    end if
    if (nicas_blk%nc1>nc1max) then
       call mpl%warning(subr,'required nc1 larger than nc1max, resetting to nc1max')
@@ -3028,16 +3033,13 @@ integer :: c0_to_c0d(geom%nc0),c0_to_c0dinv(geom%nc0),c0a_to_c0d(geom%nc0a),c0a_
 integer,allocatable :: c0d_to_c0(:),interpd_lg(:,:,:)
 integer,allocatable :: c0dinv_to_c0(:),interpdinv_lg(:,:,:)
 real(kind_real) :: adv_lon(geom%nc0,geom%nl0),adv_lat(geom%nc0,geom%nl0)
-logical :: mask_c0(geom%nc0),lcheck_c0d(geom%nc0),lcheck_c0dinv(geom%nc0)
+logical :: lcheck_c0d(geom%nc0),lcheck_c0dinv(geom%nc0)
 logical,allocatable :: lcheck_d(:,:,:),lcheck_dinv(:,:,:)
 type(linop_type) :: dfull(geom%nl0,2:nam%nts)
 type(linop_type) :: dinvfull(geom%nl0,2:nam%nts)
 
 write(mpl%info,'(a7,a)') '','Compute advection'
 call mpl%flush
-
-! Initialization
-mask_c0 = .true.
 
 do its=2,nam%nts
    ! Local to global
@@ -3046,12 +3048,12 @@ do its=2,nam%nts
 
    do il0=1,geom%nl0
       ! Compute direct interpolation
-      call dfull(il0,its)%interp(mpl,rng,geom%nc0,adv_lon(:,il0),adv_lat(:,il0),mask_c0,geom%nc0,geom%lon,geom%lat,mask_c0, &
-    & nam%diag_interp)
+      call dfull(il0,its)%interp(mpl,rng,geom%nc0,adv_lon(:,il0),adv_lat(:,il0),geom%mask_c0(:,il0),geom%nc0,geom%lon,geom%lat, &
+    & geom%mask_c0(:,il0),nam%diag_interp)
 
       ! Compute inverse interpolation
-      call dinvfull(il0,its)%interp(mpl,rng,geom%nc0,geom%lon,geom%lat,mask_c0,geom%nc0,adv_lon(:,il0),adv_lat(:,il0),mask_c0, &
-    & nam%diag_interp)
+      call dinvfull(il0,its)%interp(mpl,rng,geom%nc0,geom%lon,geom%lat,geom%mask_c0(:,il0),geom%nc0,adv_lon(:,il0),adv_lat(:,il0), &
+    & geom%mask_c0(:,il0),nam%diag_interp)
    end do
 end do
 

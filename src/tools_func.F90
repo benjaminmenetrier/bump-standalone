@@ -19,7 +19,7 @@ implicit none
 real(kind_real),parameter :: gc2gau = 0.28            ! GC99 support radius to Gaussian Daley length-scale (empirical)
 real(kind_real),parameter :: gau2gc = 3.57            ! Gaussian Daley length-scale to GC99 support radius (empirical)
 real(kind_real),parameter :: Dmin = 1.0e-12_kind_real ! Minimum tensor diagonal value
-real(kind_real),parameter :: condmax = 1.0e2          ! Maximum tensor conditioning number
+real(kind_real),parameter :: condmax = 1.0e3          ! Maximum tensor conditioning number
 integer,parameter :: M = 0                            ! Number of implicit iteration for the Matern function (Gaussian function if M = 0)
 
 private
@@ -125,14 +125,21 @@ subroutine lonlat2xyz(mpl,lon,lat,x,y,z)
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(in) :: mpl  ! MPI data
-real(kind_real),intent(in) :: lon ! Longitude (radians)
-real(kind_real),intent(in) :: lat ! Latitude (radians)
-real(kind_real),intent(out) :: x  ! X coordinate
-real(kind_real),intent(out) :: y  ! Y coordinate
-real(kind_real),intent(out) :: z  ! Z coordinate
+type(mpl_type),intent(inout) :: mpl ! MPI data
+real(kind_real),intent(in) :: lon   ! Longitude (radians)
+real(kind_real),intent(in) :: lat   ! Latitude (radians)
+real(kind_real),intent(out) :: x    ! X coordinate
+real(kind_real),intent(out) :: y    ! Y coordinate
+real(kind_real),intent(out) :: z    ! Z coordinate
+
+! Local variables
+character(len=1024),parameter :: subr = 'lonlat2xyz'
 
 if (mpl%msv%isnotr(lat).and.mpl%msv%isnotr(lon)) then
+   ! Check longitude/latitude
+   if (inf(lon,-pi).and.sup(lon,pi)) call mpl%abort(subr,'wrong longitude')
+   if (inf(lat,-0.5*pi).and.sup(lat,-0.5*pi)) call mpl%abort(subr,'wrong latitude')
+
    ! Call fckit
    call sphere_lonlat2xyz(lon*rad2deg,lat*rad2deg,x,y,z)
 else

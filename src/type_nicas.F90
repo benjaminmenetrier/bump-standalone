@@ -2069,8 +2069,9 @@ type(io_type),intent(in) :: io        ! I/O
 
 ! Local variables
 integer :: ib,ifac,itest,il0
+real(kind_real) :: fac(nfac),mse(ntest,nfac),mse_sum,mse_max,rh_sum,rh_tot,rv_sum,rv_tot
 real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
-real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),fac(nfac),mse(ntest,nfac),mse_max,rh_avg,rv_avg
+real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
 character(len=1024) :: method
 type(cmat_type) :: cmat
 type(diag_type) :: loc_opt
@@ -2174,21 +2175,24 @@ do ifac=1,nfac
       call nicas_test%apply_bens(mpl,nam,geom,bpar,ens_test,fld)
 
       ! RMSE
-      mse(itest,ifac) = sum((fld-fld_ref(:,:,:,:,itest))**2)
+      mse_sum = sum((fld-fld_ref(:,:,:,:,itest))**2,mask=mpl%msv%isnotr(fld_ref(:,:,:,:,itest)))
+      call mpl%f_comm%allreduce(mse_sum,mse(itest,ifac),fckit_mpi_sum())
    end do
 
    ! Test score
    if (sum(mse(:,ifac))<mse_max) then
       mse_max = sum(mse(:,ifac))
       do ib=1,bpar%nbe
-         if (bpar%diag_block(ib)) then
+         if (bpar%nicas_block(ib)) then
             do il0=1,geom%nl0
-               call mpl%f_comm%allreduce(sum(cmat%blk(ib)%rh(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rh(:,il0))), &
-             & rh_avg,fckit_mpi_sum())
-               loc_opt%blk(0,ib)%fit_rh = rh_avg/real(geom%nc0_mask(il0),kind_real)
-               call mpl%f_comm%allreduce(sum(cmat%blk(ib)%rv(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rv(:,il0))), &
-             & rv_avg,fckit_mpi_sum())
-               loc_opt%blk(0,ib)%fit_rv = rv_avg/real(geom%nc0_mask(il0),kind_real)
+               rh_sum = sum(cmat%blk(ib)%rh(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rh(:,il0)))
+               call mpl%f_comm%allreduce(rh_sum,rh_tot,fckit_mpi_sum())
+               loc_opt%blk(0,ib)%fit_rh = rh_tot/real(geom%nc0_mask(il0),kind_real)
+               if ((nam%nl>1).and.(nam%rv>0.0)) then
+                  rv_sum = sum(cmat%blk(ib)%rv(:,il0),mask=mpl%msv%isnotr(cmat%blk(ib)%rv(:,il0)))
+                  call mpl%f_comm%allreduce(rv_sum,rv_tot,fckit_mpi_sum())
+                  loc_opt%blk(0,ib)%fit_rv = rv_tot/real(geom%nc0_mask(il0),kind_real)
+               end if
             end do
          end if
       end do

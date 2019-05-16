@@ -508,7 +508,7 @@ if (mpl%main) then
       end if
 
       ! Allocation
-      nrep_eff = min(nrep,n-ns)
+      nrep_eff = min(nrep,nval-ns)
       allocate(ihor_tmp(ns+nrep_eff))
       allocate(lmask(n))
       allocate(smask(n))
@@ -563,7 +563,7 @@ if (mpl%main) then
          cdf_norm = 1.0/cdf(nval)
          cdf(1:nval) = cdf(1:nval)*cdf_norm
 
-         do is=1+nfor,ns+nrep
+         do is=1+nfor,ns+nrep_eff
             ! Generate random number
             call rng%rand_real(0.0_kind_real,1.0_kind_real,rr)
 
