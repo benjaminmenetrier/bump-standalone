@@ -73,6 +73,7 @@ type nam_type
    character(len=1024),dimension(nvmax) :: addvar2d     ! Additionnal 2d variables names
    integer :: nts                                       ! Number of time slots
    integer,dimension(ntsmax) :: timeslot                ! Timeslots
+   logical :: nomask                                    ! Do not use geometry mask
 
    ! ens1_param
    integer :: ens1_ne                                   ! Ensemble 1 size
@@ -244,6 +245,7 @@ do iv=1,nvmax
 end do
 nam%nts = 0
 nam%timeslot = 0
+nam%nomask = .false.
 
 ! ens1_param default
 nam%ens1_ne = 0
@@ -370,8 +372,8 @@ integer :: levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs,nldwv,img_ldwv(nl
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat
 logical :: write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def
-logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,sam_write,sam_read,mask_check
-logical :: vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag,double_fit(0:nvmax)
+logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,nomask,sam_write,sam_read
+logical :: mask_check,vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag,double_fit(0:nvmax)
 logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids,split_io,grid_output
 real(kind_real) :: mask_th,Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
@@ -386,7 +388,7 @@ namelist/driver_param/method,strategy,new_cortrack,new_vbal,load_vbal,new_mom,lo
                     & write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop, &
                     & write_obsop,check_vbal,check_adjoints,check_pos_def,check_dirac,check_randomization,check_consistency, &
                     & check_optimality,check_obsop
-namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot
+namelist/model_param/nl,levs,logpres,nv,varname,addvar2d,nts,timeslot,nomask
 namelist/ens1_param/ens1_ne,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,Lcoast,rcoast,nc1,nc2,ntry, &
@@ -450,6 +452,7 @@ if (mpl%main) then
    end do
    nts = 0
    timeslot = 0
+   nomask = .false.
 
    ! ens1_param default
    ens1_ne = 0
@@ -607,6 +610,7 @@ if (mpl%main) then
    if (nv>0) nam%addvar2d(1:nv) = addvar2d(1:nv)
    nam%nts = nts
    if (nts>0) nam%timeslot(1:nts) = timeslot(1:nts)
+   nam%nomask = nomask
 
    ! ens1_param
    read(lunit,nml=ens1_param)
@@ -779,6 +783,7 @@ call mpl%bcast(nam%varname,mpl%ioproc-1)
 call mpl%bcast(nam%addvar2d,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%nts,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%timeslot,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%nomask,mpl%ioproc-1)
 
 ! ens1_param
 call mpl%f_comm%broadcast(nam%ens1_ne,mpl%ioproc-1)
@@ -897,12 +902,10 @@ integer :: il,iv,its
 
 if (trim(nam%model)=='') then
    nam%model = 'online'
-   nam%colorlog = .false.
    nam%nl = nl0
    do il=1,nam%nl
       nam%levs(il) = il
    end do
-   nam%logpres = .false.
    nam%nv = nv
    do iv=1,nam%nv
       write(nam%varname(iv),'(a,i2.2)') 'var_',iv
@@ -1366,6 +1369,7 @@ call mpl%write(lncid,'varname',nam%nv,nam%varname(1:nam%nv))
 call mpl%write(lncid,'addvar2d',nam%nv,nam%addvar2d(1:nam%nv))
 call mpl%write(lncid,'nts',nam%nts)
 call mpl%write(lncid,'timeslot',nam%nts,nam%timeslot(1:nam%nts))
+call mpl%write(lncid,'nomask',nam%nomask)
 
 ! ens1_param
 if (mpl%msv%isi(lncid)) then

@@ -112,6 +112,7 @@ real(kind_real),intent(in),optional :: msvalr     ! Missing value for reals
 ! Local variables
 integer :: lmsvali,lens1_ne,lens1_nsub,lens2_ne,lens2_nsub
 real(kind_real) :: lmsvalr
+logical :: lgmask(nmga,nl0)
 character(len=1024),parameter :: subr = 'bump_setup_online'
 
 ! Set missing values
@@ -205,7 +206,8 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 call bump%mpl%flush
 write(bump%mpl%info,'(a)') '--- Initialize geometry'
 call bump%mpl%flush
-call bump%geom%setup(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,gmask)
+lgmask = gmask.or.bump%nam%nomask
+call bump%geom%setup(bump%mpl,bump%rng,bump%nam,nmga,nl0,lon,lat,area,vunit,lgmask)
 if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 
 if (bump%nam%grid_output) then

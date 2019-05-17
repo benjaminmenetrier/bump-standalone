@@ -489,10 +489,10 @@ do its=2,nam%nts
                   else
                      cor_avg(jn) = mpl%msv%valr
                   end if
-               end if
 
-               ! Set mask
-               mask_nn_tmp(jn) = mpl%msv%isnotr(cor_avg(jn))
+                  ! Set mask
+                  mask_nn_tmp(jn) = (cor_avg(jn)>0.0).and.mpl%msv%isnotr(cor_avg(jn))
+               end if
 
                ! Locate the maximum correlation
                if (mask_nn_tmp(jn)) then
@@ -697,6 +697,11 @@ do its=2,nam%nts
          call mpl%f_comm%allreduce(dist_sum,dist_flt,fckit_mpi_sum())
          call mpl%f_comm%allreduce(norm,norm_tot,fckit_mpi_sum())
          dist_flt = dist_flt/norm_tot
+
+         ! Print result
+         write(mpl%info,'(a16,a,i2,a,f10.2,a,f7.3,a)') '','Iteration ',iter,': rhflt = ', &
+       & rhflt*reqkm,' km, validity = ',100.0*valid_flt,'%'
+         call mpl%flush
 
          ! Update support radius
          if (inf(valid_flt,1.0_kind_real)) then

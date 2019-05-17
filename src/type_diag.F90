@@ -662,8 +662,8 @@ do ib=1,bpar%nbe
             end if
          end if
       end do
-      write(mpl%info,'(a13,a,a,f4.2,a)') '','Raw static coeff.:                      ',trim(mpl%purple), &
-    & diag%blk(0,ib)%raw_coef_sta,trim(mpl%black)
+      if (mpl%msv%isnotr(diag%blk(0,ib)%raw_coef_sta)) write(mpl%info,'(a13,a,a,f4.2,a)') '', &
+    & 'Raw static coeff.:                      ',trim(mpl%purple),diag%blk(0,ib)%raw_coef_sta,trim(mpl%black)
       call mpl%flush
    end if
 end do

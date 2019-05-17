@@ -48,6 +48,7 @@ varname = "",
 addvar2d = "",
 nts = 0,
 timeslot = 0,
+nomask = .false.,
 /
 
 &ens1_param

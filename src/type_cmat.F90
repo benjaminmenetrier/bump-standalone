@@ -360,7 +360,7 @@ type(bpar_type),intent(in) :: bpar     ! Block parameters
 type(hdiag_type),intent(in) :: hdiag   ! Hybrid diagnostics
 
 ! Local variables
-integer :: ib,n,i,il0,il0i,ic2a
+integer :: ib,n,i,il0,il0i,ic2a,ic0a
 real(kind_real) :: fld_c2a(hdiag%samp%nc2a,geom%nl0,6),fld_c2b(hdiag%samp%nc2b,geom%nl0),fld_c0a(geom%nc0a,geom%nl0,6)
 character(len=1024),parameter :: subr = 'cmat_from_hdiag'
 
@@ -524,6 +524,22 @@ do ib=1,bpar%nbe
                end select
             end do
          end if
+
+         ! Set mask
+         do il0=1,geom%nl0
+            do ic0a=1,geom%nc0a
+               if (.not.geom%mask_c0a(ic0a,il0)) then
+                  cmat%blk(ib)%coef_ens(ic0a,il0) = mpl%msv%valr
+                  cmat%blk(ib)%coef_sta(ic0a,il0) = mpl%msv%valr
+                  cmat%blk(ib)%rh(ic0a,il0) = mpl%msv%valr
+                  cmat%blk(ib)%rv(ic0a,il0) = mpl%msv%valr
+                  if (cmat%blk(ib)%double_fit) then
+                     cmat%blk(ib)%rv_rfac(ic0a,il0) = mpl%msv%valr
+                     cmat%blk(ib)%rv_coef(ic0a,il0) = mpl%msv%valr
+                  end if
+               end if
+            end do
+         end do
       else
          ! Define weight only
          select case (trim(nam%method))

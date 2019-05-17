@@ -1127,7 +1127,7 @@ type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
-integer :: ic0,jc0,ic1,il0i,ib,jb,ildwv,jldwv,ifor
+integer :: ic0,jc0,ic1,il0i,jb,ildwv,jldwv,ifor
 integer,allocatable :: for(:)
 real(kind_real) :: norm
 logical :: valid
@@ -1165,10 +1165,6 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
 
    ! Count forced points
    samp%nfor = 0
-   do ib=1,geom%mesh%nb
-      ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-      if (samp%mask_hor_c0(ic0)) samp%nfor = samp%nfor+1
-   end do
    do ildwv=1,nam%nldwv
       ic0 = samp%ldwv_to_c0(ildwv)
       valid = .true.
@@ -1189,17 +1185,8 @@ if (count(samp%mask_hor_c0)>nam%nc1) then
    allocate(for(samp%nfor))
 
    if (samp%nfor>0) then
-      ! Allocation
+      ! Initialization
       ifor = 0
-
-      ! Add boundary points
-      do ib=1,geom%mesh%nb
-         ic0 = geom%mesh%order(geom%mesh%bnd(ib))
-         if (samp%mask_hor_c0(ic0)) then
-            ifor = ifor+1
-            for(ifor) = ic0
-         end if
-      end do
 
       ! Add local diagnostic profiles
       do ildwv=1,nam%nldwv

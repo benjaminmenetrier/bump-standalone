@@ -56,7 +56,7 @@ minim_algo = "fast",
 
 &nicas_param
 resol = 4.0,
-subsamp = "hvh",
+subsamp = "h",
 mpicom = 2,
 ndir = 1,
 londir = -85.0,

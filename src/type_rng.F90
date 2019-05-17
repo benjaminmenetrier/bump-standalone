@@ -474,7 +474,7 @@ if (mpl%main) then
    if (nval==0) then
        call mpl%abort(subr,'empty mask in initialize sampling')
    elseif (nval<ns) then
-      call mpl%abort(subr,'ns greater that mask size in initialize_sampling')
+      call mpl%abort(subr,'ns greater than mask size in initialize_sampling')
    elseif (nval==ns) then
       write(mpl%info,'(a)') ' all points are used'
       call mpl%flush

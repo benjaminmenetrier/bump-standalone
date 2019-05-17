@@ -592,17 +592,19 @@ type(geom_type),intent(in) :: geom               ! Geometry
 type(cmat_blk_type),intent(in) :: cmat_blk       ! C matrix data block
 
 ! Local variables
-integer :: il0,il0_prev,il1,ic0,jc0,ic1,ic2,is,ic0a,iproc,ib,nfor,ifor
+integer :: il0,il0_prev,il1,ic0,ic1,ic2,is,ic0a,iproc,nfor
 integer :: ncid,nc1_id,nl1_id,lon_c1_id,lat_c1_id,lev_c1_id,mask_c1_id,mask_c2_id
-integer,allocatable :: c2_to_c1(:),lev_c1(:),mask_c1_int(:,:),mask_c2_int(:,:),masked_to_full(:),for(:)
+integer,allocatable :: c2_to_c1(:),lev_c1(:),mask_c1_int(:,:),mask_c2_int(:,:),for(:)
 real(kind_real) :: rhs_sum(geom%nl0),rhs_avg(geom%nl0),rvs_sum(geom%nl0),rvs_avg(geom%nl0),norm(geom%nl0),distnorm(geom%nc0a)
 real(kind_real) :: distnormmin,rv,rhs_minavg
 real(kind_real) :: rhs_min(geom%nc0a),rhs_min_glb(geom%nc0),rhs_c0(geom%nc0)
-real(kind_real),allocatable :: rhs_c1(:),lon_c1(:),lat_c1(:),lon_masked(:),lat_masked(:)
+real(kind_real),allocatable :: rhs_c1(:),lon_c1(:),lat_c1(:)
 logical :: inside,mask_hor_c0(geom%nc0)
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'nicas_blk_compute_sampling'
-type(mesh_type) :: mesh
+
+! Check subsampling method
+if ((geom%nl0i>1).and.(trim(nam%subsamp)/='h')) call mpl%abort(subr,'subsamp = h required for variable mask')
 
 ! Allocation
 allocate(nicas_blk%vlev(geom%nl0))
@@ -611,7 +613,7 @@ allocate(nicas_blk%slev(geom%nl0))
 ! Reset random numbers seed
 if (trim(nam%strategy)=='specific_multivariate') call rng%reseed(mpl)
 
-! Compute support radii
+! Compute support radii (TODO: use draw_type)
 norm = 1.0/real(geom%nc0_mask,kind_real)
 rhs_sum = sum(cmat_blk%rhs,dim=1,mask=geom%mask_c0a)
 call mpl%f_comm%allreduce(rhs_sum,rhs_avg,fckit_mpi_sum())
@@ -665,7 +667,6 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
       nicas_blk%nc1 = nc1max
    end if
    if (nicas_blk%nc1<3) call mpl%abort(subr,'nicas_blk%nc1 lower than 3')
-   nicas_blk%nc1 = min(nicas_blk%nc1,geom%nc0)
    write(mpl%info,'(a10,a,i8)') '','Final nc1: ',nicas_blk%nc1
    call mpl%flush
    write(mpl%info,'(a10,a,f5.2)') '','Effective horizontal resolution: ',sqrt(real(nicas_blk%nc1,kind_real)*sqrt(3.0) &
@@ -673,7 +674,7 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
    call mpl%flush
 else
    ! Use the Sc0 subset
-   nicas_blk%nc1 = geom%nc0
+   nicas_blk%nc1 = count(geom%mask_hor_c0)
 end if
 
 ! Allocation
@@ -698,67 +699,9 @@ if (test_no_point) then
    end do
 end if
 
-! Count forced points
-if (geom%mesh%nb>0) then
-   ! Allocation
-   allocate(masked_to_full(count(geom%mask_hor_c0)))
-
-   ! Forced points are boundary points (taking mask into account)
-   if (count(geom%mask_hor_c0)<geom%nc0) then
-      ! Allocation
-      allocate(lon_masked(count(geom%mask_hor_c0)))
-      allocate(lat_masked(count(geom%mask_hor_c0)))
-      call mesh%alloc(count(geom%mask_hor_c0))
-
-      ! Check masked points
-      jc0 = 0
-      do ic0=1,geom%nc0
-         if (geom%mask_hor_c0(ic0)) then
-            jc0 = jc0+1
-            masked_to_full(jc0) = ic0
-            lon_masked(jc0) = geom%lon(ic0)
-            lat_masked(jc0) = geom%lat(ic0)
-         end if
-      end do
-
-      ! Initialization
-      call mesh%init(mpl,rng,lon_masked,lat_masked)
-
-      ! Compute boundary nodes
-      call mesh%bnodes(mpl)
-
-      ! Release memory
-      deallocate(lon_masked)
-      deallocate(lat_masked)
-   else
-      ! Copy mesh
-      call mesh%copy(geom%mesh)
-      do ic0=1,geom%nc0
-         masked_to_full(ic0) = ic0
-      end do
-   end if
-   nfor = mesh%nb
-else
-   ! No forced point
-   nfor = 0
-end if
-
-! Allocation
+! Set forced point
+nfor = 0
 allocate(for(nfor))
-
-if (nfor>0) then
-   ! Add boundary points
-   ifor = 0
-   do ib=1,mesh%nb
-      ic0 = masked_to_full(mesh%order(mesh%bnd(ib)))
-      ifor = ifor+1
-      for(ifor) = ic0
-   end do
-
-   ! Release memory
-   deallocate(masked_to_full)
-   call mesh%dealloc
-end if
 
 ! Compute subsampling
 call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,mask_hor_c0,nfor,for,rhs_min_glb,nam%ntry,nam%nrep, &
@@ -811,13 +754,12 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='vh').or.(trim(
 
          ! Update
          if (nicas_blk%slev(il0)) il0_prev = il0
-      else
-         ! Not a valid level
-
       end if
    end do
 else
    ! No vertical sampling
+   nicas_blk%il0_first = 1
+   nicas_blk%il0_last = geom%nl0
    nicas_blk%slev = .true.
 end if
 
@@ -841,6 +783,8 @@ call mpl%flush
 ! Find bottom and top for each point of S1
 allocate(nicas_blk%vbot(nicas_blk%nc1))
 allocate(nicas_blk%vtop(nicas_blk%nc1))
+nicas_blk%vbot = mpl%msv%vali
+nicas_blk%vtop = mpl%msv%vali
 !$omp parallel do schedule(static) private(ic1,ic0,inside,il1,il0)
 do ic1=1,nicas_blk%nc1
    ic0 = nicas_blk%c1_to_c0(ic1)
@@ -859,6 +803,8 @@ do ic1=1,nicas_blk%nc1
          inside = .false.
       end if
    end do
+   if (mpl%msv%isi(nicas_blk%vbot(ic1))) call mpl%abort(subr,'bottom level not found')
+   if (mpl%msv%isi(nicas_blk%vtop(ic1))) call mpl%abort(subr,'top level not found')
    if (nicas_blk%vbot(ic1)>nicas_blk%vtop(ic1)) call mpl%abort(subr,'non contiguous mask')
 end do
 !$omp end parallel do
@@ -894,17 +840,13 @@ do il1=1,nicas_blk%nl1
    nicas_blk%mask_c1(:,il1) = geom%mask_c0(nicas_blk%c1_to_c0,il0)
 
    if ((trim(nicas_blk%subsamp)=='h').or.(trim(nicas_blk%subsamp)=='vh').or.(trim(nicas_blk%subsamp)=='hvh')) then
-      ! Compute nc2
       write(mpl%info,'(a13,a,i3,a)') '','Level ',il1,':'
       call mpl%flush
+
+      ! Compute nc2
       nicas_blk%nc2(il1) = floor(2.0*geom%area(il0)*nam%resol**2/(sqrt(3.0)*rhs_avg(il0)**2))
       write(mpl%info,'(a16,a,i8)') '','Estimated nc2 from horizontal support radius: ',nicas_blk%nc2(il1)
       call mpl%flush
-      if (geom%mesh%nb>0) then
-         nicas_blk%nc2(il1) = nicas_blk%nc2(il1)+geom%mesh%nb
-         write(mpl%info,'(a16,a,i8)') '','Updated nc2 after taking boundary nodes into account: ',nicas_blk%nc2(il1)
-         call mpl%flush
-      end if
       if (nicas_blk%nc2(il1)<3) call mpl%abort(subr,'nicas_blk%nc2 lower than 3')
       nicas_blk%nc2(il1) = min(nicas_blk%nc2(il1),count(nicas_blk%mask_c1(:,il1)))
       write(mpl%info,'(a16,a,i8)') '','Final nc2: ',nicas_blk%nc2(il1)
@@ -923,9 +865,6 @@ do il1=1,nicas_blk%nl1
          rhs_c1 = rhs_c0(nicas_blk%c1_to_c0)
 
          ! Initialize sampling
-         do ifor=1,nfor
-            for(ifor) = ifor
-         end do
          call rng%initialize_sampling(mpl,nicas_blk%nc1,lon_c1,lat_c1,nicas_blk%mask_c1(:,il1),nfor,for, &
        & rhs_c1,nam%ntry,nam%nrep,nicas_blk%nc2(il1),c2_to_c1,fast=nam%fast_sampling)
 
