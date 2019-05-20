@@ -1544,7 +1544,7 @@ lat_c1 = geom%lat(nicas_blk%c1_to_c0)
 call nicas_blk%tree%init(lon_c1,lat_c1)
 
 ! Find largest possible radius
-call mpl%f_comm%allreduce(maxval(cmat_blk%rh),nicas_blk%rhmax,fckit_mpi_max())
+call mpl%f_comm%allreduce(maxval(cmat_blk%rh,mask=mpl%msv%isnotr(cmat_blk%rh)),nicas_blk%rhmax,fckit_mpi_max())
 if (nicas_blk%double_fit) then
    nicas_blk%rhmax = nicas_blk%rhmax*sqrt_r_dble
 else
@@ -1693,37 +1693,56 @@ write(mpl%info,'(a13,a)') '','Copy and rescale'
 call mpl%flush
 do il1=1,nicas_blk%nl1
    do ic1a=1,nicas_blk%nc1a
-      ! Copy
+      ! Indices
       ic0a = nicas_blk%c1a_to_c0a(ic1a)
       il0 = nicas_blk%l1_to_l0(il1)
-      rh_c1a(ic1a,il1) = cmat_blk%rh(ic0a,il0)
-      rv_c1a(ic1a,il1) = cmat_blk%rv(ic0a,il0)
-      if (nicas_blk%double_fit) then
-         rv_rfac_c1a(ic1a,il1) = cmat_blk%rv_rfac(ic0a,il0)
-         rv_coef_c1a(ic1a,il1) = cmat_blk%rv_coef(ic0a,il0)
-      end if
-      if (nicas_blk%anisotropic) then
-         H11_c1a(ic1a,il1) = cmat_blk%H11(ic0a,il0)
-         H22_c1a(ic1a,il1) = cmat_blk%H22(ic0a,il0)
-         H33_c1a(ic1a,il1) = cmat_blk%H33(ic0a,il0)
-         H12_c1a(ic1a,il1) = cmat_blk%H12(ic0a,il0)
-         Hcoef_c1a(ic1a,il1) = cmat_blk%Hcoef(ic0a,il0)
-      end if
 
-      ! Square-root rescaling
-      rh_c1a(ic1a,il1) = rh_c1a(ic1a,il1)*sqrt_r
-      if (nicas_blk%double_fit) then
-         rv_c1a(ic1a,il1) = rv_c1a(ic1a,il1)*sqrt_r_dble
-         rv_rfac_c1a(ic1a,il1) = rv_rfac_c1a(ic1a,il1)*sqrt_rfac
-         rv_coef_c1a(ic1a,il1) = rv_coef_c1a(ic1a,il1)*sqrt_coef
+      if (geom%mask_c0a(ic0a,il0)) then
+         ! Copy
+         rh_c1a(ic1a,il1) = cmat_blk%rh(ic0a,il0)
+         rv_c1a(ic1a,il1) = cmat_blk%rv(ic0a,il0)
+         if (nicas_blk%double_fit) then
+            rv_rfac_c1a(ic1a,il1) = cmat_blk%rv_rfac(ic0a,il0)
+            rv_coef_c1a(ic1a,il1) = cmat_blk%rv_coef(ic0a,il0)
+         end if
+         if (nicas_blk%anisotropic) then
+            H11_c1a(ic1a,il1) = cmat_blk%H11(ic0a,il0)
+            H22_c1a(ic1a,il1) = cmat_blk%H22(ic0a,il0)
+            H33_c1a(ic1a,il1) = cmat_blk%H33(ic0a,il0)
+            H12_c1a(ic1a,il1) = cmat_blk%H12(ic0a,il0)
+            Hcoef_c1a(ic1a,il1) = cmat_blk%Hcoef(ic0a,il0)
+         end if
+
+         ! Square-root rescaling
+         rh_c1a(ic1a,il1) = rh_c1a(ic1a,il1)*sqrt_r
+         if (nicas_blk%double_fit) then
+            rv_c1a(ic1a,il1) = rv_c1a(ic1a,il1)*sqrt_r_dble
+            rv_rfac_c1a(ic1a,il1) = rv_rfac_c1a(ic1a,il1)*sqrt_rfac
+            rv_coef_c1a(ic1a,il1) = rv_coef_c1a(ic1a,il1)*sqrt_coef
+         else
+            rv_c1a(ic1a,il1) = rv_c1a(ic1a,il1)*sqrt_r
+         end if
+         if (nicas_blk%anisotropic) then
+            H11_c1a(ic1a,il1) = H11_c1a(ic1a,il1)/sqrt_r**2
+            H22_c1a(ic1a,il1) = H22_c1a(ic1a,il1)/sqrt_r**2
+            H33_c1a(ic1a,il1) = H33_c1a(ic1a,il1)/sqrt_r**2
+            H12_c1a(ic1a,il1) = H12_c1a(ic1a,il1)/sqrt_r**2
+         end if
       else
-         rv_c1a(ic1a,il1) = rv_c1a(ic1a,il1)*sqrt_r
-      end if
-      if (nicas_blk%anisotropic) then
-         H11_c1a(ic1a,il1) = H11_c1a(ic1a,il1)/sqrt_r**2
-         H22_c1a(ic1a,il1) = H22_c1a(ic1a,il1)/sqrt_r**2
-         H33_c1a(ic1a,il1) = H33_c1a(ic1a,il1)/sqrt_r**2
-         H12_c1a(ic1a,il1) = H12_c1a(ic1a,il1)/sqrt_r**2
+         ! Missing values
+         rh_c1a(ic1a,il1) = mpl%msv%valr
+         rv_c1a(ic1a,il1) = mpl%msv%valr
+         if (nicas_blk%double_fit) then
+            rv_rfac_c1a(ic1a,il1) = mpl%msv%valr
+            rv_coef_c1a(ic1a,il1) = mpl%msv%valr
+         end if
+         if (nicas_blk%anisotropic) then
+            H11_c1a(ic1a,il1) = mpl%msv%valr
+            H22_c1a(ic1a,il1) = mpl%msv%valr
+            H33_c1a(ic1a,il1) = mpl%msv%valr
+            H12_c1a(ic1a,il1) = mpl%msv%valr
+            Hcoef_c1a(ic1a,il1) = mpl%msv%valr
+         end if
       end if
    end do
 end do

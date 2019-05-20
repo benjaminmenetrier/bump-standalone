@@ -23,7 +23,6 @@ timeslot = 1,
 
 &ens1_param
 ens1_ne = 11,
-ens1_nsub = 1,
 /
 
 &ens2_param

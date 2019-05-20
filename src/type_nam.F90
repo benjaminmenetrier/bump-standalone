@@ -162,7 +162,6 @@ type nam_type
    character(len=1024),dimension(nldwvmax) :: name_ldwv ! Name of the local diagnostics profiles to write
    real(kind_real) ::  diag_rhflt                       ! Diagnostics filtering radius
    character(len=1024) :: diag_interp                   ! Diagnostics interpolation type
-   logical :: split_io                                  ! Split I/O (each task read and write its own file)
    logical :: grid_output                               ! Write regridded fields
    real(kind_real) :: grid_resol                        ! Regridded fields resolution
    character(len=1024) :: grid_interp                   ! Regridding interpolation type
@@ -249,11 +248,11 @@ nam%nomask = .false.
 
 ! ens1_param default
 nam%ens1_ne = 0
-nam%ens1_nsub = 0
+nam%ens1_nsub = 1
 
 ! ens2_param default
 nam%ens2_ne = 0
-nam%ens2_nsub = 0
+nam%ens2_nsub = 1
 
 ! sampling_param default
 nam%sam_write = .false.
@@ -340,7 +339,6 @@ do ildwv=1,nldwvmax
 end do
 nam%diag_rhflt = 0.0
 nam%diag_interp = 'bilin'
-nam%split_io = .false.
 nam%grid_output = .false.
 nam%grid_resol = 0.0
 nam%grid_interp = 'bilin'
@@ -372,9 +370,10 @@ integer :: levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs,nldwv,img_ldwv(nl
 logical :: colorlog,default_seed
 logical :: new_cortrack,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom,new_hdiag,write_hdiag,new_lct,write_lct,load_cmat
 logical :: write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop,write_obsop,check_vbal,check_adjoints,check_pos_def
-logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,nomask,sam_write,sam_read
-logical :: mask_check,vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag,double_fit(0:nvmax)
-logical :: lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids,split_io,grid_output
+logical :: check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,logpres,nomask
+logical :: sam_write,sam_read,mask_check,vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag
+logical :: double_fit(0:nvmax),lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids
+logical :: grid_output
 real(kind_real) :: mask_th,Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
 character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu,draw_type,minim_algo,subsamp,nicas_interp
@@ -399,7 +398,7 @@ namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
                    & write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
-namelist/output_param/nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,split_io,grid_output,grid_resol,grid_interp
+namelist/output_param/nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,diag_interp,grid_output,grid_resol,grid_interp
 
 if (mpl%main) then
    ! general_param default
@@ -456,11 +455,11 @@ if (mpl%main) then
 
    ! ens1_param default
    ens1_ne = 0
-   ens1_nsub = 0
+   ens1_nsub = 1
 
    ! ens2_param default
    ens2_ne = 0
-   ens2_nsub = 0
+   ens2_nsub = 1
 
    ! sampling_param default
    sam_write = .false.
@@ -547,7 +546,6 @@ if (mpl%main) then
    end do
    diag_rhflt = 0.0
    diag_interp = 'bilin'
-   split_io = .false.
    grid_output = .false.
    grid_resol = 0.0
    grid_interp = 'bilin'
@@ -712,7 +710,6 @@ if (mpl%main) then
    end if
    nam%diag_rhflt = diag_rhflt
    nam%diag_interp = diag_interp
-   nam%split_io = split_io
    nam%grid_output = grid_output
    nam%grid_resol = grid_resol
    nam%grid_interp = grid_interp
@@ -872,7 +869,6 @@ call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%ioproc-1)
 call mpl%bcast(nam%name_ldwv,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%diag_interp,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%split_io,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%grid_output,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%grid_resol,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%grid_interp,mpl%ioproc-1)
@@ -1058,13 +1054,10 @@ if (nam%new_cortrack.or.nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%chec
 end if
 
 ! Check ens2_param
-if (nam%new_hdiag) then
-   select case (trim(nam%method))
-   case ('hyb-rnd','dual-ens')
-      if (nam%ens2_nsub<1) call mpl%abort(subr,'ens2_nsub should be non-negative')
-      if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call mpl%abort(subr,'ens2_nsub should be a divider of ens2_ne')
-      if (nam%ens2_ne/nam%ens2_nsub<=3) call mpl%abort(subr,'ens2_ne/ens2_nsub should be larger than 3')
-   end select
+if (nam%new_hdiag.and.((trim(nam%method)=='hyb-rnd').or.(trim(nam%method)=='dual-ens'))) then
+   if (nam%ens2_nsub<1) call mpl%abort(subr,'ens2_nsub should be non-negative')
+   if (mod(nam%ens2_ne,nam%ens2_nsub)/=0) call mpl%abort(subr,'ens2_nsub should be a divider of ens2_ne')
+   if (nam%ens2_ne/nam%ens2_nsub<=3) call mpl%abort(subr,'ens2_ne/ens2_nsub should be larger than 3')
 end if
 
 ! Check sampling_param
@@ -1500,7 +1493,6 @@ call mpl%write(lncid,'lat_ldwv',nam%nldwv,lat_ldwv)
 call mpl%write(lncid,'name_ldwv',nam%nldwv,nam%name_ldwv(1:nam%nldwv))
 call mpl%write(lncid,'diag_rhflt',nam%diag_rhflt*req)
 call mpl%write(lncid,'diag_interp',nam%diag_interp)
-call mpl%write(lncid,'split_io',nam%split_io)
 call mpl%write(lncid,'grid_output',nam%grid_output)
 call mpl%write(lncid,'grid_resol',nam%grid_resol*req)
 call mpl%write(lncid,'grid_interp',nam%grid_interp)

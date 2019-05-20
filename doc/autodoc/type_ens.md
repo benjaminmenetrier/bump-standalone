@@ -9,4 +9,4 @@
 | subroutine | [ens%] [remove_mean](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_ens.F90#L131) | remove ensemble mean |
 | subroutine | [ens%] [from](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_ens.F90#L166) | copy ensemble array into ensemble data |
 | subroutine | [ens%] [apply_bens](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_ens.F90#L205) | apply raw ensemble covariance |
-| subroutine | [ens%] [cortrack](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_ens.F90#L255) | correlation tracker |
+| subroutine | [ens%] [cortrack](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_ens.F90#L265) | correlation tracker |

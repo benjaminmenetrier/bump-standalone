@@ -73,12 +73,12 @@ contains
    generic :: alltoallv => fckit_mpi_comm_alltoallv_real
    procedure :: fckit_mpi_comm_allreduce_integer_0d
    procedure :: fckit_mpi_comm_allreduce_integer_1d
-   procedure :: fckit_mpi_comm_allreduce_integer_4d
    procedure :: fckit_mpi_comm_allreduce_real_0d
    procedure :: fckit_mpi_comm_allreduce_real_1d
+   procedure :: fckit_mpi_comm_allreduce_real_4d
    generic :: allreduce => fckit_mpi_comm_allreduce_integer_0d,fckit_mpi_comm_allreduce_integer_1d, &
-                         & fckit_mpi_comm_allreduce_integer_4d, &
-                         & fckit_mpi_comm_allreduce_real_0d,fckit_mpi_comm_allreduce_real_1d
+                         & fckit_mpi_comm_allreduce_real_0d,fckit_mpi_comm_allreduce_real_1d, &
+                         & fckit_mpi_comm_allreduce_real_4d
 end type fckit_mpi_comm
 
 interface fckit_mpi_comm
@@ -1154,31 +1154,6 @@ call f_comm%check(info)
 end subroutine fckit_mpi_comm_allreduce_integer_1d
 
 !----------------------------------------------------------------------
-! Subroutine: fckit_mpi_comm_allreduce_integer_4d
-! Purpose: allreduce for a integer array, 4d
-!----------------------------------------------------------------------
-subroutine fckit_mpi_comm_allreduce_integer_4d(f_comm,var_in,var_out,mpi_op)
-
-implicit none
-
-! Passed variables
-class(fckit_mpi_comm),intent(in) :: f_comm          ! FCKIT communicator
-integer,dimension(:,:,:,:),intent(in) :: var_in     ! Input integer array, 1d
-integer,dimension(:,:,:,:),intent(inout) :: var_out ! Output integer array, 1d
-integer,intent(in) :: mpi_op                        ! MPI operation
-
-! Local variable
-integer :: info
-
-! Allreduce
-call mpi_allreduce(var_in,var_out,size(var_in),mpi_integer,mpi_op,mpi_comm_world,info)
-
-! Check
-call f_comm%check(info)
-
-end subroutine fckit_mpi_comm_allreduce_integer_4d
-
-!----------------------------------------------------------------------
 ! Subroutine: fckit_mpi_comm_allreduce_real_0d
 ! Purpose: allreduce for a real number
 !----------------------------------------------------------------------
@@ -1227,6 +1202,31 @@ call mpi_allreduce(var_in,var_out,size(var_in),fckit_mpi_real(),mpi_op,mpi_comm_
 call f_comm%check(info)
 
 end subroutine fckit_mpi_comm_allreduce_real_1d
+
+!----------------------------------------------------------------------
+! Subroutine: fckit_mpi_comm_allreduce_real_4d
+! Purpose: allreduce for a real array, 4d
+!----------------------------------------------------------------------
+subroutine fckit_mpi_comm_allreduce_real_4d(f_comm,var_in,var_out,mpi_op)
+
+implicit none
+
+! Passed variables
+class(fckit_mpi_comm),intent(in) :: f_comm                  ! FCKIT communicator
+real(kind_real),dimension(:,:,:,:),intent(in) :: var_in     ! Input real array, 4d
+real(kind_real),dimension(:,:,:,:),intent(inout) :: var_out ! Output real array, 4d
+integer,intent(in) :: mpi_op                                ! MPI operation
+
+! Local variable
+integer :: info
+
+! Allreduce
+call mpi_allreduce(var_in,var_out,size(var_in),fckit_mpi_real(),mpi_op,mpi_comm_world,info)
+
+! Check
+call f_comm%check(info)
+
+end subroutine fckit_mpi_comm_allreduce_real_4d
 
 !----------------------------------------------------------------------
 ! Subroutine: fckit_mpi_sum

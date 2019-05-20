@@ -204,7 +204,7 @@ case ('hyb-rnd','dual-ens')
    call hdiag%avg_2%compute(mpl,nam,geom,bpar,hdiag%samp,hdiag%mom_2,nam%ens2_ne,'avg_2')
 case ('hyb-avg')
    ! Copy ensemble 1 statistics
-   call hdiag%avg_2%alloc(mpl,nam,geom,bpar,nam%ens2_ne,nam%ens2_nsub,'avg_2')
+   call hdiag%avg_2%alloc(nam,geom,bpar,nam%ens2_ne,nam%ens2_nsub,'avg_2')
    call hdiag%avg_2%copy(hdiag%avg_1)
 end select
 

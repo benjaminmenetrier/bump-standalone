@@ -976,7 +976,7 @@ end subroutine syminv
 ! Subroutine: histogram
 ! Purpose: compute bins and histogram from a list of values
 !----------------------------------------------------------------------
-subroutine histogram(mpl,nlist,list,nbins,bins,hist)
+subroutine histogram(mpl,nlist,list,nbins,histmin,histmax,bins,hist)
 
 implicit none
 
@@ -985,58 +985,57 @@ type(mpl_type),intent(inout) :: mpl          ! MPI data
 integer,intent(in) :: nlist                  ! List size
 real(kind_real),intent(in) :: list(nlist)    ! List
 integer,intent(in) :: nbins                  ! Number of bins
+real(kind_real),intent(in) :: histmin        ! Histogram minimum
+real(kind_real),intent(in) :: histmax        ! Histogram maximum
 real(kind_real),intent(out) :: bins(nbins+1) ! Bins
 real(kind_real),intent(out) :: hist(nbins)   ! Histogram
 
 ! Local variables
 integer :: ibins,ilist
 real(kind_real) :: delta
+logical :: found
 character(len=1024) :: subr = 'histogram'
 
 ! Check data
 if (nbins<=0) call mpl%abort(subr,'the number of bins should be positive')
-if (count(mpl%msv%isnotr(list))<1) then
-   bins = mpl%msv%valr
-   hist = mpl%msv%valr
-   return
-end if
+if (histmax>histmin) then
+   if (minval(list,mask=mpl%msv%isnotr(list))<histmin) call mpl%abort(subr,'values below histogram minimum')
+   if (maxval(list,mask=mpl%msv%isnotr(list))>histmax) call mpl%abort(subr,'values over histogram maximum')
 
-! Compute bins
-delta = (maxval(list,mask=mpl%msv%isnotr(list))-minval(list,mask=mpl%msv%isnotr(list)))/real(nbins,kind_real)
-if (delta>0.0) then
-   bins(1) = minval(list,mask=mpl%msv%isnotr(list))
+   ! Compute bins
+   delta = (histmax-histmin)/real(nbins,kind_real)
+   bins(1) = histmin
    do ibins=2,nbins
-      bins(ibins) = minval(list,mask=mpl%msv%isnotr(list))+real(ibins-1,kind_real)*delta
+      bins(ibins) = histmin+real(ibins-1,kind_real)*delta
    end do
-   bins(nbins+1) = maxval(list,mask=mpl%msv%isnotr(list))
+   bins(nbins+1) = histmax
+
+   ! Extend first and last bins
+   bins(1) = bins(1)-1.0e-6*delta
+   bins(nbins+1) = bins(nbins+1)+1.0e-6*delta
+
+   ! Compute histogram
+   hist = 0.0
+   do ilist=1,nlist
+      if (mpl%msv%isnotr(list(ilist))) then
+         ibins = 0
+         found = .false.
+         do while (.not.found)
+            ibins = ibins+1
+            if (ibins>nbins) call mpl%abort(subr,'bin not found')
+            if (infeq(bins(ibins),list(ilist)).and.inf(list(ilist),bins(ibins+1))) then
+               hist(ibins) = hist(ibins)+1.0
+               found = .true.
+            end if
+         end do
+      end if
+   end do
+   if (abs(sum(hist)-real(count(mpl%msv%isnotr(list)),kind_real))>0.5) &
+    & call mpl%abort(subr,'histogram sum is not equal to the number of valid elements')
 else
    bins = mpl%msv%valr
-   hist = mpl%msv%valr
-   return
+   hist = 0.0
 end if
-
-! Extend first and last bins
-bins(1) = bins(1)-1.0e-6*delta
-bins(nbins+1) = bins(nbins+1)+1.0e-6*delta
-
-! Compute histogram
-hist = 0.0
-do ilist=1,nlist
-   if (mpl%msv%isnotr(list(ilist))) then
-      do ibins=1,nbins
-         if (infeq(bins(ibins),list(ilist)).and.inf(list(ilist),bins(ibins+1))) then
-            hist(ibins) = hist(ibins)+1.0
-            exit
-         end if
-      end do
-   end if
-end do
-!if (abs(sum(hist)-real(count(mpl%msv%isnotr(list)),kind_real))>0.5) &
-! & call mpl%abort(subr,'histogram sum is not equal to the number of valid elements')
-
-! Normalization
-hist = hist/real(count(mpl%msv%isnotr(list)),kind_real)
-
 end subroutine histogram
 
 end module tools_func

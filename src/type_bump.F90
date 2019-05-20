@@ -228,8 +228,7 @@ call bump%mpl%flush
 call bump%bpar%alloc(bump%nam,bump%geom)
 call bump%bpar%init(bump%mpl,bump%nam,bump%geom)
 
-if ((bump%nam%new_mom.and.(bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct)).or. &
- & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
+if (bump%nam%ens1_ne>0) then
    ! Initialize ensemble 1
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
@@ -240,7 +239,7 @@ else
    call bump%ens1%set_att(bump%nam%ens1_ne,bump%nam%ens1_nsub)
 end if
 
-if (bump%nam%new_mom.and.bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
+if (bump%nam%ens2_ne>0) then
    ! Initialize ensemble 2
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
@@ -286,8 +285,7 @@ implicit none
 ! Passed variables
 class(bump_type),intent(inout) :: bump ! BUMP
 
-if ((bump%nam%new_mom.and.(bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%nam%new_hdiag.or.bump%nam%new_lct)).or. &
- & (bump%nam%check_dirac.and.(trim(bump%nam%method)/='cor'))) then
+if (bump%nam%ens1_ne>0) then
    ! Finalize ensemble 1
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
@@ -296,7 +294,7 @@ if ((bump%nam%new_mom.and.(bump%nam%new_cortrack.or.bump%nam%new_vbal.or.bump%na
    call bump%ens1%remove_mean
 end if
 
-if (bump%nam%new_mom.and.bump%nam%new_hdiag.and.((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens'))) then
+if (bump%nam%ens2_ne>0) then
    ! Finalize ensemble 2
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush

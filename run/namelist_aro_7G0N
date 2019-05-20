@@ -24,7 +24,6 @@ timeslot = 3,
 
 &ens1_param
 ens1_ne = 10,
-ens1_nsub = 1,
 /
 
 &ens2_param

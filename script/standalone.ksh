@@ -12,7 +12,8 @@ standalone="${HOME}/code/bump-standalone/standalone"
 
 # Get src
 mkdir -p ${src}
-rsync -rtv --delete ${src_origin}/* ${src}
+rsync -rtv --delete ${src_origin}/*.F90 ${src}
+rsync -rtv --delete ${src_origin}/external ${src}
 
 # Add fckit routines
 rsync -rtv --delete ${standalone}/fckit ${src}

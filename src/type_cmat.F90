@@ -389,6 +389,9 @@ end do
 ! Allocation
 call cmat%alloc(nam,geom,bpar)
 
+! Initialization
+call cmat%init(mpl,nam,bpar)
+
 ! Convolution parameters
 do ib=1,bpar%nbe
    if (bpar%B_block(ib)) then
@@ -600,6 +603,9 @@ end do
 ! Allocation
 call cmat%alloc(nam,geom,bpar)
 
+! Initialization
+call cmat%init(mpl,nam,bpar)
+
 ! Convolution parameters
 do ib=1,bpar%nbe
    if (bpar%B_block(ib).and.bpar%nicas_block(ib)) then
@@ -678,6 +684,9 @@ end do
 
 ! Allocation
 call cmat%alloc(nam,geom,bpar)
+
+! Initialization
+call cmat%init(mpl,nam,bpar)
 
 ! Convolution parameters
 do ib=1,bpar%nbe

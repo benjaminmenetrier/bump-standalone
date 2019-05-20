@@ -247,7 +247,17 @@ do ie=1,nam%ens1_ne
    call mpl%dot_prod(pert,fld_copy,alpha)
 
    ! Schur product
-   fld = fld+alpha*pert
+   !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
+   do its=1,nam%nts
+      do iv=1,nam%nv
+         do il0=1,geom%nl0
+            do ic0a=1,geom%nc0a
+               if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its)+alpha*pert(ic0a,il0,iv,its)
+            end do
+         end do
+      end do
+   end do
+   !$omp end parallel do
 end do
 
 end subroutine ens_apply_bens

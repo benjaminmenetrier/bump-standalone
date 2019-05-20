@@ -26,7 +26,6 @@ nts = 1,
 
 &ens1_param
 ens1_ne = 50,
-ens1_nsub = 1,
 /
 
 &ens2_param

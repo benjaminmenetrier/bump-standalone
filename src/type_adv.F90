@@ -772,7 +772,7 @@ type(samp_type),intent(inout) :: samp ! Sampling
 
 ! Local variables
 integer :: ic0,ic2,ic2a,il0,il0i,its,ic0a
-real(kind_real) :: dum
+real(kind_real) :: reduced_dist
 real(kind_real) :: x_ori(samp%nc2a),y_ori(samp%nc2a),z_ori(samp%nc2a)
 real(kind_real) :: dx(samp%nc2a),dy(samp%nc2a),dz(samp%nc2a)
 real(kind_real) :: dx_c2b(samp%nc2b),dy_c2b(samp%nc2b),dz_c2b(samp%nc2b)
@@ -832,7 +832,7 @@ do its=2,nam%nts
          if (geom%mask_c0a(ic0a,il0)) then
             ic0 = geom%c0a_to_c0(ic0a)
             call reduce_arc(geom%lon(ic0),geom%lat(ic0),samp%adv_lon(ic0a,il0,its),samp%adv_lat(ic0a,il0,its), &
-          & adv%search_rad(ic0,il0i),dum)
+          & adv%search_rad(ic0,il0i),reduced_dist)
          end if
       end do
    end do

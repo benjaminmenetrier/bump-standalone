@@ -43,9 +43,9 @@
 | subroutine | [fckit_mpi_comm_alltoallv_real](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1078) | alltoallv for a real array |
 | subroutine | [fckit_mpi_comm_allreduce_integer_0d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1106) | allreduce for an integer |
 | subroutine | [fckit_mpi_comm_allreduce_integer_1d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1131) | allreduce for a integer array, 1d |
-| subroutine | [fckit_mpi_comm_allreduce_integer_4d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1156) | allreduce for a integer array, 4d |
-| subroutine | [fckit_mpi_comm_allreduce_real_0d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1181) | allreduce for a real number |
-| subroutine | [fckit_mpi_comm_allreduce_real_1d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1206) | allreduce for a real array, 1d |
+| subroutine | [fckit_mpi_comm_allreduce_real_0d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1156) | allreduce for a real number |
+| subroutine | [fckit_mpi_comm_allreduce_real_1d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1181) | allreduce for a real array, 1d |
+| subroutine | [fckit_mpi_comm_allreduce_real_4d](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1206) | allreduce for a real array, 4d |
 | subroutine | [fckit_mpi_sum](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1231) | get MPI sum index |
 | subroutine | [fckit_mpi_min](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1245) | get MPI min index |
 | subroutine | [fckit_mpi_max](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/fckit_mpi_module.F90#L1259) | get MPI max index |

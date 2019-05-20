@@ -53,12 +53,12 @@ nomask = .false.,
 
 &ens1_param
 ens1_ne = 0,
-ens1_nsub = 0,
+ens1_nsub = 1,
 /
 
 &ens2_param
 ens2_ne = 0,
-ens2_nsub = 0,
+ens2_nsub = 1,
 /
 
 &sampling_param

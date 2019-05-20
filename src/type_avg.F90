@@ -55,13 +55,12 @@ contains
 ! Subroutine: avg_alloc
 ! Purpose: allocation
 !----------------------------------------------------------------------
-subroutine avg_alloc(avg,mpl,nam,geom,bpar,ne,nsub,prefix)
+subroutine avg_alloc(avg,nam,geom,bpar,ne,nsub,prefix)
 
 implicit none
 
 ! Passed variables
 class(avg_type),intent(inout) :: avg  ! Averaged statistics
-type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(in) :: geom    ! Geometry
 type(bpar_type),intent(in) :: bpar    ! Block parameters
@@ -81,7 +80,7 @@ avg%nsub = nsub
 allocate(avg%blk(0:nam%nc2,bpar%nbe))
 do ib=1,bpar%nbe
    do ic2=0,nam%nc2
-      call avg%blk(ic2,ib)%alloc(mpl,nam,geom,bpar,ic2,ib,ne,nsub,prefix)
+      call avg%blk(ic2,ib)%alloc(nam,geom,bpar,ic2,ib,ne,nsub,prefix)
    end do
 end do
 
@@ -517,7 +516,7 @@ character(len=*),intent(in) :: prefix ! Prefix
 integer :: ib,ic2
 
 ! Allocation
-call avg%alloc(mpl,nam,geom,bpar,mom%ne,mom%nsub,prefix)
+call avg%alloc(nam,geom,bpar,mom%ne,mom%nsub,prefix)
 
 ! Compute averaged statistics
 write(mpl%info,'(a10,a)') '','Compute averaged statistics'

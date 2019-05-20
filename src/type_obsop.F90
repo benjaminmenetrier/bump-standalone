@@ -484,9 +484,15 @@ case default
    call mpl%abort(subr,'wrong obsdis')
 end select
 
+! Release memory
+deallocate(obsop%lonobs)
+deallocate(obsop%latobs)
+
 ! Allocation
 obsop%nobsa = count(obs_to_proc==mpl%myproc)
 allocate(obsop%obsa_to_obs(obsop%nobsa))
+allocate(obsop%lonobs(obsop%nobsa))
+allocate(obsop%latobs(obsop%nobsa))
 
 ! Fill proc_to_nobsa, obs_to_obsa and obsa_to_obs
 proc_to_nobsa = 0
@@ -503,6 +509,12 @@ do iobs=1,obsop%nobs
    iobsa = proc_to_nobsa(iproc)
    obs_to_obsa(iobs) = iobsa
    if (iproc==mpl%myproc) obsop%obsa_to_obs(iobsa) = iobs
+
+   ! Fill lonobs/latobs
+   if (iproc==mpl%myproc) then
+      obsop%lonobs(iobsa) = lonobs(iobs)
+      obsop%latobs(iobsa) = latobs(iobs)
+   end if
 end do
 
 ! Count number of local interpolation operations

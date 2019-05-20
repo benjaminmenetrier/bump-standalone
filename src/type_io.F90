@@ -102,45 +102,26 @@ character(len=*),intent(in) :: varname                 ! Variable name
 real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
-integer :: ncid,fld_id,dum
+integer :: ncid,fld_id
 real(kind_real) :: fld_c0(geom%nc0,geom%nl0)
-character(len=1024) :: filename_proc
 character(len=1024),parameter :: subr = 'io_fld_read'
 
-if (nam%split_io.and.(mpl%nproc>1)) then
+if (mpl%main) then
    ! Open file
-   write(filename_proc,'(a,a,i4.4,a,i4.4)') trim(filename),'_',mpl%nproc,'-',mpl%myproc
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename_proc)//'.nc',nf90_nowrite,ncid))
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
 
    ! Get variable id
    call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
 
    ! Get data
-   call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld))
+   call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_c0))
 
    ! Close file
    call mpl%ncerr(subr,nf90_close(ncid))
-else
-   if (mpl%main) then
-      ! Open file
-      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
-
-      ! Get variable id
-      call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(varname),fld_id))
-
-      ! Get data
-      call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_c0))
-
-      ! Close file
-      call mpl%ncerr(subr,nf90_close(ncid))
-   end if
-
-   ! Global to local
-   call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld)
 end if
 
-! Dummy call to avoid compilation warnings
-dum = io%nog
+! Global to local
+call mpl%glb_to_loc(geom%nl0,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,fld_c0,geom%nc0a,fld)
 
 end subroutine io_fld_read
 
@@ -163,10 +144,9 @@ real(kind_real),intent(in) :: fld(geom%nc0a,geom%nl0) ! Field
 
 ! Local variables
 integer :: ic0a,ic0,il0,info,info_coord
-integer :: ncid,nc0a_id,nc0_id,nl0_id,fld_id,lon_id,lat_id
+integer :: ncid,nc0_id,nl0_id,fld_id,lon_id,lat_id
 real(kind_real) :: fld_c0a(geom%nc0a,geom%nl0)
 real(kind_real),allocatable :: fld_c0(:,:),lon(:),lat(:)
-character(len=1024) :: filename_proc
 character(len=1024),parameter :: subr = 'io_fld_write'
 
 ! Apply mask
@@ -181,11 +161,15 @@ do il0=1,geom%nl0
    end do
 end do
 
-if (nam%split_io.and.(mpl%nproc>1)) then
-   ! Check if the file exists
-   write(filename_proc,'(a,a,i4.4,a,i4.4)') trim(filename),'_split_',mpl%nproc,'-',mpl%myproc
-   info = nf90_create(trim(nam%datadir)//'/'//trim(filename_proc)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
+! Allocation
+allocate(fld_c0(geom%nc0,geom%nl0))
 
+! Local to global
+call mpl%loc_to_glb(geom%nl0,geom%nc0a,fld_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,fld_c0)
+
+if (mpl%main) then
+   ! Check if the file exists
+   info = nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
    if (info==nf90_noerr) then
       ! Write namelist parameters
       call nam%write(mpl,ncid)
@@ -194,21 +178,21 @@ if (nam%split_io.and.(mpl%nproc>1)) then
       call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',mpl%msv%valr))
    else
       ! Open file
-      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename_proc)//'.nc',nf90_write,ncid))
+      call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
 
       ! Enter definition mode
       call mpl%ncerr(subr,nf90_redef(ncid))
    end if
 
    ! Define dimensions and coordinates if necessary
-   nc0a_id = mpl%ncdimcheck(subr,ncid,'nc0a',geom%nc0a,.true.)
+   nc0_id = mpl%ncdimcheck(subr,ncid,'nc0',geom%nc0,.true.)
    nl0_id = mpl%ncdimcheck(subr,ncid,'nl0',geom%nl0,.true.)
    info_coord = nf90_inq_varid(ncid,'lon',lon_id)
    if (info_coord/=nf90_noerr) then
-      call mpl%ncerr(subr,nf90_def_var(ncid,'lon',nc_kind_real,(/nc0a_id/),lon_id))
+      call mpl%ncerr(subr,nf90_def_var(ncid,'lon',nc_kind_real,(/nc0_id/),lon_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',mpl%msv%valr))
       call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'unit','degrees_north'))
-      call mpl%ncerr(subr,nf90_def_var(ncid,'lat',nc_kind_real,(/nc0a_id/),lat_id))
+      call mpl%ncerr(subr,nf90_def_var(ncid,'lat',nc_kind_real,(/nc0_id/),lat_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',mpl%msv%valr))
       call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'unit','degrees_east'))
    end if
@@ -216,7 +200,7 @@ if (nam%split_io.and.(mpl%nproc>1)) then
    ! Define variable if necessary
    info = nf90_inq_varid(ncid,trim(varname),fld_id)
    if (info/=nf90_noerr) then
-      call mpl%ncerr(subr,nf90_def_var(ncid,trim(varname),nc_kind_real,(/nc0a_id,nl0_id/),fld_id))
+      call mpl%ncerr(subr,nf90_def_var(ncid,trim(varname),nc_kind_real,(/nc0_id,nl0_id/),fld_id))
       call mpl%ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',mpl%msv%valr))
    end if
 
@@ -226,12 +210,12 @@ if (nam%split_io.and.(mpl%nproc>1)) then
    ! Write coordinates if necessary
    if (info_coord/=nf90_noerr) then
       ! Allocation
-      allocate(lon(geom%nc0a))
-      allocate(lat(geom%nc0a))
+      allocate(lon(geom%nc0))
+      allocate(lat(geom%nc0))
 
       ! Convert to degrees
-      lon = geom%lon(geom%c0a_to_c0)*rad2deg
-      lat = geom%lat(geom%c0a_to_c0)*rad2deg
+      lon = geom%lon*rad2deg
+      lat = geom%lat*rad2deg
 
       ! Write data
       call mpl%ncerr(subr,nf90_put_var(ncid,lon_id,lon))
@@ -243,86 +227,14 @@ if (nam%split_io.and.(mpl%nproc>1)) then
    end if
 
    ! Write variable
-   call mpl%ncerr(subr,nf90_put_var(ncid,fld_id,fld_c0a))
+   call mpl%ncerr(subr,nf90_put_var(ncid,fld_id,fld_c0))
 
    ! Close file
    call mpl%ncerr(subr,nf90_close(ncid))
-else
-   ! Allocation
-   allocate(fld_c0(geom%nc0,geom%nl0))
-
-   ! Local to global
-   call mpl%loc_to_glb(geom%nl0,geom%nc0a,fld_c0a,geom%nc0,geom%c0_to_proc,geom%c0_to_c0a,.false.,fld_c0)
-
-   if (mpl%main) then
-      ! Check if the file exists
-      info = nf90_create(trim(nam%datadir)//'/'//trim(filename)//'.nc',or(nf90_noclobber,nf90_64bit_offset),ncid)
-      if (info==nf90_noerr) then
-         ! Write namelist parameters
-         call nam%write(mpl,ncid)
-
-         ! Define attribute
-         call mpl%ncerr(subr,nf90_put_att(ncid,nf90_global,'_FillValue',mpl%msv%valr))
-      else
-         ! Open file
-         call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_write,ncid))
-
-         ! Enter definition mode
-         call mpl%ncerr(subr,nf90_redef(ncid))
-      end if
-
-      ! Define dimensions and coordinates if necessary
-      nc0_id = mpl%ncdimcheck(subr,ncid,'nc0',geom%nc0,.true.)
-      nl0_id = mpl%ncdimcheck(subr,ncid,'nl0',geom%nl0,.true.)
-      info_coord = nf90_inq_varid(ncid,'lon',lon_id)
-      if (info_coord/=nf90_noerr) then
-         call mpl%ncerr(subr,nf90_def_var(ncid,'lon',nc_kind_real,(/nc0_id/),lon_id))
-         call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',mpl%msv%valr))
-         call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'unit','degrees_north'))
-         call mpl%ncerr(subr,nf90_def_var(ncid,'lat',nc_kind_real,(/nc0_id/),lat_id))
-         call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',mpl%msv%valr))
-         call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'unit','degrees_east'))
-      end if
-
-      ! Define variable if necessary
-      info = nf90_inq_varid(ncid,trim(varname),fld_id)
-      if (info/=nf90_noerr) then
-         call mpl%ncerr(subr,nf90_def_var(ncid,trim(varname),nc_kind_real,(/nc0_id,nl0_id/),fld_id))
-         call mpl%ncerr(subr,nf90_put_att(ncid,fld_id,'_FillValue',mpl%msv%valr))
-      end if
-
-      ! End definition mode
-      call mpl%ncerr(subr,nf90_enddef(ncid))
-
-      ! Write coordinates if necessary
-      if (info_coord/=nf90_noerr) then
-         ! Allocation
-         allocate(lon(geom%nc0))
-         allocate(lat(geom%nc0))
-
-         ! Convert to degrees
-         lon = geom%lon*rad2deg
-         lat = geom%lat*rad2deg
-
-         ! Write data
-         call mpl%ncerr(subr,nf90_put_var(ncid,lon_id,lon))
-         call mpl%ncerr(subr,nf90_put_var(ncid,lat_id,lat))
-
-         ! Release memory
-         deallocate(lon)
-         deallocate(lat)
-      end if
-
-      ! Write variable
-      call mpl%ncerr(subr,nf90_put_var(ncid,fld_id,fld_c0))
-
-      ! Close file
-      call mpl%ncerr(subr,nf90_close(ncid))
-   end if
-
-   ! Release memory
-   deallocate(fld_c0)
 end if
+
+! Release memory
+deallocate(fld_c0)
 
 ! Gridded field output
 if (nam%grid_output) call io%grid_write(mpl,nam,geom,filename,trim(varname)//'_gridded',fld)
