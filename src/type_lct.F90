@@ -161,7 +161,7 @@ if (nam%diag_rhflt>0.0) then
    call mpl%flush
    write(mpl%info,'(a)') '--- Compute MPI distribution, halo F'
    call mpl%flush
-   call lct%samp%compute_mpi_f(mpl,nam,geom)
+   call lct%samp%compute_mpi_f(mpl,nam)
 end if
 
 if (nam%new_mom) then
@@ -339,14 +339,14 @@ do ib=1,bpar%nb
                   fld_filt_c1a = fld_c1a
 
                   ! Filter
-                  call lct%samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,fld_filt_c1a)
-                  call lct%samp%diag_filter(mpl,nam,geom,il0,'gc99',nam%diag_rhflt,fld_filt_c1a)
+                  call lct%samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,fld_filt_c1a)
+                  call lct%samp%diag_filter(mpl,nam,'gc99',nam%diag_rhflt,fld_filt_c1a)
                end if
 
                ! Fill missing values
                if (nmsr_tot>0) then
-                  call lct%samp%diag_fill(mpl,nam,geom,il0,fld_c1a)
-                  if (nam%diag_rhflt>0.0) call lct%samp%diag_fill(mpl,nam,geom,il0,fld_filt_c1a)
+                  call lct%samp%diag_fill(mpl,nam,fld_c1a)
+                  if (nam%diag_rhflt>0.0) call lct%samp%diag_fill(mpl,nam,fld_filt_c1a)
                end if
 
                ! Copy
@@ -422,8 +422,8 @@ do ib=1,bpar%nb
             end do
 
             ! Filter variances
-            call lct%samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,lct%blk(ib)%m2flt)
-            call lct%samp%diag_filter(mpl,nam,geom,il0,'gc99',nam%diag_rhflt,lct%blk(ib)%m2flt)
+            call lct%samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,lct%blk(ib)%m2flt)
+            call lct%samp%diag_filter(mpl,nam,'gc99',nam%diag_rhflt,lct%blk(ib)%m2flt)
          end if
       end do
 

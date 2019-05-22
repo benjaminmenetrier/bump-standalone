@@ -434,7 +434,7 @@ if ((ic2==0).or.nam%local_diag) then
 
    ! Check whether this task is involved
    if (ic2>0) then
-      involved = any(samp%local_mask(samp%c1a_to_c1,ic2))
+      involved = any(samp%local_mask(:,ic2))
    else
       involved = .true.
    end if
@@ -461,7 +461,7 @@ if ((ic2==0).or.nam%local_diag) then
 
                   ! Check validity
                   valid = samp%c1l0_log(ic1,il0).and.samp%c1c3l0_log(ic1,jc3,jl0)
-                  if (ic2>0) valid = valid.and.samp%local_mask(ic1,ic2)
+                  if (ic2>0) valid = valid.and.samp%local_mask(ic1a,ic2)
                   if (trim(nam%mask_type)=='stddev') then
                      m2_1 = sum(mom_blk%m2_1(ic1a,il0,:))/real(avg_blk%nsub,kind_real)
                      m2_2 = sum(mom_blk%m2_2(ic1a,jc3,jl0,:))/real(avg_blk%nsub,kind_real)
@@ -885,7 +885,7 @@ if ((ic2==0).or.nam%local_diag) then
 
          ! Allocation
          if (ic2>0) then
-            nc1amax = count(samp%local_mask(samp%c1a_to_c1,ic2))
+            nc1amax = count(samp%local_mask(:,ic2))
          else
             nc1amax = samp%nc1a
          end if
@@ -900,7 +900,7 @@ if ((ic2==0).or.nam%local_diag) then
 
                ! Check validity
                valid = samp%c1l0_log(ic1,il0).and.samp%c1c3l0_log(ic1,jc3,jl0)
-               if (ic2>0) valid = valid.and.samp%local_mask(ic1,ic2)
+               if (ic2>0) valid = valid.and.samp%local_mask(ic1a,ic2)
 
                if (valid) then
                   ! Update

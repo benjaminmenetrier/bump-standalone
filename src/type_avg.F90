@@ -434,10 +434,10 @@ do ib=1,bpar%nb
                m2 = m2_ini
 
                ! Median filter to remove extreme values
-               call samp%diag_filter(mpl,nam,geom,il0,'median',rhflt,m2)
+               call samp%diag_filter(mpl,nam,'median',rhflt,m2)
 
                ! Average filter to smooth values
-               call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,m2)
+               call samp%diag_filter(mpl,nam,'gc99',rhflt,m2)
 
                ! Compute product
                m2prod = 0.0

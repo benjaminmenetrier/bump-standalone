@@ -448,7 +448,7 @@ do ib=1,bpar%nbe
             do i=1,n
                ! Fill missing values
                do il0=1,geom%nl0
-                  call hdiag%samp%diag_fill(mpl,nam,geom,il0,fld_c2a(:,il0,i))
+                  call hdiag%samp%diag_fill(mpl,nam,fld_c2a(:,il0,i))
                end do
 
                ! Interpolate

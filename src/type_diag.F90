@@ -277,27 +277,27 @@ do ib=1,bpar%nbe
             end do
 
             ! Median filter to remove extreme values
-            call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rh_c2a(:,il0))
-            call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,rh_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_rfac_c2a(:,il0))
-               call samp%diag_filter(mpl,nam,geom,il0,'median',nam%diag_rhflt,rv_coef_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,rv_rfac_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,'median',nam%diag_rhflt,rv_coef_c2a(:,il0))
             end if
 
             ! Average filter to smooth support radii
-            call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rh_c2a(:,il0))
-            call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,'average',nam%diag_rhflt,rh_c2a(:,il0))
+            call samp%diag_filter(mpl,nam,'average',nam%diag_rhflt,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_rfac_c2a(:,il0))
-               call samp%diag_filter(mpl,nam,geom,il0,'average',nam%diag_rhflt,rv_coef_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,'average',nam%diag_rhflt,rv_rfac_c2a(:,il0))
+               call samp%diag_filter(mpl,nam,'average',nam%diag_rhflt,rv_coef_c2a(:,il0))
             end if
 
             ! Fill missing values
-            call samp%diag_fill(mpl,nam,geom,il0,rh_c2a(:,il0))
-            call samp%diag_fill(mpl,nam,geom,il0,rv_c2a(:,il0))
+            call samp%diag_fill(mpl,nam,rh_c2a(:,il0))
+            call samp%diag_fill(mpl,nam,rv_c2a(:,il0))
             if (diag%blk(0,ib)%double_fit) then
-               call samp%diag_fill(mpl,nam,geom,il0,rv_rfac_c2a(:,il0))
-               call samp%diag_fill(mpl,nam,geom,il0,rv_coef_c2a(:,il0))
+               call samp%diag_fill(mpl,nam,rv_rfac_c2a(:,il0))
+               call samp%diag_fill(mpl,nam,rv_coef_c2a(:,il0))
             end if
 
             ! Copy data

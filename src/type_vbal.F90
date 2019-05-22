@@ -496,7 +496,7 @@ do iv=1,nam%nv
                      ic1 = vbal%samp%c1a_to_c1(ic1a)
 
                      ! Check validity
-                     valid = vbal%samp%c1l0_log(ic1,il0).and.vbal%samp%c1l0_log(ic1,jl0).and.vbal%samp%vbal_mask(ic1,ic2)
+                     valid = vbal%samp%c1l0_log(ic1,il0).and.vbal%samp%c1l0_log(ic1,jl0).and.vbal%samp%vbal_mask(ic1a,ic2)
 
                      if (valid) then
                         ! Update

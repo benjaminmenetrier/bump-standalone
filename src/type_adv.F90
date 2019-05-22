@@ -648,14 +648,14 @@ do its=2,nam%nts
 
          ! Median filter to remove extreme values
          dd = dx**2+dy**2+dz**2
-         call samp%diag_filter(mpl,nam,geom,il0,'median',rhflt,dx,dd)
-         call samp%diag_filter(mpl,nam,geom,il0,'median',rhflt,dy,dd)
-         call samp%diag_filter(mpl,nam,geom,il0,'median',rhflt,dz,dd)
+         call samp%diag_filter(mpl,nam,'median',rhflt,dx,dd)
+         call samp%diag_filter(mpl,nam,'median',rhflt,dy,dd)
+         call samp%diag_filter(mpl,nam,'median',rhflt,dz,dd)
 
          ! Average filter to smooth values
-         call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,dx)
-         call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,dy)
-         call samp%diag_filter(mpl,nam,geom,il0,'gc99',rhflt,dz)
+         call samp%diag_filter(mpl,nam,'gc99',rhflt,dx)
+         call samp%diag_filter(mpl,nam,'gc99',rhflt,dy)
+         call samp%diag_filter(mpl,nam,'gc99',rhflt,dz)
 
          ! Back to spherical coordinates
          dx = x_ori+dx

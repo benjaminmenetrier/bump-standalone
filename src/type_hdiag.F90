@@ -142,7 +142,7 @@ if ((nam%local_diag.or.nam%adv_diag).and.(nam%diag_rhflt>0.0)) then
    call mpl%flush
    write(mpl%info,'(a)') '--- Compute MPI distribution, halo F'
    call mpl%flush
-   call hdiag%samp%compute_mpi_f(mpl,nam,geom)
+   call hdiag%samp%compute_mpi_f(mpl,nam)
 end if
 
 if (nam%new_mom) then

@@ -1387,12 +1387,12 @@ integer,intent(in) :: glb_to_proc(n_glb) ! Global index to task index
 integer,intent(in) :: glb_to_loc(n_glb)  ! Global index to local index
 logical,intent(in) :: bcast              ! Broadcast option
 real(kind_real),intent(out) :: glb(:)    ! Global array
-type(fckit_mpi_status) :: status
 
 ! Local variables
 integer :: iproc,jproc,i_glb,i_loc,n_loc_tmp
 real(kind_real),allocatable :: rbuf(:)
 character(len=1024),parameter :: subr = 'mpl_loc_to_glb_real_1d'
+type(fckit_mpi_status) :: status
 
 ! Check global array size
 if (mpl%main.or.bcast) then
