@@ -1913,7 +1913,7 @@ write(mpl%info,'(a4,a)') '','Test randomization for various ensemble sizes:'
 call mpl%flush
 do ifac=1,nfac
    ! Ensemble size
-   nefac(ifac) = max(int(real(ifac,kind_real)/real(nfac,kind_real)*real(nam%ens1_ne,kind_real)),3)
+   nefac(ifac) = max(int(real(ifac,kind_real)/real(nfac,kind_real)*real(ens1_ne,kind_real)),3)
    nam%ens1_ne = nefac(ifac)
    write(mpl%info,'(a7,a,i4,a)') '','Ensemble sizes: ',nefac(ifac),' members'
    call mpl%flush
@@ -2229,7 +2229,6 @@ do ib=1,bpar%nbe
    end if
 end do
 
-
 ! Reset namelist variables
 nam%method = method
 
@@ -2257,11 +2256,18 @@ real(kind_real),intent(out) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest) ! Fi
 ! Local variables
 integer :: ic0dir(ntest),il0dir(ntest),ivdir(ntest),itsdir(ntest)
 integer :: itest,ic0,iproc,ic0a
+logical :: found
 
 ! Define random dirac locations
 if (mpl%main) then
-   call rng%rand_integer(1,geom%nc0,ic0dir)
-   call rng%rand_integer(1,geom%nl0,il0dir)
+   do itest=1,ntest
+      found = .false.
+      do while (.not.found)
+         call rng%rand_integer(1,geom%nc0,ic0dir(itest))
+         call rng%rand_integer(1,geom%nl0,il0dir(itest))
+         found = geom%mask_c0(ic0dir(itest),il0dir(itest))
+      end do
+   end do
 end if
 call mpl%f_comm%broadcast(ic0dir,mpl%ioproc-1)
 call mpl%f_comm%broadcast(il0dir,mpl%ioproc-1)

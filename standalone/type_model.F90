@@ -466,6 +466,7 @@ case ('ldwv')
 case default
    if (nam%mask_type(1:3)=='lat') then
       ! Latitude band mask
+      model%smask_mga = .true.
    else
       i = index(trim(nam%mask_type),'@')
       if (i>1) then
@@ -474,7 +475,7 @@ case default
          filename = trim(nam%mask_type(i+1:))
          write(mpl%info,'(a7,a)') '','Read sampling mask from variable '//trim(varname)//' in file '//trim(filename)
          call mpl%flush
-         write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th,' used as a '//trim(nam%mask_lu)//' bound'
+         write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th(1),' used as a '//trim(nam%mask_lu(1))//' bound'
          call mpl%flush
 
          ! Save namelist parameters
@@ -490,10 +491,12 @@ case default
          ! Read file
          allocate(fld(model%nmga,model%nl0,nam%nv))
          call model%read(mpl,nam,filename,1,fld)
-         if (trim(nam%mask_lu)=='lower') then
-            model%smask_mga = (fld(:,:,1)>nam%mask_th)
-         elseif (trim(nam%mask_lu)=='upper') then
-            model%smask_mga = (fld(:,:,1)<nam%mask_th)
+
+         ! Compute mask
+         if (trim(nam%mask_lu(1))=='lower') then
+            model%smask_mga = (fld(:,:,1)>nam%mask_th(1))
+         elseif (trim(nam%mask_lu(1))=='upper') then
+            model%smask_mga = (fld(:,:,1)<nam%mask_th(1))
          else
             call mpl%abort(subr,'mask_lu not recognized')
          end if

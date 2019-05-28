@@ -7,6 +7,7 @@ begin
 ; Parameters:
 ; -----------
 
+system("mkdir -p fig")
 home = getenv("HOME")
 datadir = home + "/data/bump/nemo/nemovar"
 prefix = "nemo_lct"

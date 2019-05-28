@@ -7,6 +7,7 @@ begin
 ; Parameters:
 ; -----------
 
+system("mkdir -p fig")
 home = getenv("HOME")
 datadir = home + "/data/bump/arp/877D"
 prefix = "arp_877D"

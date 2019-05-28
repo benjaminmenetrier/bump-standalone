@@ -15,7 +15,7 @@
 ![](architecture/setup_online.svg)
 
 
-### Run
+### Run
 
 ![](architecture/run_online.svg)
 
@@ -23,7 +23,7 @@
 ### Apply
 
 
-#### Get parameters
+#### Get parameters
 
 ![](architecture/get_parameter.svg)
 
@@ -48,6 +48,6 @@
 ![](architecture/deallocation.svg)
 
 
-## Drivers
+## Drivers
 
 ![](architecture/drivers.svg)

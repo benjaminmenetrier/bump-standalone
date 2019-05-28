@@ -87,8 +87,8 @@ type nam_type
    logical :: sam_write                                 ! Write sampling
    logical :: sam_read                                  ! Read sampling
    character(len=1024) :: mask_type                     ! Mask restriction type
-   character(len=1024) :: mask_lu                       ! Mask threshold side ("lower" if mask_th is the lower bound, "upper" if mask_th is the upper bound)
-   real(kind_real) ::  mask_th                          ! Mask threshold
+   character(len=1024),dimension(nvmax) :: mask_lu      ! Mask threshold side ("lower" if mask_th is the lower bound, "upper" if mask_th is the upper bound)
+   real(kind_real),dimension(nvmax) ::  mask_th         ! Mask threshold
    integer :: ncontig_th                                ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
    logical :: mask_check                                ! Check that sampling couples and interpolations do not cross mask boundaries
    character(len=1024) :: draw_type                     ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
@@ -258,8 +258,10 @@ nam%ens2_nsub = 1
 nam%sam_write = .false.
 nam%sam_read = .false.
 nam%mask_type = 'none'
-nam%mask_lu = 'lower'
-nam%mask_th = 0.0
+do iv=1,nvmax
+   nam%mask_lu(iv) = 'lower'
+   nam%mask_th(iv) = 0.0
+end do
 nam%ncontig_th = 0
 nam%mask_check = .false.
 nam%draw_type = 'random_uniform'
@@ -374,10 +376,10 @@ logical :: check_dirac,check_randomization,check_consistency,check_optimality,ch
 logical :: sam_write,sam_read,mask_check,vbal_block(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag
 logical :: double_fit(0:nvmax),lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsqrt,fast_sampling,network,forced_radii,write_grids
 logical :: grid_output
-real(kind_real) :: mask_th,Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
+real(kind_real) :: mask_th(nvmax),Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
-character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu,draw_type,minim_algo,subsamp,nicas_interp
-character(len=1024) :: obsdis,obsop_interp,diag_interp,grid_interp
+character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu(nvmax),draw_type,minim_algo,subsamp
+character(len=1024) :: nicas_interp,obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
 character(len=1024),dimension(nldwvmax) :: name_ldwv
 
@@ -465,8 +467,10 @@ if (mpl%main) then
    sam_write = .false.
    sam_read = .false.
    mask_type = 'none'
-   mask_lu = 'lower'
-   mask_th = 0.0
+   do iv=1,nvmax
+      mask_lu(iv) = 'lower'
+      mask_th(iv) = 0.0
+   end do
    ncontig_th = 0
    mask_check = .false.
    draw_type = 'random_uniform'
@@ -626,8 +630,8 @@ if (mpl%main) then
    nam%sam_write = sam_write
    nam%sam_read = sam_read
    nam%mask_type = mask_type
-   nam%mask_lu = mask_lu
-   nam%mask_th = mask_th
+   if (nv>0) nam%mask_lu(1:nv) = mask_lu(1:nv)
+   if (nv>0) nam%mask_th(1:nv) = mask_th(1:nv)
    nam%ncontig_th = ncontig_th
    nam%mask_check = mask_check
    nam%draw_type = draw_type
@@ -794,7 +798,7 @@ call mpl%f_comm%broadcast(nam%ens2_nsub,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%sam_write,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%sam_read,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_type,mpl%ioproc-1)
-call mpl%f_comm%broadcast(nam%mask_lu,mpl%ioproc-1)
+call mpl%bcast(nam%mask_lu,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_th,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%ncontig_th,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%mask_check,mpl%ioproc-1)
@@ -1075,11 +1079,13 @@ if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam
    case ('ldwv')
       if (nam%nldwv<=0) call mpl%abort(subr,'nldwv should not be negative for mask_type = ldwv')
    case ('stddev')
-      select case (trim(nam%mask_lu))
-      case ('lower','upper')
-      case default
-         call mpl%abort(subr,'wrong mask_lu')
-      end select
+      do iv=1,nam%nv
+         select case (trim(nam%mask_lu(iv)))
+         case ('lower','upper')
+         case default
+            call mpl%abort(subr,'wrong mask_lu')
+         end select
+      end do
    end select
    if (nam%nc1<3) call mpl%abort(subr,'nc1 should be larger than 2')
    if (nam%new_vbal.or.(nam%new_hdiag.and.(nam%local_diag.or.nam%adv_diag))) then
@@ -1388,8 +1394,8 @@ end if
 call mpl%write(lncid,'sam_write',nam%sam_write)
 call mpl%write(lncid,'sam_read',nam%sam_read)
 call mpl%write(lncid,'mask_type',nam%mask_type)
-call mpl%write(lncid,'mask_lu',nam%mask_lu)
-call mpl%write(lncid,'mask_th',nam%mask_th)
+call mpl%write(lncid,'mask_lu',nam%nv,nam%mask_lu)
+call mpl%write(lncid,'mask_th',nam%nv,nam%mask_th)
 call mpl%write(lncid,'ncontig_th',nam%ncontig_th)
 call mpl%write(lncid,'mask_check',nam%mask_check)
 call mpl%write(lncid,'draw_type',nam%draw_type)

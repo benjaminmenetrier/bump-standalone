@@ -8,15 +8,13 @@ default_seed = .true.,
 
 &driver_param
 method = "loc",
-strategy = "common",
+strategy = "specific_univariate",
 new_hdiag = .true.,
-new_nicas = .true.,
-check_dirac = .true.,
 /
 
 &model_param
-nl = 7,
-levs = 1,11,21,31,41,51,61,
+nl = 28,
+levs = 88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,
 logpres = .true.,
 nv = 1,
 varname = "t",
@@ -25,48 +23,35 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 25,
 /
 
 &ens2_param
 /
 
 &sampling_param
-sam_read = .true.,
 nc1 = 3500,
 nc2 = 500,
-ntry = 3,
-nrep = 2,
-nc3 = 50,
-dc = 100.0e3,
-nl0r = 7,
+ntry = 20,
+nrep = 0,
+nc3 = 25,
+dc = 70.0e3,
+nl0r = 28,
 /
 
 &diag_param
-ne = 10,
-vbal_rad = 1000.0e3,
+ne = 25,
 /
 
 &fit_param
 /
 
 &nicas_param
-resol = 8.0,
-subsamp = "hvh",
-mpicom = 2,
-ndir = 12,
-londir = -135.0,-135.0,-135.0,-45.0,-45.0,-45.0,45.0,45.0,45.0,135.0,135.0,135.0,
-latdir = -60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,-60.0,0.0,60.0,
-levdir = 30,30,30,30,30,30,30,30,30,30,30,30,
-ivdir = 1,1,1,1,1,1,1,1,1,1,1,1,
-itsdir = 1,1,1,1,1,1,1,1,1,1,1,1,
 /
 
 &obsop_param
 /
 
 &output_param
-grid_output = .true.,
-grid_resol = 200.0e3,
 /
 
