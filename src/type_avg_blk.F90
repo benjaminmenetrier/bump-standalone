@@ -686,10 +686,10 @@ if (mpl%nproc>1) then
       sbuf(offset+1:offset+nam%avg_nbins*bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0) = pack(avg_blk%cor_hist,.true.)
       offset = offset+nam%avg_nbins*bpar%nc3(ib)*bpar%nl0r(ib)*geom%nl0
    end if
-   
+
    ! Reduce data
    call mpl%f_comm%allreduce(sbuf,rbuf,fckit_mpi_sum())
-   
+
    ! Unpack data
    offset = 0
    avg_blk%m2 = unpack(rbuf(offset+1:offset+geom%nl0*avg_blk%nsub),mask_1(1,1,:,:),avg_blk%m2)
@@ -744,7 +744,7 @@ if (mpl%nproc>1) then
 end if
 
 ! Normalize
-!$omp parallel do schedule(static) private(il0,jl0r,jc3,isub,jsub,norm)
+!$omp parallel do schedule(static) private(il0,jl0r,jl0,jc3,isub,jsub,norm)
 do il0=1,geom%nl0
    do isub=1,avg_blk%nsub
       if (any(samp%c1l0_log(:,il0))) then
@@ -754,6 +754,7 @@ do il0=1,geom%nl0
       end if
       if (nam%var_filter.and.(.not.nam%gau_approx)) then
          jl0r = bpar%il0rz(il0,ib)
+         jl0 = bpar%l0rl0b_to_l0(jl0r,il0,ib)
          if (any(samp%c1l0_log(:,il0).and.samp%c1c3l0_log(:,1,jl0))) then
             avg_blk%m4(il0,isub) = avg_blk%m4(il0,isub)/real(count(samp%c1l0_log(:,il0).and.samp%c1c3l0_log(:,1,jl0)),kind_real)
          else
@@ -1316,7 +1317,7 @@ if (mpl%nproc>1) then
 
    ! Reduce data
    call mpl%f_comm%allreduce(sbuf,rbuf,fckit_mpi_sum())
-   
+
    ! Unpack data
    avg_blk%m11lrm11sub = unpack(rbuf,mask_2,avg_blk%m11m11)
 
@@ -1378,7 +1379,6 @@ integer :: iv,jv,il0,jl0,jl0r,jc3,isub,jsub,ic1d,ic1,nc1max,nc1a,i
 real(kind_real) :: m2_1,m2_2
 real(kind_real),allocatable :: list_m11lrm11sub(:,:,:)
 logical :: valid
-character(len=1024),parameter :: subr = 'avg_blk_compute_deh_local'
 
 ! Associate
 associate(ic2a=>avg_blk%ic2a,ib=>avg_blk%ib)

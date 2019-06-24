@@ -558,8 +558,8 @@ do il0=1,nl0
          ! Double fit function
          distnorm = dist(jc3,jl0r)
          distnormh = sqrt(distnorm**2-distnormv**2)
-         fit(jc3,jl0r,il0) = fit_func(mpl,'gc99',distnormh)*((1.0+coef)*fit_func(mpl,'gc99',distnormv) &
-                           & -coef*fit_func(mpl,'gc99',distnormv*rfac))
+         fit(jc3,jl0r,il0) = fit_func(mpl,fit_type,distnormh)*((1.0+coef)*fit_func(mpl,fit_type,distnormv) &
+                           & -coef*fit_func(mpl,fit_type,distnormv*rfac))
       end do
    end do
 
@@ -685,6 +685,7 @@ character(len=1024),parameter :: subr = 'fit_func'
 ! Distance check bound
 if (distnorm<0.0) call mpl%abort(subr,'negative normalized distance')
 
+fit_func = 0.0
 select case (fit_type(1:4))
 case ('gc99')
    fit_func = gc99(distnorm)

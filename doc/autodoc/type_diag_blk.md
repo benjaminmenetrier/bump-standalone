@@ -7,6 +7,6 @@
 | subroutine | [diag_blk%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L169) | write |
 | subroutine | [diag_blk%] [normalization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L355) | compute diagnostic block normalization |
 | subroutine | [diag_blk%] [fitting](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L422) | compute a semi-positive definite fit of a raw function |
-| subroutine | [diag_blk%] [localization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L695) | diag_blk localization |
-| subroutine | [diag_blk%] [hybridization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L742) | diag_blk hybridization |
-| subroutine | [diag_blk%] [dualens](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L820) | diag_blk dualens |
+| subroutine | [diag_blk%] [localization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L697) | diag_blk localization |
+| subroutine | [diag_blk%] [hybridization](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L744) | diag_blk hybridization |
+| subroutine | [diag_blk%] [dualens](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_diag_blk.F90#L822) | diag_blk dualens |
