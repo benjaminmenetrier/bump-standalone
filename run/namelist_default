@@ -101,6 +101,7 @@ adv_rhflt = 0.0,
 
 &fit_param
 minim_algo = "hooke",
+fit_type = "gc99",
 double_fit = .false.,
 lhomh = .false.,
 lhomv = .false.,

@@ -331,12 +331,12 @@ do ib=1,bpar%nbe
       ! Rebuild fit
       do ic2a=0,diag%nc2a
          if (diag%blk(0,ib)%double_fit) then
-            call fit_diag_dble(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag%blk(ic2a,ib)%distv, &
-          & diag%blk(ic2a,ib)%fit_rh,diag%blk(ic2a,ib)%fit_rv,diag%blk(ic2a,ib)%fit_rv_rfac,diag%blk(ic2a,ib)%fit_rv_coef, &
-          & diag%blk(ic2a,ib)%fit)
+            call fit_diag_dble(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth, &
+          & diag%blk(ic2a,ib)%distv,diag%blk(ic2a,ib)%fit_rh,diag%blk(ic2a,ib)%fit_rv,diag%blk(ic2a,ib)%fit_rv_rfac, &
+          & diag%blk(ic2a,ib)%fit_rv_coef,diag%blk(ic2a,ib)%fit)
          else
-            call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag%blk(ic2a,ib)%distv, &
-          & diag%blk(ic2a,ib)%fit_rh,diag%blk(ic2a,ib)%fit_rv,diag%blk(ic2a,ib)%fit)
+            call fit_diag(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth, &
+          & diag%blk(ic2a,ib)%distv,diag%blk(ic2a,ib)%fit_rh,diag%blk(ic2a,ib)%fit_rv,diag%blk(ic2a,ib)%fit)
          end if
       end do
 
@@ -378,7 +378,7 @@ type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
-integer :: ib,ic2a,ic2,il0
+integer :: ib,ic2a,il0
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.false.)
@@ -388,15 +388,10 @@ do ib=1,bpar%nb
       write(mpl%info,'(a10,a,a,a)') '','Block ',trim(bpar%blockname(ib))
       call mpl%flush
 
+      ! Copy covariance
       do ic2a=0,diag%nc2a
-         ! Copy
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-         diag%blk(ic2a,ib)%raw = avg%blk(ic2,ib)%m11
-         diag%blk(ic2a,ib)%valid = avg%blk(ic2,ib)%nc1a
+         diag%blk(ic2a,ib)%raw = avg%blk(ic2a,ib)%m11
+         diag%blk(ic2a,ib)%valid = avg%blk(ic2a,ib)%nc1a
       end do
 
       ! Print results
@@ -435,7 +430,7 @@ type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
-integer :: ib,ic2a,ic2,il0
+integer :: ib,ic2a,il0
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.true.)
@@ -449,32 +444,17 @@ do ib=1,bpar%nbe
 
       ! Copy variance
       do ic2a=0,diag%nc2a
-         ! Global index
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-
-         ! Copy
          if (nam%var_filter) then
-            diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2,ib)%m2flt,dim=2)/real(avg%nsub,kind_real)
+            diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2a,ib)%m2flt,dim=2)/real(avg%nsub,kind_real)
          else
-            diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2,ib)%m2,dim=2)/real(avg%nsub,kind_real)
+            diag%blk(ic2a,ib)%raw_coef_ens = sum(avg%blk(ic2a,ib)%m2,dim=2)/real(avg%nsub,kind_real)
          end if
       end do
 
       do ic2a=0,diag%nc2a
-         ! Global index
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-
-         ! Copy
-         diag%blk(ic2a,ib)%raw = avg%blk(ic2,ib)%cor
-         diag%blk(ic2a,ib)%valid = avg%blk(ic2,ib)%nc1a_cor
+         ! Copy correlation
+         diag%blk(ic2a,ib)%raw = avg%blk(ic2a,ib)%cor
+         diag%blk(ic2a,ib)%valid = avg%blk(ic2a,ib)%nc1a_cor
 
          ! Fitting
          if (bpar%fit_block(ib)) call diag%blk(ic2a,ib)%fitting(mpl,nam,geom,bpar,samp)
@@ -532,7 +512,7 @@ type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Block prefix
 
 ! Local variables
-integer :: ib,ic2a,ic2,il0
+integer :: ib,ic2a,il0
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.false.)
@@ -546,12 +526,7 @@ do ib=1,bpar%nbe
 
       do ic2a=0,diag%nc2a
          ! Compute localization
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-         call diag%blk(ic2a,ib)%localization(mpl,geom,bpar,avg%blk(ic2,ib))
+         call diag%blk(ic2a,ib)%localization(mpl,geom,bpar,avg%blk(ic2a,ib))
 
          ! Normalization
          call diag%blk(ic2a,ib)%normalization(mpl,geom,bpar,.true.)
@@ -614,7 +589,7 @@ type(avg_type),intent(in) :: avg       ! Averaged statistics
 character(len=*),intent(in) :: prefix  ! Diagnostic prefix
 
 ! Local variables
-integer :: ib,ic2a,ic2,il0
+integer :: ib,ic2a,il0
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.false.)
@@ -628,12 +603,7 @@ do ib=1,bpar%nbe
 
       do ic2a=0,diag%nc2a
          ! Compute hybridization
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-         call diag%blk(ic2a,ib)%hybridization(mpl,geom,bpar,avg%blk(ic2,ib))
+         call diag%blk(ic2a,ib)%hybridization(mpl,geom,bpar,avg%blk(ic2a,ib))
 
          ! Normalization
          call diag%blk(ic2a,ib)%normalization(mpl,geom,bpar,.true.)
@@ -699,7 +669,7 @@ character(len=*),intent(in) :: prefix    ! Diagnostic prefix
 character(len=*),intent(in) :: prefix_lr ! LR diagnostic prefix
 
 ! Local variables
-integer :: ib,ic2a,ic2,il0
+integer :: ib,ic2a,il0
 
 ! Allocation
 call diag%alloc(mpl,nam,geom,bpar,samp,prefix,.false.)
@@ -714,12 +684,7 @@ do ib=1,bpar%nbe
 
       do ic2a=0,diag%nc2a
          ! Compute dualens
-         if (ic2a>0) then
-            ic2 = samp%c2a_to_c2(ic2a)
-         else
-            ic2 = 0
-         end if
-         call diag%blk(ic2a,ib)%dualens(mpl,geom,bpar,avg%blk(ic2,ib),avg_lr%blk(ic2a,ib),diag_lr%blk(ic2a,ib))
+         call diag%blk(ic2a,ib)%dualens(mpl,geom,bpar,avg%blk(ic2a,ib),avg_lr%blk(ic2a,ib),diag_lr%blk(ic2a,ib))
 
          ! Normalization
          call diag%blk(ic2a,ib)%normalization(mpl,geom,bpar,.true.)

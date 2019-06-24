@@ -23,7 +23,7 @@ timeslot = 0,6,
 /
 
 &ens1_param
-ens1_ne = 50,
+ens1_ne = 10,
 /
 
 &ens2_param
@@ -40,8 +40,7 @@ nl0r = 1,
 /
 
 &diag_param
-ne = 50,
-vbal_rad = 3000.0e3,
+ne = 10,
 var_filter = .true.,
 var_niter = 10,
 var_rhflt = 500.0e3,

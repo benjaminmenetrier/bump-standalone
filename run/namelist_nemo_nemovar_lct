@@ -22,7 +22,7 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 11,
+ens1_ne = 19,
 /
 
 &ens2_param
@@ -39,8 +39,7 @@ nl0r = 4,
 /
 
 &diag_param
-ne = 11,
-vbal_rad = 0.0e3,
+ne = 19,
 /
 
 &fit_param

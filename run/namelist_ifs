@@ -23,7 +23,7 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 25,
+ens1_ne = 10,
 /
 
 &ens2_param
@@ -40,7 +40,7 @@ nl0r = 28,
 /
 
 &diag_param
-ne = 25,
+ne = 10,
 /
 
 &fit_param

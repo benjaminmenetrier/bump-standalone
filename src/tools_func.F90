@@ -25,7 +25,7 @@ integer,parameter :: M = 0                            ! Number of implicit itera
 private
 public :: gc2gau,gau2gc,Dmin,M
 public :: lonlatmod,sphere_dist,reduce_arc,lonlat2xyz,xyz2lonlat,vector_product,vector_triple_product,add,divide, &
-        & fit_diag,fit_diag_dble,gc99,fit_lct,lct_d2h,lct_h2r,lct_r2d,check_cond,cholesky,syminv,histogram
+        & fit_diag,fit_diag_dble,fit_func,fit_lct,lct_d2h,lct_h2r,lct_r2d,check_cond,cholesky,syminv,histogram
 
 contains
 
@@ -290,12 +290,13 @@ end subroutine divide
 ! Subroutine: fit_diag
 ! Purpose: compute diagnostic fit function
 !----------------------------------------------------------------------
-subroutine fit_diag(mpl,nc3,nl0r,nl0,l0rl0_to_l0,disth,distv,rh,rv,fit)
+subroutine fit_diag(mpl,fit_type,nc3,nl0r,nl0,l0rl0_to_l0,disth,distv,rh,rv,fit)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(inout) :: mpl              ! MPI data
+character(len=*),intent(in) :: fit_type          ! Fit function type
 integer,intent(in) :: nc3                        ! Number of classes
 integer,intent(in) :: nl0r                       ! Reduced number of levels
 integer,intent(in) :: nl0                        ! Number of levels
@@ -405,9 +406,9 @@ do il0=1,nl0
 
    do jl0r=1,nl0r
       do jc3=1,nc3
-         ! Gaspari-Cohn (1999) function
+         ! Fit function
          distnorm = dist(jc3,jl0r)
-         fit(jc3,jl0r,il0) = gc99(mpl,distnorm)
+         fit(jc3,jl0r,il0) = fit_func(mpl,fit_type,distnorm)
       end do
    end do
 
@@ -424,12 +425,13 @@ end subroutine fit_diag
 ! Subroutine: fit_diag_dble
 ! Purpose: compute diagnostic fit function
 !----------------------------------------------------------------------
-subroutine fit_diag_dble(mpl,nc3,nl0r,nl0,l0rl0_to_l0,disth,distv,rh,rv,rv_rfac,rv_coef,fit)
+subroutine fit_diag_dble(mpl,fit_type,nc3,nl0r,nl0,l0rl0_to_l0,disth,distv,rh,rv,rv_rfac,rv_coef,fit)
 
 implicit none
 
 ! Passed variables
 type(mpl_type),intent(inout) :: mpl              ! MPI data
+character(len=*),intent(in) :: fit_type          ! Fit function type
 integer,intent(in) :: nc3                        ! Number of classes
 integer,intent(in) :: nl0r                       ! Reduced number of levels
 integer,intent(in) :: nl0                        ! Number of levels
@@ -553,10 +555,11 @@ do il0=1,nl0
           coef = sqrt(rv_coef(il0)*rv_coef(jl0))
       end if
       do jc3=1,nc3
-         ! Double Gaspari-Cohn (1999) function
+         ! Double fit function
          distnorm = dist(jc3,jl0r)
          distnormh = sqrt(distnorm**2-distnormv**2)
-         fit(jc3,jl0r,il0) = gc99(mpl,distnormh)*((1.0+coef)*gc99(mpl,distnormv)-coef*gc99(mpl,distnormv*rfac))
+         fit(jc3,jl0r,il0) = fit_func(mpl,'gc99',distnormh)*((1.0+coef)*fit_func(mpl,'gc99',distnormv) &
+                           & -coef*fit_func(mpl,'gc99',distnormv*rfac))
       end do
    end do
 
@@ -573,20 +576,13 @@ end subroutine fit_diag_dble
 ! Function: gc99
 ! Purpose: Gaspari and Cohn (1999) function, with the support radius as a parameter
 !----------------------------------------------------------------------
-function gc99(mpl,distnorm)
+function gc99(distnorm)
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl    ! MPI data
 real(kind_real),intent(in) :: distnorm ! Normalized distance
 
 ! Returned variable
 real(kind_real) :: gc99
-
-! Local variables
-character(len=1024),parameter :: subr = 'gc99'
-
-! Distance check bound
-if (distnorm<0.0) call mpl%abort(subr,'negative normalized distance')
 
 ! Gaspari and Cohn (1999) function
 if (distnorm<0.5) then
@@ -597,10 +593,121 @@ else
    gc99 = 0.0
 end if
 
-! Enforce positivity
-gc99 = max(gc99,0.0_kind_real)
-
 end function gc99
+
+!----------------------------------------------------------------------
+! Function: cres
+! Purpose: reservoir code correlation function, with the support radius as a parameter
+!----------------------------------------------------------------------
+function cres(distnorm)
+
+! Passed variables
+real(kind_real),intent(in) :: distnorm ! Normalized distance
+
+! Returned variable
+real(kind_real) :: cres
+
+! Reservoir code function
+if (distnorm<1.0) then
+   cres = 1.0-1.5*distnorm+0.5*distnorm**3
+else
+   cres = 0.0
+end if
+
+end function cres
+
+!----------------------------------------------------------------------
+! Function: fb07_gc99
+! Purpose: normalized Furrer and Bengtsson (2007) localization function, with the support radius of the related gc99 function as a parameter
+!----------------------------------------------------------------------
+function fb07_gc99(distnorm,ne)
+
+! Passed variables
+real(kind_real),intent(in) :: distnorm ! Normalized distance
+integer,intent(in) :: ne               ! Ensemble size
+
+! Returned variable
+real(kind_real) :: fb07_gc99
+
+! Local variables
+real(kind_real) :: cor
+
+! Correlation function
+cor = gc99(distnorm)
+
+! Normalized Furrer and Bengtsson (2007) localization function
+fb07_gc99 = cor**2*real(ne+2,kind_real)/(1.0+cor**2*real(ne+1,kind_real))
+
+end function fb07_gc99
+
+!----------------------------------------------------------------------
+! Function: fb07_cres
+! Purpose: normalized Furrer and Bengtsson (2007) localization function, with the support radius of the related cres function as a parameter
+!----------------------------------------------------------------------
+function fb07_cres(distnorm,ne)
+
+! Passed variables
+real(kind_real),intent(in) :: distnorm ! Normalized distance
+integer,intent(in) :: ne               ! Ensemble size
+
+! Returned variable
+real(kind_real) :: fb07_cres
+
+! Local variables
+real(kind_real) :: cor
+
+! Correlation function
+cor = cres(distnorm)
+
+! Normalized Furrer and Bengtsson (2007) localization function
+fb07_cres = cor**2*real(ne+2,kind_real)/(1.0+cor**2*real(ne+1,kind_real))
+
+end function fb07_cres
+
+!----------------------------------------------------------------------
+! Function: fit_func
+! Purpose: fit_function
+!----------------------------------------------------------------------
+function fit_func(mpl,fit_type,distnorm)
+
+! Passed variables
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+character(len=*),intent(in) :: fit_type ! Fit function type
+real(kind_real),intent(in) :: distnorm  ! Normalized distance
+
+! Returned variable
+real(kind_real) :: fit_func
+
+! Local variables
+integer :: ne
+character(len=1024),parameter :: subr = 'fit_func'
+
+! Distance check bound
+if (distnorm<0.0) call mpl%abort(subr,'negative normalized distance')
+
+select case (fit_type(1:4))
+case ('gc99')
+   fit_func = gc99(distnorm)
+case ('cres')
+   fit_func = cres(distnorm)
+case ('fb07')
+   read(fit_type(11:14),'(i4.4)') ne
+   select case (fit_type(6:9))
+   case ('gc99')
+      fit_func = fb07_gc99(distnorm,ne)
+   case ('cres')
+      fit_func = fb07_cres(distnorm,ne)
+   case default
+      call mpl%abort(subr,'wrong fit function type')
+   end select
+case default
+   call mpl%abort(subr,'wrong fit function type')
+end select
+
+! Enforce positivity
+fit_func = max(fit_func,0.0_kind_real)
+
+end function fit_func
 
 !----------------------------------------------------------------------
 ! Subroutine: fit_lct

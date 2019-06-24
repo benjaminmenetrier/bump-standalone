@@ -121,6 +121,7 @@ type nam_type
 
    ! fit_param
    character(len=1024) :: minim_algo                    ! Minimization algorithm ('none', 'fast' or 'hooke')
+   character(len=1024) :: fit_type                      ! Fit function type ('gc99', 'res', 'fb07_gc99' or 'fb07_res')
    logical :: double_fit(0:nvmax)                       ! Double fit to introduce negative lobes on the vertical
    logical :: lhomh                                     ! Vertically homogenous horizontal support radius
    logical :: lhomv                                     ! Vertically homogenous vertical support radius
@@ -296,6 +297,7 @@ nam%adv_rhflt = 0.0
 
 ! fit_param default
 nam%minim_algo = 'hooke'
+nam%fit_type = 'gc99'
 do iv=0,nvmax
    nam%double_fit(iv) = .false.
 end do
@@ -378,8 +380,8 @@ logical :: double_fit(0:nvmax),lhomh,lhomv,lct_diag(nscalesmax),nonunit_diag,lsq
 logical :: grid_output
 real(kind_real) :: mask_th(nvmax),Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,rvflt,lon_ldwv(nldwvmax)
 real(kind_real) :: lat_ldwv(nldwvmax),diag_rhflt,resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
-character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu(nvmax),draw_type,minim_algo,subsamp
-character(len=1024) :: nicas_interp,obsdis,obsop_interp,diag_interp,grid_interp
+character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,mask_type,mask_lu(nvmax),draw_type,minim_algo,fit_type
+character(len=1024) :: subsamp,nicas_interp,obsdis,obsop_interp,diag_interp,grid_interp
 character(len=1024),dimension(nvmax) :: varname,addvar2d
 character(len=1024),dimension(nldwvmax) :: name_ldwv
 
@@ -396,7 +398,7 @@ namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,
                       & nrep,nc3,dc,nl0r,irmax
 namelist/diag_param/ne,gau_approx,avg_nbins,vbal_block,vbal_rad,var_filter,var_niter,var_rhflt,local_diag,local_rad, &
                   & adv_diag,adv_rad,adv_niter,adv_rhflt
-namelist/fit_param/minim_algo,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
+namelist/fit_param/minim_algo,fit_type,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_diag
 namelist/nicas_param/nonunit_diag,lsqrt,resol,fast_sampling,subsamp,nicas_interp,network,mpicom,adv_mode,forced_radii,rh,rv, &
                    & write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
 namelist/obsop_param/nobs,obsdis,obsop_interp
@@ -505,6 +507,7 @@ if (mpl%main) then
 
    ! fit_param default
    minim_algo = 'hooke'
+   fit_type = 'gc99'
    do iv=0,nvmax
       double_fit(iv) = .false.
    end do
@@ -630,8 +633,8 @@ if (mpl%main) then
    nam%sam_write = sam_write
    nam%sam_read = sam_read
    nam%mask_type = mask_type
-   if (nv>0) nam%mask_lu(1:nv) = mask_lu(1:nv)
-   if (nv>0) nam%mask_th(1:nv) = mask_th(1:nv)
+   if (nv>0) nam%mask_lu(1:nam%nv) = mask_lu(1:nam%nv)
+   if (nv>0) nam%mask_th(1:nam%nv) = mask_th(1:nam%nv)
    nam%ncontig_th = ncontig_th
    nam%mask_check = mask_check
    nam%draw_type = draw_type
@@ -667,6 +670,7 @@ if (mpl%main) then
    read(lunit,nml=fit_param)
    if (lct_nscales>nscalesmax) call mpl%abort(subr,'lct_nscales is too large')
    nam%minim_algo = minim_algo
+   nam%fit_type = fit_type
    if (nv>0) nam%double_fit(1:nv) = double_fit(1:nv)
    nam%lhomh = lhomh
    nam%lhomv = lhomv
@@ -832,6 +836,7 @@ call mpl%f_comm%broadcast(nam%adv_rhflt,mpl%ioproc-1)
 
 ! fit_param
 call mpl%f_comm%broadcast(nam%minim_algo,mpl%ioproc-1)
+call mpl%f_comm%broadcast(nam%fit_type,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%double_fit,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lhomh,mpl%ioproc-1)
 call mpl%f_comm%broadcast(nam%lhomv,mpl%ioproc-1)
@@ -1157,6 +1162,18 @@ if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimalit
    end select
    if (nam%new_lct.and.((trim(nam%minim_algo)=='none').or.(trim(nam%minim_algo)=='fast'))) &
  & call mpl%abort(subr,'wrong minim_algo for LCT')
+   select case (nam%fit_type(1:4))
+   case ('gc99','cres')
+   case ('fb07')
+      select case (nam%fit_type(5:9))
+      case ('_gc99','_cres')
+         write(nam%fit_type(10:14),'(a,i4.4)') '_',nam%ne
+      case default
+         call mpl%abort(subr,'wrong fit_type')
+      end select
+   case default
+      call mpl%abort(subr,'wrong fit_type')
+   end select
    if (nam%rvflt<0) call mpl%abort(subr,'rvflt should be non-negative')
 end if
 if (nam%new_lct) then
@@ -1394,8 +1411,8 @@ end if
 call mpl%write(lncid,'sam_write',nam%sam_write)
 call mpl%write(lncid,'sam_read',nam%sam_read)
 call mpl%write(lncid,'mask_type',nam%mask_type)
-call mpl%write(lncid,'mask_lu',nam%nv,nam%mask_lu)
-call mpl%write(lncid,'mask_th',nam%nv,nam%mask_th)
+call mpl%write(lncid,'mask_lu',nam%nv,nam%mask_lu(1:nam%nv))
+call mpl%write(lncid,'mask_th',nam%nv,nam%mask_th(1:nam%nv))
 call mpl%write(lncid,'ncontig_th',nam%ncontig_th)
 call mpl%write(lncid,'mask_check',nam%mask_check)
 call mpl%write(lncid,'draw_type',nam%draw_type)
@@ -1434,6 +1451,7 @@ if (mpl%msv%isi(lncid)) then
    call mpl%flush
 end if
 call mpl%write(lncid,'minim_algo',nam%minim_algo)
+call mpl%write(lncid,'fit_type',nam%fit_type(1:9))
 call mpl%write(lncid,'double_fit',nam%nv+1,nam%double_fit(0:nam%nv))
 call mpl%write(lncid,'lhomh',nam%lhomh)
 call mpl%write(lncid,'lhomv',nam%lhomv)

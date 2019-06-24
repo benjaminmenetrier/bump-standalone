@@ -222,43 +222,52 @@ integer :: ie,ic0a,il0,iv,its
 real(kind_real) :: alpha,norm
 real(kind_real) :: fld_copy(geom%nc0a,geom%nl0,nam%nv,nam%nts)
 real(kind_real) :: pert(geom%nc0a,geom%nl0,nam%nv,nam%nts)
+character(len=1024) :: subr = 'ens_apply_bens'
 
 ! Initialization
 fld_copy = fld
 
 ! Apply localized ensemble covariance formula
 fld = 0.0
-norm = sqrt(real(nam%ens1_ne-1,kind_real))
-do ie=1,nam%ens1_ne
-   ! Compute perturbation
-   !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         do il0=1,geom%nl0
-            do ic0a=1,geom%nc0a
-               if (geom%mask_c0a(ic0a,il0)) pert(ic0a,il0,iv,its) = ens%fld(ic0a,il0,iv,its,ie)/norm
+norm = sqrt(real(ens%ne-1,kind_real))
+if (ens%ne>1) then
+   do ie=1,ens%ne
+      ! Compute perturbation
+      !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
+      do its=1,nam%nts
+         do iv=1,nam%nv
+            do il0=1,geom%nl0
+               do ic0a=1,geom%nc0a
+                  if (geom%mask_c0a(ic0a,il0)) then
+                     pert(ic0a,il0,iv,its) = ens%fld(ic0a,il0,iv,its,ie)/norm
+                  else
+                     pert(ic0a,il0,iv,its) = mpl%msv%valr
+                  end if
+               end do
             end do
          end do
       end do
-   end do
-   !$omp end parallel do
+      !$omp end parallel do
 
-   ! Dot product
-   call mpl%dot_prod(pert,fld_copy,alpha)
+      ! Dot product
+      call mpl%dot_prod(pert,fld_copy,alpha)
 
-   ! Schur product
-   !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
-   do its=1,nam%nts
-      do iv=1,nam%nv
-         do il0=1,geom%nl0
-            do ic0a=1,geom%nc0a
-               if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its)+alpha*pert(ic0a,il0,iv,its)
+      ! Schur product
+      !$omp parallel do schedule(static) private(its,iv,il0,ic0a)
+      do its=1,nam%nts
+         do iv=1,nam%nv
+            do il0=1,geom%nl0
+               do ic0a=1,geom%nc0a
+                  if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,iv,its) = fld(ic0a,il0,iv,its)+alpha*pert(ic0a,il0,iv,its)
+               end do
             end do
          end do
       end do
+      !$omp end parallel do
    end do
-   !$omp end parallel do
-end do
+else
+   call mpl%abort(subr,'ensemble has less than 2 members')
+end if
 
 end subroutine ens_apply_bens
 
@@ -344,19 +353,9 @@ if (nam%nv==3) then
    call mpl%f_comm%broadcast(ic0a,iproc(1)-1)
    call mpl%f_comm%broadcast(il0,iproc(1)-1)
 else
-   if (.false.) then
-      ! Define lon/lat at the domain center
-      lon = 0.5*(minval(geom%lon)+maxval(geom%lon))
-      lat = 0.5*(minval(geom%lat)+maxval(geom%lat))
-
-      ! Find nearest neighbor
-      call geom%tree%find_nearest_neighbors(lon,lat,1,nn_index)
-      ic0 = nn_index(1)
-   else
-      ! Random point
-      if (mpl%main) call rng%rand_integer(1,geom%nc0,ic0)
-      call mpl%f_comm%broadcast(ic0,mpl%ioproc-1)
-   end if
+   ! Random point
+   if (mpl%main) call rng%rand_integer(1,geom%nc0,ic0)
+   call mpl%f_comm%broadcast(ic0,mpl%ioproc-1)
    if (mpl%main) call rng%rand_integer(1,geom%nl0,il0)
    call mpl%f_comm%broadcast(il0,mpl%ioproc-1)
 

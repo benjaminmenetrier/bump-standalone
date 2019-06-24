@@ -474,12 +474,12 @@ do il0=1,geom%nl0
     jl0r = bpar%il0rz(il0,ib)
 
    ! Horizontal fast fit
-   call fast_fit(mpl,nam%nc3,1,geom%disth,diag_blk%raw(:,jl0r,il0),diag_blk%fit_rh(il0))
+   call fast_fit(mpl,nam%fit_type,nam%nc3,1,geom%disth,diag_blk%raw(:,jl0r,il0),diag_blk%fit_rh(il0))
 
    ! Vertical fast fit
    rawv = diag_blk%raw(1,:,il0)
    distv = diag_blk%distv(bpar%l0rl0b_to_l0(:,il0,ib),il0)
-   call fast_fit(mpl,bpar%nl0r(ib),jl0r,distv,rawv,diag_blk%fit_rv(il0))
+   call fast_fit(mpl,nam%fit_type,bpar%nl0r(ib),jl0r,distv,rawv,diag_blk%fit_rv(il0))
 end do
 
 if (any(mpl%msv%isnotr(diag_blk%fit_rh)).and.any(mpl%msv%isnotr(diag_blk%fit_rv))) then
@@ -513,10 +513,11 @@ if (any(mpl%msv%isnotr(diag_blk%fit_rh)).and.any(mpl%msv%isnotr(diag_blk%fit_rv)
 
          ! Define fit
          if (diag_blk%double_fit) then
-            call fit_diag_dble(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv, &
-          & fit_rh,fit_rv,diag_blk%fit_rv_rfac,diag_blk%fit_rv_coef,fit)
+            call fit_diag_dble(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth, &
+          & diag_blk%distv,fit_rh,fit_rv,diag_blk%fit_rv_rfac,diag_blk%fit_rv_coef,fit)
          else
-            call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv,fit_rh,fit_rv,fit)
+            call fit_diag(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,diag_blk%distv, &
+          & fit_rh,fit_rv,fit)
          end if
 
          ! MSE
@@ -614,6 +615,7 @@ if (any(mpl%msv%isnotr(diag_blk%fit_rh)).and.any(mpl%msv%isnotr(diag_blk%fit_rv)
          minim%cost_function = 'fit_diag'
       end if
       minim%algo = nam%minim_algo
+      minim%fit_type = nam%fit_type
       minim%nc3 = nam%nc3
       minim%nl0r = bpar%nl0r(ib)
       minim%nl0 = geom%nl0

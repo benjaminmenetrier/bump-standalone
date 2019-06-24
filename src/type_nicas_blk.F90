@@ -10,7 +10,7 @@ module type_nicas_blk
 use netcdf
 !$ use omp_lib
 use tools_const, only: pi,req,reqkm,deg2rad,rad2deg
-use tools_func, only: gc2gau,lonlatmod,sphere_dist,gc99
+use tools_func, only: gc2gau,lonlatmod,sphere_dist,fit_func
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: supeq
@@ -653,11 +653,6 @@ if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='hvh')) then
    nicas_blk%nc1 = floor(2.0*maxval(geom%area)*nam%resol**2/(sqrt(3.0)*rhs_minavg**2))
    write(mpl%info,'(a10,a,i8)') '','Estimated nc1 from horizontal support radius: ',nicas_blk%nc1
    call mpl%flush
-   if (geom%mesh%nb>0) then
-      nicas_blk%nc1 = nicas_blk%nc1+geom%mesh%nb
-      write(mpl%info,'(a10,a,i8)') '','Updated nc1 after taking boundary nodes into account: ',nicas_blk%nc1
-      call mpl%flush
-   end if
    if (nicas_blk%nc1>count(geom%mask_hor_c0)) then
       call mpl%warning(subr,'required nc1 larger than mask size, resetting to mask size')
       nicas_blk%nc1 = count(geom%mask_hor_c0)
@@ -1916,6 +1911,7 @@ else
       is = ctmp%col(i_s)
       inec(is) = inec(is)+1
    end do
+
    allocate(c_ind(maxval(inec),nicas_blk%ns))
    allocate(c_S(maxval(inec),nicas_blk%ns))
    c_ind = mpl%msv%vali
@@ -1933,7 +1929,7 @@ else
    write(mpl%info,'(a10,a)') '','Second pass:     '
    call mpl%flush(.false.)
    call mpl%prog_init(nicas_blk%nsb)
-   n_s_max = 100*nint(real(geom%nc0*geom%nl0)/real(mpl%nthread*mpl%nproc))
+   n_s_max = 100*nint(real(geom%nc0*geom%nl0,kind_real)/real(mpl%nthread*mpl%nproc,kind_real))
    c_n_s = 0
    do ithread=1,mpl%nthread
       c(ithread)%n_s = n_s_max
@@ -2534,13 +2530,15 @@ do isbb=1,nicas_blk%nsbb
       js = nicas_blk%c1l1_to_s(jc1,jl1)
 
       if (nicas_blk%double_fit) then
-         ! Double Gaspari-Cohn (1999) function
+         ! Double fit function
          disth = sqrt(nicas_blk%distnorm(isbb)%val(jbd)**2-nicas_blk%distnormv(isbb)%val(jbd)**2)
-         S_test = gc99(mpl,disth)*((1.0+nicas_blk%coef(isbb)%val(jbd))*gc99(mpl,nicas_blk%distnormv(isbb)%val(jbd)) &
-                & -nicas_blk%coef(isbb)%val(jbd)*gc99(mpl,nicas_blk%distnormv(isbb)%val(jbd)*nicas_blk%rfac(isbb)%val(jbd)))
+         S_test = fit_func(mpl,nam%fit_type,disth)*((1.0+nicas_blk%coef(isbb)%val(jbd))* &
+                & fit_func(mpl,nam%fit_type,nicas_blk%distnormv(isbb)%val(jbd)) &
+                & -nicas_blk%coef(isbb)%val(jbd) &
+                & *fit_func(mpl,nam%fit_type,nicas_blk%distnormv(isbb)%val(jbd)*nicas_blk%rfac(isbb)%val(jbd)))
       else
-         ! Gaspari-Cohn (1999) function
-         S_test = gc99(mpl,nicas_blk%distnorm(isbb)%val(jbd))
+         ! Fit function
+         S_test = fit_func(mpl,nam%fit_type,nicas_blk%distnorm(isbb)%val(jbd))
       end if
       if (nicas_blk%anisotropic) S_test = S_test*nicas_blk%Hcoef(isbb)%val(jbd)
 

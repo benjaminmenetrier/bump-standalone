@@ -11,7 +11,7 @@ use fckit_mpi_module, only: fckit_mpi_sum,fckit_mpi_status
 use netcdf
 !$ use omp_lib
 use tools_const, only: pi,req,reqkm,deg2rad,rad2deg
-use tools_func, only: gc99,sphere_dist
+use tools_func, only: sphere_dist,fit_func
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: eq,inf
@@ -74,12 +74,14 @@ type samp_type
    ! MPI distribution
    integer :: nc0c                                  ! Number of points in subset Sc0, halo C
    integer :: nc1a                                  ! Number of points in subset Sc1, halo A
+   integer :: nc1d                                  ! Number of points in subset Sc1, halo D
    integer :: nc2a                                  ! Number of points in subset Sc2, halo A
    integer :: nc2b                                  ! Number of points in subset Sc2, halo B
    integer :: nc2f                                  ! Number of points in subset Sc2, halo F
    logical,allocatable :: lcheck_c0a(:)             ! Detection of halo A on subset Sc0
    logical,allocatable :: lcheck_c0c(:)             ! Detection of halo C on subset Sc0
    logical,allocatable :: lcheck_c1a(:)             ! Detection of halo A on subset Sc1
+   logical,allocatable :: lcheck_c1d(:)             ! Detection of halo D on subset Sc1
    logical,allocatable :: lcheck_c2a(:)             ! Detection of halo A on subset Sc2
    logical,allocatable :: lcheck_c2b(:)             ! Detection of halo B on subset Sc2
    logical,allocatable :: lcheck_c2f(:)             ! Detection of halo F on subset Sc2
@@ -90,6 +92,10 @@ type samp_type
    integer,allocatable :: c0a_to_c0c(:)             ! Subset Sc0, halo A to halo C
    integer,allocatable :: c1a_to_c1(:)              ! Subset Sc1, halo A to global
    integer,allocatable :: c1_to_c1a(:)              ! Subset Sc1, global to halo A
+   integer,allocatable :: c1d_to_c1(:)              ! Subset Sc1, halo D to global
+   integer,allocatable :: c1_to_c1d(:)              ! Subset Sc1, global to halo D
+   integer,allocatable :: c1a_to_c1d(:)             ! Subset Sc1, halo A to halo D
+   integer,allocatable :: c1_to_proc(:)             ! Subset Sc1, global to processor
    integer,allocatable :: c2a_to_c2(:)              ! Subset Sc2, halo A to global
    integer,allocatable :: c2_to_c2a(:)              ! Subset Sc2, global to halo A
    logical,allocatable :: mask_c2a(:,:)             ! Mask on subset Sc2, halo A
@@ -101,8 +107,9 @@ type samp_type
    integer,allocatable :: c2a_to_c2f(:)             ! Subset Sc2, halo A to halo B
    integer,allocatable :: c2_to_proc(:)             ! Subset Sc2, global to processor
    integer,allocatable :: proc_to_nc2a(:)           ! Number of points in subset Sc2, halo A, for each processor
-   type(com_type) :: com_AC                         ! Communication between halos A and C
    type(com_type) :: com_AB                         ! Communication between halos A and B
+   type(com_type) :: com_AC                         ! Communication between halos A and C
+   type(com_type) :: com_AD                         ! Communication between halos A and D (diagnostic)
    type(com_type) :: com_AF                         ! Communication between halos A and F (filtering)
 contains
    procedure :: samp_alloc_mask
@@ -120,6 +127,7 @@ contains
    procedure :: compute_mpi_a => samp_compute_mpi_a
    procedure :: compute_mpi_ab => samp_compute_mpi_ab
    procedure :: compute_mpi_c => samp_compute_mpi_c
+   procedure :: compute_mpi_d => samp_compute_mpi_d
    procedure :: compute_mpi_f => samp_compute_mpi_f
    procedure :: diag_filter => samp_diag_filter
    procedure :: diag_fill => samp_diag_fill
@@ -184,7 +192,7 @@ end if
 end subroutine samp_alloc_other
 
 !----------------------------------------------------------------------
-! Subroutine: samp_dealloc
+! Subroutine: samp_dealloc TODO: update that
 ! Purpose: release memory
 !----------------------------------------------------------------------
 subroutine samp_dealloc(samp)
@@ -1031,14 +1039,10 @@ real(kind_real),allocatable :: x(:),y(:),z(:),v1(:),v2(:),va(:),vp(:),t(:)
 logical :: found
 
 ! First class
+samp%c1c3_to_c0 = mpl%msv%vali
 samp%c1c3_to_c0(:,1) = samp%c1_to_c0
 
 if (nam%nc3>1) then
-   ! Initialize
-   do jc3=1,nam%nc3
-      if (jc3/=1) samp%c1c3_to_c0(:,jc3) = mpl%msv%vali
-   end do
-
    ! Define valid nodes vector
    nvc0 = count(samp%mask_hor_c0)
    allocate(vic0(nvc0))
@@ -1050,13 +1054,18 @@ if (nam%nc3>1) then
       end if
    end do
 
+   ! Initialization
+   call mpl%prog_init(nam%nc3*nam%nc1)
+   do ic1=1,nam%nc1
+      mpl%done((ic1-1)*nam%nc3+1) = .true.
+   end do
+   ir = 0
+   irmaxloc = nam%irmax
+
    ! Sample classes of positive separation
    write(mpl%info,'(a7,a)') '','Compute positive separation sampling: '
    call mpl%flush(.false.)
-   call mpl%prog_init(nam%nc3*nam%nc1)
-   ir = 0
-   irmaxloc = nam%irmax
-   do while ((.not.all(mpl%msv%isnoti(samp%c1c3_to_c0))).and.(nvc0>1).and.(ir<=irmaxloc))
+   do while ((.not.all(mpl%done)).and.(nvc0>1).and.(ir<=irmaxloc))
       ! Try a random point
       if (mpl%main) call rng%rand_integer(1,nvc0,i)
       call mpl%f_comm%broadcast(i,mpl%ioproc-1)
@@ -1107,7 +1116,10 @@ if (nam%nc3>1) then
                end do
 
                ! Find if this class has not been aready filled
-               if ((jc3/=1).and.(mpl%msv%isi(samp%c1c3_to_c0(ic1,jc3)))) samp%c1c3_to_c0(ic1,jc3) = jc0
+               if ((jc3/=1).and.(mpl%msv%isi(samp%c1c3_to_c0(ic1,jc3)))) then
+                  samp%c1c3_to_c0(ic1,jc3) = jc0
+                  mpl%done((ic1-1)*nam%nc3+jc3) = .true.
+               end if
             end if
          end if
 
@@ -1123,12 +1135,9 @@ if (nam%nc3>1) then
       end do
       !$omp end parallel do
 
-      ! Update valid nodes vector
+      ! Update
       vic0(i) = vic0(nvc0)
       nvc0 = nvc0-1
-
-      ! Update
-      mpl%done = pack(mpl%msv%isnoti(samp%c1c3_to_c0),mask=.true.)
       call mpl%prog_print
    end do
    call mpl%prog_final
@@ -1325,6 +1334,14 @@ do ic1=1,nam%nc1
       samp%c1_to_c1a(ic1) = ic1a
    end if
 end do
+call mpl%glb_to_loc_index(samp%nc1a,samp%c1a_to_c1,nam%nc1,samp%c1_to_c1a)
+
+! MPI splitting
+allocate(samp%c1_to_proc(nam%nc1))
+do ic1=1,nam%nc1
+   ic0 = samp%c1_to_c0(ic1)
+   samp%c1_to_proc(ic1) = geom%c0_to_proc(ic0)
+end do
 
 ! Print results
 write(mpl%info,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
@@ -1487,8 +1504,7 @@ do iproc=1,mpl%nproc
 end do
 
 ! Setup communications
-call samp%com_AB%setup(mpl,'com_AB',nam%nc2,samp%nc2a,samp%nc2b,samp%c2b_to_c2,samp%c2a_to_c2b,samp%c2_to_proc, &
- & samp%c2_to_c2a)
+call samp%com_AB%setup(mpl,'com_AB',nam%nc2,samp%nc2a,samp%nc2b,samp%c2b_to_c2,samp%c2a_to_c2b,samp%c2_to_proc,samp%c2_to_c2a)
 
 ! Mask on subset Sc2, halo A
 allocate(samp%mask_c2a(samp%nc2a,geom%nl0))
@@ -1500,6 +1516,10 @@ do il0=1,geom%nl0
 end do
 
 
+
+
+
+! TODO: remove that
 ! Find nearest neighbors
 
 ! Allocation
@@ -1526,11 +1546,9 @@ call tree%dealloc
 if (nam%new_vbal.or.nam%local_diag) then
    ! Allocation
    if (nam%new_vbal) allocate(samp%vbal_mask(samp%nc1a,nam%nc2))
-   if (nam%local_diag) allocate(samp%local_mask(samp%nc1a,nam%nc2))
 
    ! Initialization
    if (nam%new_vbal) samp%vbal_mask = .false.
-   if (nam%local_diag) samp%local_mask = .false.
 
    ! Allocation
    allocate(nn_c1_index(nam%nc1))
@@ -1560,7 +1578,6 @@ if (nam%new_vbal.or.nam%local_diag) then
          if (geom%c0_to_proc(kc0)==mpl%myproc) then
             kc1a = samp%c1_to_c1a(kc1)
             if (nam%new_vbal) samp%vbal_mask(kc1a,ic2) = (jc1==1).or.(nn_c1_dist(jc1)<nam%vbal_rad)
-            if (nam%local_diag) samp%local_mask(kc1a,ic2) = (jc1==1).or.(nn_c1_dist(jc1)<nam%local_rad)
          end if
       end do
    end do
@@ -1598,10 +1615,10 @@ subroutine samp_compute_mpi_c(samp,mpl,nam,geom)
 implicit none
 
 ! Passed variables
-class(samp_type),intent(inout) :: samp        ! Sampling
-type(mpl_type),intent(inout) :: mpl           ! MPI data
-type(nam_type),intent(in) :: nam              ! Namelist
-type(geom_type),intent(in) :: geom            ! Geometry
+class(samp_type),intent(inout) :: samp ! Sampling
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
 
 ! Local variables
 integer :: jc3,ic0,ic0a,ic0c,ic1,ic1a,its,il0,d_n_s_max,d_n_s_max_loc,i_s,i_s_loc
@@ -1770,6 +1787,110 @@ call mpl%flush
 end subroutine samp_compute_mpi_c
 
 !----------------------------------------------------------------------
+! Subroutine: samp_compute_mpi_d
+! Purpose: compute sampling MPI distribution, halo D
+!----------------------------------------------------------------------
+subroutine samp_compute_mpi_d(samp,mpl,nam,geom)
+
+implicit none
+
+! Passed variables
+class(samp_type),intent(inout) :: samp ! Sampling
+type(mpl_type),intent(inout) :: mpl    ! MPI data
+type(nam_type),intent(in) :: nam       ! Namelist
+type(geom_type),intent(in) :: geom     ! Geometry
+
+! Local variables
+integer :: ic2a,ic2,ic0,nn,i,ic1d,ic1,ic1a,jc1
+integer,allocatable :: nn_index(:)
+real(kind_real) :: lon_c1(nam%nc1),lat_c1(nam%nc1)
+logical :: mask_c1(nam%nc1)
+type(tree_type) :: tree
+
+! Allocation
+allocate(samp%local_mask(nam%nc1,samp%nc2a))
+allocate(samp%lcheck_c1d(nam%nc1))
+
+! Initialization
+mask_c1 = any(samp%c1l0_log,dim=2)
+lon_c1 = geom%lon(samp%c1_to_c0)
+lat_c1 = geom%lat(samp%c1_to_c0)
+samp%local_mask = .false.
+samp%lcheck_c1d = samp%lcheck_c1a
+
+! Allocation
+call tree%alloc(mpl,nam%nc1,mask=mask_c1)
+
+! Initialization
+call tree%init(lon_c1,lat_c1)
+
+! Halo C
+do ic2a=1,samp%nc2a
+   ! Indices
+   ic2 = samp%c2a_to_c2(ic2a)
+   ic1 = samp%c2_to_c1(ic2)
+   ic0 = samp%c2_to_c0(ic2)
+
+   ! Count nearest neighbors
+   call tree%count_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nam%local_rad,nn)
+
+   ! Allocation
+   allocate(nn_index(nn))
+
+   ! Find nearest neighbors
+   call tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),nn,nn_index)
+
+   ! Update lcheck
+   samp%local_mask(ic1,ic2a) = .true.
+   do i=1,nn
+      jc1 = nn_index(i)
+      samp%local_mask(jc1,ic2a) = .true.
+      samp%lcheck_c1d(jc1) = .true.
+   end do
+
+   ! Release memory
+   deallocate(nn_index)
+end do
+samp%nc1d = count(samp%lcheck_c1d)
+
+! Release memory
+call tree%dealloc
+
+! Global <-> local conversions for fields
+
+! Halo D
+allocate(samp%c1d_to_c1(samp%nc1d))
+allocate(samp%c1_to_c1d(nam%nc1))
+samp%c1_to_c1d = mpl%msv%vali
+ic1d = 0
+do ic1=1,nam%nc1
+   if (samp%lcheck_c1d(ic1)) then
+      ic1d = ic1d+1
+      samp%c1d_to_c1(ic1d) = ic1
+      samp%c1_to_c1d(ic1) = ic1d
+   end if
+end do
+
+! Inter-halo conversions
+allocate(samp%c1a_to_c1d(samp%nc1a))
+do ic1a=1,samp%nc1a
+   ic1 = samp%c1a_to_c1(ic1a)
+   ic1d = samp%c1_to_c1d(ic1)
+   samp%c1a_to_c1d(ic1a) = ic1d
+end do
+
+! Setup communications
+call samp%com_AD%setup(mpl,'com_AD',nam%nc1,samp%nc1a,samp%nc1d,samp%c1d_to_c1,samp%c1a_to_c1d,samp%c1_to_proc,samp%c1_to_c1a)
+
+! Print results
+write(mpl%info,'(a7,a,i4)') '','Parameters for processor #',mpl%myproc
+call mpl%flush
+write(mpl%info,'(a10,a,i8)') '','nc1d =      ',samp%nc1d
+call mpl%flush
+
+end subroutine samp_compute_mpi_d
+
+!----------------------------------------------------------------------
 ! Subroutine: samp_compute_mpi_f
 ! Purpose: compute sampling MPI distribution, halo F
 !----------------------------------------------------------------------
@@ -1927,7 +2048,7 @@ if (rflt>0.0) then
             norm = 0.0
             do jc2=1,nc2eff
                distnorm = diag_eff_dist(jc2)/rflt
-               wgt = gc99(mpl,distnorm)
+               wgt = fit_func(mpl,'gc99',distnorm)
                diag(ic2a) = diag(ic2a)+wgt*diag_eff(jc2)
                norm = norm+wgt
             end do

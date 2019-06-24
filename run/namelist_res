@@ -1,5 +1,5 @@
 &general_param
-datadir = "./res",
+datadir = "../../../data/bump/res",
 prefix = "res",
 model = "res",
 colorlog = .true.,
@@ -7,7 +7,7 @@ default_seed = .true.,
 /
 
 &driver_param
-method = "cor",
+method = "loc",
 strategy = "specific_univariate",
 new_hdiag = .true.,
 /
@@ -23,29 +23,30 @@ timeslot = 1,
 /
 
 &ens1_param
-ens1_ne = 10,
+ens1_ne = 101,
 /
 
 &ens2_param
 /
 
 &sampling_param
-mask_type = "ldwv",
-nc1 = 900,
+mask_type = "none",
+nc1 = 3500,
 nc2 = 500,
 ntry = 30,
-nc3 = 20,
+nc3 = 25,
 dc = 50.0,
 nl0r = 5,
 /
 
 &diag_param
-ne = 10,
-local_diag = .true.,
+ne = 101,
+local_diag = .false.,
 local_rad = 1.0e3,
 /
 
 &fit_param
+fit_type = "cres"
 /
 
 &nicas_param
@@ -55,7 +56,7 @@ local_rad = 1.0e3,
 /
 
 &output_param
-nldwv = 5,
+nldwv = 0,
 img_ldwv = 1043,2007,2283,1934,1382,
 name_ldwv = "I1","I2","P1","P2","P3",
 /

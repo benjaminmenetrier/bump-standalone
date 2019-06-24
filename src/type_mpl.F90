@@ -429,7 +429,7 @@ if (present(i)) mpl%done(i) = .true.
 prog = 100.0*real(count(mpl%done),kind_real)/real(mpl%nprog,kind_real)
 ithread = 0
 !$ ithread = omp_get_thread_num()
-if ((int(prog)>mpl%progint).and.(ithread==0)) then
+do while ((int(prog)>mpl%progint).and.(ithread==0))
    if (mpl%progint<100) then
       if (mpl%progint<10) then
          write(mpl%info,'(i2,a)') mpl%progint,'% '
@@ -439,7 +439,7 @@ if ((int(prog)>mpl%progint).and.(ithread==0)) then
       call mpl%flush(.false.)
    end if
    mpl%progint = mpl%progint+ddis
-end if
+end do
 
 end subroutine mpl_prog_print
 

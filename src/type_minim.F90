@@ -39,6 +39,7 @@ type minim_type
    integer :: nc3                             ! Number of classes
 
    ! Specific data (fit)
+   character(len=1024) :: fit_type            ! Fit function type
    integer :: nl0r                            ! Reduced number of levels
    logical :: lhomh                           ! Vertically homogenous horizontal support radius key
    logical :: lhomv                           ! Vertically homogenous vertical support radius key
@@ -202,7 +203,7 @@ else
 end if
 
 ! Compute function
-call fit_diag(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distv,fit_rh,fit_rv,fit)
+call fit_diag(mpl,minim%fit_type,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distv,fit_rh,fit_rv,fit)
 
 ! Pack
 fit_pack = pack(fit,mask=.true.)
@@ -280,7 +281,7 @@ else
 end if
 
 ! Compute function
-call fit_diag_dble(mpl,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distv,fit_rh,fit_rv, &
+call fit_diag_dble(mpl,minim%fit_type,minim%nc3,minim%nl0r,minim%nl0,minim%l0rl0_to_l0,minim%disth,minim%distv,fit_rh,fit_rv, &
  & fit_rv_rfac,fit_rv_coef,fit)
 
 ! Pack

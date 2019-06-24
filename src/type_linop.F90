@@ -114,13 +114,14 @@ end subroutine linop_dealloc
 ! Subroutine: linop_copy
 ! Purpose: copy
 !----------------------------------------------------------------------
-subroutine linop_copy(linop_out,linop_in)
+subroutine linop_copy(linop_out,linop_in,n_s)
 
 implicit none
 
 ! Passed variables
 class(linop_type),intent(inout) :: linop_out ! Output linear operator
 type(linop_type),intent(in) :: linop_in      ! Input linear operator
+integer,intent(in),optional :: n_s           ! Number of operations to copy
 
 ! Release memory
 call linop_out%dealloc
@@ -129,19 +130,23 @@ call linop_out%dealloc
 linop_out%prefix = linop_in%prefix
 linop_out%n_src = linop_in%n_src
 linop_out%n_dst = linop_in%n_dst
-linop_out%n_s = linop_in%n_s
+if (present(n_s)) then
+   linop_out%n_s = n_s
+else
+   linop_out%n_s = linop_in%n_s
+end if
 
 ! Allocation
 call linop_out%alloc(linop_in%nvec)
 
 ! Copy data
 if (linop_in%n_s>0) then
-   linop_out%row = linop_in%row
-   linop_out%col = linop_in%col
+   linop_out%row = linop_in%row(1:linop_out%n_s)
+   linop_out%col = linop_in%col(1:linop_out%n_s)
    if (linop_out%nvec>0) then
-      linop_out%Svec = linop_in%Svec
+      linop_out%Svec = linop_in%Svec(1:linop_out%n_s,:)
    else
-      linop_out%S = linop_in%S
+      linop_out%S = linop_in%S(1:linop_out%n_s)
    end if
 end if
 
@@ -247,12 +252,12 @@ if (linop%n_s>0) then
    call mpl%ncerr(subr,nf90_enddef(ncid))
 
    ! Put variables
-   call mpl%ncerr(subr,nf90_put_var(ncid,row_id,linop%row))
-   call mpl%ncerr(subr,nf90_put_var(ncid,col_id,linop%col))
+   call mpl%ncerr(subr,nf90_put_var(ncid,row_id,linop%row(1:linop%n_s)))
+   call mpl%ncerr(subr,nf90_put_var(ncid,col_id,linop%col(1:linop%n_s)))
    if (linop%nvec>0) then
-      call mpl%ncerr(subr,nf90_put_var(ncid,Svec_id,linop%Svec))
+      call mpl%ncerr(subr,nf90_put_var(ncid,Svec_id,linop%Svec(1:linop%n_s,:)))
    else
-      call mpl%ncerr(subr,nf90_put_var(ncid,S_id,linop%S))
+      call mpl%ncerr(subr,nf90_put_var(ncid,S_id,linop%S(1:linop%n_s)))
    end if
 else
    ! End definition mode
@@ -595,20 +600,25 @@ type(linop_type),intent(in) :: linop_arr(mpl%nthread) ! Linear operator array
 ! Local variables
 integer :: ithread,offset
 
-! Total number of operations
-linop%n_s = sum(n_s_arr)
+if (mpl%nthread>1) then
+   ! Total number of operations
+   linop%n_s = sum(n_s_arr)
 
-! Allocation
-call linop%alloc
+   ! Allocation
+   call linop%alloc
 
-! Gather data
-offset = 0
-do ithread=1,mpl%nthread
-   linop%row(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%row(1:n_s_arr(ithread))
-   linop%col(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%col(1:n_s_arr(ithread))
-   linop%S(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%S(1:n_s_arr(ithread))
-   offset = offset+n_s_arr(ithread)
-end do
+   ! Gather data
+   offset = 0
+   do ithread=1,mpl%nthread
+      linop%row(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%row(1:n_s_arr(ithread))
+      linop%col(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%col(1:n_s_arr(ithread))
+      linop%S(offset+1:offset+n_s_arr(ithread)) = linop_arr(ithread)%S(1:n_s_arr(ithread))
+      offset = offset+n_s_arr(ithread)
+   end do
+else
+   ! Copy
+   call linop%copy(linop_arr(1),n_s_arr(1))
+end if
 
 end subroutine linop_gather
 

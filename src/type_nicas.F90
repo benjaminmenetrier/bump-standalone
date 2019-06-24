@@ -1881,11 +1881,15 @@ type(bpar_type),intent(in) :: bpar    ! Block parameters
 ! Local variables
 integer :: ifac,itest,nefac(nfac),ens1_ne
 integer :: ncid,ntest_id,nfac_id,mse_id,mse_th_id
-real(kind_real) :: fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest),fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest)
 real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts),mse(ntest,nfac),mse_th(ntest,nfac),mse_avg,mse_th_avg
+real(kind_real),allocatable :: fld_ref(:,:,:,:,:),fld_save(:,:,:,:,:)
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'nicas_test_randomization'
 type(ens_type) :: ens
+
+! Allocation
+allocate(fld_ref(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest))
+allocate(fld_save(geom%nc0a,geom%nl0,nam%nv,nam%nts,ntest))
 
 ! Define test vectors
 write(mpl%info,'(a4,a)') '','Define test vectors'
@@ -1980,6 +1984,10 @@ call mpl%ncerr(subr,nf90_put_var(ncid,mse_th_id,mse_th))
 
 ! Close file
 call mpl%ncerr(subr,nf90_close(ncid))
+
+! Release memory
+deallocate(fld_ref)
+deallocate(fld_save)
 
 end subroutine nicas_test_randomization
 
@@ -2223,8 +2231,8 @@ end do
 ! Best fit
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
-      call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,loc_opt%blk(0,ib)%distv, &
-    & loc_opt%blk(0,ib)%fit_rh,loc_opt%blk(0,ib)%fit_rv,loc_opt%blk(0,ib)%fit)
+      call fit_diag(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth, &
+    & loc_opt%blk(0,ib)%distv,loc_opt%blk(0,ib)%fit_rh,loc_opt%blk(0,ib)%fit_rv,loc_opt%blk(0,ib)%fit)
       call loc_opt%blk(0,ib)%write(mpl,nam,geom,bpar,trim(nam%prefix)//'_diag')
    end if
 end do

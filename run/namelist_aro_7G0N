@@ -45,7 +45,6 @@ nl0r = 5,
 &diag_param
 ne = 10,
 avg_nbins = 50,
-vbal_rad = 500.0e3,
 /
 
 &fit_param

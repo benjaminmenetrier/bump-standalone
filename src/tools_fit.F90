@@ -7,7 +7,7 @@
 !----------------------------------------------------------------------
 module tools_fit
 
-use tools_func, only: gc99
+use tools_func, only: fit_func
 use tools_kinds, only: kind_real
 use tools_repro, only: inf,sup
 use type_mpl, only: mpl_type
@@ -25,17 +25,18 @@ contains
 ! Subroutine: fast_fit
 ! Purpose: fast fit length-scale estimation based on the value at mid-height
 !----------------------------------------------------------------------
-subroutine fast_fit(mpl,n,iz,dist,raw,fit_r)
+subroutine fast_fit(mpl,fit_type,n,iz,dist,raw,fit_r)
 
 implicit none
 
 ! Passed variables
-type(mpl_type),intent(inout) :: mpl   ! MPI data
-integer,intent(in) :: n               ! Vector size
-integer,intent(in) :: iz              ! Zero separation index
-real(kind_real),intent(in) :: dist(n) ! Distance
-real(kind_real),intent(in) :: raw(n)  ! Raw data
-real(kind_real),intent(out) :: fit_r  ! Fast fit result
+type(mpl_type),intent(inout) :: mpl     ! MPI data
+character(len=*),intent(in) :: fit_type ! Fit function type
+integer,intent(in) :: n                 ! Vector size
+integer,intent(in) :: iz                ! Zero separation index
+real(kind_real),intent(in) :: dist(n)   ! Distance
+real(kind_real),intent(in) :: raw(n)    ! Raw data
+real(kind_real),intent(out) :: fit_r    ! Fast fit result
 
 ! Local variables
 integer :: di,i,im,ip,iter
@@ -80,7 +81,7 @@ if (raw(iz)>0.0) then
             thinv = 0.5
             dthinv = 0.25
             do iter=1,itermax
-               thtest = gc99(mpl,thinv)
+               thtest = fit_func(mpl,fit_type,thinv)
                if (sup(th,thtest)) then
                   thinv = thinv-dthinv
                else
@@ -210,7 +211,7 @@ if ((rv>0.0).and.mpl%msv%isanynotr(profile)) then
          if (mpl%msv%isnotr(profile(j))) then
             ! Gaspari-Cohn (1999) function
             distnorm = abs(x(j)-x(i))/rv
-            kernel(i,j) = gc99(mpl,distnorm)
+            kernel(i,j) = fit_func(mpl,'gc99',distnorm)
          end if
       end do
    end do

@@ -64,9 +64,6 @@ contains
    procedure :: copy_to_field => bump_copy_to_field
    procedure :: set_parameter => bump_set_parameter
    procedure :: copy_from_field => bump_copy_from_field
-   procedure :: bump_crtm_neighbors_3d
-   procedure :: bump_crtm_neighbors_2d
-   generic :: crtm_neighbors => bump_crtm_neighbors_3d,bump_crtm_neighbors_2d
    procedure :: dealloc => bump_dealloc
    procedure :: partial_dealloc => bump_partial_dealloc
 end type bump_type
@@ -1298,80 +1295,6 @@ case default
 end select
 
 end subroutine bump_copy_from_field
-
-!----------------------------------------------------------------------
-! Subroutine: bump_crtm_neighbors_3d
-! Purpose: find nearest neighbors for CRTM, 3D
-!----------------------------------------------------------------------
-subroutine bump_crtm_neighbors_3d(bump,fld_mga,nobs,lon,lat,nn,nn_val,nn_dist)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(inout) :: bump                              ! BUMP
-real(kind_real),intent(in) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
-integer,intent(in) :: nobs                                          ! Number of observations
-real(kind_real),intent(in) :: lon(nobs)                             ! Observation longiutde
-real(kind_real),intent(in) :: lat(nobs)                             ! Observation latitude
-integer,intent(in) :: nn                                            ! Number of nearest neighbors
-real(kind_real),intent(out) :: nn_val(bump%geom%nl0,nn,nobs)        ! Nearest neighbors values
-real(kind_real),intent(out) :: nn_dist(nn,nobs)                     ! Nearest neighbors distances
-
-! Local variables
-integer :: iobs,nn_index_c0a(nn),i,nn_index_mga,il0
-
-do iobs=1,nobs
-   ! Get neighbors indices and distances
-   call bump%geom%tree%find_nearest_neighbors(lon(iobs),lat(iobs),nn,nn_index_c0a,nn_dist(:,iobs))
-
-   do i=1,nn
-      ! Convert indices
-      nn_index_mga = bump%geom%c0a_to_mga(nn_index_c0a(i))
-
-      ! Get neighbors
-      do il0=1,bump%geom%nl0
-         nn_val(il0,i,iobs) = fld_mga(nn_index_mga,il0)
-      end do
-   end do
-end do
-
-end subroutine bump_crtm_neighbors_3d
-
-!----------------------------------------------------------------------
-! Subroutine: bump_crtm_neighbors_2d
-! Purpose: find nearest neighbors for CRTM, 2D
-!----------------------------------------------------------------------
-subroutine bump_crtm_neighbors_2d(bump,fld_mga,nobs,lon,lat,nn,nn_val,nn_dist)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(inout) :: bump                ! BUMP
-real(kind_real),intent(in) :: fld_mga(bump%geom%nmga) ! Field
-integer,intent(in) :: nobs                            ! Number of observations
-real(kind_real),intent(in) :: lon(nobs)               ! Observation longiutde
-real(kind_real),intent(in) :: lat(nobs)               ! Observation latitude
-integer,intent(in) :: nn                              ! Number of nearest neighbors
-real(kind_real),intent(out) :: nn_val(nn,nobs)        ! Nearest neighbors values
-real(kind_real),intent(out) :: nn_dist(nn,nobs)       ! Nearest neighbors distances
-
-! Local variables
-integer :: iobs,nn_index_c0a(nn),i,nn_index_mga
-
-do iobs=1,nobs
-   ! Get neighbors indices and distances
-   call bump%geom%tree%find_nearest_neighbors(lon(iobs),lat(iobs),nn,nn_index_c0a,nn_dist(:,iobs))
-
-   do i=1,nn
-      ! Convert indices
-      nn_index_mga = bump%geom%c0a_to_mga(nn_index_c0a(i))
-
-      ! Get neighbors
-      nn_val(i,iobs) = fld_mga(nn_index_mga)
-   end do
-end do
-
-end subroutine bump_crtm_neighbors_2d
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_partial_dealloc

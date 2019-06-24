@@ -98,6 +98,7 @@ real(kind_real),intent(in) :: lat(tree%n) ! Points latitudes (in radians)
 
 ! Local variable
 integer :: i,ieff
+real(kind_real) :: lon_deg(tree%neff),lat_deg(tree%neff)
 
 ! Loop over points
 ieff = 0
@@ -115,7 +116,9 @@ do i=1,tree%n
 end do
 
 ! Create KDTree
-tree%kd = kdtree_create(tree%neff,tree%lon*rad2deg,tree%lat*rad2deg)
+lon_deg = tree%lon*rad2deg
+lat_deg = tree%lat*rad2deg
+tree%kd = kdtree_create(tree%neff,lon_deg,lat_deg)
 
 end subroutine tree_init
 

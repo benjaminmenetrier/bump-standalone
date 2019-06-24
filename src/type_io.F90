@@ -257,7 +257,7 @@ type(nam_type),intent(in) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom  ! Geometry
 
 ! Local variables
-integer :: nlonlat,ilonlat,ilon,ilat,i_s,i_s_loc,iog,iproc,ic0,ic0a,ic0b,ioga,il0,nn_index(1)
+integer :: nlonlat,ilonlat,ilon,ilat,i_s,i_s_loc,iog,iproc,ic0,ic0a,ic0b,ioga,il0
 integer :: nlonlat_loc(0:mpl%nproc),ilonlat_loc
 integer,allocatable :: order(:),order_inv(:),interpg_lg(:)
 real(kind_real) :: dlon,dlat
@@ -314,14 +314,6 @@ do ilonlat_loc=1,nlonlat_loc(mpl%myproc)
 
    ! Check that the interpolation point is inside the domain
    call geom%mesh%inside(mpl,io%lon(ilon),io%lat(ilat),mask_lonlat(ilonlat))
-
-   if (mask_lonlat(ilonlat).and.nam%mask_check) then
-      ! Find the nearest Sc0 point
-      call geom%tree%find_nearest_neighbors(io%lon(ilon),io%lat(ilat),1,nn_index)
-
-      ! Check arc
-      call geom%check_arc(mpl,1,io%lon(ilon),io%lat(ilat),geom%lon(nn_index(1)),geom%lat(nn_index(1)),mask_lonlat(ilonlat))
-   end if
 
     ! Check poles
     if (abs(io%lat(ilat))>maxval(abs(geom%lat))) mask_lonlat(ilonlat) = .false.

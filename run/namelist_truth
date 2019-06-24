@@ -44,7 +44,6 @@ nl0r = 3,
 
 &diag_param
 ne = 50,
-vbal_rad = 2000.0e3,
 local_diag = .true.,
 local_rad = 2000.0e3,
 /

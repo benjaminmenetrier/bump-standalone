@@ -475,11 +475,11 @@ logical,intent(in),optional :: fix     ! Fix mesh flag
 
 ! Local variables
 integer :: it,i,iend,navg,j,ind_avg(40),ii
-real(kind_real),allocatable :: a(:),b(:),c(:),cd(:),cp(:)
+real(kind_real),allocatable :: a(:),b(:),c(:),cd(:),cp(:),v1(:),v2(:)
 logical :: validt(mesh%nt),lfix,init
 character(len=1024),parameter :: subr = 'mesh_check'
 
-!$omp parallel do schedule(static) private(it) firstprivate(a,b,c,cd,cp)
+!$omp parallel do schedule(static) private(it) firstprivate(a,b,c,cd,cp,v1,v2)
 do it=1,mesh%nt
    ! Allocation
    allocate(a(3))
@@ -487,6 +487,8 @@ do it=1,mesh%nt
    allocate(c(3))
    allocate(cd(3))
    allocate(cp(3))
+   allocate(v1(3))
+   allocate(v2(3))
 
    ! Check vertices status
    if (mpl%msv%isallnotr(mesh%x(mesh%ltri(:,it))).and.mpl%msv%isallnotr(mesh%y(mesh%ltri(:,it))) &
@@ -497,7 +499,9 @@ do it=1,mesh%nt
       c = (/mesh%x(mesh%ltri(3,it)),mesh%y(mesh%ltri(3,it)),mesh%z(mesh%ltri(3,it))/)
 
       ! Cross-product (c-b)x(a-b)
-      call vector_product(c-b,a-b,cp)
+      v1 = c-b
+      v2 = a-b
+      call vector_product(v1,v2,cp)
 
       ! Centroid
       cd = (a+b+c)/3.0
@@ -515,6 +519,8 @@ do it=1,mesh%nt
    deallocate(c)
    deallocate(cd)
    deallocate(cp)
+   deallocate(v1)
+   deallocate(v2)
 end do
 !$omp end parallel do
 

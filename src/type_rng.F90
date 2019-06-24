@@ -9,7 +9,7 @@ module type_rng
 
 use iso_fortran_env, only: int64
 use tools_const, only: pi
-use tools_func, only: sphere_dist,gc99
+use tools_func, only: sphere_dist
 use tools_kinds, only: kind_real
 use tools_qsort, only: qsort
 use tools_repro, only: inf,sup,infeq
@@ -483,6 +483,7 @@ if (mpl%main) then
       allocate(lmask(n))
 
       ! Initialization
+      ihor = mpl%msv%vali
       lmask = mask
       is = 0
 

@@ -13,7 +13,6 @@ use tools_const, only: rad2deg,reqkm,req
 use tools_func, only: lct_d2h,lct_h2r
 use tools_kinds, only: kind_real
 use type_adv, only: adv_type
-use type_avg, only: avg_type
 use type_bpar, only: bpar_type
 use type_cmat_blk, only: cmat_blk_type
 use type_diag, only: diag_type

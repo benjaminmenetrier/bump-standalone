@@ -265,7 +265,7 @@ type(samp_type),intent(in) :: samp           ! Sampling
 
 ! Local variables
 integer :: il0,jl0r,jl0,ic1a,ic1,ic0,jc3,jc0,iscales,icomp
-real(kind_real) :: distsq,Dhbar,Dvbar
+real(kind_real) :: distsq,Dhbar,Dvbar,diag_rescale
 real(kind_real),allocatable :: Dh(:),Dv(:),dx(:,:),dy(:,:),dz(:,:)
 logical :: valid
 logical,allocatable :: dmask(:,:),Dv_valid(:)
@@ -376,15 +376,8 @@ do il0=1,geom%nl0
                                                               & *Dscale**(iscales-1)
                end if
                minim%guess((iscales-1)*4+4) = 0.0
-               if (nam%lct_diag(iscales)) then
-                  ! Diagonal tensor
-                  minim%binf((iscales-1)*4+4) = -1.0e-12
-                  minim%bsup((iscales-1)*4+4) = 1.0e-12
-               else
-                  ! Non-diagonal tensor
-                  minim%binf((iscales-1)*4+4) = -1.0
-                  minim%bsup((iscales-1)*4+4) = 1.0
-               end if
+               minim%binf((iscales-1)*4+4) = -1.0
+               minim%bsup((iscales-1)*4+4) = 1.0
             end do
             do iscales=1,lct_blk%nscales-1
                minim%guess(lct_blk%nscales*4+1) = 1.0/real(lct_blk%nscales,kind_real)
@@ -435,7 +428,13 @@ do il0=1,geom%nl0
             end do
             if (valid) then
                do iscales=1,lct_blk%nscales
-                  if (nam%lct_diag(iscales)) lct_blk%D(4,iscales,ic1a,il0) = 0.0
+                  if (nam%lct_diag(iscales)) then
+                     ! Rescale diagonal tensor
+                     diag_rescale = sqrt(1.0-lct_blk%D(4,iscales,ic1a,il0)**2)
+                     lct_blk%D(1,iscales,ic1a,il0) = lct_blk%D(1,iscales,ic1a,il0)*diag_rescale
+                     lct_blk%D(2,iscales,ic1a,il0) = lct_blk%D(2,iscales,ic1a,il0)*diag_rescale
+                     lct_blk%D(4,iscales,ic1a,il0) = 0.0
+                  end if
                end do
 
                ! Rebuild fit

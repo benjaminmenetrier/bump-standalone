@@ -44,7 +44,6 @@ nl0r = 7,
 
 &diag_param
 ne = 9,
-vbal_rad = 1000.0e3,
 /
 
 &fit_param
