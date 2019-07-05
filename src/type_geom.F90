@@ -550,30 +550,33 @@ end if
 write(mpl%info,'(a7,a,i3)') '','Number of independent levels: ',geom%nl0i
 call mpl%flush
 
-! Define minimum distance to mask
-allocate(geom%mdist(geom%nc0,geom%nl0i))
-geom%mdist = pi
-do il0i=1,geom%nl0i
-   ! Check mask
-   if (any(.not.geom%mask_c0(:,il0i))) then
-      ! Allocation
-      allocate(not_mask_c0(geom%nc0))
-      not_mask_c0 = .not.geom%mask_c0(:,il0i)
-      call tree%alloc(mpl,geom%nc0,mask=not_mask_c0)
+if ((trim(nam%draw_type)=='random_coast').or.(nam%adv_diag)) then
+   ! Define minimum distance to mask
+   allocate(geom%mdist(geom%nc0,geom%nl0i))
+   geom%mdist = pi
+   do il0i=1,geom%nl0i
+      ! Check mask
+      if (any(.not.geom%mask_c0(:,il0i))) then
+         ! Allocation
+         allocate(not_mask_c0(geom%nc0))
+         not_mask_c0 = .not.geom%mask_c0(:,il0i)
+         call tree%alloc(mpl,geom%nc0,mask=not_mask_c0)
 
-      ! Initialization
-      call tree%init(geom%lon,geom%lat)
+         ! Initialization
+         call tree%init(geom%lon,geom%lat)
 
-      ! Find nearest neighbors
-      do ic0=1,geom%nc0
-         if (geom%mask_c0(ic0,il0i)) call tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index,geom%mdist(ic0,il0i))
-      end do
+         ! Find nearest neighbors
+         do ic0=1,geom%nc0
+            if (geom%mask_c0(ic0,il0i)) call tree%find_nearest_neighbors(geom%lon(ic0),geom%lat(ic0),1,nn_index, &
+          & geom%mdist(ic0,il0i))
+         end do
 
-      ! Release memory
-      deallocate(not_mask_c0)
-      call tree%dealloc
-   end if
-end do
+         ! Release memory
+         deallocate(not_mask_c0)
+         call tree%dealloc
+      end if
+   end do
+end if
 
 ! Allocation
 call geom%tree%alloc(mpl,geom%nc0)

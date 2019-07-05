@@ -56,6 +56,7 @@ The source code is organized in six categories:
 | external_tools | [tools_asa007](autodoc/tools_asa007.md) | inverse of symmetric positive definite matrix routines |
 | external_tools | [tools_qsort](autodoc/tools_qsort.md) | qsort routines |
 | external_tools | [tools_stripack](autodoc/tools_stripack.md) | STRIPACK routines |
+| fckit | [fckit_configuration_module](autodoc/fckit_configuration_module.md) | fckit configuration emulator for standalone execution |
 | fckit | [fckit_geometry_module](autodoc/fckit_geometry_module.md) | fckit geometry emulator for standalone execution |
 | fckit | [fckit_kdtree_module](autodoc/fckit_kdtree_module.md) | fckit KDTree emulator for standalone execution |
 | fckit | [fckit_log_module](autodoc/fckit_log_module.md) | fckit log emulator for standalone execution |

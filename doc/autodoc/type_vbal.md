@@ -8,10 +8,10 @@
 | subroutine | [vbal%] [read](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L168) | read |
 | subroutine | [vbal%] [write](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L250) | write |
 | subroutine | [vbal%] [run_vbal](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L332) | compute vertical balance |
-| subroutine | [vbal%] [run_vbal_tests](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L623) | compute vertical balance tests |
-| subroutine | [vbal%] [apply](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L647) | apply vertical balance |
-| subroutine | [vbal%] [apply_inv](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L685) | apply inverse vertical balance |
-| subroutine | [vbal%] [apply_ad](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L723) | apply adjoint vertical balance |
-| subroutine | [vbal%] [apply_inv_ad](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L761) | apply inverse adjoint vertical balance |
-| subroutine | [vbal%] [test_inverse](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L799) | test vertical balance inverse |
-| subroutine | [vbal%] [test_adjoint](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L860) | test vertical balance adjoint |
+| subroutine | [vbal%] [run_vbal_tests](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L622) | compute vertical balance tests |
+| subroutine | [vbal%] [apply](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L646) | apply vertical balance |
+| subroutine | [vbal%] [apply_inv](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L684) | apply inverse vertical balance |
+| subroutine | [vbal%] [apply_ad](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L722) | apply adjoint vertical balance |
+| subroutine | [vbal%] [apply_inv_ad](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L760) | apply inverse adjoint vertical balance |
+| subroutine | [vbal%] [test_inverse](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L798) | test vertical balance inverse |
+| subroutine | [vbal%] [test_adjoint](https://github.com/benjaminmenetrier/bump-standalone/tree/master/src/type_vbal.F90#L859) | test vertical balance adjoint |

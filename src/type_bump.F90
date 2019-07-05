@@ -316,7 +316,7 @@ if (bump%nam%new_vbal) then
    call bump%mpl%flush
    write(bump%mpl%info,'(a)') '--- Run vertical balance driver'
    call bump%mpl%flush
-   call bump%vbal%run_vbal(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,bump%ens1u)
+   call bump%vbal%run_vbal(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%ens1,bump%ens1u)
    if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 elseif (bump%nam%load_vbal) then
    ! Read vertical balance
@@ -356,6 +356,9 @@ if (bump%nam%new_hdiag) then
    write(bump%mpl%info,'(a)') '--- Copy HDIAG into C matrix'
    call bump%mpl%flush
    call bump%cmat%from_hdiag(bump%mpl,bump%nam,bump%geom,bump%bpar,bump%hdiag)
+
+   ! Release memory
+   call bump%hdiag%dealloc
 end if
 
 if (bump%nam%new_lct) then
@@ -373,6 +376,9 @@ if (bump%nam%new_lct) then
    write(bump%mpl%info,'(a)') '--- Copy LCT into C matrix'
    call bump%mpl%flush
    call bump%cmat%from_lct(bump%mpl,bump%nam,bump%geom,bump%bpar,bump%lct)
+
+   ! Release memory (partial)
+   call bump%lct%partial_dealloc
 end if
 
 if (bump%nam%load_cmat) then
@@ -434,6 +440,9 @@ elseif (bump%nam%load_nicas) then
    call bump%mpl%flush
    call bump%nicas%read(bump%mpl,bump%nam,bump%geom,bump%bpar)
 end if
+
+! Release memory (partial)
+call bump%cmat%partial_dealloc
 
 if (bump%nam%check_adjoints.or.bump%nam%check_pos_def.or.bump%nam%check_dirac.or.bump%nam%check_randomization.or. &
  & bump%nam%check_consistency.or.bump%nam%check_optimality) then
@@ -1309,14 +1318,14 @@ class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Release memory
 call bump%bpar%dealloc
-call bump%cmat%dealloc
+call bump%cmat%partial_dealloc
 call bump%ens1%dealloc
 call bump%ens1u%dealloc
 call bump%ens2%dealloc
 call bump%geom%dealloc
 call bump%hdiag%dealloc
 call bump%io%dealloc
-call bump%lct%dealloc
+call bump%lct%partial_dealloc
 call bump%nicas%partial_dealloc
 call bump%obsop%partial_dealloc
 call bump%vbal%partial_dealloc

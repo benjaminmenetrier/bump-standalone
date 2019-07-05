@@ -102,7 +102,7 @@ write(mpl%info,'(a)') '---------------------------------------------------------
 call mpl%flush
 write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
 call mpl%flush
-call hdiag%samp%setup_sampling(mpl,rng,nam,geom,bpar,io,ens1)
+call hdiag%samp%setup_sampling(mpl,rng,nam,geom,bpar,ens1)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -128,7 +128,7 @@ if (nam%adv_diag) then
    call mpl%flush
    write(mpl%info,'(a)') '--- Compute advection diagnostic'
    call mpl%flush
-   call hdiag%adv%compute(mpl,rng,nam,geom,hdiag%samp,ens1)
+   call hdiag%adv%compute(mpl,rng,nam,geom,bpar,hdiag%samp,io,ens1)
 end if
 
 ! Compute MPI distribution, halo C
@@ -147,7 +147,6 @@ if (nam%local_diag) then
    call hdiag%samp%compute_mpi_d(mpl,nam,geom)
 end if
 
-
 if ((nam%local_diag.or.nam%adv_diag).and.(nam%diag_rhflt>0.0)) then
    ! Compute MPI distribution, halo F
    write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -156,6 +155,9 @@ if ((nam%local_diag.or.nam%adv_diag).and.(nam%diag_rhflt>0.0)) then
    call mpl%flush
    call hdiag%samp%compute_mpi_f(mpl,nam)
 end if
+
+! Release memory (partial)
+call hdiag%samp%partial_dealloc
 
 if (nam%new_mom) then
    ! Compute sample moments
@@ -348,17 +350,6 @@ if (trim(nam%method)=='dual-ens') then
    write(mpl%info,'(a7,a)') '','Ensembles 1 and 2:'
    call mpl%flush
    call hdiag%loc_2%dualens(mpl,nam,geom,bpar,io,hdiag%samp,hdiag%avg_1,hdiag%avg_2,hdiag%loc_3,'loc_deh','loc_deh_lr')
-end if
-
-if (nam%write_hdiag) then
-   ! Write data
-   write(mpl%info,'(a)') '-------------------------------------------------------------------'
-   call mpl%flush
-   write(mpl%info,'(a)') '--- Write data'
-   call mpl%flush
-
-   ! Advection
-   if (nam%adv_diag) call hdiag%adv%write(mpl,nam,geom,bpar,io,hdiag%samp)
 end if
 
 end subroutine hdiag_run_hdiag

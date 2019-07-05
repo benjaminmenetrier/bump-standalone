@@ -139,7 +139,7 @@ end subroutine adv_dealloc
 ! Subroutine: adv_compute
 ! Purpose: compute advection
 !----------------------------------------------------------------------
-subroutine adv_compute(adv,mpl,rng,nam,geom,samp,ens)
+subroutine adv_compute(adv,mpl,rng,nam,geom,bpar,samp,io,ens)
 
 implicit none
 
@@ -149,7 +149,9 @@ type(mpl_type),intent(inout) :: mpl   ! MPI data
 type(rng_type),intent(inout) :: rng   ! Random number generator
 type(nam_type),intent(in) :: nam      ! Namelist
 type(geom_type),intent(in) :: geom    ! Geometry
+type(bpar_type),intent(in) :: bpar    ! Block parameters
 type(samp_type),intent(inout) :: samp ! Sampling
+type(io_type),intent(in) :: io        ! I/O
 type(ens_type), intent(in) :: ens     ! Ensemble
 
 ! Allocation
@@ -176,6 +178,12 @@ call adv%interp(mpl,nam,geom,samp)
 
 ! Test advection efficiency
 call adv%test(mpl,rng,nam,geom,samp,ens)
+
+! Write
+if (nam%write_hdiag) call adv%write(mpl,nam,geom,bpar,io,samp)
+
+! Release memory
+call adv%dealloc
 
 end subroutine adv_compute
 
@@ -226,6 +234,12 @@ do il0=1,geom%nl0
    end do
 end do
 adv%cor_max = mpl%msv%valr
+do il0=1,geom%nl0
+   do ic2a=1,samp%nc2a
+      ic2 = samp%c2a_to_c2(ic2a)
+      samp%mask_c2a(ic2a,il0) = samp%mask_c2(ic2,il0)
+   end do
+end do
 
 ! Advection for timeslot 1
 do il0=1,geom%nl0
@@ -1083,7 +1097,7 @@ type(samp_type),intent(in) :: samp  ! Sampling
 integer :: ncid,nc2_id,nl0_id,nts_id,na_id,vunit_id,larc_s_id,larc_e_id
 integer :: lon_c2_id,lat_c2_id,lon_c2_raw_id,lat_c2_raw_id,dist_c2_raw_id,valid_raw_id,dist_raw_id
 integer :: lon_c2_flt_id,lat_c2_flt_id,dist_c2_flt_id,valid_flt_id,dist_flt_id,rhflt_id
-integer :: iproc,its,il0,ic2a,ic2,i,ib,iv,jv,jts
+integer :: iproc,its,il0,ic2a,ic2,i,ib,iv,jv,jts,proc_to_nc2a(mpl%nproc)
 integer,allocatable :: c2a_to_c2(:)
 real(kind_real),allocatable :: sbuf(:),rbuf(:),lon_c2(:,:),lat_c2(:,:)
 real(kind_real),allocatable :: lon_c2_raw(:,:,:),lat_c2_raw(:,:,:),dist_c2_raw(:,:,:)
@@ -1091,6 +1105,9 @@ real(kind_real),allocatable :: lon_c2_flt(:,:,:),lat_c2_flt(:,:,:),dist_c2_flt(:
 character(len=1024) :: filename
 character(len=1024),parameter :: subr = 'adv_write'
 type(fckit_mpi_status) :: status
+
+write(mpl%info,'(a7,a)') '','Write advection'
+call mpl%flush
 
 ! Allocation
 allocate(sbuf(samp%nc2a*geom%nl0*(2+(nam%nts-1)*6)))
@@ -1131,10 +1148,15 @@ if (mpl%main) then
    allocate(lat_c2_flt(nam%nc2,geom%nl0,nam%nts-1))
    allocate(dist_c2_flt(nam%nc2,geom%nl0,nam%nts-1))
 
+   ! Initialization
+   do iproc=1,mpl%nproc
+      proc_to_nc2a(iproc) = count(samp%c2_to_proc==iproc)
+   end do
+
    do iproc=1,mpl%nproc
       ! Allocation
-      allocate(c2a_to_c2(samp%proc_to_nc2a(iproc)))
-      allocate(rbuf(samp%proc_to_nc2a(iproc)*geom%nl0*(2+(nam%nts-1)*6)))
+      allocate(c2a_to_c2(proc_to_nc2a(iproc)))
+      allocate(rbuf(proc_to_nc2a(iproc)*geom%nl0*(2+(nam%nts-1)*6)))
 
       if (iproc==mpl%ioproc) then
          ! Copy buffer
@@ -1149,7 +1171,7 @@ if (mpl%main) then
       ! Write data
       i = 1
       do il0=1,geom%nl0
-         do ic2a=1,samp%proc_to_nc2a(iproc)
+         do ic2a=1,proc_to_nc2a(iproc)
             ic2 = c2a_to_c2(ic2a)
             lon_c2(ic2,il0) = rbuf(i)
             i = i+1

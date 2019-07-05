@@ -80,7 +80,7 @@ endif (${COMPILER} MATCHES "GNU")
 #
 # Intel compiler
 if (${COMPILER} MATCHES "Intel")
-   set (CMAKE_Fortran_FLAGS_RELEASE "-g -O3 -xAVX -qopenmp")
+   set (CMAKE_Fortran_FLAGS_RELEASE "-g -O3 -ip -unroll -inline -no-heap-arrays -xAVX -qopenmp")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-g -O0 -traceback -fpe0 -check all,noarg_temp_created")
 endif (${COMPILER} MATCHES "Intel")
 #

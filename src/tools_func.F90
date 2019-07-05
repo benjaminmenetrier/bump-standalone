@@ -20,7 +20,7 @@ real(kind_real),parameter :: gc2gau = 0.28            ! GC99 support radius to G
 real(kind_real),parameter :: gau2gc = 3.57            ! Gaussian Daley length-scale to GC99 support radius (empirical)
 real(kind_real),parameter :: Dmin = 1.0e-12_kind_real ! Minimum tensor diagonal value
 real(kind_real),parameter :: condmax = 1.0e3          ! Maximum tensor conditioning number
-integer,parameter :: M = 0                            ! Number of implicit iteration for the Matern function (Gaussian function if M = 0)
+integer,parameter :: M = 0                            ! Number of implicit iteration for the Matern function
 
 private
 public :: gc2gau,gau2gc,Dmin,M
@@ -317,8 +317,6 @@ logical :: add_to_front
 ! Initialization
 fit = 0.0
 
-!$omp parallel do schedule(static) private(il0,np,jl0r,np_new,ip,jc3,jl0,kc3,kl0r,kl0,rhsq,rvsq,distnorm,disttest,add_to_front), &
-!$omp&                             private(jp) firstprivate(plist,plist_new,dist)
 do il0=1,nl0
    ! Allocation
    allocate(plist(nc3*nl0r,2))
@@ -417,7 +415,6 @@ do il0=1,nl0
    deallocate(plist_new)
    deallocate(dist)
 end do
-!$omp end parallel do
 
 end subroutine fit_diag
 
@@ -454,8 +451,6 @@ logical :: add_to_front
 ! Initialization
 fit = 0.0
 
-!$omp parallel do schedule(static) private(il0,np,jl0r,np_new,ip,jc3,jl0,kc3,kl0r,kl0,rhsq,rvsq,distnorm,disttest,add_to_front), &
-!$omp&                             private(jp,distnormv,rfac,coef,distnormh) firstprivate(plist,plist_new,dist)
 do il0=1,nl0
    ! Allocation
    allocate(plist(nc3*nl0r,2))
@@ -568,7 +563,6 @@ do il0=1,nl0
    deallocate(plist_new)
    deallocate(dist)
 end do
-!$omp end parallel do
 
 end subroutine fit_diag_dble
 
@@ -714,7 +708,7 @@ end function fit_func
 ! Subroutine: fit_lct
 ! Purpose: LCT fit
 !----------------------------------------------------------------------
-subroutine fit_lct(mpl,nc,nl0,dx,dy,dz,dmask,nscales,D,coef,fit)
+subroutine fit_lct(mpl,nc,nl0,dxsq,dysq,dxdy,dzsq,dmask,nscales,D,coef,fit)
 
 implicit none
 
@@ -722,9 +716,10 @@ implicit none
 type(mpl_type),intent(inout) :: mpl         ! MPI data
 integer,intent(in) :: nc                    ! Number of classes
 integer,intent(in) :: nl0                   ! Number of levels
-real(kind_real),intent(in) :: dx(nc,nl0)    ! Zonal separation
-real(kind_real),intent(in) :: dy(nc,nl0)    ! Meridian separation
-real(kind_real),intent(in) :: dz(nc,nl0)    ! Vertical separation
+real(kind_real),intent(in) :: dxsq(nc,nl0)  ! Zonal separation squared
+real(kind_real),intent(in) :: dysq(nc,nl0)  ! Meridian separation squared
+real(kind_real),intent(in) :: dxdy(nc,nl0)  ! Zonal x meridian separations product
+real(kind_real),intent(in) :: dzsq(nc,nl0)  ! Vertical separation squared
 logical,intent(in) :: dmask(nc,nl0)         ! Mask
 integer,intent(in) :: nscales               ! Number of LCT scales
 real(kind_real),intent(in) :: D(4,nscales)  ! LCT components
@@ -757,7 +752,6 @@ do iscales=1,nscales
    call lct_d2h(mpl,D11,D22,D33,D12,H11,H22,H33,H12)
 
    ! Homogeneous anisotropic approximation
-   !$omp parallel do schedule(static) private(jl0,jc3,rsq)
    do jl0=1,nl0
       do jc3=1,nc
          if (dmask(jc3,jl0)) then
@@ -765,7 +759,7 @@ do iscales=1,nscales
             if (iscales==1) fit(jc3,jl0) = 0.0
 
             ! Squared distance
-            rsq = H11*dx(jc3,jl0)**2+H22*dy(jc3,jl0)**2+H33*dz(jc3,jl0)**2+2.0*H12*dx(jc3,jl0)*dy(jc3,jl0)
+            rsq = H11*dxsq(jc3,jl0)+H22*dysq(jc3,jl0)+H33*dzsq(jc3,jl0)+2.0*H12*dxdy(jc3,jl0)
 
             if (M==0) then
                ! Gaussian function
@@ -777,7 +771,6 @@ do iscales=1,nscales
          end if
       end do
    end do
-   !$omp end parallel do
 end do
 
 end subroutine fit_lct

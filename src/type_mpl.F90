@@ -358,7 +358,6 @@ call flush(output_unit)
 ! Abort MPI
 call mpl%f_comm%abort(1)
 
-
 end subroutine mpl_abort
 
 !----------------------------------------------------------------------
@@ -392,9 +391,16 @@ implicit none
 class(mpl_type),intent(inout) :: mpl ! MPI data
 integer,intent(in) :: nprog          ! Array size
 
+! Local variables
+integer :: ithread
+
 ! Print message
-write(mpl%info,'(a)') ' 0%'
-call mpl%flush(.false.)
+ithread = 0
+!$ ithread = omp_get_thread_num()
+if (ithread==0) then
+   write(mpl%info,'(a)') ' 0%'
+   call mpl%flush(.false.)
+end if
 
 ! Allocation
 allocate(mpl%done(nprog))
@@ -456,6 +462,7 @@ class(mpl_type),intent(inout) :: mpl        ! MPI data
 logical,intent(in),optional :: advance_flag ! Advance flag
 
 ! Local variables
+integer :: ithread
 logical :: ladvance_flag
 
 ! Set advance flag
@@ -463,8 +470,22 @@ ladvance_flag = .true.
 if (present(advance_flag)) ladvance_flag = advance_flag
 
 ! Print message
-write(mpl%info,'(a)') ' 100%'
-call mpl%flush(ladvance_flag)
+ithread = 0
+!$ ithread = omp_get_thread_num()
+do while ((mpl%progint<=100).and.(ithread==0))
+   if (mpl%progint<100) then
+      if (mpl%progint<10) then
+         write(mpl%info,'(i2,a)') mpl%progint,'% '
+      else
+         write(mpl%info,'(i3,a)') mpl%progint,'% '
+      end if
+      call mpl%flush(.false.)
+   else
+      write(mpl%info,'(a)') ' 100%'
+      call mpl%flush(ladvance_flag)
+   end if
+   mpl%progint = mpl%progint+ddis
+end do
 
 ! Release memory
 deallocate(mpl%done)

@@ -108,6 +108,9 @@ lhomv = .false.,
 rvflt = 0.0,
 lct_nscales = 0,
 lct_diag = .false.,
+lct_qc_th = 0.7,
+lct_qc_max = 1.0,
+lct_write_cor = .false.,
 /
 
 &nicas_param

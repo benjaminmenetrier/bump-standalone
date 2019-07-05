@@ -50,6 +50,7 @@ lct_nscales = 1,
 
 &nicas_param
 resol = 8.0,
+subsamp = "h",
 mpicom = 2,
 forced_radii = .true.,
 rh = 3000.0e3,

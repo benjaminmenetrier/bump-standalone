@@ -30,7 +30,6 @@ ens1_ne = 101,
 /
 
 &sampling_param
-mask_type = "none",
 nc1 = 3500,
 nc2 = 500,
 ntry = 30,
@@ -41,12 +40,11 @@ nl0r = 5,
 
 &diag_param
 ne = 101,
-local_diag = .false.,
 local_rad = 1.0e3,
 /
 
 &fit_param
-fit_type = "cres"
+fit_type = "cres",
 /
 
 &nicas_param
@@ -56,7 +54,6 @@ fit_type = "cres"
 /
 
 &output_param
-nldwv = 0,
 img_ldwv = 1043,2007,2283,1934,1382,
 name_ldwv = "I1","I2","P1","P2","P3",
 /

@@ -16,7 +16,7 @@ use type_mpl, only: mpl_type
 implicit none
 
 real(kind_real),parameter :: rho = 0.5_kind_real    ! Convergence parameter for the Hooke algorithm
-real(kind_real),parameter :: tol = 1.0e-6_kind_real ! Tolerance for the Hooke algorithm
+real(kind_real),parameter :: tol = 1.0e-4_kind_real ! Tolerance for the Hooke algorithm
 integer,parameter :: itermax = 10                   ! Maximum number of iteration for the Hooke algorithm
 
 ! Minimization data derived type
@@ -49,9 +49,10 @@ type minim_type
 
    ! Specific data (LCT)
    integer :: nscales                         ! Number of LCT scales
-   real(kind_real),allocatable :: dx(:,:)     ! Zonal separation
-   real(kind_real),allocatable :: dy(:,:)     ! Meridian separation
-   real(kind_real),allocatable :: dz(:,:)     ! Vertical separation
+   real(kind_real),allocatable :: dxsq(:,:)   ! Zonal separation squared
+   real(kind_real),allocatable :: dysq(:,:)   ! Meridian separation squared
+   real(kind_real),allocatable :: dxdy(:,:)   ! Zonal x meridional separation product
+   real(kind_real),allocatable :: dzsq(:,:)   ! Vertical separation squared
    logical,allocatable :: dmask(:,:)          ! Mask
 contains
    procedure :: compute => minim_compute
@@ -353,7 +354,7 @@ if (minim%nscales>1) then
 else
    coef(1) = 1.0
 end if
-call fit_lct(mpl,minim%nc3,minim%nl0,minim%dx,minim%dy,minim%dz,minim%dmask,minim%nscales, &
+call fit_lct(mpl,minim%nc3,minim%nl0,minim%dxsq,minim%dysq,minim%dxdy,minim%dzsq,minim%dmask,minim%nscales, &
  & xtmp(1:minim%nscales*4),coef,fit)
 
 ! Pack

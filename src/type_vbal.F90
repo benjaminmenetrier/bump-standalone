@@ -333,7 +333,7 @@ end subroutine vbal_write
 ! Subroutine: vbal_run_vbal
 ! Purpose: compute vertical balance
 !----------------------------------------------------------------------
-subroutine vbal_run_vbal(vbal,mpl,rng,nam,geom,bpar,io,ens,ensu)
+subroutine vbal_run_vbal(vbal,mpl,rng,nam,geom,bpar,ens,ensu)
 
 implicit none
 
@@ -344,7 +344,6 @@ type(rng_type),intent(inout) :: rng    ! Random number generator
 type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-type(io_type),intent(in) :: io         ! I/O
 type(ens_type), intent(in) :: ens      ! Ensemble
 type(ens_type),intent(inout) :: ensu   ! Unbalanced ensemble
 
@@ -362,7 +361,7 @@ write(mpl%info,'(a)') '---------------------------------------------------------
 call mpl%flush
 write(mpl%info,'(a,i5,a)') '--- Setup sampling (nc1 = ',nam%nc1,')'
 call mpl%flush
-call vbal%samp%setup_sampling(mpl,rng,nam,geom,bpar,io,ens)
+call vbal%samp%setup_sampling(mpl,rng,nam,geom,bpar,ens)
 
 ! Compute MPI distribution, halo A
 write(mpl%info,'(a)') '-------------------------------------------------------------------'

@@ -84,7 +84,6 @@ type nicas_blk_type
    integer,allocatable :: s_to_l1(:)               ! Subgrid to subset Sl1
    integer,allocatable :: c1_to_c0(:)              ! Subset Sc1 to subset Sc0
    integer,allocatable :: l1_to_l0(:)              ! Subset Sl1 to subset Sl0
-   integer,allocatable :: c0_to_c1(:)              ! Subset Sc0 to subset Sc1
    integer,allocatable :: l0_to_l1(:)              ! Subset Sl0 to subset Sl1
    logical,allocatable :: mask_c1(:,:)             ! Mask from subset C1 to subgrid
    logical,allocatable :: mask_c2(:,:)             ! Mask from subset C2 to subgrid
@@ -99,23 +98,13 @@ type nicas_blk_type
    logical,allocatable :: lcheck_sa(:)             ! Detection of halo A on subgrid
    logical,allocatable :: lcheck_sb(:)             ! Detection of halo B on subgrid
    logical,allocatable :: lcheck_sc(:)             ! Detection of halo C on subgrid
-   integer,allocatable :: c1a_to_c1(:)             ! Subset Sc1, halo A to global
    integer,allocatable :: c1_to_c1a(:)             ! Subset Sc1, global to halo A
    integer,allocatable :: c1b_to_c1(:)             ! Subset Sc1, halo B to global
    integer,allocatable :: c1_to_c1b(:)             ! Subset Sc1, global to halo B
    integer,allocatable :: c1bl1_to_sb(:,:)         ! Halo B, subset Sc1 to subgrid
-   integer,allocatable :: interph_lg(:,:)          ! Local to global for horizontal interpolation
-   integer,allocatable :: interps_lg(:,:)          ! Local to global for subsampling interpolation
    integer,allocatable :: c1a_to_c0a(:)            ! Halo A, subset Sc1 to subset Sc0
-   integer,allocatable :: sa_to_c0a(:)             ! Halo A, subgrid to subset Sc0
-   integer,allocatable :: sa_to_l0(:)              ! Halo A, subgrid to subset Sl0
-   integer,allocatable :: sa_to_sb(:)              ! Subgrid, halo A to halo B
-   integer,allocatable :: sc_to_sb(:)              ! Subgrid, halo C to halo B
    integer,allocatable :: s_to_sa(:)               ! Subgrid, global to halo A
    integer,allocatable :: sb_to_s(:)               ! Subgrid, halo B to global
-   integer,allocatable :: s_to_sb(:)               ! Subgrid, global to halo B
-   integer,allocatable :: sc_to_s(:)               ! Subgrid, halo C to global
-   integer,allocatable :: s_to_sc(:)               ! Subgrid, global to halo C
    integer,allocatable :: sbb_to_s(:)              ! Subgrid, halo B (extended) to global
    integer,allocatable :: c1_to_c1bb(:)            ! Subset Sc1, global to halo B (extended)
    integer,allocatable :: c1bb_to_c1(:)            ! Subset Sc1, halo B (extended) to global
@@ -337,13 +326,11 @@ if (allocated(nicas_blk%sfull)) then
    end do
    deallocate(nicas_blk%sfull)
 end if
-if (allocated(nicas_blk%vlev)) deallocate(nicas_blk%vlev)
 if (allocated(nicas_blk%slev)) deallocate(nicas_blk%slev)
 if (allocated(nicas_blk%s_to_c1)) deallocate(nicas_blk%s_to_c1)
 if (allocated(nicas_blk%s_to_l1)) deallocate(nicas_blk%s_to_l1)
 if (allocated(nicas_blk%c1_to_c0)) deallocate(nicas_blk%c1_to_c0)
 if (allocated(nicas_blk%l1_to_l0)) deallocate(nicas_blk%l1_to_l0)
-if (allocated(nicas_blk%c0_to_c1)) deallocate(nicas_blk%c0_to_c1)
 if (allocated(nicas_blk%l0_to_l1)) deallocate(nicas_blk%l0_to_l1)
 if (allocated(nicas_blk%mask_c1)) deallocate(nicas_blk%mask_c1)
 if (allocated(nicas_blk%mask_c2)) deallocate(nicas_blk%mask_c2)
@@ -353,23 +340,13 @@ if (allocated(nicas_blk%s_to_proc)) deallocate(nicas_blk%s_to_proc)
 if (allocated(nicas_blk%lcheck_sa)) deallocate(nicas_blk%lcheck_sa)
 if (allocated(nicas_blk%lcheck_sb)) deallocate(nicas_blk%lcheck_sb)
 if (allocated(nicas_blk%lcheck_sc)) deallocate(nicas_blk%lcheck_sc)
-if (allocated(nicas_blk%c1a_to_c1)) deallocate(nicas_blk%c1a_to_c1)
 if (allocated(nicas_blk%c1_to_c1a)) deallocate(nicas_blk%c1_to_c1a)
 if (allocated(nicas_blk%c1b_to_c1)) deallocate(nicas_blk%c1b_to_c1)
 if (allocated(nicas_blk%c1_to_c1b)) deallocate(nicas_blk%c1_to_c1b)
 if (allocated(nicas_blk%c1bl1_to_sb)) deallocate(nicas_blk%c1bl1_to_sb)
-if (allocated(nicas_blk%interph_lg)) deallocate(nicas_blk%interph_lg)
-if (allocated(nicas_blk%interps_lg)) deallocate(nicas_blk%interps_lg)
 if (allocated(nicas_blk%c1a_to_c0a)) deallocate(nicas_blk%c1a_to_c0a)
-if (allocated(nicas_blk%sa_to_c0a)) deallocate(nicas_blk%sa_to_c0a)
-if (allocated(nicas_blk%sa_to_l0)) deallocate(nicas_blk%sa_to_l0)
-if (allocated(nicas_blk%sa_to_sb)) deallocate(nicas_blk%sa_to_sb)
-if (allocated(nicas_blk%sc_to_sb)) deallocate(nicas_blk%sc_to_sb)
 if (allocated(nicas_blk%s_to_sa)) deallocate(nicas_blk%s_to_sa)
 if (allocated(nicas_blk%sb_to_s)) deallocate(nicas_blk%sb_to_s)
-if (allocated(nicas_blk%s_to_sb)) deallocate(nicas_blk%s_to_sb)
-if (allocated(nicas_blk%sc_to_s)) deallocate(nicas_blk%sc_to_s)
-if (allocated(nicas_blk%s_to_sc)) deallocate(nicas_blk%s_to_sc)
 if (allocated(nicas_blk%sbb_to_s)) deallocate(nicas_blk%sbb_to_s)
 if (allocated(nicas_blk%c1_to_c1bb)) deallocate(nicas_blk%c1_to_c1bb)
 if (allocated(nicas_blk%c1bb_to_c1)) deallocate(nicas_blk%c1bb_to_c1)
@@ -434,6 +411,7 @@ integer :: il0,il1,its
 
 ! Release memory
 call nicas_blk%partial_dealloc
+if (allocated(nicas_blk%vlev)) deallocate(nicas_blk%vlev)
 if (allocated(nicas_blk%sa_to_s)) deallocate(nicas_blk%sa_to_s)
 if (allocated(nicas_blk%sa_to_sc)) deallocate(nicas_blk%sa_to_sc)
 if (allocated(nicas_blk%sb_to_sc)) deallocate(nicas_blk%sb_to_sc)
@@ -573,6 +551,9 @@ call mpl%flush
 write(mpl%info,'(a10,a,i9)') '','c_nor%n_s = ',nicas_blk%c_nor%n_s
 call mpl%flush
 
+! Release memory (partial)
+call nicas_blk%partial_dealloc
+
 end subroutine nicas_blk_compute_parameters
 
 !----------------------------------------------------------------------
@@ -702,14 +683,6 @@ allocate(for(nfor))
 call rng%initialize_sampling(mpl,geom%nc0,geom%lon,geom%lat,mask_hor_c0,nfor,for,rhs_min_glb,nam%ntry,nam%nrep, &
  & nicas_blk%nc1,nicas_blk%c1_to_c0,fast=nam%fast_sampling)
 nicas_blk%c1_to_proc = geom%c0_to_proc(nicas_blk%c1_to_c0)
-
-! Inverse conversion
-allocate(nicas_blk%c0_to_c1(geom%nc0))
-nicas_blk%c0_to_c1 = mpl%msv%vali
-do ic1=1,nicas_blk%nc1
-   ic0 = nicas_blk%c1_to_c0(ic1)
-   nicas_blk%c0_to_c1(ic0) = ic1
-end do
 
 if ((trim(nicas_blk%subsamp)=='hv').or.(trim(nicas_blk%subsamp)=='vh').or.(trim(nicas_blk%subsamp)=='hvh')) then
    ! Vertical sampling
@@ -1222,7 +1195,7 @@ type(geom_type),intent(in) :: geom               ! Geometry
 ! Local variables
 integer :: il0i,ic0,ic0a,iproc,ic1,jc1,ic1a,ic1b,il0,il1,isa,isb,i_s,i_s_loc,is,js,h_n_s_max,s_n_s_max,h_n_s_max_loc,s_n_s_max_loc
 integer :: s_to_proc(nicas_blk%ns),proc_to_nc1a(mpl%nproc),proc_to_nsa(mpl%nproc)
-integer,allocatable :: interph_lg(:,:),interps_lg(:,:)
+integer,allocatable :: interph_lg(:,:),interps_lg(:,:),c1a_to_c1(:),sa_to_sb(:),s_to_sb(:)
 logical :: lcheck_c1a(nicas_blk%nc1),lcheck_c1b_h(nicas_blk%nc1),lcheck_c1b(nicas_blk%nc1)
 logical,allocatable :: lcheck_h(:,:),lcheck_s(:,:)
 character(len=1024),parameter :: subr = 'nicas_blk_compute_mpi_ab'
@@ -1314,16 +1287,16 @@ end do
 ! Global <-> local conversions for fields
 
 ! Halo A
-allocate(nicas_blk%c1a_to_c1(nicas_blk%nc1a))
+allocate(c1a_to_c1(nicas_blk%nc1a))
 allocate(nicas_blk%c1_to_c1a(nicas_blk%nc1))
 ic1a = 0
 do ic1=1,nicas_blk%nc1
    if (lcheck_c1a(ic1)) then
       ic1a = ic1a+1
-      nicas_blk%c1a_to_c1(ic1a) = ic1
+      c1a_to_c1(ic1a) = ic1
    end if
 end do
-call mpl%glb_to_loc_index(nicas_blk%nc1a,nicas_blk%c1a_to_c1,nicas_blk%nc1,nicas_blk%c1_to_c1a)
+call mpl%glb_to_loc_index(nicas_blk%nc1a,c1a_to_c1,nicas_blk%nc1,nicas_blk%c1_to_c1a)
 
 allocate(nicas_blk%sa_to_s(nicas_blk%nsa))
 allocate(nicas_blk%s_to_sa(nicas_blk%ns))
@@ -1350,23 +1323,23 @@ do ic1=1,nicas_blk%nc1
 end do
 
 allocate(nicas_blk%sb_to_s(nicas_blk%nsb))
-allocate(nicas_blk%s_to_sb(nicas_blk%ns))
-nicas_blk%s_to_sb = mpl%msv%vali
+allocate(s_to_sb(nicas_blk%ns))
+s_to_sb = mpl%msv%vali
 isb = 0
 do is=1,nicas_blk%ns
    if (nicas_blk%lcheck_sb(is)) then
       isb = isb+1
       nicas_blk%sb_to_s(isb) = is
-      nicas_blk%s_to_sb(is) = isb
+      s_to_sb(is) = isb
    end if
 end do
 
 ! Inter-halo conversions
-allocate(nicas_blk%sa_to_sb(nicas_blk%nsa))
+allocate(sa_to_sb(nicas_blk%nsa))
 do isa=1,nicas_blk%nsa
    is = nicas_blk%sa_to_s(isa)
-   isb = nicas_blk%s_to_sb(is)
-   nicas_blk%sa_to_sb(isa) = isb
+   isb = s_to_sb(is)
+   sa_to_sb(isa) = isb
 end do
 
 ! Global <-> local conversions for data
@@ -1449,14 +1422,12 @@ end do
 
 ! Conversions
 allocate(nicas_blk%c1a_to_c0a(nicas_blk%nc1a))
-allocate(nicas_blk%sa_to_c0a(nicas_blk%nsa))
-allocate(nicas_blk%sa_to_l0(nicas_blk%nsa))
 allocate(nicas_blk%sb_to_c1b(nicas_blk%nsb))
 allocate(nicas_blk%sb_to_l1(nicas_blk%nsb))
 allocate(nicas_blk%c1bl1_to_sb(nicas_blk%nc1b,nicas_blk%nl1))
 nicas_blk%c1bl1_to_sb = mpl%msv%vali
 do ic1a=1,nicas_blk%nc1a
-   ic1 = nicas_blk%c1a_to_c1(ic1a)
+   ic1 = c1a_to_c1(ic1a)
    ic0 = nicas_blk%c1_to_c0(ic1)
    ic0a = geom%c0_to_c0a(ic0)
    nicas_blk%c1a_to_c0a(ic1a) = ic0a
@@ -1468,8 +1439,6 @@ do isa=1,nicas_blk%nsa
    ic0a = geom%c0_to_c0a(ic0)
    il1 = nicas_blk%s_to_l1(is)
    il0 = nicas_blk%l1_to_l0(il1)
-   nicas_blk%sa_to_c0a(isa) = ic0a
-   nicas_blk%sa_to_l0(isa) = il0
 end do
 do isb=1,nicas_blk%nsb
    is = nicas_blk%sb_to_s(isb)
@@ -1483,7 +1452,7 @@ end do
 
 ! Setup communications
 s_to_proc = geom%c0_to_proc(nicas_blk%c1_to_c0(nicas_blk%s_to_c1))
-call nicas_blk%com_AB%setup(mpl,'com_AB',nicas_blk%ns,nicas_blk%nsa,nicas_blk%nsb,nicas_blk%sb_to_s,nicas_blk%sa_to_sb, &
+call nicas_blk%com_AB%setup(mpl,'com_AB',nicas_blk%ns,nicas_blk%nsa,nicas_blk%nsb,nicas_blk%sb_to_s,sa_to_sb, &
  & s_to_proc,nicas_blk%s_to_sa)
 
 ! Release memory
@@ -1491,6 +1460,18 @@ deallocate(lcheck_h)
 deallocate(lcheck_s)
 deallocate(interph_lg)
 deallocate(interps_lg)
+do il0=1,size(nicas_blk%hfull)
+   call nicas_blk%hfull(il0)%dealloc
+end do
+call nicas_blk%vfull%dealloc
+deallocate(nicas_blk%hfull)
+do il1=1,nicas_blk%nl1
+   call nicas_blk%sfull(il1)%dealloc
+end do
+deallocate(nicas_blk%sfull)
+deallocate(c1a_to_c1)
+deallocate(sa_to_sb)
+deallocate(s_to_sb)
 
 end subroutine nicas_blk_compute_mpi_ab
 
@@ -2596,7 +2577,7 @@ type(geom_type),intent(in) :: geom               ! Geometry
 
 ! Local variables
 integer :: isa,isb,isc,i_s,is,js
-integer,allocatable :: s_to_proc(:)
+integer,allocatable :: s_to_proc(:),sc_to_s(:),s_to_sc(:)
 logical,allocatable :: lcheck_sc_nor(:)
 character(len=1024),parameter :: subr = 'nicas_blk_compute_mpi_c'
 
@@ -2634,15 +2615,15 @@ end do
 ! Global <-> local conversions for fields
 
 ! Halo C
-allocate(nicas_blk%sc_to_s(nicas_blk%nsc))
-allocate(nicas_blk%s_to_sc(nicas_blk%ns))
-nicas_blk%s_to_sc = mpl%msv%vali
+allocate(sc_to_s(nicas_blk%nsc))
+allocate(s_to_sc(nicas_blk%ns))
+s_to_sc = mpl%msv%vali
 isc = 0
 do is=1,nicas_blk%ns
    if (nicas_blk%lcheck_sc(is)) then
       isc = isc+1
-      nicas_blk%sc_to_s(isc) = is
-      nicas_blk%s_to_sc(is) = isc
+      sc_to_s(isc) = is
+      s_to_sc(is) = isc
    end if
 end do
 
@@ -2662,18 +2643,15 @@ end do
 allocate(nicas_blk%sa_to_sc(nicas_blk%nsa))
 do isa=1,nicas_blk%nsa
    is = nicas_blk%sa_to_s(isa)
-   isc = nicas_blk%s_to_sc(is)
+   isc = s_to_sc(is)
    nicas_blk%sa_to_sc(isa) = isc
 end do
 allocate(nicas_blk%sb_to_sc(nicas_blk%nsb))
-allocate(nicas_blk%sc_to_sb(nicas_blk%nsc))
 allocate(nicas_blk%sb_to_sc_nor(nicas_blk%nsb))
-nicas_blk%sc_to_sb = mpl%msv%vali
 do isb=1,nicas_blk%nsb
    is = nicas_blk%sb_to_s(isb)
-   isc = nicas_blk%s_to_sc(is)
+   isc = s_to_sc(is)
    nicas_blk%sb_to_sc(isb) = isc
-   nicas_blk%sc_to_sb(isc) = isb
    isc = nicas_blk%s_to_sc_nor(is)
    nicas_blk%sb_to_sc_nor(isb) = isc
 end do
@@ -2684,8 +2662,8 @@ end do
 nicas_blk%c%n_src = nicas_blk%nsc
 nicas_blk%c%n_dst = nicas_blk%nsc
 do i_s=1,nicas_blk%c%n_s
-   nicas_blk%c%row(i_s) = nicas_blk%s_to_sc(nicas_blk%c%row(i_s))
-   nicas_blk%c%col(i_s) = nicas_blk%s_to_sc(nicas_blk%c%col(i_s))
+   nicas_blk%c%row(i_s) = s_to_sc(nicas_blk%c%row(i_s))
+   nicas_blk%c%col(i_s) = s_to_sc(nicas_blk%c%col(i_s))
 end do
 call nicas_blk%c%reorder(mpl)
 
@@ -2700,12 +2678,13 @@ call nicas_blk%c_nor%reorder(mpl)
 
 ! Setup communications
 s_to_proc = geom%c0_to_proc(nicas_blk%c1_to_c0(nicas_blk%s_to_c1))
-call nicas_blk%com_AC%setup(mpl,'com_AC',nicas_blk%ns,nicas_blk%nsa,nicas_blk%nsc,nicas_blk%sc_to_s,nicas_blk%sa_to_sc, &
+call nicas_blk%com_AC%setup(mpl,'com_AC',nicas_blk%ns,nicas_blk%nsa,nicas_blk%nsc,sc_to_s,nicas_blk%sa_to_sc, &
  & s_to_proc,nicas_blk%s_to_sa)
 
 ! Release memory
 deallocate(lcheck_sc_nor)
 deallocate(s_to_proc)
+deallocate(sc_to_s)
 
 end subroutine nicas_blk_compute_mpi_c
 

@@ -125,7 +125,7 @@ while [ ${i} -lt ${ne} ] ; do
       xp=nemovar
 #      xp=cera-20c
       if test ${xp} = "nemovar" ; then
-         ne=11
+         ne=19
          mkdir -p ${bumpdir}/${model}/nemovar
          ln -sf ${datadir}/${model}/ENSEMBLES/ECMWF/goqu/opa${i}/goqu_20110605_000000_restart.nc ${bumpdir}/${model}/${xp}/ens1_01_${i4}.nc
       fi

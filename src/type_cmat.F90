@@ -12,7 +12,6 @@ use netcdf
 use tools_const, only: rad2deg,reqkm,req
 use tools_func, only: lct_d2h,lct_h2r
 use tools_kinds, only: kind_real
-use type_adv, only: adv_type
 use type_bpar, only: bpar_type
 use type_cmat_blk, only: cmat_blk_type
 use type_diag, only: diag_type
@@ -39,6 +38,7 @@ contains
    procedure :: cmat_alloc_blk
    generic :: alloc => cmat_alloc,cmat_alloc_blk
    procedure :: init => cmat_init
+   procedure :: partial_dealloc => cmat_partial_dealloc
    procedure :: dealloc => cmat_dealloc
    procedure :: read => cmat_read
    procedure :: write => cmat_write
@@ -140,6 +140,30 @@ do ib=1,bpar%nbe
 end do
 
 end subroutine cmat_init
+
+!----------------------------------------------------------------------
+! Subroutine: cmat_partial_dealloc
+! Purpose: release memory (partial)
+!----------------------------------------------------------------------
+subroutine cmat_partial_dealloc(cmat)
+
+implicit none
+
+! Passed variables
+class(cmat_type),intent(inout) :: cmat ! C matrix
+
+! Local variables
+integer :: ib
+
+! Release memory
+if (allocated(cmat%blk)) then
+   do ib=1,size(cmat%blk)
+      call cmat%blk(ib)%partial_bump_dealloc
+      call cmat%blk(ib)%partial_dealloc
+   end do
+end if
+
+end subroutine cmat_partial_dealloc
 
 !----------------------------------------------------------------------
 ! Subroutine: cmat_dealloc
@@ -814,6 +838,9 @@ do ib=1,bpar%nbe
          cmat%blk(ib)%wgt = 1.0
       end if
    end if
+
+   ! Release memory (partial)
+   call cmat%blk(ib)%partial_bump_dealloc
 end do
 
 end subroutine cmat_from_bump
