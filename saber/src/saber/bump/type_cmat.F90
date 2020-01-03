@@ -428,8 +428,11 @@ do ib=1,bpar%nbe
             fld_c2a = mpl%msv%valr
 
             ! Copy data
-            n = 4
-            if (cmat%blk(ib)%double_fit) n = n+2
+            n = 2
+            if (bpar%fit_block(ib)) then
+               n = n+2
+               if (cmat%blk(ib)%double_fit) n = n+2
+            end if
             do ic2a=1,hdiag%samp%nc2a
                select case (trim(nam%method))
                case ('cor')
@@ -491,22 +494,26 @@ do ib=1,bpar%nbe
             call mpl%f_comm%allreduce(sum(cmat%blk(ib)%coef_ens,mask=geom%mask_c0a),cmat%blk(ib)%wgt,fckit_mpi_sum())
             cmat%blk(ib)%wgt = cmat%blk(ib)%wgt/real(sum(geom%nc0_mask(1:geom%nl0)),kind_real)
             cmat%blk(ib)%coef_sta = fld_c0a(:,:,2)
-            cmat%blk(ib)%rh = fld_c0a(:,:,3)
-            cmat%blk(ib)%rv = fld_c0a(:,:,4)
-            if (cmat%blk(ib)%double_fit) then
-               cmat%blk(ib)%rv_rfac = fld_c0a(:,:,5)
-               cmat%blk(ib)%rv_coef = fld_c0a(:,:,6)
+            if (bpar%fit_block(ib)) then
+               cmat%blk(ib)%rh = fld_c0a(:,:,3)
+               cmat%blk(ib)%rv = fld_c0a(:,:,4)
+               if (cmat%blk(ib)%double_fit) then
+                  cmat%blk(ib)%rv_rfac = fld_c0a(:,:,5)
+                  cmat%blk(ib)%rv_coef = fld_c0a(:,:,6)
+               end if
             end if
          else
             ! Initialization
             cmat%blk(ib)%coef_ens = mpl%msv%valr
             cmat%blk(ib)%wgt = mpl%msv%valr
             cmat%blk(ib)%coef_sta = mpl%msv%valr
-            cmat%blk(ib)%rh = mpl%msv%valr
-            cmat%blk(ib)%rv = mpl%msv%valr
-            if (cmat%blk(ib)%double_fit) then
-               cmat%blk(ib)%rv_rfac = mpl%msv%valr
-               cmat%blk(ib)%rv_coef = mpl%msv%valr
+            if (bpar%fit_block(ib)) then
+               cmat%blk(ib)%rh = mpl%msv%valr
+               cmat%blk(ib)%rv = mpl%msv%valr
+               if (cmat%blk(ib)%double_fit) then
+                  cmat%blk(ib)%rv_rfac = mpl%msv%valr
+                  cmat%blk(ib)%rv_coef = mpl%msv%valr
+               end if
             end if
 
             ! Copy to C matrix
@@ -531,21 +538,25 @@ do ib=1,bpar%nbe
                   cmat%blk(ib)%coef_ens(:,il0) = hdiag%loc_1%blk(0,ib)%coef_ens(il0)
                   cmat%blk(ib)%wgt = sum(hdiag%loc_1%blk(0,ib)%coef_ens)/real(geom%nl0,kind_real)
                   cmat%blk(ib)%coef_sta(:,il0) = 0.0
-                  cmat%blk(ib)%rh(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rh(il0)
-                  cmat%blk(ib)%rv(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv(il0)
-                  if (cmat%blk(ib)%double_fit) then
-                     cmat%blk(ib)%rv_rfac(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv_rfac(il0)
-                     cmat%blk(ib)%rv_coef(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv_coef(il0)
+                  if (bpar%fit_block(ib)) then
+                     cmat%blk(ib)%rh(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rh(il0)
+                     cmat%blk(ib)%rv(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv(il0)
+                     if (cmat%blk(ib)%double_fit) then
+                        cmat%blk(ib)%rv_rfac(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv_rfac(il0)
+                        cmat%blk(ib)%rv_coef(:,il0) = hdiag%loc_1%blk(0,ib)%fit_rv_coef(il0)
+                     end if
                   end if
                case ('hyb-avg','hyb-rnd')
                   cmat%blk(ib)%coef_ens(:,il0) = hdiag%loc_2%blk(0,ib)%coef_ens(il0)
                   cmat%blk(ib)%wgt = sum(hdiag%loc_2%blk(0,ib)%coef_ens)/real(geom%nl0,kind_real)
                   cmat%blk(ib)%coef_sta(:,il0) = hdiag%loc_2%blk(0,ib)%coef_sta
-                  cmat%blk(ib)%rh(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rh(il0)
-                  cmat%blk(ib)%rv(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv(il0)
-                  if (cmat%blk(ib)%double_fit) then
-                     cmat%blk(ib)%rv_rfac(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv_rfac(il0)
-                     cmat%blk(ib)%rv_coef(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv_coef(il0)
+                  if (bpar%fit_block(ib)) then
+                     cmat%blk(ib)%rh(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rh(il0)
+                     cmat%blk(ib)%rv(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv(il0)
+                     if (cmat%blk(ib)%double_fit) then
+                        cmat%blk(ib)%rv_rfac(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv_rfac(il0)
+                        cmat%blk(ib)%rv_coef(:,il0) = hdiag%loc_2%blk(0,ib)%fit_rv_coef(il0)
+                     end if
                   end if
                case ('dual-ens')
                   call mpl%abort(subr,'dual-ens not ready yet for C matrix')
@@ -561,11 +572,13 @@ do ib=1,bpar%nbe
                if (.not.geom%mask_c0a(ic0a,il0)) then
                   cmat%blk(ib)%coef_ens(ic0a,il0) = mpl%msv%valr
                   cmat%blk(ib)%coef_sta(ic0a,il0) = mpl%msv%valr
-                  cmat%blk(ib)%rh(ic0a,il0) = mpl%msv%valr
-                  cmat%blk(ib)%rv(ic0a,il0) = mpl%msv%valr
-                  if (cmat%blk(ib)%double_fit) then
-                     cmat%blk(ib)%rv_rfac(ic0a,il0) = mpl%msv%valr
-                     cmat%blk(ib)%rv_coef(ic0a,il0) = mpl%msv%valr
+                  if (bpar%fit_block(ib)) then
+                     cmat%blk(ib)%rh(ic0a,il0) = mpl%msv%valr
+                     cmat%blk(ib)%rv(ic0a,il0) = mpl%msv%valr
+                     if (cmat%blk(ib)%double_fit) then
+                        cmat%blk(ib)%rv_rfac(ic0a,il0) = mpl%msv%valr
+                        cmat%blk(ib)%rv_coef(ic0a,il0) = mpl%msv%valr
+                     end if
                   end if
                end if
             end do

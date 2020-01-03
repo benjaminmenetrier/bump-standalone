@@ -125,6 +125,7 @@ type nam_type
 
    ! diag_param
    integer :: ne                                        ! Ensemble size
+   real(kind_real) :: gen_kurt_th                       ! Threshold on generalized kurtosis (1.0 = Gaussian distribution)
    logical :: gau_approx                                ! Gaussian approximation for asymptotic quantities
    integer :: avg_nbins                                 ! Number of bins for averaged statistics histograms
    logical :: vbal_block(nvmax*(nvmax-1)/2)             ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
@@ -325,6 +326,7 @@ nam%irmax = 10000
 
 ! diag_param default
 nam%ne = 0
+nam%gen_kurt_th = huge(1.0)
 nam%gau_approx = .false.
 nam%avg_nbins = 0
 do iv=1,nvmax*(nvmax-1)/2
@@ -427,9 +429,9 @@ integer :: lunit
 integer :: nprocio,nl,levs(nlmax),nv,nts,timeslot(ntsmax),ens1_ne,ens1_nsub,ens2_ne,ens2_nsub
 integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,irmax,ne,avg_nbins,var_niter,adv_niter,fit_dl0,lct_nscales,mpicom,adv_mode,nc1max
 integer :: ndir,levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs,nldwv,img_ldwv(nldwvmax),ildwv
-real(kind_real) :: dts,mask_th(nvmax),Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,adv_valid,diag_rhflt
-real(kind_real) :: diag_rvflt,lct_cor_min,lct_scale_ratio,lct_qc_th,lct_qc_max,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),resol,rh
-real(kind_real) :: rv,londir(ndirmax),latdir(ndirmax),grid_resol
+real(kind_real) :: dts,mask_th(nvmax),Lcoast,rcoast,dc,gen_kurt_th,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,adv_valid
+real(kind_real) :: diag_rhflt,diag_rvflt,lct_cor_min,lct_scale_ratio,lct_qc_th,lct_qc_max,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax)
+real(kind_real) :: resol,rh,rv,londir(ndirmax),latdir(ndirmax),grid_resol
 logical :: colorlog,default_seed,repro,new_cortrack,new_corstats,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom,new_hdiag
 logical :: write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop,write_obsop
 logical :: check_vbal,check_adjoints,check_dirac,check_randomization,check_consistency,check_optimality,check_obsop,check_no_obs
@@ -457,8 +459,8 @@ namelist/ens1_param/ens1_ne,ens1_nsub
 namelist/ens2_param/ens2_ne,ens2_nsub
 namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,Lcoast,rcoast,nc1,nc2,ntry, &
                       & nrep,nc3,dc,nl0r,irmax
-namelist/diag_param/ne,gau_approx,avg_nbins,vbal_block,vbal_rad,vbal_diag_auto,vbal_diag_reg,var_filter,var_niter,var_rhflt, &
-                  & local_diag,local_rad,adv_diag,adv_type,adv_rad,adv_niter,adv_rhflt,adv_valid
+namelist/diag_param/ne,gen_kurt_th,gau_approx,avg_nbins,vbal_block,vbal_rad,vbal_diag_auto,vbal_diag_reg,var_filter,var_niter, &
+                  & var_rhflt,local_diag,local_rad,adv_diag,adv_type,adv_rad,adv_niter,adv_rhflt,adv_valid
 namelist/fit_param/minim_algo,diag_rhflt,diag_rvflt,fit_type,double_fit,fit_dl0,lct_nscales,lct_scale_ratio,lct_cor_min,lct_diag, &
                  & lct_qc_th,lct_qc_max,lct_write_cor
 namelist/nicas_param/nonunit_diag,lsqrt,resol,nc1max,fast_sampling,subsamp,network,mpicom,adv_mode,forced_radii,rh,rv, &
@@ -570,6 +572,7 @@ if (mpl%main) then
 
    ! diag_param default
    ne = 0
+   gen_kurt_th = huge(1.0)
    gau_approx = .false.
    avg_nbins = 0
    do iv=1,nvmax*(nvmax-1)/2
@@ -761,6 +764,7 @@ if (mpl%main) then
    ! diag_param
    read(lunit,nml=diag_param)
    nam%ne = ne
+   nam%gen_kurt_th = gen_kurt_th
    nam%gau_approx = gau_approx
    nam%avg_nbins = avg_nbins
    if (nv>1) nam%vbal_block(1:nam%nv*(nam%nv-1)/2) = vbal_block(1:nam%nv*(nam%nv-1)/2)
@@ -979,6 +983,7 @@ call mpl%f_comm%broadcast(nam%irmax,mpl%rootproc-1)
 
 ! diag_param
 call mpl%f_comm%broadcast(nam%ne,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%gen_kurt_th,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%gau_approx,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%avg_nbins,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%vbal_block,mpl%rootproc-1)
@@ -1215,6 +1220,7 @@ if (conf%has("irmax")) call conf%get_or_die("irmax",nam%irmax)
 
 ! diag_param
 if (conf%has("ne")) call conf%get_or_die("ne",nam%ne)
+if (conf%has("gen_kurt_th")) call conf%get_or_die("gen_kurt_th",nam%gen_kurt_th)
 if (conf%has("gau_approx")) call conf%get_or_die("gau_approx",nam%gau_approx)
 if (conf%has("avg_nbins")) call conf%get_or_die("avg_nbins",nam%avg_nbins)
 if (conf%has("vbal_block")) then
@@ -1600,7 +1606,7 @@ if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimalit
    if (nam%nc3<=0) call mpl%abort(subr,'nc3 should be positive')
 end if
 if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
-   if (nam%dc<0.0) call mpl%abort(subr,'dc should be positive')
+   if (.not.(nam%dc>0.0)) call mpl%abort(subr,'dc should be positive')
 end if
 if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nl0r<1) call mpl%abort (subr,'nl0r should be positive')
@@ -1621,6 +1627,7 @@ if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
    case ('loc','hyb-avg','hyb-rnd','dual-ens')
       if (nam%ne<=3) call mpl%abort(subr,'ne should be larger than 3')
    end select
+   if (.not.(nam%gen_kurt_th>0.0)) call mpl%abort(subr,'gen_kurt_th should be positive')
    if (nam%var_filter.and.(.not.nam%local_diag)) call mpl%abort(subr,'local_diag required for var_filter')
    if (nam%var_filter) then
       if (nam%var_niter<=0) call mpl%abort(subr,'var_niter should be positive')
@@ -1908,6 +1915,7 @@ if (mpl%msv%is(lncid)) then
    call mpl%flush
 end if
 call mpl%write(lncid,'nam','ne',nam%ne)
+call mpl%write(lncid,'nam','gen_kurt_th',nam%gen_kurt_th)
 call mpl%write(lncid,'nam','gau_approx',nam%gau_approx)
 call mpl%write(lncid,'nam','avg_nbins',nam%avg_nbins)
 call mpl%write(lncid,'nam','vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_block(1:nam%nv*(nam%nv-1)/2))
