@@ -9,13 +9,16 @@ module type_avg
 
 use fckit_mpi_module, only: fckit_mpi_sum
 !$ use omp_lib
-use tools_const,only: reqkm
+use netcdf
+use tools_const,only: reqkm,rad2deg
 use tools_func, only: add,divide
-use tools_kinds, only: kind_real
+use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
 use type_avg_blk, only: avg_blk_type
 use type_bpar, only: bpar_type
+use type_ens, only: ens_type
 use type_geom, only: geom_type
+use type_io, only: io_type
 use type_mom, only: mom_type
 use type_mom_blk, only: mom_blk_type
 use type_mpl, only: mpl_type

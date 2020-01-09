@@ -13,7 +13,6 @@ use tools_const, only: pi,deg2rad,rad2deg
 use tools_kinds, only: kind_real
 use tools_repro, only: inf,sup,infeq,small
 use type_mpl, only: mpl_type
-use type_timer, only: timer_type
 
 implicit none
 
@@ -323,7 +322,7 @@ real(kind_real),intent(out) :: fit(nc3,nl0r,nl0) ! Fit
 ! Local variables
 integer :: jl0r,jl0,djl0,il0,kl0r,kl0,ic3,jc3,djc3,kc3,ip,jp,np,np_new,nc3max
 integer :: plist(nc3*nl0r,2),plist_new(nc3*nl0r,2)
-real(kind_real) :: rhsq,rvsq,distvsq,distnorm,disttest,rhmax
+real(kind_real) :: rhsq,rvsq,distvsq,disttest,rhmax
 real(kind_real) :: predistnorm(-1:1,nc3,-1:1,nl0),dist(nc3,nl0r)
 logical :: add_to_front
 
@@ -332,12 +331,14 @@ fit = 0.0
 
 ! Find maximum class
 rhmax = maxval(rh)
+nc3max = 0
 do ic3=1,nc3
    if (disth(ic3)>rhmax) exit
    nc3max = ic3
 end do
 
-! Precompute normalized distances
+! Precompute normalized local distances
+predistnorm = 1.0
 do il0=1,nl0
    do djl0=-1,1
       jl0 = max(1,min(il0+djl0,nl0))
@@ -354,7 +355,9 @@ do il0=1,nl0
       if (rvsq>0.0) then
          distvsq = distv(jl0,il0)**2/rvsq
       elseif (il0/=jl0) then
-         distvsq = 0.5*huge(1.0)
+         distvsq = 1.0
+      else
+         distvsq = 0.0
       end if        
       do ic3=1,nc3max
          do djc3=-1,1
@@ -363,7 +366,7 @@ do il0=1,nl0
             if (rhsq>0.0) then
                predistnorm(djc3,ic3,djl0,il0) = predistnorm(djc3,ic3,djl0,il0)+(disth(jc3)-disth(ic3))**2/rhsq
             elseif (ic3/=jc3) then
-               predistnorm(djc3,ic3,djl0,il0) = predistnorm(djc3,ic3,djl0,il0)+0.5*huge(1.0)
+               predistnorm(djc3,ic3,djl0,il0) = predistnorm(djc3,ic3,djl0,il0)+1.0
             end if
             predistnorm(djc3,ic3,djl0,il0) = sqrt(predistnorm(djc3,ic3,djl0,il0))
          end do
@@ -371,6 +374,7 @@ do il0=1,nl0
    end do
 end do
 
+! Compte fit
 do il0=1,nl0
    ! Initialize the front
    np = 1
@@ -473,21 +477,62 @@ real(kind_real),intent(in) :: rv_coef(nl0)       ! Vertical fit coefficient
 real(kind_real),intent(out) :: fit(nc3,nl0r,nl0) ! Fit
 
 ! Local variables
-integer :: jl0r,jl0,il0,kl0r,kl0,jc3,kc3,ip,jp,np,np_new
-integer,allocatable :: plist(:,:),plist_new(:,:)
-real(kind_real) :: rhsq,rvsq,distnorm,disttest,rfac,coef,distnormv,distnormh
-real(kind_real),allocatable :: dist(:,:)
+integer :: jl0r,jl0,djl0,il0,kl0r,kl0,ic3,jc3,djc3,kc3,ip,jp,np,np_new,nc3max
+integer :: plist(nc3*nl0r,2),plist_new(nc3*nl0r,2)
+real(kind_real) :: rhsq,rvsq,distvsq,distnorm,disttest,rhmax,rfac,coef,distnormv,distnormh
+real(kind_real) :: predistnorm(-1:1,nc3,-1:1,nl0),dist(nc3,nl0r)
 logical :: add_to_front
 
 ! Initialization
 fit = 0.0
 
-do il0=1,nl0
-   ! Allocation
-   allocate(plist(nc3*nl0r,2))
-   allocate(plist_new(nc3*nl0r,2))
-   allocate(dist(nc3,nl0r))
+! Find maximum class
+rhmax = maxval(rh)
+nc3max = 0
+do ic3=1,nc3
+   if (disth(ic3)>rhmax) exit
+   nc3max = ic3
+end do
 
+! Precompute normalized local distances
+predistnorm = 1.0
+do il0=1,nl0
+   do djl0=-1,1
+      jl0 = max(1,min(il0+djl0,nl0))
+      if (mpl%msv%isnot(rh(il0)).and.mpl%msv%isnot(rh(jl0))) then
+         rhsq = 0.5*(rh(il0)**2+rh(jl0)**2)
+      else
+         rhsq = 0.0
+      end if
+      if (mpl%msv%isnot(rv(il0)).and.mpl%msv%isnot(rv(jl0))) then
+         rvsq = 0.5*(rv(il0)**2+rv(jl0)**2)
+      else
+         rvsq = 0.0
+      end if
+      if (rvsq>0.0) then
+         distvsq = distv(jl0,il0)**2/rvsq
+      elseif (il0/=jl0) then
+         distvsq = 1.0
+      else
+         distvsq = 0.0
+      end if        
+      do ic3=1,nc3max
+         do djc3=-1,1
+            jc3 = max(1,min(ic3+djc3,nc3max))
+            predistnorm(djc3,ic3,djl0,il0) = distvsq
+            if (rhsq>0.0) then
+               predistnorm(djc3,ic3,djl0,il0) = predistnorm(djc3,ic3,djl0,il0)+(disth(jc3)-disth(ic3))**2/rhsq
+            elseif (ic3/=jc3) then
+               predistnorm(djc3,ic3,djl0,il0) = predistnorm(djc3,ic3,djl0,il0)+1.0
+            end if
+            predistnorm(djc3,ic3,djl0,il0) = sqrt(predistnorm(djc3,ic3,djl0,il0))
+         end do
+      end do
+   end do
+end do
+
+! Compte fit
+do il0=1,nl0
    ! Initialize the front
    np = 1
    plist = mpl%msv%vali
@@ -508,32 +553,11 @@ do il0=1,nl0
          jl0r = plist(ip,2)
          jl0 = l0rl0_to_l0(jl0r,il0)
 
-         ! Loop over neighbors
-         do kc3=max(jc3-1,1),min(jc3+1,nc3)
+         ! Loop over neighbors              
+         do kc3=max(jc3-1,1),min(jc3+1,nc3max)
             do kl0r=max(jl0r-1,1),min(jl0r+1,nl0r)
                kl0 = l0rl0_to_l0(kl0r,il0)
-               if (mpl%msv%isnot(rh(jl0)).and.mpl%msv%isnot(rh(kl0))) then
-                  rhsq = 0.5*(rh(jl0)**2+rh(kl0)**2)
-               else
-                  rhsq = 0.0
-               end if
-               if (mpl%msv%isnot(rv(jl0)).and.mpl%msv%isnot(rv(kl0))) then
-                  rvsq = 0.5*(rv(jl0)**2+rv(kl0)**2)
-               else
-                  rvsq = 0.0
-               end if
-               distnorm = 0.0
-               if (rhsq>0.0) then
-                  distnorm = distnorm+(disth(kc3)-disth(jc3))**2/rhsq
-               elseif (kc3/=jc3) then
-                  distnorm = distnorm+0.5*huge(1.0)
-               end if
-               if (rvsq>0.0) then
-                  distnorm = distnorm+distv(kl0,jl0)**2/rvsq
-               elseif (kl0/=jl0) then
-                  distnorm = distnorm+0.5*huge(1.0)
-               end if
-               disttest = dist(jc3,jl0r)+sqrt(distnorm)
+               disttest = dist(jc3,jl0r)+predistnorm(kc3-jc3,jc3,kl0-jl0,jl0)
 
                if (disttest<1.0) then
                   ! Point is inside the support
@@ -588,11 +612,6 @@ do il0=1,nl0
                            & -coef*fit_func(mpl,fit_type,distnormv*rfac))
       end do
    end do
-
-   ! Release memory
-   deallocate(plist)
-   deallocate(plist_new)
-   deallocate(dist)
 end do
 
 ! Diagonal coefficient

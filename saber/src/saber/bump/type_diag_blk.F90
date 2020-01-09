@@ -25,7 +25,7 @@ use type_samp, only: samp_type
 implicit none
 
 integer,parameter :: nsc = 50                          ! Number of iterations for the scaling optimization
-logical :: lprt = .true.                               ! Optimization print
+logical :: lprt = .false.                              ! Optimization print
 real(kind_real),parameter :: maxfactor = 2.0_kind_real ! Maximum factor for diagnostics with respect to the origin
 
 ! Diagnostic block derived type
@@ -519,6 +519,7 @@ if (valid) then
    select case (trim(nam%minim_algo))
    case ('hooke','praxis')
       ! Allocation
+      minim%smoothing_penalty = nam%smoothing_penalty
       minim%dl0 = nam%fit_dl0
       if (mod(geom%nl0,minim%dl0)==1) then
          minim%nl1 = geom%nl0/minim%dl0+1
@@ -690,6 +691,7 @@ type(minim_type) :: minim
 associate(ib=>diag_blk%ib)
 
 ! Allocation
+minim%smoothing_penalty = nam%smoothing_penalty
 minim%dl0 = 1
 minim%nx = 3*geom%nl0
 if (diag_blk%double_fit) minim%nx = minim%nx+2*geom%nl0

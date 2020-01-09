@@ -12,7 +12,6 @@ use netcdf
 use tools_const, only: pi,deg2rad,rad2deg,reqkm
 use tools_kinds, only: kind_real,nc_kind_real
 use tools_qsort, only: qsort
-use tools_repro, only: inf
 use type_com, only: com_type
 use type_geom, only: geom_type
 use type_linop, only: linop_type
@@ -383,6 +382,20 @@ if (any(io%procio_to_proc_grid==mpl%myproc).and.(io%nlonio>0)) then
    nlat_id = mpl%ncdimcheck(subr,ncid,'nlat',io%nlat,.true.)
    nlev_id = mpl%ncdimcheck(subr,ncid,'nlev',geom%nl0,.true.,.true.)
 
+   ! Define coordinates if necessary
+   info_coord = nf90_inq_varid(ncid,'lon',lon_id)
+   if (info_coord/=nf90_noerr) then
+      call mpl%ncerr(subr,nf90_def_var(ncid,'lon',nc_kind_real,(/nlon_id/),lon_id))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'_FillValue',mpl%msv%valr))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lon_id,'unit','degrees_north'))
+      call mpl%ncerr(subr,nf90_def_var(ncid,'lat',nc_kind_real,(/nlat_id/),lat_id))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'_FillValue',mpl%msv%valr))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lat_id,'unit','degrees_east'))
+      call mpl%ncerr(subr,nf90_def_var(ncid,'lev',nc_kind_real,(/nlev_id/),lev_id))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lev_id,'_FillValue',mpl%msv%valr))
+      call mpl%ncerr(subr,nf90_put_att(ncid,lev_id,'unit','layer'))
+   end if
+
    ! Define variable if necessary
    info = nf90_inq_varid(ncid,trim(varname),fld_id)
    if (info/=nf90_noerr) then
@@ -394,27 +407,25 @@ if (any(io%procio_to_proc_grid==mpl%myproc).and.(io%nlonio>0)) then
    call mpl%ncerr(subr,nf90_enddef(ncid))
 
    ! Write coordinates if necessary
-   if (io%procio_to_proc_grid(1)==mpl%myproc) then
-      if (info_coord/=nf90_noerr) then
-         ! Allocation
-         allocate(lon(io%nlon))
-         allocate(lat(io%nlat))
+   if (info_coord/=nf90_noerr) then
+      ! Allocation
+      allocate(lon(io%nlon))
+      allocate(lat(io%nlat))
 
-         ! Convert to degrees
-         lon = io%lon*rad2deg
-         lat = io%lat*rad2deg
+      ! Convert to degrees
+      lon = io%lon*rad2deg
+      lat = io%lat*rad2deg
 
-         ! Write data
-         call mpl%ncerr(subr,nf90_put_var(ncid,lon_id,lon))
-         call mpl%ncerr(subr,nf90_put_var(ncid,lat_id,lat))
-         do il0=1,geom%nl0
-            call mpl%ncerr(subr,nf90_put_var(ncid,lev_id,real(il0,kind_real),(/il0/)))
-         end do
+      ! Write data
+      call mpl%ncerr(subr,nf90_put_var(ncid,lon_id,lon))
+      call mpl%ncerr(subr,nf90_put_var(ncid,lat_id,lat))
+      do il0=1,geom%nl0
+         call mpl%ncerr(subr,nf90_put_var(ncid,lev_id,real(il0,kind_real),(/il0/)))
+      end do
 
-         ! Release memory
-         deallocate(lon)
-         deallocate(lat)
-      end if
+      ! Release memory
+      deallocate(lon)
+      deallocate(lat)
    end if
 
    ! Write variable
@@ -589,34 +600,17 @@ type(geom_type),intent(in) :: geom  ! Geometry
 integer :: ilon,ilat,i_s,iog,ic0,ic0a,ic0b,ioga,il0,nn_index(1)
 integer :: nres,iprocio,delta,ilonio,ilon_s,ilon_e,nogown,iogown,iproc,jproc,iogio
 integer,allocatable :: procio_to_nlonio(:),list(:),order(:),ogown_to_ogio(:)
-real(kind_real) :: lonmin,lonmax,latmin,latmax,dlon,dlat
+real(kind_real) :: dlon,dlat
 real(kind_real),allocatable :: lon_og(:),lat_og(:),lon_oga(:),lat_oga(:)
 logical :: mask_c0(geom%nc0)
 logical,allocatable :: mask_oga(:),lcheck_c0b(:),proc_isio(:)
 character(len=1024),parameter :: subr = 'io_init_grid'
 
 ! Grid size
-if (inf(minval(geom%area),2.0*pi)) then
-   ! Bounding box (TODO: not correct for all LAM domains)
-   lonmin = minval(geom%lon)
-   lonmax = maxval(geom%lon)
-   latmin = minval(geom%lat)
-   latmax = maxval(geom%lat)
-   dlon = (lonmax-lonmin)*minval(abs(geom%lat))
-   dlat = latmax-latmin
-   io%nlon = nint(dlon/nam%grid_resol)
-   io%nlat = nint(dlat/nam%grid_resol)
-else
-   ! No bounding box
-   lonmin = -pi
-   lonmax = pi
-   latmin = -0.5*pi
-   latmax = 0.5*pi
-   io%nlat = nint(pi/nam%grid_resol)
-   io%nlon = 2*io%nlat
-end if
-dlon = (lonmax-lonmin)/real(io%nlon,kind_real)
-dlat = (latmax-latmin)/real(io%nlat,kind_real)
+io%nlat = nint(pi/nam%grid_resol)
+io%nlon = 2*io%nlat
+dlon = 2.0*pi/real(io%nlon,kind_real)
+dlat = pi/real(io%nlat,kind_real)
 
 ! Print results
 write(mpl%info,'(a7,a)') '','Output grid:'
@@ -642,8 +636,8 @@ allocate(io%og_to_oga(io%nog))
 ! Define lon/lat
 do ilat=1,io%nlat
    do ilon=1,io%nlon
-      io%lon(ilon) = (lonmin+dlon/2)+real(ilon-1,kind_real)*dlon
-      io%lat(ilat) = (latmin+dlat/2)+real(ilat-1,kind_real)*dlat
+      io%lon(ilon) = (-pi+dlon/2)+real(ilon-1,kind_real)*dlon
+      io%lat(ilat) = (-pi/2+dlat/2)+real(ilat-1,kind_real)*dlat
    end do
 end do
 
