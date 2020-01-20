@@ -568,7 +568,7 @@ if (valid) then
             minim%guess(4*minim%nl1+il1inf) = diag_blk%fit_rv_coef(il0inf)
          end if
       end do
-      if (.false.) then
+      if (ldcoef) then
          minim%binf(0*minim%nl1+1:1*minim%nl1) = 0.9*minim%guess(0*minim%nl1+1:1*minim%nl1)
          minim%bsup(0*minim%nl1+1:1*minim%nl1) = 1.1*minim%guess(0*minim%nl1+1:1*minim%nl1)
       else
