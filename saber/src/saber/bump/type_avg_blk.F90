@@ -108,10 +108,8 @@ if (bpar%diag_block(ib).and.(.not.allocated(avg_blk%nc1a))) then
    if ((ic2a==0).or.nam%local_diag) then
       allocate(avg_blk%nc1a(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       allocate(avg_blk%m2(geom%nl0,avg_blk%nsub))
-      if (nam%var_filter) then
-         allocate(avg_blk%m4(geom%nl0,avg_blk%nsub))
-         allocate(avg_blk%m2flt(geom%nl0,avg_blk%nsub))
-      end if
+      allocate(avg_blk%m4(geom%nl0,avg_blk%nsub))
+      allocate(avg_blk%m2flt(geom%nl0,avg_blk%nsub))
       allocate(avg_blk%m11(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0))
       allocate(avg_blk%m11m11(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0,avg_blk%nsub,avg_blk%nsub))
       allocate(avg_blk%m2m2(bpar%nc3(ib),bpar%nl0r(ib),geom%nl0,avg_blk%nsub,avg_blk%nsub))
@@ -404,7 +402,7 @@ type(samp_type),intent(in) :: samp           ! Sampling
 type(mom_blk_type),intent(in) :: mom_blk     ! Moments
 
 ! Local variables
-integer :: iv,jv,il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1a,nc1a_cor,n1,n2,npack,offset
+integer :: iv,jv,il0,jl0,jl0r,jc3,isub,jsub,ic1a,ic1,nc1a,nc1a_cor,n1,n2,npack,offset,ic0,ic0a
 real(kind_real) :: m2_1,m2_2
 real(kind_real) :: min_m11,max_m11,min_m11m11,max_m11m11,min_m2m2,max_m2m2,min_m22,max_m22,min_cor,max_cor
 real(kind_real) :: min_m11_tot,max_m11_tot,min_m11m11_tot,max_m11m11_tot,min_m2m2_tot,max_m2m2_tot,min_m22_tot,max_m22_tot
@@ -448,7 +446,7 @@ do il0=1,geom%nl0
 
       do jc3=1,bpar%nc3(ib)
          ! Fill lists
-         !$omp parallel do schedule(static) private(ic1a,ic1,valid,gen_kurt,m2_1,m2_2,isub,jsub)
+         !$omp parallel do schedule(static) private(ic1a,ic1,valid,gen_kurt,ic0,ic0a,m2_1,m2_2,isub,jsub)
          do ic1a=1,samp%nc1a
             ! Index
             ic1 = samp%c1a_to_c1(ic1a)
@@ -459,7 +457,7 @@ do il0=1,geom%nl0
             if (valid) then
                ! Check general kurtosis
                do isub=1,avg_blk%nsub
-                  gen_kurt = mom_blk%m22(ic1a,jc3,jl0r,il0,isub)/(2.0*mom_blk%m11(ic1a,jc3,jl0r,il0,isub)**2 &
+                  gen_kurt = 3.0*mom_blk%m22(ic1a,jc3,jl0r,il0,isub)/(2.0*mom_blk%m11(ic1a,jc3,jl0r,il0,isub)**2 &
                            & +mom_blk%m2_1(ic1a,il0,isub)*mom_blk%m2_2(ic1a,jc3,jl0,isub))
                   if (gen_kurt>nam%gen_kurt_th) valid = .false.
                end do
@@ -863,7 +861,7 @@ do il0=1,geom%nl0
 
                ! Check generalized kurtosis
                do isub=1,avg_blk%nsub
-                  gen_kurt = mom_blk%m22(ic1d,jc3,jl0r,il0,isub)/(2.0*mom_blk%m11(ic1d,jc3,jl0r,il0,isub)**2 &
+                  gen_kurt = 3.0*mom_blk%m22(ic1d,jc3,jl0r,il0,isub)/(2.0*mom_blk%m11(ic1d,jc3,jl0r,il0,isub)**2 &
                            & +mom_blk%m2_1(ic1d,il0,isub)*mom_blk%m2_2(ic1d,jc3,jl0,isub))
                   if (gen_kurt>nam%gen_kurt_th) valid = .false.
                end do
