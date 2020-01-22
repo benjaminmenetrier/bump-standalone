@@ -1786,52 +1786,99 @@ type(bpar_type),intent(in) :: bpar       ! Block parameters
 type(io_type),intent(in) :: io           ! I/O
 
 ! Local variables
-integer :: ib,il0
+integer,parameter :: npk = 11
+integer :: ipk,ib,il0
+real(kind_real) :: pk(npk),rh_fac(npk),rv_fac(npk),pk_fac(npk),rh_norm,rv_norm,pk_norm
+type(cmat_type) :: cmat
 type(ens_type) :: ens
 type(hdiag_type) :: hdiag
+type(nicas_type) :: nicas_test
 
-! Randomize ensemble
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Randomize ensemble'
-call mpl%flush
-call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
-if (nam%default_seed) call rng%reseed(mpl)
+do ipk=1,npk
+   ! Set peakness
+   pk(ipk) = real(ipk-1,kind_real)/real(npk-1,kind_real)
 
-! Run HDIAG driver
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Run HDIAG driver'
-call mpl%flush
-call hdiag%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
-if (nam%default_seed) call rng%reseed(mpl)
+   write(mpl%info,'(a)') '-------------------------------------------------------------------'
+   call mpl%flush
+   write(mpl%info,'(a,f4.2)') '--- Peakness: ',pk(ipk)
+   call mpl%flush
 
-! Print scores
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- NICAS/HDIAG consistency results'
-call mpl%flush
-do ib=1,bpar%nbe
-   if (bpar%nicas_block(ib)) then
-      write(mpl%info,'(a7,a,a)') '','Block: ',trim(bpar%blockname(ib))
-      call mpl%flush
-      do il0=1,geom%nl0
-         write(mpl%info,'(a10,a7,i3,a4,a,f8.1,a,f8.1,a,f5.3)') '','Level: ',nam%levs(il0),' ~> ', &
-       & 'horizontal length-scale (exp./th./ratio): ',hdiag%cor_1%blk(0,ib)%fit_rh(il0)*reqkm,' km         / ',nam%rh*reqkm, &
-       & ' km         / ',hdiag%cor_1%blk(0,ib)%fit_rh(il0)/nam%rh
-         call mpl%flush
-         if ((nam%nl>1).and.(nam%rv>0.0)) then
-            write(mpl%info,'(a24,a,f8.1,a,f8.1,a,f5.3)') '','vertical length-scale (exp./th./ratio):   ', &
-          & hdiag%cor_1%blk(0,ib)%fit_rv(il0),' vert. unit / ',nam%rv,' vert. unit / ',hdiag%cor_1%blk(0,ib)%fit_rv(il0)/nam%rv
-            call mpl%flush
+   ! Copy namelist support radii into C matrix
+   nam%pk = pk(ipk)
+   call cmat%from_nam(mpl,nam,geom,bpar)
+
+   ! Setup C matrix sampling
+   call cmat%setup_sampling(nam,geom,bpar)
+
+   ! Allocation
+   call nicas_test%alloc(mpl,nam,bpar,'nicas_test')
+
+   do ib=1,bpar%nbe
+      ! Compute NICAS parameters
+      if (bpar%nicas_block(ib)) call nicas_test%blk(ib)%compute_parameters(mpl,rng,nam,geom,cmat%blk(ib),.false.)
+
+      if (bpar%B_block(ib)) then
+         ! Copy weights
+         nicas_test%blk(ib)%wgt = cmat%blk(ib)%wgt
+         if (bpar%nicas_block(ib)) then
+            allocate(nicas_test%blk(ib)%coef_ens(geom%nc0a,geom%nl0))
+            nicas_test%blk(ib)%coef_ens = cmat%blk(ib)%coef_ens
          end if
-      end do
-   end if
+      end if
+   end do
+
+   ! Randomize ensemble
+   call nicas_test%randomize(mpl,rng,nam,geom,bpar,nam%ens1_ne,ens)
+   if (nam%default_seed) call rng%reseed(mpl)
+
+   ! Run HDIAG driver
+   call hdiag%run_hdiag(mpl,rng,nam,geom,bpar,io,ens)
+   if (nam%default_seed) call rng%reseed(mpl)
+
+   ! Save result
+   rh_fac(ipk) = 0.0
+   rv_fac(ipk) = 0.0
+   pk_fac(ipk) = 0.0
+   rh_norm = 0.0
+   rv_norm = 0.0
+   pk_norm = 0.0
+   do ib=1,bpar%nbe
+      if (bpar%nicas_block(ib)) then
+         do il0=1,geom%nl0
+print*, ib,':',nam%rh,hdiag%cor_1%blk(0,ib)%fit_rh(il0),'/',nam%pk,hdiag%cor_1%blk(0,ib)%fit_pk(il0)
+            if (hdiag%cor_1%blk(0,ib)%fit_rh(il0)>0.0) then
+               rh_fac(ipk) = rh_fac(ipk)+nam%rh/hdiag%cor_1%blk(0,ib)%fit_rh(il0)
+               rh_norm = rh_norm+1.0
+            end if
+            if (hdiag%cor_1%blk(0,ib)%fit_rv(il0)>0.0) then
+               rv_fac(ipk) = rv_fac(ipk)+nam%rv/hdiag%cor_1%blk(0,ib)%fit_rv(il0)
+               rv_norm = rv_norm+1.0
+            end if
+            if (hdiag%cor_1%blk(0,ib)%fit_pk(il0)>0.0) then
+               pk_fac(ipk) = pk_fac(ipk)+nam%pk/hdiag%cor_1%blk(0,ib)%fit_pk(il0)
+               pk_norm = pk_norm+1.0
+            end if
+         end do
+      end if
+   end do
+   if (rh_norm>0.0) rh_fac(ipk) = rh_fac(ipk)/rh_norm
+   if (rv_norm>0.0) rv_fac(ipk) = rv_fac(ipk)/rv_norm
+   if (pk_norm>0.0) pk_fac(ipk) = pk_fac(ipk)/pk_norm
+
+   ! Release memory
+   call cmat%dealloc
+   call nicas_test%dealloc
+   call ens%dealloc
+   call hdiag%dealloc
 end do
 
-! Release memory
-call ens%dealloc
-call hdiag%dealloc
+! Print factors
+do ipk=1,npk
+   write(mpl%info,'(a7,a,f4.2,a)') '','Peakness: ',pk(ipk),':'
+   call mpl%flush
+   write(mpl%info,'(a10,a,f5.3,a,f5.3,a,f5.3)') '','Factors for rh / rv / pk :',rh_fac(ipk),' / ',rv_fac(ipk),' / ',pk_fac(ipk)
+   call mpl%flush
+end do
 
 end subroutine nicas_test_consistency
 
@@ -1904,7 +1951,7 @@ call nicas%randomize(mpl,rng,nam,geom,bpar,nam%ne,ens_test)
 if (nam%default_seed) call rng%reseed(mpl)
 
 ! Allocation
-call loc_opt%alloc(mpl,nam,geom,bpar,hdiag%samp,'loc_opt',.false.)
+call loc_opt%alloc(mpl,nam,geom,bpar,hdiag%samp,'loc_opt')
 
 ! Initialization
 mse_max = huge(1.0)
@@ -2008,9 +2055,8 @@ end do
 ! Best fit
 do ib=1,bpar%nbe
    if (bpar%diag_block(ib)) then
-      call fit_diag(mpl,nam%fit_type,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth, &
-    & loc_opt%blk(0,ib)%distv,loc_opt%blk(0,ib)%coef_ens,loc_opt%blk(0,ib)%fit_rh,loc_opt%blk(0,ib)%fit_rv, &
-    & loc_opt%blk(0,ib)%fit)
+      call fit_diag(mpl,nam%nc3,bpar%nl0r(ib),geom%nl0,bpar%l0rl0b_to_l0(:,:,ib),geom%disth,loc_opt%blk(0,ib)%distv, &
+    & loc_opt%blk(0,ib)%coef_ens,loc_opt%blk(0,ib)%fit_rh,loc_opt%blk(0,ib)%fit_rv,loc_opt%blk(0,ib)%fit_pk,loc_opt%blk(0,ib)%fit)
       call loc_opt%blk(0,ib)%write(mpl,nam,geom,bpar,trim(nam%prefix)//'_diag')
    end if
 end do
