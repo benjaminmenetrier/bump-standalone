@@ -19,8 +19,8 @@ if test "${compiler}" = "Intel" ; then
 fi
 
 # Clone repo
-#cd ${code}
-#git clone https://github.com/benjaminmenetrier/bump-standalone
+cd ${code}
+git clone https://github.com/benjaminmenetrier/bump-standalone
 
 # Build ufo-bundle
 mkdir -p ${build}/bump-standalone
@@ -36,4 +36,7 @@ ecbuild --build=release \
         ${code}/bump-standalone
 
 # Compile
-#make -j2
+make -j2
+
+# Test
+ctest
