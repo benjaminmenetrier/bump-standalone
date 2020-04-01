@@ -18,6 +18,7 @@ real(kind_real),allocatable :: lon(:,:),lat(:,:),alt(:,:),area(:,:),mask(:,:)
 character(len=1024),parameter :: subr = 'model_res_coord'
 
 ! Open file and get dimensions
+model%ntile = 1
 model%nlon = mpl%msv%vali
 model%nlat = mpl%msv%vali
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
@@ -48,6 +49,7 @@ call mpl%ncerr(subr,nf90_get_var(ncid,mask_id,mask))
 call mpl%ncerr(subr,nf90_close(ncid))
 
 ! Model grid
+model%mg_to_tile = 1
 model%lon = (sum(lon,dim=2)/real(model%nlev,kind_real))/req
 model%lat = (sum(lat,dim=2)/real(model%nlev,kind_real))/req
 model%area = sum(area,dim=2)/real(model%nlev,kind_real)/req**2
@@ -74,7 +76,7 @@ end subroutine model_res_coord
 ! Subroutine: model_res_read
 ! Purpose: read RES field
 !----------------------------------------------------------------------
-subroutine model_res_read(model,mpl,nam,filename,its,fld)
+subroutine model_res_read(model,mpl,nam,filename,fld)
 
 implicit none
 
@@ -83,7 +85,6 @@ class(model_type),intent(inout) :: model                        ! Model
 type(mpl_type),intent(inout) :: mpl                             ! MPI data
 type(nam_type),intent(in) :: nam                                ! Namelist
 character(len=*),intent(in) :: filename                         ! File name
-integer,intent(in) :: its                                       ! Timeslot index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 
 ! Local variables
@@ -93,12 +94,10 @@ real(kind_real) :: fld_mg(model%nmg,model%nl0)
 character(len=1024),parameter :: subr = 'model_res_read'
 
 ! Open file
-if (mpl%main) call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+if (mpl%main) call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
 
 do iv=1,nam%nv
    if (mpl%main) then
-      ! 3d variable
-
       ! Get variable id
       call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
@@ -106,16 +105,6 @@ do iv=1,nam%nv
       do il0=1,nam%nl
          call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_mg(:,il0),(/1,nam%levs(il0)/),(/model%nmg,1/)))
       end do
-
-      if (trim(nam%addvar2d(iv))/='') then
-         ! 2d variable
-
-         ! Get id
-         call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-         ! Read data
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_mg(:,il0)))
-      end if
    end if
    call mpl%glb_to_loc(model%nl0,model%nmg,model%mg_to_proc,model%mg_to_mga,fld_mg,model%nmga,fld(:,:,iv))
 end do

@@ -29,6 +29,12 @@ ecbuild_bundle( PROJECT eckit )
 # fckit
 ecbuild_bundle( PROJECT fckit )
 
+# atlas
+ecbuild_bundle( PROJECT atlas )
+
+# metis
+ecbuild_bundle( PROJECT metis )
+
 # saber
 ecbuild_bundle( PROJECT saber )
 

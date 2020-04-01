@@ -7,11 +7,14 @@
 !----------------------------------------------------------------------
 module type_model
 
+use atlas_module
 use netcdf
+use tools_atlas, only: create_atlas_function_space,create_atlas_fieldset
 use tools_const, only: deg2rad,rad2deg,req,ps,pi
 use tools_func, only: lonlatmod
-use tools_kinds,only: kind_real,nc_kind_real
+use tools_kinds,only: kind_int,kind_real,nc_kind_real
 use tools_qsort, only: qsort
+use tools_repro, only: inf
 use type_tree, only: tree_type
 use type_mpl, only: mpl_type
 use type_nam, only: nam_type,nvmax
@@ -20,11 +23,10 @@ use type_rng, only: rng_type
 implicit none
 
 character(len=1024) :: zone = 'C+I'               ! Computation zone for AROME ('C', 'C+I' or 'C+I+E')
-integer,parameter :: ntile = 6                    ! Number of tiles for FV3
 
 ! Member field derived type
 type member_field_type
-   real(kind_real),allocatable :: fld(:,:,:,:)    ! Ensemble perturbation
+   type(atlas_fieldset) :: afieldset              ! ATLAS fieldset
 end type member_field_type
 
 ! Model derived type
@@ -32,6 +34,7 @@ type model_type
    ! Global dimensions
    integer :: nlon                                ! Longitude size
    integer :: nlat                                ! Latitude size
+   integer :: ntile                               ! Number of tiles
    integer :: nmg                                 ! Number of model grid points
    integer :: nlev                                ! Number of levels
    integer :: nl0                                 ! Number of levels in subset Sl0
@@ -54,13 +57,20 @@ type model_type
    integer,allocatable :: mg_to_mga(:)            ! Model grid, global to halo A
    integer,allocatable :: mga_to_mg(:)            ! Model grid, halo A to global
 
-   ! Local coordinates
-   real(kind_real),allocatable :: lon_mga(:)      ! Longitude on model grid, halo A
-   real(kind_real),allocatable :: lat_mga(:)      ! Latitude on model grid, halo A
-   real(kind_real),allocatable :: area_mga(:)     ! Area on model grid, halo A
-   real(kind_real),allocatable :: vunit_mga(:,:)  ! Vertical unit on model grid, halo A
-   logical,allocatable :: mask_mga(:,:)           ! Mask on model grid, halo A
-   logical,allocatable :: smask_mga(:,:)          ! Sampling mask on model grid, halo A
+   ! ATLAS node columns
+   type(atlas_functionspace) :: afunctionspace    ! ATLAS node columns
+
+   ! ATLAS fieldset
+   type(atlas_fieldset) :: afieldset              ! ATLAS fieldset
+
+   ! Tiles distribution
+   logical,allocatable :: tilepool(:,:)          ! Pool of task for each task
+   integer :: mytile                              ! Tile handled by a given task
+   integer,allocatable :: ioproc(:)               ! I/O task for each tile
+   integer :: nmgt                                ! Number of model grid point on each tile
+   integer,allocatable :: mgt_to_proc(:)          ! Model grid on a tile to local task
+   integer,allocatable :: mgt_to_mga(:)           ! Model grid on a tile to model grid, halo A
+   integer,allocatable :: mgt_to_mg(:)     
 
    ! Ensembles
    integer :: ens1_ne                             ! Ensemble 1 size
@@ -70,11 +80,8 @@ type model_type
    type(member_field_type),allocatable :: ens1(:) ! Ensemble 1 members
    type(member_field_type),allocatable :: ens2(:) ! Ensemble 2 members
 
-   ! Wind
-   real(kind_real),allocatable :: fld_uv(:,:,:,:) ! Wind
-
    ! Observations locations
-   integer :: nobsa                               ! Number of observations, halo A 
+   integer :: nobsa                               ! Number of observations, halo A
    real(kind_real),allocatable :: lonobs(:)       ! Observations longitudes, halo A
    real(kind_real),allocatable :: latobs(:)       ! Observations latitudes, halo A
 contains
@@ -121,18 +128,18 @@ public :: model_type
 contains
 
 ! Include model interfaces
-include "model/model_aro.inc"
-include "model/model_arp.inc"
-include "model/model_fv3.inc"
-include "model/model_gem.inc"
-include "model/model_geos.inc"
-include "model/model_gfs.inc"
-include "model/model_ifs.inc"
-include "model/model_mpas.inc"
-include "model/model_nemo.inc"
-include "model/model_qg.inc"
-include "model/model_res.inc"
-include "model/model_wrf.inc"
+include 'model/model_aro.inc'
+include 'model/model_arp.inc'
+include 'model/model_fv3.inc'
+include 'model/model_gem.inc'
+include 'model/model_geos.inc'
+include 'model/model_gfs.inc'
+include 'model/model_ifs.inc'
+include 'model/model_mpas.inc'
+include 'model/model_nemo.inc'
+include 'model/model_qg.inc'
+include 'model/model_res.inc'
+include 'model/model_wrf.inc'
 
 !----------------------------------------------------------------------
 ! Subroutine: model_alloc
@@ -179,26 +186,27 @@ if (allocated(model%mask)) deallocate(model%mask)
 if (allocated(model%mg_to_proc)) deallocate(model%mg_to_proc)
 if (allocated(model%mg_to_mga)) deallocate(model%mg_to_mga)
 if (allocated(model%mga_to_mg)) deallocate(model%mga_to_mg)
-if (allocated(model%lon_mga)) deallocate(model%lon_mga)
-if (allocated(model%lat_mga)) deallocate(model%lat_mga)
-if (allocated(model%area_mga)) deallocate(model%area_mga)
-if (allocated(model%mask_mga)) deallocate(model%mask_mga)
-if (allocated(model%smask_mga)) deallocate(model%smask_mga)
+if (allocated(model%tilepool)) deallocate(model%tilepool)
+if (allocated(model%ioproc)) deallocate(model%ioproc)
+if (allocated(model%mgt_to_proc)) deallocate(model%mgt_to_proc)
+if (allocated(model%mgt_to_mga)) deallocate(model%mgt_to_mga)
+if (allocated(model%mgt_to_mg)) deallocate(model%mgt_to_mg)
 if (allocated(model%ens1)) then
    do ie=1,size(model%ens1)
-      if (allocated(model%ens1(ie)%fld)) deallocate(model%ens1(ie)%fld)
+      call model%ens1(ie)%afieldset%final()
    end do
    deallocate(model%ens1)
 end if
 if (allocated(model%ens2)) then
    do ie=1,size(model%ens2)
-      if (allocated(model%ens2(ie)%fld)) deallocate(model%ens2(ie)%fld)
+      call model%ens2(ie)%afieldset%final()
    end do
    deallocate(model%ens2)
 end if
-if (allocated(model%fld_uv)) deallocate(model%fld_uv)
 if (allocated(model%lonobs)) deallocate(model%lonobs)
 if (allocated(model%latobs)) deallocate(model%latobs)
+call model%afunctionspace%final()
+call model%afieldset%final()
 
 end subroutine model_dealloc
 
@@ -216,23 +224,26 @@ type(mpl_type),intent(inout) :: mpl      ! MPI data
 type(nam_type),intent(inout) :: nam      ! Namelist variables
 
 ! Local variables
-integer :: iv,img,info,iproc,imga,nmga,ny,nres,iy,delta,ix,i,nv_save,ildw
+integer :: img,info,iproc,imga,il0,nmga,ny,nres,iy,delta,ix,i,nv_save,ildw,itile,ilon,ilat,ilonsub,ilatsub,imgt
+integer :: deltalon,deltalat,nprocpertile,nreslon,nreslat,nxmax
 integer :: ncid,nmg_id,mg_to_proc_id,mg_to_mga_id,lon_id,lat_id
-integer :: nn_index(1)
-integer,allocatable :: nx(:),imga_arr(:)
+integer,allocatable :: nx(:),nlatsub(:),nlonsub(:,:),lonlattile_to_proc(:,:,:),imga_arr(:)
+integer(kind_int),pointer :: gmask_ptr(:,:),smask_ptr(:,:)
 real(kind_real) :: dlat,dlon
-real(kind_real),allocatable :: lon_center(:),lat_center(:),fld(:,:,:)
+real(kind_real),allocatable :: lon_mga(:),lat_mga(:)
+real(kind_real),allocatable :: lon_inf(:),lon_sup(:),lat_inf(:),lat_sup(:)
+real(kind_real),pointer :: area_ptr(:),vunit_ptr(:,:),real_ptr(:,:)
+logical :: maskval
+logical :: found
 character(len=4) :: nprocchar
 character(len=1024) :: varname,filename
-character(len=1024),dimension(nvmax) :: varname_save,addvar2d_save
+character(len=1024),dimension(nvmax) :: varname_save
 character(len=1024),parameter :: subr = 'model_define_distribution'
-type(tree_type) :: tree
+type(atlas_field) :: afield,afield_area,afield_vunit,afield_gmask,afield_smask
+type(atlas_fieldset) :: afieldset
 
 ! Number of levels
 model%nl0 = nam%nl
-do iv=1,nam%nv
-   if (trim(nam%addvar2d(iv))/='') model%nl0 = nam%nl+1
-end do
 
 ! Select model
 if (trim(nam%model)=='aro') call model%aro_coord(mpl,nam)
@@ -305,60 +316,152 @@ elseif (mpl%nproc>1) then
       if (maxval(model%mg_to_proc)>mpl%nproc) call mpl%abort(subr,'wrong distribution')
    else
       ! Generate a distribution
+      if (mpl%msv%isnot(model%ntile)) then
+         ! Special case for model with tiles
+         if (mod(mpl%nproc,model%ntile)/=0) call mpl%abort(subr, &
+      & 'the number of MPI tasks should be a multiple of the number of tiles')
+         nprocpertile = mpl%nproc/model%ntile
+      else
+         ! General case
+         nprocpertile = mpl%nproc
+      end if
 
-      ! Allocation
-      allocate(lon_center(mpl%nproc))
-      allocate(lat_center(mpl%nproc))
-      allocate(imga_arr(mpl%nproc))
-
-      ! Define distribution centers using a regular splitting
-      ny = nint(sqrt(real(mpl%nproc,kind_real)))
-      if (ny**2<mpl%nproc) ny = ny+1
+      ! Define number of subtiles in x and y directions
+      ny = nint(sqrt(real(nprocpertile,kind_real)))
+      if (ny**2<nprocpertile) ny = ny+1
       allocate(nx(ny))
-      nres = mpl%nproc
+      nres = nprocpertile
       do iy=1,ny
-         delta = mpl%nproc/ny
+         delta = nprocpertile/ny
          if (nres>(ny-iy+1)*delta) delta = delta+1
          nx(iy) = delta
          nres = nres-delta
       end do
-      if (sum(nx)/=mpl%nproc) call mpl%abort(subr,'wrong number of tiles in define_distribution')
-      dlat = (maxval(model%lat)-minval(model%lat))/ny
-      iproc = 0
-      do iy=1,ny
-         dlon = (maxval(model%lon)-minval(model%lon))/nx(iy)
-         do ix=1,nx(iy)
-            iproc = iproc+1
-            lat_center(iproc) = minval(model%lat)+(real(iy,kind_real)-0.5)*dlat
-            lon_center(iproc) = minval(model%lon)+(real(ix,kind_real)-0.5)*dlon
-         end do
-      end do
+      if (sum(nx)/=nprocpertile) call mpl%abort(subr,'wrong number of subtiles in define_distribution')
 
-      if (mpl%main) then
+      if (mpl%msv%isnot(model%nlon).and.mpl%msv%isnot(model%nlat)) then
+         ! Regular grid
+
          ! Allocation
-         call tree%alloc(mpl,mpl%nproc)
+         nxmax = maxval(nx)
+         allocate(nlatsub(ny))
+         allocate(nlonsub(nxmax,ny))
+         allocate(lonlattile_to_proc(model%nlon,model%nlat,model%ntile))
 
-         ! Initialization
-         call tree%init(lon_center,lat_center)
-
-         ! Local processor
-         do img=1,model%nmg
-            call tree%find_nearest_neighbors(model%lon(img),model%lat(img),1,nn_index)
-            model%mg_to_proc(img) = nn_index(1)
+         ! Split tile
+         nlatsub = 0
+         nlonsub = 0
+         nreslat = model%nlat
+         do iy=1,ny
+            deltalat = model%nlat/ny
+            if (nreslat>(ny-iy+1)*deltalat) deltalat = deltalat+1
+            nlatsub(iy) = deltalat
+            nreslat = nreslat-deltalat
+            nreslon = model%nlon
+            do ix=1,nx(iy)
+               deltalon = model%nlon/nx(iy)
+               if (nreslon>(nx(iy)-ix+1)*deltalon) deltalon = deltalon+1
+               nlonsub(ix,iy) = deltalon
+               nreslon = nreslon-deltalon
+            end do
          end do
 
-         ! Local index
-         imga_arr = 0
-         do img=1,model%nmg
-            iproc = model%mg_to_proc(img)
-            imga_arr(iproc) = imga_arr(iproc)+1
-            model%mg_to_mga(img) = imga_arr(iproc)
+         ! Assign task
+         iproc = 0
+         do itile=1,model%ntile
+            do iy=1,ny
+               do ix=1,nx(iy)
+                  iproc = iproc+1
+                  do ilatsub=1,nlatsub(iy)
+                     do ilonsub=1,nlonsub(ix,iy)
+                        ilat = ilatsub
+                        if (iy>1) ilat = ilat+sum(nlatsub(1:iy-1))
+                        ilon = ilonsub
+                        if (ix>1) ilon = ilon+sum(nlonsub(1:ix-1,iy))
+                        lonlattile_to_proc(ilon,ilat,itile) = iproc
+                     end do
+                  end do
+               end do
+            end do
          end do
+
+         ! Pack task
+         do img=1,model%nmg
+            itile = model%mg_to_tile(img)
+            ilon = model%mg_to_lon(img)
+            ilat = model%mg_to_lat(img)
+            model%mg_to_proc(img) = lonlattile_to_proc(ilon,ilat,itile)
+         end do
+
+         ! Release memory
+         deallocate(nlatsub)
+         deallocate(nlonsub)
+         deallocate(lonlattile_to_proc)
+      else
+         ! Unstructured grid
+         if ((model%ntile>1).and.inf(sum(model%area),4.0*pi)) call mpl%abort(subr, &
+       & 'unstructured grid requires a single tile and a global domain')
+
+         ! Allocation
+         allocate(lon_inf(nprocpertile))
+         allocate(lon_sup(nprocpertile))
+         allocate(lat_inf(nprocpertile))
+         allocate(lat_sup(nprocpertile))
+
+         ! Define distribution bounds using a regular splitting
+         dlat = (maxval(model%lat)-minval(model%lat))/ny
+         iproc = 0
+         do iy=1,ny
+            dlon = (maxval(model%lon)-minval(model%lon))/nx(iy)
+            do ix=1,nx(iy)
+               iproc = iproc+1
+               lon_inf(iproc) = minval(model%lon)+real(ix-1,kind_real)*dlon
+               lon_sup(iproc) = minval(model%lon)+real(ix,kind_real)*dlon
+               lat_inf(iproc) = minval(model%lat)+real(iy-1,kind_real)*dlat
+               lat_sup(iproc) = minval(model%lat)+real(iy,kind_real)*dlat
+            end do
+         end do
+
+         ! Define distribution
+         do img=1,model%nmg
+            ! Processor index
+            iproc = 1
+            found = .false.
+            do while (.not.found)
+               if (iproc<=nprocpertile) then
+                  if (((model%lon(img)>=lon_inf(iproc)).and.(model%lon(img)<=lon_sup(iproc)) &
+                & .and.(model%lat(img)>=lat_inf(iproc)).and.(model%lat(img)<=lat_sup(iproc)))) then
+                     model%mg_to_proc(img) = iproc
+                     found = .true.
+                  end if
+               else
+                  model%mg_to_proc(img) = nprocpertile
+                  found = .true.
+               end if
+               iproc = iproc+1
+            end do
+         end do
+
+         ! Release memory
+         deallocate(lon_inf)
+         deallocate(lon_sup)
+         deallocate(lat_inf)
+         deallocate(lat_sup)
       end if
 
-      ! Broadcast distribution
-      call mpl%f_comm%broadcast(model%mg_to_proc,mpl%rootproc-1)
-      call mpl%f_comm%broadcast(model%mg_to_mga,mpl%rootproc-1)
+      ! Allocation
+      allocate(imga_arr(mpl%nproc))
+
+      ! Local index
+      imga_arr = 0
+      do img=1,model%nmg
+         iproc = model%mg_to_proc(img)
+         imga_arr(iproc) = imga_arr(iproc)+1
+         model%mg_to_mga(img) = imga_arr(iproc)
+      end do
+
+      ! Release memory
+      deallocate(imga_arr)
 
       ! No points on the last task
       if (nam%check_no_point) then
@@ -404,11 +507,6 @@ elseif (mpl%nproc>1) then
          ! Close file
          call mpl%ncerr(subr,nf90_close(ncid))
       end if
-
-      ! Release memory
-      deallocate(lon_center)
-      deallocate(lat_center)
-      deallocate(imga_arr)
    end if
 end if
 
@@ -417,12 +515,8 @@ model%nmga = count(model%mg_to_proc==mpl%myproc)
 
 ! Allocation
 allocate(model%mga_to_mg(model%nmga))
-allocate(model%lon_mga(model%nmga))
-allocate(model%lat_mga(model%nmga))
-allocate(model%area_mga(model%nmga))
-allocate(model%vunit_mga(model%nmga,model%nl0))
-allocate(model%mask_mga(model%nmga,model%nl0))
-allocate(model%smask_mga(model%nmga,model%nl0))
+allocate(lon_mga(model%nmga))
+allocate(lat_mga(model%nmga))
 
 ! Conversion
 imga = 0
@@ -430,21 +524,57 @@ do img=1,model%nmg
    if (model%mg_to_proc(img)==mpl%myproc) then
       imga = imga+1
       model%mga_to_mg(imga) = img
-      model%lon_mga(imga) = model%lon(img)
-      model%lat_mga(imga) = model%lat(img)
-      model%area_mga(imga) = model%area(img)
-      model%vunit_mga(imga,:) = model%vunit(img,:)
-      model%mask_mga(imga,:) = model%mask(img,:)
+      lon_mga(imga) = model%lon(img)
+      lat_mga(imga) = model%lat(img)
    end if
 end do
 
-! All points of the last task are masked
-if (nam%check_no_point_mask) then
-   if (mpl%myproc==mpl%nproc) model%mask_mga = .false.
-end if
+! Create ATLAS function space
+call create_atlas_function_space(model%nmga,lon_mga,lat_mga,model%afunctionspace)
+
+! Create ATLAS fieldset
+model%afieldset = atlas_fieldset()
+
+! Add area
+afield_area = model%afunctionspace%create_field(name='area',kind=atlas_real(kind_real),levels=0)
+call afield_area%data(area_ptr)
+call model%afieldset%add(afield_area)
+
+! Add vertical unit
+afield_vunit = model%afunctionspace%create_field(name='vunit',kind=atlas_real(kind_real),levels=model%nl0)
+call afield_vunit%data(vunit_ptr)
+call model%afieldset%add(afield_vunit)
+
+! Add geometry mask
+afield_gmask = model%afunctionspace%create_field(name='gmask',kind=atlas_integer(kind_int),levels=model%nl0)
+call afield_gmask%data(gmask_ptr)
+call model%afieldset%add(afield_gmask)
+
+! Add sampling mask
+afield_smask = model%afunctionspace%create_field(name='smask',kind=atlas_integer(kind_int),levels=model%nl0)
+call afield_smask%data(smask_ptr)
+call model%afieldset%add(afield_smask)
+
+! Conversion
+imga = 0
+do img=1,model%nmg
+   if (model%mg_to_proc(img)==mpl%myproc) then
+      imga = imga+1
+      model%mga_to_mg(imga) = img
+      area_ptr(imga) = model%area(img)*req**2
+      vunit_ptr(:,imga) = model%vunit(img,:)
+      do il0=1,model%nl0
+         if (model%mask(img,il0).and.(.not.nam%check_no_point_mask)) then
+            gmask_ptr(il0,imga) = 1
+         else
+            gmask_ptr(il0,imga) = 0
+         end if
+      end do
+   end if
+end do
 
 ! Define sampling mask
-model%smask_mga = model%mask_mga
+smask_ptr = gmask_ptr
 select case(trim(nam%mask_type))
 case ('none','stddev')
    ! All points accepted in sampling
@@ -478,39 +608,111 @@ case default
          call mpl%flush
          write(mpl%info,'(a7,a,e10.3,a)') '','Threshold ',nam%mask_th(1),' used as a '//trim(nam%mask_lu(1))//' bound'
          call mpl%flush
-   
+
          ! Save namelist parameters
          nv_save = nam%nv
          varname_save = nam%varname
-         addvar2d_save = nam%addvar2d
-   
+
          ! Set namelist parameters
          nam%nv = 1
          nam%varname(1) = varname
-         if (nam%nl<model%nl0) nam%addvar2d(1) = varname
-   
+
          ! Read file
-         allocate(fld(model%nmga,model%nl0,nam%nv))
-         call model%read(mpl,nam,filename,1,fld)
+         call model%read(mpl,nam,filename,1,afieldset)
+
+         ! Get data
+         afield = afieldset%field(trim(varname))
+         call afield%data(real_ptr)
 
          ! Compute mask
-         if (trim(nam%mask_lu(1))=='lower') then
-            model%smask_mga = model%smask_mga.and.(fld(:,:,1)>nam%mask_th(1))
-         elseif (trim(nam%mask_lu(1))=='upper') then
-            model%smask_mga = model%smask_mga.and.(fld(:,:,1)<nam%mask_th(1))
-         else
-            call mpl%abort(subr,'mask_lu not recognized')
-         end if
+         do il0=1,model%nl0
+            do imga=1,model%nmga
+               if (trim(nam%mask_lu(1))=='lower') then
+                  maskval = (real_ptr(il0,imga)>nam%mask_th(1))
+               elseif (trim(nam%mask_lu(1))=='upper') then
+                  maskval = (real_ptr(il0,imga)<nam%mask_th(1))
+               else
+                  call mpl%abort(subr,'mask_lu not recognized')
+               end if
+               if (maskval) then
+                  smask_ptr(il0,imga) = 1
+               else
+                  smask_ptr(il0,imga) = 0
+               end if
+            end do
+         end do
 
          ! Reset namelist parameters
          nam%nv = nv_save
          nam%varname = varname_save
-         nam%addvar2d = addvar2d_save
+
+         ! Release pointers
+         call afield%final()
+         call afieldset%final()
       else
          call mpl%abort(subr,'mask_type should be formatted as VARIABLE@FILE to read a mask from file')
       end if
    end if
 end select
+
+if (model%ntile>1) then
+   ! Allocation
+   allocate(model%tilepool(mpl%nproc,model%ntile))
+   allocate(model%ioproc(model%ntile))
+
+   ! Tile/task bind
+   model%tilepool = .false.
+   do img=1,model%nmg
+      itile = model%mg_to_tile(img)
+      iproc = model%mg_to_proc(img)
+      model%tilepool(iproc,itile) = .true.
+   end do
+
+   ! Check that a given task handles one tile only
+   do iproc=1,mpl%nproc
+      if (count(model%tilepool(iproc,:))>1) call mpl%abort(subr,'a given task should handle one tile only')
+   end do
+
+   do itile=1,model%ntile
+      ! Assign tiles
+      if (model%tilepool(mpl%myproc,itile)) model%mytile = itile
+
+      ! Assign reading task
+      do iproc=1,mpl%nproc
+         if (model%tilepool(iproc,itile)) then
+            model%ioproc(itile) = iproc
+            exit
+         end if
+      end do
+   end do
+
+   ! Count points on tile
+   model%nmgt = count(model%mg_to_tile==model%mytile)
+
+   ! Allocation
+   allocate(model%mgt_to_proc(model%nmgt))
+   allocate(model%mgt_to_mga(model%nmgt))
+   allocate(model%mgt_to_mg(model%nmgt))
+
+   ! Conversion
+   imgt = 0
+   do img=1,model%nmg
+      if (model%mg_to_tile(img)==model%mytile) then
+         imgt = imgt+1
+         model%mgt_to_proc(imgt) = model%mg_to_proc(img)
+         model%mgt_to_mga(imgt) = model%mg_to_mga(img)
+         model%mgt_to_mg(imgt) = img
+      end if
+   end do
+end if
+
+! Release memory
+deallocate(lon_mga)
+deallocate(lat_mga)
+call afield_area%final()
+call afield_vunit%final()
+call afield_gmask%final()
+call afield_smask%final()
 
 end subroutine model_setup
 
@@ -518,34 +720,52 @@ end subroutine model_setup
 ! Subroutine: model_read
 ! Purpose: read member field
 !----------------------------------------------------------------------
-subroutine model_read(model,mpl,nam,filename,its,fld)
+subroutine model_read(model,mpl,nam,filename,its,afieldset)
 
 implicit none
 
 ! Passed variables
-class(model_type),intent(inout) :: model                        ! Model
-type(mpl_type),intent(inout) :: mpl                             ! MPI data
-type(nam_type),intent(in) :: nam                                ! Namelist
-character(len=*),intent(in) :: filename                         ! File name
-integer,intent(in) :: its                                       ! Timeslot index
-real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
+class(model_type),intent(inout) :: model        ! Model
+type(mpl_type),intent(inout) :: mpl             ! MPI data
+type(nam_type),intent(in) :: nam                ! Namelist
+character(len=*),intent(in) :: filename         ! File name
+integer,intent(in) :: its                       ! Timeslot index
+type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
 
-! Initialization
-fld = mpl%msv%valr
+! Local variables
+integer :: iv
+real(kind_real) :: fld_mga(model%nmga,model%nl0,nam%nv)
+real(kind_real),pointer :: real_ptr(:,:)
+character(len=1024) :: fieldname
+type(atlas_field) :: afield
 
 ! Select model
-if (trim(nam%model)=='aro') call model%aro_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='arp') call model%arp_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='fv3') call model%fv3_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='gem') call model%gem_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='geos') call model%geos_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='gfs') call model%gfs_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='ifs') call model%ifs_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='mpas') call model%mpas_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='nemo') call model%nemo_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='qg') call model%qg_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='res') call model%res_read(mpl,nam,filename,its,fld)
-if (trim(nam%model)=='wrf') call model%wrf_read(mpl,nam,filename,its,fld)
+if (trim(nam%model)=='aro') call model%aro_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='arp') call model%arp_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='fv3') call model%fv3_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='gem') call model%gem_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='geos') call model%geos_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='gfs') call model%gfs_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='ifs') call model%ifs_read(mpl,nam,filename,its,fld_mga)
+if (trim(nam%model)=='mpas') call model%mpas_read(mpl,nam,filename,its,fld_mga)
+if (trim(nam%model)=='nemo') call model%nemo_read(mpl,nam,filename,its,fld_mga)
+if (trim(nam%model)=='qg') call model%qg_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='res') call model%res_read(mpl,nam,filename,fld_mga)
+if (trim(nam%model)=='wrf') call model%wrf_read(mpl,nam,filename,its,fld_mga)
+
+! Add data into ATLAS fieldset
+do iv=1,nam%nv
+   ! Create field
+   fieldname = trim(nam%varname(iv))//'_'//trim(nam%timeslot(its))
+   afield = model%afunctionspace%create_field(name=trim(fieldname),kind=atlas_real(kind_real),levels=model%nl0)
+
+   ! Add field
+   call afieldset%add(afield)
+
+   ! Copy data
+   call afield%data(real_ptr)
+   real_ptr = transpose(fld_mga(:,:,iv))
+end do
 
 end subroutine model_read
 
@@ -553,31 +773,31 @@ end subroutine model_read
 ! Subroutine: model_read_member
 ! Purpose: read member field
 !----------------------------------------------------------------------
-subroutine model_read_member(model,mpl,nam,filename,ie,fld)
+subroutine model_read_member(model,mpl,nam,filename,ie,afieldset)
 
 implicit none
 
 ! Passed variables
-class(model_type),intent(inout) :: model                                ! Model
-type(mpl_type),intent(inout) :: mpl                                     ! MPI data
-type(nam_type),intent(in) :: nam                                        ! Namelist
-character(len=*),intent(in) :: filename                                 ! File name
-integer,intent(in) :: ie                                                ! Ensemble member index
-real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv,nam%nts) ! Field
+class(model_type),intent(inout) :: model       ! Model
+type(mpl_type),intent(inout) :: mpl            ! MPI data
+type(nam_type),intent(in) :: nam               ! Namelist
+character(len=*),intent(in) :: filename        ! File name
+integer,intent(in) :: ie                       ! Ensemble member index
+type(atlas_fieldset),intent(out) :: afieldset  ! ATLAS fieldset
 
 ! Local variables
 integer :: its
 character(len=1024) :: fullname
 
-! Initialization
-fld = mpl%msv%valr
+! Create ATLAS fieldset
+afieldset = atlas_fieldset()
 
 do its=1,nam%nts
    ! Define filename
-   write(fullname,'(a,a,i2.2,a,i4.4,a)') trim(filename),'_',nam%timeslot(its),'_',ie,'.nc'
+   write(fullname,'(a,i4.4)') trim(filename)//'_'//trim(nam%timeslot(its))//'_',ie
 
    ! Read file
-   call model%read(mpl,nam,fullname,its,fld(:,:,:,its))
+   call model%read(mpl,nam,fullname,its,afieldset)
 end do
 
 end subroutine model_read_member
@@ -598,7 +818,6 @@ character(len=*),intent(in) :: filename  ! Filename ('ens1' or 'ens2')
 
 ! Local variables
 integer :: ne,ie,nsub,isub,ie_sub
-real(kind_real),allocatable :: mean(:,:,:,:,:)
 character(len=1024),parameter :: subr = 'model_load_ens'
 
 ! Initialization
@@ -613,18 +832,8 @@ case ('ens1')
    model%ens1_ne = nam%ens1_ne
    model%ens1_nsub = nam%ens1_nsub
 
-   if (ne>0) then
-      ! Allocation
-      allocate(model%ens1(ne))
-      do ie=1,ne
-         allocate(model%ens1(ie)%fld(model%nmga,model%nl0,nam%nv,nam%nts))
-      end do
-
-      ! Initialization
-      do ie=1,ne
-         model%ens1(ie)%fld = mpl%msv%valr
-      end do
-   end if
+   ! Allocation
+   if (ne>0) allocate(model%ens1(ne))
 case ('ens2')
    ! Initialization
    ne = nam%ens2_ne
@@ -632,23 +841,11 @@ case ('ens2')
    model%ens2_ne = nam%ens2_ne
    model%ens2_nsub = nam%ens2_nsub
 
-   if (ne>0) then
-      allocate(model%ens2(ne))
-      do ie=1,ne
-         allocate(model%ens2(ie)%fld(model%nmga,model%nl0,nam%nv,nam%nts))
-      end do
-
-      ! Initialization
-      do ie=1,ne
-         model%ens2(ie)%fld = mpl%msv%valr
-      end do
-   end if
+   ! Allocation
+   if (ne>0) allocate(model%ens2(ne))
 case default
    call mpl%abort(subr,'wrong filename in model_load_ens')
 end select
-
-! Allocation
-if (ne>0) allocate(mean(model%nmga,model%nl0,nam%nv,nam%nts,nsub))
 
 ! Loop over sub-ensembles
 do isub=1,nsub
@@ -664,9 +861,9 @@ do isub=1,nsub
       ie = ie_sub+(isub-1)*ne/nsub
       select case (trim(filename))
       case ('ens1')
-         call model%read_member(mpl,nam,filename,ie_sub,model%ens1(ie)%fld)
+         call model%read_member(mpl,nam,filename,ie_sub,model%ens1(ie)%afieldset)
       case ('ens2')
-         call model%read_member(mpl,nam,filename,ie_sub,model%ens2(ie)%fld)
+         call model%read_member(mpl,nam,filename,ie_sub,model%ens2(ie)%afieldset)
       end select
    end do
    write(mpl%info,'(a)') ''
@@ -690,37 +887,28 @@ type(nam_type),intent(inout) :: nam       ! Namelist
 
 ! Local variables
 integer :: nv_save,its
-character(len=1024) :: varname_save(nam%nv),addvar2d_save(nam%nv),fullname
-
-! Allocation
-allocate(model%fld_uv(model%nmga,model%nl0,2,nam%nts))
-
-! Initialization
-model%fld_uv = mpl%msv%valr
+character(len=1024) :: varname_save(nam%nv),fullname
 
 if (nam%new_cortrack.or.(trim(nam%adv_type)=='wind').or.(trim(nam%adv_type)=='windmax')) then
    ! Save namelist parameters
    nv_save = nam%nv
    varname_save(1:nam%nv) = nam%varname(1:nam%nv)
-   addvar2d_save(1:nam%nv) = nam%addvar2d(1:nam%nv)
 
    ! Update namelist parameters
    nam%nv = 2
    nam%varname(1:2) = nam%wind_varname
-   nam%addvar2d(1:2) = (/'',''/)
 
    do its=1,nam%nts
       ! Define filename
-      write(fullname,'(a,a,i2.2,a)') trim(nam%wind_filename),'_',nam%timeslot(its),'.nc'
+      fullname = trim(nam%wind_filename)//'_'//trim(nam%timeslot(its))
 
       ! Read file
-      call model%read(mpl,nam,fullname,its,model%fld_uv(:,:,:,its))
+      call model%read(mpl,nam,fullname,its,model%afieldset)
    end do
 
    ! Reset namelist
    nam%nv = nv_save
    nam%varname(1:nam%nv) = varname_save(1:nam%nv)
-   nam%addvar2d(1:nam%nv) = addvar2d_save(1:nam%nv)
 end if
 
 end subroutine model_read_wind
@@ -795,6 +983,10 @@ do while (iobs<=model%nobsa)
       end if
    end do
 end do
+
+! Convert to degrees
+model%lonobs = model%lonobs*rad2deg
+model%latobs = model%latobs*rad2deg
 
 ! Release memory
 call tree%dealloc

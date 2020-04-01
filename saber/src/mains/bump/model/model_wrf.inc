@@ -19,6 +19,7 @@ real(kind_real),allocatable :: lon(:,:),lat(:,:),pres(:)
 character(len=1024),parameter :: subr = 'model_wrf_coord'
 
 ! Open file and get dimensions
+model%ntile = 1
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'west_east',nlon_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=model%nlon))
@@ -54,6 +55,7 @@ img = 0
 do ilon=1,model%nlon
    do ilat=1,model%nlat
       img = img+1
+      model%mg_to_tile(img) = 1
       model%mg_to_lon(img) = ilon
       model%mg_to_lat(img) = ilat
       model%lon(img) = lon(ilon,ilat)
@@ -97,7 +99,7 @@ integer,intent(in) :: its                                       ! Timeslot index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 
 ! Local variables
-integer :: iv,il0,img,ilon,ilat
+integer :: iv,il0,img,ilon,ilat,timeslot
 integer :: ncid,fld_id
 real(kind_real) :: fld_tmp2,fld_mg(model%nmg,model%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
@@ -108,47 +110,38 @@ if (mpl%main) then
    allocate(fld_tmp(model%nlon,model%nlat,model%nl0))
 
    ! Open file
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
+
+   ! Timeslot index
+   read(nam%timeslot(its),'(i2)') timeslot
 end if
 
 do iv=1,nam%nv
    if (mpl%main) then
-      ! 3d variable
-
       ! Get variable id
       call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
 
       ! Read data
       do il0=1,nam%nl
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0),nam%timeslot(its)/), &
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0),timeslot/), &
        & (/model%nlon,model%nlat,1,1/)))
          select case (trim(nam%varname(iv)))
          case ('U')
             do ilat=1,model%nlat
                do ilon=1,model%nlon
-                  call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon+1,ilat,nam%levs(il0),nam%timeslot(its)/)))
+                  call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon+1,ilat,nam%levs(il0),timeslot/)))
                   fld_tmp(ilon,ilat,il0) = 0.5*(fld_tmp(ilon,ilat,il0)+fld_tmp2)
                end do
             end do
          case ('V')
             do ilat=1,model%nlat
                do ilon=1,model%nlon
-                  call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,ilat+1,nam%levs(il0),nam%timeslot(its)/)))
+                  call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp2,(/ilon,ilat+1,nam%levs(il0),timeslot/)))
                   fld_tmp(ilon,ilat,il0) = 0.5*(fld_tmp(ilon,ilat,il0)+fld_tmp2)
                end do
             end do
          end select
       end do
-
-      if (trim(nam%addvar2d(iv))/='') then
-         ! 2d variable
-
-         ! Get id
-         call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-         ! Read data
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,model%nl0),(/1,1,nam%timeslot(its)/),(/model%nlon,model%nlat,1/)))
-      end if
 
       ! Pack
       do il0=1,model%nl0

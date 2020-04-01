@@ -364,16 +364,16 @@ if (linop%n_s>0) then
    allocate(rbuf_int(n_int))
    allocate(rbuf_real(n_real))
    allocate(mask_Svec(linop%n_s,linop%nvec))
-   
+
    ! Initialization
    mask_Svec = .true.
-   
+
    ! Receive buffers
    if (n_int>0) call mpl%f_comm%receive(rbuf_int,iproc-1,tag,status)
    tag = tag+1
    if (n_real>0) call mpl%f_comm%receive(rbuf_real,iproc-1,tag,status)
    tag = tag+1
-   
+
    ! Copy data
    linop%row = rbuf_int(offset_int+1:offset_int+linop%n_s)
    offset_int = offset_int+linop%n_s
@@ -455,7 +455,7 @@ if (linop%n_s>0) then
    allocate(sbuf_int(n_int))
    allocate(sbuf_real(n_real))
    allocate(mask_Svec(linop%n_s,linop%nvec))
-   
+
    ! Initialization
    mask_Svec = .true.
 
@@ -510,7 +510,7 @@ if ((linop%n_s>0).and.(linop%n_s<reorder_max)) then
    ! Sort col and S
    linop%col = linop%col(order)
    if (linop%nvec>0) then
-      ! COMPILER_BUG: the following line requires "linop%Svec(:,:)=" instead of 
+      ! COMPILER_BUG: the following line requires "linop%Svec(:,:)=" instead of
       !  "linop%Svec=" due to an intel19/debug compiler bug
       linop%Svec(:,:) = linop%Svec(order,:)
    else
@@ -564,7 +564,7 @@ logical,intent(in),optional :: msdst                ! Check for missing destinat
 ! Local variables
 integer :: i_s,i_dst
 logical :: lmssrc,lmsdst,valid
-logical,allocatable :: missing_src(:),missing_dst(:)
+logical,allocatable :: missing(:)
 character(len=1024),parameter :: subr = 'linop_apply'
 
 if (check_data) then
@@ -590,13 +590,9 @@ lmssrc = .false.
 if (present(mssrc)) lmssrc = mssrc
 lmsdst = .true.
 if (present(msdst)) lmsdst = msdst
-if (lmssrc) then
-   allocate(missing_src(linop%n_dst))
-   missing_src = .false.
-end if
 if (lmsdst) then
-   allocate(missing_dst(linop%n_dst))
-   missing_dst = .true.
+   allocate(missing(linop%n_dst))
+   missing = .true.
 end if
 
 ! Apply weights
@@ -617,31 +613,18 @@ do i_s=1,linop%n_s
       end if
 
       ! Check for missing destination
-      if (lmsdst) missing_dst(linop%row(i_s)) = .false.
-   else
-      ! Missing source
-      missing_src(linop%row(i_s)) = .true.
+      if (lmsdst) missing(linop%row(i_s)) = .false.
    end if
 end do
-
-if (lmssrc) then
-   ! Missing source values
-   do i_dst=1,linop%n_dst
-      if (missing_src(i_dst)) fld_dst(i_dst) = mpl%msv%valr
-   end do
-
-   ! Release memory
-   deallocate(missing_src)
-end if
 
 if (lmsdst) then
    ! Missing destination values
    do i_dst=1,linop%n_dst
-      if (missing_dst(i_dst)) fld_dst(i_dst) = mpl%msv%valr
+      if (missing(i_dst)) fld_dst(i_dst) = mpl%msv%valr
    end do
 
    ! Release memory
-   deallocate(missing_dst)
+   deallocate(missing)
 end if
 
 if (check_data) then

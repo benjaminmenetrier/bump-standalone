@@ -74,11 +74,30 @@ endif()
 ecbuild_use_package( PROJECT fckit VERSION 0.6.3 REQUIRED )
 include_directories( ${FCKIT_INCLUDE_DIRS} )
 
+# atlas
+ecbuild_use_package( PROJECT atlas VERSION 0.18.1 REQUIRED )
+include_directories( ${ATLAS_INCLUDE_DIRS} )
+
+# git
+find_package( Git )
+
+# metis
+ecbuild_use_package( PROJECT metis VERSION 0.0.0 )
+if (${METIS_FOUND})
+    include_directories( ${METIS_INCLUDE_DIRS} )
+    add_definitions( -DSABER_USE_METIS=1 )
+else()
+    add_definitions( -DSABER_USE_METIS=0 )
+endif()
+
 ################################################################################
 # Export package info
 ################################################################################
 
-list( APPEND SABER_TPLS eckit eckit_mpi fckit )
+list( APPEND SABER_TPLS eckit eckit_mpi fckit atlas atlas_f )
+if(${METIS_FOUND})
+    list( APPEND SABER_TPLS metis metis_interface )
+endif()
 
 set( SABER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src
                         ${CMAKE_CURRENT_BINARY_DIR}/src
@@ -103,7 +122,10 @@ include_directories( ${SABER_INCLUDE_DIRS}
                      ${SABER_EXTRA_INCLUDE_DIRS}
                      ${CMAKE_CURRENT_SOURCE_DIR}/src )
 
+add_subdirectory( doc )
 add_subdirectory( src )
+add_subdirectory( test )
+add_subdirectory( tools )
 
 if(ECBUILD_INSTALL_FORTRAN_MODULES)
   install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/${CMAKE_CFG_INTDIR} DESTINATION ${INSTALL_INCLUDE_DIR} )

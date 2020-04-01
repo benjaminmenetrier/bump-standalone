@@ -18,6 +18,7 @@ real(kind_real),allocatable :: lon(:,:),lat(:,:),a(:),b(:)
 character(len=1024),parameter :: subr = 'model_arp_coord'
 
 ! Open file and get dimensions
+model%ntile = 1
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
 call mpl%ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
@@ -57,6 +58,7 @@ do ilon=1,model%nlon
    do ilat=1,model%nlat
       if (lon(ilon,ilat)>-1000.0) then
          img = img+1
+         model%mg_to_tile(img) = 1
          model%mg_to_lon(img) = ilon
          model%mg_to_lat(img) = ilat
          model%lon(img) = lon(ilon,ilat)
@@ -90,7 +92,7 @@ end subroutine model_arp_coord
 ! Subroutine: model_arp_read
 ! Purpose: read ARPEGE field
 !----------------------------------------------------------------------
-subroutine model_arp_read(model,mpl,nam,filename,its,fld)
+subroutine model_arp_read(model,mpl,nam,filename,fld)
 
 implicit none
 
@@ -99,7 +101,6 @@ class(model_type),intent(inout) :: model                        ! Model
 type(mpl_type),intent(inout) :: mpl                             ! MPI data
 type(nam_type),intent(in) :: nam                                ! Namelist
 character(len=*),intent(in) :: filename                         ! File name
-integer,intent(in) :: its                                       ! Timeslot index
 real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 
 ! Local variables
@@ -115,12 +116,11 @@ if (mpl%main) then
    allocate(fld_tmp(model%nlon,model%nlat,model%nl0))
 
    ! Open file
-   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename),nf90_nowrite,ncid))
+   call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/'//trim(filename)//'.nc',nf90_nowrite,ncid))
 end if
 
 do iv=1,nam%nv
    if (mpl%main) then
-      ! 3d variable
       do il0=1,nam%nl
          ! Get id
          write(ilchar,'(i3.3)') nam%levs(il0)
@@ -129,19 +129,6 @@ do iv=1,nam%nv
          ! Read data
          call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0)))
       end do
-
-      if (trim(nam%addvar2d(iv))/='') then
-         ! 2d variable
-
-         ! Get id
-         call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%addvar2d(iv)),fld_id))
-
-         ! Read data
-         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,model%nl0)))
-
-         ! Variable change for surface pressure
-         if (trim(nam%addvar2d(iv))=='SURFPRESSION') fld_tmp(:,:,model%nl0) = exp(fld_tmp(:,:,model%nl0))
-      end if
 
       ! Pack
       do il0=1,model%nl0
