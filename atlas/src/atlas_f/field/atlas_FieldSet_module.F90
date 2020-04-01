@@ -1,0 +1,210 @@
+! (C) Copyright 2013 ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation nor
+! does it submit to any jurisdiction.
+
+#include "atlas/atlas_f.h"
+
+module atlas_FieldSet_module
+
+use fckit_owned_object_module, only: fckit_owned_object
+use atlas_kinds_module, only : ATLAS_KIND_IDX
+
+implicit none
+
+private :: fckit_owned_object
+
+public :: atlas_FieldSet
+
+private
+
+!------------------------------------------------------------------------------
+TYPE, extends(fckit_owned_object) :: atlas_FieldSet
+
+! Purpose :
+! -------
+!   *FieldSet* : Object that groups Fields that go together
+!       Fields can belong to several fieldsets simultaneously.
+!       The actual ownership of the field lies in a FunctionSpace
+
+! Methods :
+! -------
+!   add_field : The name or tag this field was created with
+!   field : Return the field as a fortran array of specified shape
+
+! Author :
+! ------
+!   20-Nov-2013 Willem Deconinck     *ECMWF*
+
+!------------------------------------------------------------------------------
+contains
+  procedure, public :: size => FieldSet__size
+  procedure, public :: has_field
+  procedure, private :: field_by_name
+  procedure, private :: field_by_idx_int
+  procedure, private :: field_by_idx_long
+  procedure, public :: add
+  generic :: field => field_by_name, field_by_idx_int, field_by_idx_long
+
+  procedure, public :: set_dirty
+  procedure, public :: halo_exchange
+
+#if FCKIT_FINAL_NOT_INHERITING
+  final :: atlas_FieldSet__final_auto
+#endif
+END TYPE atlas_FieldSet
+!------------------------------------------------------------------------------
+
+interface atlas_FieldSet
+  module procedure atlas_FieldSet__cptr
+  module procedure atlas_FieldSet__ctor
+end interface
+
+!------------------------------------------------------------------------------
+
+
+!========================================================
+contains
+!========================================================
+! -----------------------------------------------------------------------------
+! FieldSet routines
+
+function atlas_FieldSet__cptr(cptr) result(fieldset)
+  use, intrinsic :: iso_c_binding, only: c_ptr
+  type(atlas_FieldSet) :: fieldset
+  type(c_ptr), intent(in) :: cptr
+  call fieldset%reset_c_ptr( cptr )
+  call fieldset%return()
+end function
+
+function atlas_FieldSet__ctor(name) result(fieldset)
+  use fckit_c_interop_module, only: c_str
+  use atlas_fieldset_c_binding
+  character(len=*), intent(in), optional :: name
+  type(atlas_FieldSet) :: fieldset
+  if( present(name) ) then
+    fieldset = atlas_FieldSet__cptr( atlas__FieldSet__new( c_str(name) ) )
+  else
+    fieldset = atlas_FieldSet__cptr( atlas__FieldSet__new( c_str("") ) )
+  endif
+  call fieldset%return()
+end function
+
+subroutine add(this,field)
+  use atlas_fieldset_c_binding
+  use atlas_Field_module, only: atlas_Field
+  class(atlas_FieldSet), intent(in) :: this
+  type(atlas_Field), intent(in) :: field
+  call atlas__FieldSet__add_field(this%CPTR_PGIBUG_A, field%CPTR_PGIBUG_A)
+end subroutine
+
+function has_field(this,name) result(flag)
+  use, intrinsic :: iso_c_binding, only: c_int
+  use fckit_c_interop_module, only: c_str
+  use atlas_fieldset_c_binding
+  class(atlas_FieldSet), intent(in) :: this
+  character(len=*), intent(in) :: name
+  logical :: flag
+  integer(c_int) :: rc
+  rc = atlas__FieldSet__has_field(this%CPTR_PGIBUG_A, c_str(name))
+  if( rc == 0 ) then
+    flag = .False.
+  else
+    flag = .True.
+  end if
+end function
+
+function FieldSet__size(this) result(nb_fields)
+  use atlas_fieldset_c_binding
+  class(atlas_FieldSet), intent(in) :: this
+  integer(ATLAS_KIND_IDX) :: nb_fields
+  nb_fields = atlas__FieldSet__size(this%CPTR_PGIBUG_A)
+end function
+
+function field_by_name(this,name) result(field)
+  use fckit_c_interop_module, only: c_str
+  use atlas_fieldset_c_binding
+  use atlas_Field_module, only: atlas_Field
+  class(atlas_FieldSet), intent(in) :: this
+  character(len=*), intent(in) :: name
+  type(atlas_Field) :: field
+  field = atlas_Field( atlas__FieldSet__field_by_name(this%CPTR_PGIBUG_A, c_str(name) ) )
+  call field%return()
+end function
+
+function field_by_idx_long(this,idx) result(field)
+  use, intrinsic :: iso_c_binding, only: c_long
+  use atlas_fieldset_c_binding
+  use atlas_Field_module, only: atlas_Field
+  class(atlas_FieldSet), intent(in) :: this
+  integer(c_long), intent(in) :: idx
+  type(atlas_Field) :: field
+  field = atlas_Field( atlas__FieldSet__field_by_idx(this%CPTR_PGIBUG_A, int(idx-1_c_long,ATLAS_KIND_IDX) ) ) ! C index
+  call field%return()
+end function
+
+function field_by_idx_int(this,idx) result(field)
+  use, intrinsic :: iso_c_binding, only: c_int
+  use atlas_fieldset_c_binding
+  use atlas_Field_module, only: atlas_Field
+  class(atlas_FieldSet), intent(in) :: this
+  integer(c_int), intent(in) :: idx
+  type(atlas_Field) :: field
+  field = atlas_Field( atlas__FieldSet__field_by_idx(this%CPTR_PGIBUG_A, int(idx-1_c_int,ATLAS_KIND_IDX) ) ) ! C index
+  call field%return()
+end function
+
+!-------------------------------------------------------------------------------
+
+subroutine halo_exchange(this,on_device)
+  use, intrinsic :: iso_c_binding, only : c_int
+  use atlas_fieldset_c_binding
+  class(atlas_FieldSet), intent(inout) :: this
+  logical, optional :: on_device
+  integer(c_int) :: on_device_int
+  on_device_int = 0
+  if( present(on_device) ) then
+    if( on_device ) on_device_int = 1
+  endif
+  call atlas__FieldSet__halo_exchange(this%CPTR_PGIBUG_A, on_device_int)
+end subroutine
+
+!-------------------------------------------------------------------------------
+
+subroutine set_dirty(this,value)
+  use, intrinsic :: iso_c_binding, only : c_int
+  use atlas_fieldset_c_binding
+  class(atlas_FieldSet), intent(inout) :: this
+  logical, optional, intent(in) :: value
+  integer(c_int) :: value_int
+  if( present(value) ) then
+      if( value ) then
+          value_int = 1
+      else
+          value_int = 0
+      endif
+  else
+      value_int = 1
+  endif
+  call atlas__FieldSet__set_dirty(this%CPTR_PGIBUG_A, value_int)
+end subroutine
+
+!-------------------------------------------------------------------------------
+
+ATLAS_FINAL subroutine atlas_FieldSet__final_auto(this)
+  type(atlas_FieldSet), intent(inout) :: this
+#if FCKIT_FINAL_DEBUGGING
+  write(0,*) "atlas_FieldSet__final_auto"
+#endif
+#if FCKIT_FINAL_NOT_PROPAGATING
+  call this%final()
+#endif
+  FCKIT_SUPPRESS_UNUSED( this )
+end subroutine
+
+! ----------------------------------------------------------------------------------------
+
+end module atlas_FieldSet_module
