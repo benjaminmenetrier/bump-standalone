@@ -24,16 +24,13 @@ ecbuild_requires_macro_version( 2.7 )
 # Add repositories
 
 # eckit
-ecbuild_bundle( PROJECT eckit )
+ecbuild_bundle( PROJECT eckit GIT "https://github.com/JCSDA/eckit.git" TAG 1.4.0.jcsda1 )
 
 # fckit
-ecbuild_bundle( PROJECT fckit )
+ecbuild_bundle( PROJECT fckit GIT "https://github.com/JCSDA/fckit.git" BRANCH develop UPDATE )
 
 # atlas
-ecbuild_bundle( PROJECT atlas )
-
-# metis
-ecbuild_bundle( PROJECT metis )
+ecbuild_bundle( PROJECT atlas GIT "https://github.com/JCSDA/atlas.git" BRANCH develop UPDATE )
 
 # saber
 ecbuild_bundle( PROJECT saber )

@@ -40,11 +40,15 @@ type nam_type
    ! driver_param
    character(len=1024) :: method                        ! Localization/hybridization to compute ('cor', 'loc', 'hyb-avg', 'hyb-rnd' or 'dual-ens')
    character(len=1024) :: strategy                      ! Localization strategy ('diag_all', 'common', 'common_univariate', 'common_weighted', 'specific_univariate' or 'specific_multivariate')
+   logical :: new_normality                             ! New normality test
    logical :: new_cortrack                              ! New correlation tracker
    logical :: new_corstats                              ! New correlation statistics
    logical :: new_vbal                                  ! Compute new vertical balance operator
    logical :: load_vbal                                 ! Load existing vertical balance operator
    logical :: write_vbal                                ! Write vertical balance operator
+   logical :: new_var                                   ! Compute new variance
+   logical :: load_var                                  ! Load existing variance
+   logical :: write_var                                 ! Write variance
    logical :: new_mom                                   ! Compute new sample moments
    logical :: load_mom                                  ! Load sample moments
    logical :: write_mom                                 ! Write sample moments
@@ -74,11 +78,13 @@ type nam_type
    logical :: check_set_param_cor                       ! Test set_parameter interface for correlation
    logical :: check_set_param_hyb                       ! Test set_parameter interface for hybrid case
    logical :: check_set_param_lct                       ! Test set_parameter interface for LCT
+   logical :: check_get_param_stddev                    ! Test get_parameter interface for standard-deviation
    logical :: check_get_param_cor                       ! Test get_parameter interface for correlation
    logical :: check_get_param_hyb                       ! Test get_parameter interface for hybrid case
    logical :: check_get_param_Dloc                      ! Test get_parameter interface for anisotropic localization
    logical :: check_get_param_lct                       ! Test get_parameter interface for LCT
    logical :: check_apply_vbal                          ! Test apply_vbal interfaces
+   logical :: check_apply_stddev                        ! Test apply_stddev interfaces
    logical :: check_apply_nicas                         ! Test apply_nicas interfaces
    logical :: check_apply_obsop                         ! Test apply_obsop interfaces
 
@@ -91,7 +97,7 @@ type nam_type
    character(len=1024),dimension(nvmax) :: varname      ! Variables names
    integer :: nts                                       ! Number of time slots
    character(len=1024),dimension(ntsmax) :: timeslot    ! Timeslots
-   real(kind_real) :: dts                               ! Timeslots width (in s)
+   real(kind_real) :: dts                               ! Timeslots width [in s]
    logical :: nomask                                    ! Do not use geometry mask
    character(len=1024) :: wind_filename                 ! Wind field file name
    character(len=1024) :: wind_varname(2)               ! Wind field variables names (u and v)
@@ -106,51 +112,53 @@ type nam_type
 
    ! sampling_param
    logical :: sam_write                                 ! Write sampling
+   logical :: sam_write_grids                           ! Write sampling grids
    logical :: sam_read                                  ! Read sampling
    character(len=1024) :: mask_type                     ! Mask restriction type
    character(len=1024),dimension(nvmax) :: mask_lu      ! Mask threshold side ("lower" if mask_th is the lower bound, "upper" if mask_th is the upper bound)
-   real(kind_real),dimension(nvmax) ::  mask_th         ! Mask threshold
+   real(kind_real),dimension(nvmax) :: mask_th          ! Mask threshold
    integer :: ncontig_th                                ! Threshold on vertically contiguous points for sampling mask (0 to skip the test)
    logical :: mask_check                                ! Check that sampling couples and interpolations do not cross mask boundaries
    character(len=1024) :: draw_type                     ! Sampling draw type ('random_uniform','random_coast' or 'icosahedron')
-   real(kind_real) ::  Lcoast                           ! Length-scale to increase sampling density along coasts
-   real(kind_real) ::  rcoast                           ! Minimum value to increase sampling density along coasts
+   real(kind_real) :: Lcoast                            ! Length-scale to increase sampling density along coasts [in meters]
+   real(kind_real) :: rcoast                            ! Minimum value to increase sampling density along coasts
    integer :: nc1                                       ! Number of sampling points
    integer :: nc2                                       ! Number of diagnostic points
    integer :: ntry                                      ! Number of tries to get the most separated point for the zero-separation sampling
    integer :: nrep                                      ! Number of replacement to improve homogeneity of the zero-separation sampling
    integer :: nc3                                       ! Number of classes
-   real(kind_real) ::  dc                               ! Class size (for sam_type='hor'), should be larger than the typical grid cell size
+   real(kind_real) :: dc                                ! Class size (for sam_type='hor'), should be larger than the typical grid cell size [in meters]
    integer :: nl0r                                      ! Reduced number of levels for diagnostics
    integer :: irmax                                     ! Maximum number of random number draws
 
    ! diag_param
    integer :: ne                                        ! Ensemble size
+   real(kind_real) :: gen_kurt_th                       ! Threshold on generalized kurtosis (3.0 = Gaussian distribution)
    logical :: gau_approx                                ! Gaussian approximation for asymptotic quantities
    integer :: avg_nbins                                 ! Number of bins for averaged statistics histograms
    logical :: vbal_block(nvmax*(nvmax-1)/2)             ! Activation of vertical balance (ordered line by line in the lower triangular formulation)
-   real(kind_real) :: vbal_rad                          ! Vertical balance diagnostic radius
+   real(kind_real) :: vbal_rad                          ! Vertical balance diagnostic radius [in meters]
+   real(kind_real) :: vbal_dlat                         ! Vertical balance diagnostic latitude band half-width [in degrees]
    logical :: vbal_diag_auto(nvmax*(nvmax-1)/2)         ! Diagonal auto-covariance for the inversion
    logical :: vbal_diag_reg(nvmax*(nvmax-1)/2)          ! Diagonal regression
    logical :: var_filter                                ! Filter variances
    integer :: var_niter                                 ! Number of iteration for the variances filtering
-   real(kind_real) ::  var_rhflt                        ! Variances initial filtering support radius
+   real(kind_real) :: var_rhflt                         ! Variances initial filtering support radius [in meters]
    logical :: local_diag                                ! Activate local diagnostics
-   real(kind_real) ::  local_rad                        ! Local diagnostics calculation radius
+   real(kind_real) :: local_rad                         ! Local diagnostics calculation radius [in meters]
    logical :: adv_diag                                  ! Activate advection diagnostic
    character(len=1024) :: adv_type                      ! Advection diagnostic type ('max', 'wind' or 'windmax')
-   real(kind_real) ::  adv_rad                          ! Advection diagnostic calculation radius
+   real(kind_real) :: adv_rad                           ! Advection diagnostic calculation radius [in meters]
    integer :: adv_niter                                 ! Number of iteration for the advection filtering
-   real(kind_real) ::  adv_rhflt                        ! Advection initial filtering support radius
+   real(kind_real) :: adv_rhflt                         ! Advection initial filtering support radius [in meters]
    real(kind_real) :: adv_valid                         ! Required proportion of valid points for filtering convergence
 
    ! fit_param
    character(len=1024) :: minim_algo                    ! Minimization algorithm ('none', 'fast' or 'hooke')
-   character(len=1024) :: fit_type                      ! Fit function type ('gc99', 'res', 'fb07_gc99' or 'fb07_res')
-   logical :: double_fit(nvmax)                         ! Double fit to introduce negative lobes on the vertical
-   logical :: lhomh                                     ! Vertically homogenous horizontal support radius
-   logical :: lhomv                                     ! Vertically homogenous vertical support radius
-   real(kind_real) ::  rvflt                            ! Vertical smoother support radius
+   real(kind_real) :: diag_rhflt                        ! Horizontal filtering suport radius [in meters]
+   real(kind_real) :: diag_rvflt                        ! Vertical filtering support radius
+   real(kind_real) :: smoothness_penalty                ! Smoothness penalty weight (default 0.01)
+   integer :: fit_dl0                                   ! Number of levels between interpolation levels
    integer :: lct_nscales                               ! Number of LCT scales
    real(kind_real) :: lct_scale_ratio                   ! Factor between diffusion scales
    real(kind_real) :: lct_cor_min                       ! Minimum relevant correlation for LCT first guess
@@ -170,13 +178,15 @@ type nam_type
    integer :: mpicom                                    ! Number of communication steps
    integer :: adv_mode                                  ! Advection mode (1: direct, -1: direct and inverse)
    logical :: forced_radii                              ! Force specific support radii
-   real(kind_real) :: rh                                ! Forced horizontal support radius
+   real(kind_real) :: rh                                ! Forced horizontal support radius [in meters]
    real(kind_real) :: rv                                ! Forced vertical support radius
    logical :: pos_def_test                              ! Positive-definiteness test
    logical :: write_grids                               ! Write NICAS grids
+
+   ! dirac_param
    integer :: ndir                                      ! Number of Diracs
-   real(kind_real) :: londir(ndirmax)                   ! Diracs longitudes (in degrees)
-   real(kind_real) :: latdir(ndirmax)                   ! Diracs latitudes (in degrees)
+   real(kind_real) :: londir(ndirmax)                   ! Diracs longitudes [in degrees]
+   real(kind_real) :: latdir(ndirmax)                   ! Diracs latitudes [in degrees]
    integer :: levdir(ndirmax)                           ! Diracs level
    integer :: ivdir(ndirmax)                            ! Diracs variable indices
    integer :: itsdir(ndirmax)                           ! Diracs timeslot indices
@@ -186,20 +196,18 @@ type nam_type
 
    ! output_param
    integer :: nldwv                                     ! Number of local diagnostics profiles to write (for local_diag = .true.)
-   integer ::  img_ldwv(nldwvmax)                       ! Index on model grid of the local diagnostics profiles to write
-   real(kind_real) ::  lon_ldwv(nldwvmax)               ! Longitudes (in degrees) of the local diagnostics profiles to write
-   real(kind_real) ::  lat_ldwv(nldwvmax)               ! Latitudes (in degrees) of the local diagnostics profiles to write
+   integer :: img_ldwv(nldwvmax)                        ! Index on model grid of the local diagnostics profiles to write
+   real(kind_real) :: lon_ldwv(nldwvmax)                ! Longitudes of the local diagnostics profiles to write [in degrees]
+   real(kind_real) :: lat_ldwv(nldwvmax)                ! Latitudes of the local diagnostics profiles to write [in degrees]
    character(len=1024),dimension(nldwvmax) :: name_ldwv ! Name of the local diagnostics profiles to write
-   real(kind_real) ::  diag_rhflt                       ! Diagnostics filtering radius
    logical :: grid_output                               ! Write regridded fields
-   real(kind_real) :: grid_resol                        ! Regridded fields resolution
+   real(kind_real) :: grid_resol                        ! Regridded fields resolution [in meters]
 contains
    procedure :: init => nam_init
    procedure :: read => nam_read
    procedure :: read_yaml => nam_read_yaml
    procedure :: bcast => nam_bcast
    procedure :: from_conf => nam_from_conf
-   procedure :: setup_internal => nam_setup_internal
    procedure :: check => nam_check
    procedure :: write => nam_write
 end type nam_type
@@ -223,12 +231,12 @@ class(nam_type),intent(out) :: nam ! Namelist
 integer,intent(in) :: nproc        ! Number of MPI task
 
 ! Local variable
-integer :: iv,ildwv
+integer :: il,iv,ildwv
 
 ! general_param default
 nam%datadir = '.'
 nam%prefix = ''
-nam%model = ''
+nam%model = 'online'
 nam%verbosity = 'all'
 nam%colorlog = .false.
 nam%default_seed = .true.
@@ -239,11 +247,15 @@ nam%remap = .false.
 ! driver_param default
 nam%method = ''
 nam%strategy = ''
+nam%new_normality = .false.
 nam%new_cortrack = .false.
 nam%new_corstats = .false.
 nam%new_vbal = .false.
 nam%load_vbal = .false.
 nam%write_vbal = .true.
+nam%new_var = .false.
+nam%load_var = .false.
+nam%write_var = .true.
 nam%new_mom = .true.
 nam%load_mom = .false.
 nam%write_mom = .false.
@@ -273,17 +285,21 @@ nam%check_no_point_nicas = .false.
 nam%check_set_param_cor = .false.
 nam%check_set_param_hyb = .false.
 nam%check_set_param_lct = .false.
+nam%check_get_param_stddev = .false.
 nam%check_get_param_cor = .false.
 nam%check_get_param_hyb = .false.
 nam%check_get_param_Dloc = .false.
 nam%check_get_param_lct = .false.
 nam%check_apply_vbal = .false.
+nam%check_apply_stddev = .false.
 nam%check_apply_nicas = .false.
 nam%check_apply_obsop = .false.
 
 ! model_param default
 nam%nl = 0
-nam%levs = 0
+do il=1,nlmax
+   nam%levs(il) = il
+end do
 nam%lev2d = 'first'
 nam%logpres = .false.
 nam%nv = 0
@@ -307,6 +323,7 @@ nam%ens2_nsub = 1
 
 ! sampling_param default
 nam%sam_write = .false.
+nam%sam_write_grids = .false.
 nam%sam_read = .false.
 nam%mask_type = 'none'
 do iv=1,nvmax
@@ -329,12 +346,14 @@ nam%irmax = 10000
 
 ! diag_param default
 nam%ne = 0
+nam%gen_kurt_th = huge(1.0)
 nam%gau_approx = .false.
 nam%avg_nbins = 0
 do iv=1,nvmax*(nvmax-1)/2
    nam%vbal_block(iv) = .false.
 end do
 nam%vbal_rad = 0.0
+nam%vbal_dlat = 0.0
 do iv=1,nvmax*(nvmax-1)/2
    nam%vbal_diag_auto(iv) = .false.
 end do
@@ -355,13 +374,10 @@ nam%adv_valid = 0.99
 
 ! fit_param default
 nam%minim_algo = 'hooke'
-nam%fit_type = 'gc99'
-do iv=1,nvmax
-   nam%double_fit(iv) = .false.
-end do
-nam%lhomh = .false.
-nam%lhomv = .false.
-nam%rvflt = 0.0
+nam%diag_rhflt = 0.0
+nam%diag_rvflt = 0.0
+nam%smoothness_penalty = 0.01
+nam%fit_dl0 = 1
 nam%lct_nscales = 0
 nam%lct_scale_ratio = 10.0
 nam%lct_cor_min = 0.5
@@ -385,6 +401,8 @@ nam%rh = 0.0
 nam%rv = 0.0
 nam%pos_def_test = .false.
 nam%write_grids = .false.
+
+! dirac_param default
 nam%ndir = 0
 nam%londir = 0.0
 nam%latdir = 0.0
@@ -403,7 +421,6 @@ nam%lat_ldwv = 0.0
 do ildwv=1,nldwvmax
    nam%name_ldwv(ildwv) = ''
 end do
-nam%diag_rhflt = 0.0
 nam%grid_output = .false.
 nam%grid_resol = 0.0
 
@@ -427,55 +444,324 @@ integer :: iv
 character(len=1024),parameter :: subr = 'nam_read'
 
 ! Namelist variables
-integer :: lunit
-integer :: nprocio,nl,levs(nlmax),nv,nts,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub
-integer :: ncontig_th,nc1,nc2,ntry,nrep,nc3,nl0r,irmax,ne,avg_nbins,var_niter,adv_niter,lct_nscales,mpicom,adv_mode,nc1max,ndir
-integer :: levdir(ndirmax),ivdir(ndirmax),itsdir(ndirmax),nobs,nldwv,img_ldwv(nldwvmax),ildwv
-real(kind_real) :: dts,mask_th(nvmax),Lcoast,rcoast,dc,vbal_rad,var_rhflt,local_rad,adv_rad,adv_rhflt,adv_valid
-real(kind_real) :: rvflt,lct_cor_min,lct_scale_ratio,lct_qc_th,lct_qc_max,lon_ldwv(nldwvmax),lat_ldwv(nldwvmax),diag_rhflt,resol,rh
-real(kind_real) :: rv,londir(ndirmax),latdir(ndirmax),grid_resol
-logical :: colorlog,default_seed,repro,remap,new_cortrack,new_corstats,new_vbal,load_vbal,write_vbal,new_mom,load_mom,write_mom
-logical :: new_hdiag,write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas,load_nicas,write_nicas,new_obsop,load_obsop
-logical :: write_obsop,check_vbal,check_adjoints,check_dirac,check_randomization,check_consistency,check_optimality,check_obsop
-logical :: check_no_obs,check_no_point,check_no_point_mask,check_no_point_nicas,check_set_param_cor,check_set_param_hyb
-logical :: check_set_param_lct,check_get_param_cor,check_get_param_hyb,check_get_param_Dloc,check_get_param_lct,check_apply_vbal
-logical :: check_apply_nicas,check_apply_obsop,logpres,nomask,sam_write,sam_read,mask_check,vbal_block(nvmax*(nvmax-1)/2)
-logical :: vbal_diag_auto(nvmax*(nvmax-1)/2),vbal_diag_reg(nvmax*(nvmax-1)/2),var_filter,gau_approx,local_diag,adv_diag
-logical :: double_fit(nvmax),lhomh,lhomv,lct_diag(nscalesmax),lct_write_cor,nonunit_diag,lsqrt
-logical :: fast_sampling,network,forced_radii,pos_def_test,write_grids,grid_output
-character(len=1024) :: datadir,prefix,model,verbosity,strategy,method,lev2d,wind_filename,wind_varname(2),mask_type,mask_lu(nvmax)
-character(len=1024) :: draw_type,adv_type,minim_algo,fit_type,subsamp
+character(len=1024) :: datadir
+character(len=1024) :: prefix
+character(len=1024) :: model
+character(len=1024) :: verbosity
+logical :: colorlog
+logical :: default_seed
+logical :: repro
+integer :: nprocio
+logical :: remap
+character(len=1024) :: method
+character(len=1024) :: strategy
+logical :: new_normality
+logical :: new_cortrack
+logical :: new_corstats
+logical :: new_vbal
+logical :: load_vbal
+logical :: write_vbal
+logical :: new_var
+logical :: load_var
+logical :: write_var
+logical :: new_mom
+logical :: load_mom
+logical :: write_mom
+logical :: new_hdiag
+logical :: write_hdiag
+logical :: new_lct
+logical :: write_lct
+logical :: load_cmat
+logical :: write_cmat
+logical :: new_nicas
+logical :: load_nicas
+logical :: write_nicas
+logical :: new_obsop
+logical :: load_obsop
+logical :: write_obsop
+logical :: check_vbal
+logical :: check_adjoints
+logical :: check_dirac
+logical :: check_randomization
+logical :: check_consistency
+logical :: check_optimality
+logical :: check_obsop
+logical :: check_no_obs
+logical :: check_no_point
+logical :: check_no_point_mask
+logical :: check_no_point_nicas
+logical :: check_set_param_cor
+logical :: check_set_param_hyb
+logical :: check_set_param_lct
+logical :: check_get_param_stddev
+logical :: check_get_param_cor
+logical :: check_get_param_hyb
+logical :: check_get_param_Dloc
+logical :: check_get_param_lct
+logical :: check_apply_vbal
+logical :: check_apply_stddev
+logical :: check_apply_nicas
+logical :: check_apply_obsop
+integer :: nl
+integer :: levs(nlmax)
+character(len=1024) :: lev2d
+logical :: logpres
+integer :: nv
 character(len=1024),dimension(nvmax) :: varname
+integer :: nts
 character(len=1024),dimension(ntsmax) :: timeslot
+real(kind_real) :: dts
+logical :: nomask
+character(len=1024) :: wind_filename
+character(len=1024) :: wind_varname(2)
+integer :: ens1_ne
+integer :: ens1_nsub
+integer :: ens2_ne
+integer :: ens2_nsub
+logical :: sam_write
+logical :: sam_write_grids
+logical :: sam_read
+character(len=1024) :: mask_type
+character(len=1024),dimension(nvmax) :: mask_lu
+real(kind_real),dimension(nvmax) :: mask_th
+integer :: ncontig_th
+logical :: mask_check
+character(len=1024) :: draw_type
+real(kind_real) :: Lcoast
+real(kind_real) :: rcoast
+integer :: nc1
+integer :: nc2
+integer :: ntry
+integer :: nrep
+integer :: nc3
+real(kind_real) :: dc
+integer :: nl0r
+integer :: irmax
+integer :: ne
+real(kind_real) :: gen_kurt_th
+logical :: gau_approx
+integer :: avg_nbins
+logical :: vbal_block(nvmax*(nvmax-1)/2)
+real(kind_real) :: vbal_rad
+real(kind_real) :: vbal_dlat
+logical :: vbal_diag_auto(nvmax*(nvmax-1)/2)
+logical :: vbal_diag_reg(nvmax*(nvmax-1)/2)
+logical :: var_filter
+integer :: var_niter
+real(kind_real) :: var_rhflt
+logical :: local_diag
+real(kind_real) :: local_rad
+logical :: adv_diag
+character(len=1024) :: adv_type
+real(kind_real) :: adv_rad
+integer :: adv_niter
+real(kind_real) :: adv_rhflt
+real(kind_real) :: adv_valid
+character(len=1024) :: minim_algo
+real(kind_real) :: diag_rhflt
+real(kind_real) :: diag_rvflt
+real(kind_real) :: smoothness_penalty
+integer :: fit_dl0
+integer :: lct_nscales
+real(kind_real) :: lct_scale_ratio
+real(kind_real) :: lct_cor_min
+logical :: lct_diag(nscalesmax)
+real(kind_real) :: lct_qc_th
+real(kind_real) :: lct_qc_max
+logical :: lct_write_cor
+logical :: nonunit_diag
+logical :: lsqrt
+real(kind_real) :: resol
+integer :: nc1max
+logical :: fast_sampling
+character(len=1024) :: subsamp
+logical :: network
+integer :: mpicom
+integer :: adv_mode
+logical :: forced_radii
+real(kind_real) :: rh
+real(kind_real) :: rv
+logical :: pos_def_test
+logical :: write_grids
+integer :: ndir
+real(kind_real) :: londir(ndirmax)
+real(kind_real) :: latdir(ndirmax)
+integer :: levdir(ndirmax)
+integer :: ivdir(ndirmax)
+integer :: itsdir(ndirmax)
+integer :: nobs
+integer :: nldwv
+integer :: img_ldwv(nldwvmax)
+real(kind_real) :: lon_ldwv(nldwvmax)
+real(kind_real) :: lat_ldwv(nldwvmax)
 character(len=1024),dimension(nldwvmax) :: name_ldwv
+logical :: grid_output
+real(kind_real) :: grid_resol
+
+! Local variables
+integer :: il,ildwv,lunit
 
 ! Namelist blocks
-namelist/general_param/datadir,prefix,model,verbosity,colorlog,default_seed,repro,nprocio,remap
-namelist/driver_param/method,strategy,new_cortrack,new_corstats,new_vbal,load_vbal,new_mom,load_mom,write_mom,write_vbal, &
-                    & new_hdiag,write_hdiag,new_lct,write_lct,load_cmat,write_cmat,new_nicas,load_nicas,write_nicas,new_obsop, &
-                    & load_obsop,write_obsop,check_vbal,check_adjoints,check_dirac,check_randomization,check_consistency, &
-                    & check_optimality,check_obsop,check_no_obs,check_no_point,check_no_point_mask,check_no_point_nicas, &
-                    & check_set_param_cor,check_set_param_hyb,check_set_param_lct,check_get_param_cor,check_get_param_hyb, &
-                    & check_get_param_Dloc,check_get_param_lct,check_apply_vbal,check_apply_nicas,check_apply_obsop
-namelist/model_param/nl,levs,lev2d,logpres,nv,varname,nts,timeslot,dts,nomask,wind_filename,wind_varname
-namelist/ens1_param/ens1_ne,ens1_nsub
-namelist/ens2_param/ens2_ne,ens2_nsub
-namelist/sampling_param/sam_write,sam_read,mask_type,mask_lu,mask_th,ncontig_th,mask_check,draw_type,Lcoast,rcoast,nc1,nc2,ntry, &
-                      & nrep,nc3,dc,nl0r,irmax
-namelist/diag_param/ne,gau_approx,avg_nbins,vbal_block,vbal_rad,vbal_diag_auto,vbal_diag_reg,var_filter,var_niter,var_rhflt, &
-                  & local_diag,local_rad,adv_diag,adv_type,adv_rad,adv_niter,adv_rhflt,adv_valid
-namelist/fit_param/minim_algo,fit_type,double_fit,lhomh,lhomv,rvflt,lct_nscales,lct_scale_ratio,lct_cor_min,lct_diag,lct_qc_th, &
-                 & lct_qc_max,lct_write_cor
-namelist/nicas_param/nonunit_diag,lsqrt,resol,nc1max,fast_sampling,subsamp,network,mpicom,adv_mode,forced_radii,rh,rv, &
-                   & pos_def_test,write_grids,ndir,londir,latdir,levdir,ivdir,itsdir
+namelist/general_param/datadir, &
+                     & prefix, &
+                     & model, &
+                     & verbosity, &
+                     & colorlog, &
+                     & default_seed, &
+                     & repro, &
+                     & nprocio, &
+                     & remap
+namelist/driver_param/method, &
+                    & strategy, &
+                    & new_normality, &
+                    & new_cortrack, &
+                    & new_corstats, &
+                    & new_vbal, &
+                    & load_vbal, &
+                    & write_vbal, &
+                    & new_var, &
+                    & load_var, &
+                    & write_var, &
+                    & new_mom, &
+                    & load_mom, &
+                    & write_mom, &
+                    & new_hdiag, &
+                    & write_hdiag, &
+                    & new_lct, &
+                    & write_lct, &
+                    & load_cmat, &
+                    & write_cmat, &
+                    & new_nicas, &
+                    & load_nicas, &
+                    & write_nicas, &
+                    & new_obsop, &
+                    & load_obsop, &
+                    & write_obsop, &
+                    & check_vbal, &
+                    & check_adjoints, &
+                    & check_dirac, &
+                    & check_randomization, &
+                    & check_consistency, &
+                    & check_optimality, &
+                    & check_obsop, &
+                    & check_no_obs, &
+                    & check_no_point, &
+                    & check_no_point_mask, &
+                    & check_no_point_nicas, &
+                    & check_set_param_cor, &
+                    & check_set_param_hyb, &
+                    & check_set_param_lct, &
+                    & check_get_param_stddev, &
+                    & check_get_param_cor, &
+                    & check_get_param_hyb, &
+                    & check_get_param_Dloc, &
+                    & check_get_param_lct, &
+                    & check_apply_vbal, &
+                    & check_apply_stddev, &
+                    & check_apply_nicas, &
+                    & check_apply_obsop
+namelist/model_param/nl, &
+                   & levs, &
+                   & lev2d, &
+                   & logpres, &
+                   & nv, &
+                   & varname, &
+                   & nts, &
+                   & timeslot, &
+                   & dts, &
+                   & nomask, &
+                   & wind_filename, &
+                   & wind_varname
+namelist/ens1_param/ens1_ne, &
+                  & ens1_nsub
+namelist/ens2_param/ens2_ne, &
+                  & ens2_nsub
+namelist/sampling_param/sam_write, &
+                      & sam_write_grids, &
+                      & sam_read, &
+                      & mask_type, &
+                      & mask_lu, &
+                      & mask_th, &
+                      & ncontig_th, &
+                      & mask_check, &
+                      & draw_type, &
+                      & Lcoast, &
+                      & rcoast, &
+                      & nc1, &
+                      & nc2, &
+                      & ntry, &
+                      & nrep, &
+                      & nc3, &
+                      & dc, &
+                      & nl0r, &
+                      & irmax
+namelist/diag_param/ne, &
+                  & gen_kurt_th, &
+                  & gau_approx, &
+                  & avg_nbins, &
+                  & vbal_block, &
+                  & vbal_rad, &
+                  & vbal_dlat, &
+                  & vbal_diag_auto, &
+                  & vbal_diag_reg, &
+                  & var_filter, &
+                  & var_niter, &
+                  & var_rhflt, &
+                  & local_diag, &
+                  & local_rad, &
+                  & adv_diag, &
+                  & adv_type, &
+                  & adv_rad, &
+                  & adv_niter, &
+                  & adv_rhflt, &
+                  & adv_valid
+namelist/fit_param/minim_algo, &
+                 & diag_rhflt, &
+                 & diag_rvflt, &
+                 & smoothness_penalty, &
+                 & fit_dl0, &
+                 & lct_nscales, &
+                 & lct_scale_ratio, &
+                 & lct_cor_min, &
+                 & lct_diag, &
+                 & lct_qc_th, &
+                 & lct_qc_max, &
+                 & lct_write_cor
+namelist/nicas_param/nonunit_diag, &
+                   & lsqrt, &
+                   & resol, &
+                   & nc1max, &
+                   & fast_sampling, &
+                   & subsamp, &
+                   & network, &
+                   & mpicom, &
+                   & adv_mode, &
+                   & forced_radii, &
+                   & rh, &
+                   & rv, &
+                   & pos_def_test, &
+                   & write_grids, &
+                   & ndir, &
+                   & londir, &
+                   & latdir, &
+                   & levdir, &
+                   & ivdir, &
+                   & itsdir
 namelist/obsop_param/nobs
-namelist/output_param/nldwv,img_ldwv,lon_ldwv,lat_ldwv,name_ldwv,diag_rhflt,grid_output,grid_resol
+namelist/output_param/nldwv, &
+                    & img_ldwv, &
+                    & lon_ldwv, &
+                    & lat_ldwv, &
+                    & name_ldwv, &
+                    & diag_rhflt, &
+                    & grid_output, &
+                    & grid_resol
 
 if (mpl%main) then
    ! general_param default
    datadir = '.'
    prefix = ''
-   model = ''
+   model = 'online'
    verbosity = 'all'
    colorlog = .false.
    default_seed = .true.
@@ -486,11 +772,15 @@ if (mpl%main) then
    ! driver_param default
    method = ''
    strategy = ''
+   new_normality = .false.
    new_cortrack = .false.
    new_corstats = .false.
    new_vbal = .false.
    load_vbal = .false.
    write_vbal = .true.
+   new_var = .false.
+   load_var = .false.
+   write_var = .true.
    new_mom = .true.
    load_mom = .false.
    write_mom = .false.
@@ -520,17 +810,21 @@ if (mpl%main) then
    check_set_param_cor = .false.
    check_set_param_hyb = .false.
    check_set_param_lct = .false.
+   check_get_param_stddev = .false.
    check_get_param_cor = .false.
    check_get_param_hyb = .false.
    check_get_param_Dloc = .false.
    check_get_param_lct = .false.
    check_apply_vbal = .false.
+   check_apply_stddev = .false.
    check_apply_nicas = .false.
    check_apply_obsop = .false.
 
    ! model_param default
    nl = 0
-   levs = 0
+   do il=1,nlmax
+      levs(il) = il
+   end do
    lev2d = 'first'
    logpres = .false.
    nv = 0
@@ -554,6 +848,7 @@ if (mpl%main) then
 
    ! sampling_param default
    sam_write = .false.
+   sam_write_grids = .false.
    sam_read = .false.
    mask_type = 'none'
    do iv=1,nvmax
@@ -576,12 +871,14 @@ if (mpl%main) then
 
    ! diag_param default
    ne = 0
+   gen_kurt_th = huge(1.0)
    gau_approx = .false.
    avg_nbins = 0
    do iv=1,nvmax*(nvmax-1)/2
       vbal_block(iv) = .false.
    end do
    vbal_rad = 0.0
+   vbal_dlat = 0.0
    do iv=1,nvmax*(nvmax-1)/2
       vbal_diag_auto(iv) = .true.
    end do
@@ -602,13 +899,10 @@ if (mpl%main) then
 
    ! fit_param default
    minim_algo = 'hooke'
-   fit_type = 'gc99'
-   do iv=1,nvmax
-      double_fit(iv) = .false.
-   end do
-   lhomh = .false.
-   lhomv = .false.
-   rvflt = 0.0
+   diag_rhflt = 0.0
+   diag_rvflt = 0.0
+   smoothness_penalty = 0.01
+   fit_dl0 = 1
    lct_nscales = 0
    lct_scale_ratio = 10.0
    lct_cor_min = 0.5
@@ -632,6 +926,8 @@ if (mpl%main) then
    rv = 0.0
    pos_def_test = .false.
    write_grids = .false.
+
+   ! dirac_param default
    ndir = 0
    londir = 0.0
    latdir = 0.0
@@ -650,7 +946,6 @@ if (mpl%main) then
    do ildwv=1,nldwvmax
       name_ldwv(ildwv) = ''
    end do
-   diag_rhflt = 0.0
    grid_output = .false.
    grid_resol = 0.0
 
@@ -674,11 +969,15 @@ if (mpl%main) then
    read(lunit,nml=driver_param)
    nam%method = method
    nam%strategy = strategy
+   nam%new_normality = new_normality
    nam%new_cortrack = new_cortrack
    nam%new_corstats = new_corstats
    nam%new_vbal = new_vbal
    nam%load_vbal = load_vbal
    nam%write_vbal = write_vbal
+   nam%new_var = new_var
+   nam%load_var = load_var
+   nam%write_var = write_var
    nam%new_mom = new_mom
    nam%load_mom = load_mom
    nam%write_mom = write_mom
@@ -708,11 +1007,13 @@ if (mpl%main) then
    nam%check_set_param_cor = check_set_param_cor
    nam%check_set_param_hyb = check_set_param_hyb
    nam%check_set_param_lct = check_set_param_lct
+   nam%check_get_param_stddev = check_get_param_stddev
    nam%check_get_param_cor = check_get_param_cor
    nam%check_get_param_hyb = check_get_param_hyb
    nam%check_get_param_Dloc = check_get_param_Dloc
    nam%check_get_param_lct = check_get_param_lct
    nam%check_apply_vbal = check_apply_vbal
+   nam%check_apply_stddev = check_apply_stddev
    nam%check_apply_nicas = check_apply_nicas
    nam%check_apply_obsop = check_apply_obsop
 
@@ -748,6 +1049,7 @@ if (mpl%main) then
    read(lunit,nml=sampling_param)
    if (nc3>nc3max) call mpl%abort(subr,'nc3 is too large')
    nam%sam_write = sam_write
+   nam%sam_write_grids = sam_write_grids
    nam%sam_read = sam_read
    nam%mask_type = mask_type
    if (nv>0) nam%mask_lu(1:nam%nv) = mask_lu(1:nam%nv)
@@ -769,10 +1071,12 @@ if (mpl%main) then
    ! diag_param
    read(lunit,nml=diag_param)
    nam%ne = ne
+   nam%gen_kurt_th = gen_kurt_th
    nam%gau_approx = gau_approx
    nam%avg_nbins = avg_nbins
    if (nv>1) nam%vbal_block(1:nam%nv*(nam%nv-1)/2) = vbal_block(1:nam%nv*(nam%nv-1)/2)
    nam%vbal_rad = vbal_rad
+   nam%vbal_dlat = vbal_dlat
    if (nv>1) nam%vbal_diag_auto(1:nam%nv*(nam%nv-1)/2) = vbal_diag_auto(1:nam%nv*(nam%nv-1)/2)
    if (nv>1) nam%vbal_diag_reg(1:nam%nv*(nam%nv-1)/2) = vbal_diag_reg(1:nam%nv*(nam%nv-1)/2)
    nam%var_filter = var_filter
@@ -791,11 +1095,10 @@ if (mpl%main) then
    read(lunit,nml=fit_param)
    if (lct_nscales>nscalesmax) call mpl%abort(subr,'lct_nscales is too large')
    nam%minim_algo = minim_algo
-   nam%fit_type = fit_type
-   if (nv>0) nam%double_fit(1:nv) = double_fit(1:nv)
-   nam%lhomh = lhomh
-   nam%lhomv = lhomv
-   nam%rvflt = rvflt
+   nam%diag_rhflt = diag_rhflt
+   nam%diag_rvflt = diag_rvflt
+   nam%smoothness_penalty = smoothness_penalty
+   nam%fit_dl0 = fit_dl0
    nam%lct_nscales = lct_nscales
    nam%lct_scale_ratio = lct_scale_ratio
    nam%lct_cor_min = lct_cor_min
@@ -806,7 +1109,6 @@ if (mpl%main) then
 
    ! nicas_param
    read(lunit,nml=nicas_param)
-   if (ndir>ndirmax) call mpl%abort(subr,'ndir is too large')
    nam%nonunit_diag = nonunit_diag
    nam%lsqrt = lsqrt
    nam%resol = resol
@@ -821,6 +1123,9 @@ if (mpl%main) then
    nam%rv = rv
    nam%pos_def_test = pos_def_test
    nam%write_grids = write_grids
+
+   ! dirac_param
+   if (ndir>ndirmax) call mpl%abort(subr,'ndir is too large')
    nam%ndir = ndir
    if (ndir>0) nam%londir(1:ndir) = londir(1:ndir)
    if (ndir>0) nam%latdir(1:ndir) = latdir(1:ndir)
@@ -841,7 +1146,6 @@ if (mpl%main) then
       nam%lat_ldwv(1:nldwv) = lat_ldwv(1:nldwv)
       nam%name_ldwv(1:nldwv) = name_ldwv(1:nldwv)
    end if
-   nam%diag_rhflt = diag_rhflt
    nam%grid_output = grid_output
    nam%grid_resol = grid_resol
 
@@ -903,11 +1207,15 @@ call mpl%f_comm%broadcast(nam%remap,mpl%rootproc-1)
 ! driver_param
 call mpl%f_comm%broadcast(nam%method,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%strategy,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%new_normality,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%new_cortrack,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%new_corstats,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%new_vbal,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%load_vbal,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%write_vbal,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%new_var,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%load_var,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%write_var,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%new_mom,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%load_mom,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%write_mom,mpl%rootproc-1)
@@ -937,11 +1245,13 @@ call mpl%f_comm%broadcast(nam%check_no_point_nicas,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_set_param_cor,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_set_param_hyb,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_set_param_lct,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%check_get_param_stddev,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_get_param_cor,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_get_param_hyb,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_get_param_Dloc,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_get_param_lct,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_apply_vbal,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%check_apply_stddev,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_apply_nicas,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%check_apply_obsop,mpl%rootproc-1)
 
@@ -969,6 +1279,7 @@ call mpl%f_comm%broadcast(nam%ens2_nsub,mpl%rootproc-1)
 
 ! sampling_param
 call mpl%f_comm%broadcast(nam%sam_write,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%sam_write_grids,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%sam_read,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%mask_type,mpl%rootproc-1)
 call mpl%broadcast(nam%mask_lu,mpl%rootproc-1)
@@ -989,10 +1300,12 @@ call mpl%f_comm%broadcast(nam%irmax,mpl%rootproc-1)
 
 ! diag_param
 call mpl%f_comm%broadcast(nam%ne,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%gen_kurt_th,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%gau_approx,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%avg_nbins,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%vbal_block,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%vbal_rad,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%vbal_dlat,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%vbal_diag_auto,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%vbal_diag_reg,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%var_filter,mpl%rootproc-1)
@@ -1009,11 +1322,10 @@ call mpl%f_comm%broadcast(nam%adv_valid,mpl%rootproc-1)
 
 ! fit_param
 call mpl%f_comm%broadcast(nam%minim_algo,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%fit_type,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%double_fit,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%lhomh,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%lhomv,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%rvflt,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%diag_rvflt,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%smoothness_penalty,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%fit_dl0,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%lct_nscales,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%lct_scale_ratio,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%lct_cor_min,mpl%rootproc-1)
@@ -1037,6 +1349,8 @@ call mpl%f_comm%broadcast(nam%rh,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%rv,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%pos_def_test,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%write_grids,mpl%rootproc-1)
+
+! dirac_param
 call mpl%f_comm%broadcast(nam%ndir,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%londir,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%latdir,mpl%rootproc-1)
@@ -1053,7 +1367,6 @@ call mpl%f_comm%broadcast(nam%img_ldwv,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%lon_ldwv,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%lat_ldwv,mpl%rootproc-1)
 call mpl%broadcast(nam%name_ldwv,mpl%rootproc-1)
-call mpl%f_comm%broadcast(nam%diag_rhflt,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%grid_output,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%grid_resol,mpl%rootproc-1)
 
@@ -1111,11 +1424,15 @@ if (conf%has("strategy")) then
    call conf%get_or_die("strategy",str)
    nam%strategy = str
 end if
+if (conf%has("new_normality")) call conf%get_or_die("new_normality",nam%new_normality)
 if (conf%has("new_cortrack")) call conf%get_or_die("new_cortrack",nam%new_cortrack)
 if (conf%has("new_corstats")) call conf%get_or_die("new_corstats",nam%new_corstats)
 if (conf%has("new_vbal")) call conf%get_or_die("new_vbal",nam%new_vbal)
 if (conf%has("load_vbal")) call conf%get_or_die("load_vbal",nam%load_vbal)
 if (conf%has("write_vbal")) call conf%get_or_die("write_vbal",nam%write_vbal)
+if (conf%has("new_var")) call conf%get_or_die("new_var",nam%new_var)
+if (conf%has("load_var")) call conf%get_or_die("load_var",nam%load_var)
+if (conf%has("write_var")) call conf%get_or_die("write_var",nam%write_var)
 if (conf%has("new_mom")) call conf%get_or_die("new_mom",nam%new_mom)
 if (conf%has("load_mom")) call conf%get_or_die("load_mom",nam%load_mom)
 if (conf%has("write_mom")) call conf%get_or_die("write_mom",nam%write_mom)
@@ -1145,11 +1462,13 @@ if (conf%has("check_no_point_nicas")) call conf%get_or_die("check_no_point_nicas
 if (conf%has("check_set_param_cor")) call conf%get_or_die("check_set_param_cor",nam%check_set_param_cor)
 if (conf%has("check_set_param_hyb")) call conf%get_or_die("check_set_param_hyb",nam%check_set_param_hyb)
 if (conf%has("check_set_param_lct")) call conf%get_or_die("check_set_param_lct",nam%check_set_param_lct)
+if (conf%has("check_get_param_stddev")) call conf%get_or_die("check_get_param_stddev",nam%check_get_param_stddev)
 if (conf%has("check_get_param_cor")) call conf%get_or_die("check_get_param_cor",nam%check_get_param_cor)
 if (conf%has("check_get_param_hyb")) call conf%get_or_die("check_get_param_hyb",nam%check_get_param_hyb)
 if (conf%has("check_get_param_Dloc")) call conf%get_or_die("check_get_param_Dloc",nam%check_get_param_Dloc)
 if (conf%has("check_get_param_lct")) call conf%get_or_die("check_get_param_lct",nam%check_get_param_lct)
 if (conf%has("check_apply_vbal")) call conf%get_or_die("check_apply_vbal",nam%check_apply_vbal)
+if (conf%has("check_apply_stddev")) call conf%get_or_die("check_apply_stddev",nam%check_apply_stddev)
 if (conf%has("check_apply_nicas")) call conf%get_or_die("check_apply_nicas",nam%check_apply_nicas)
 if (conf%has("check_apply_obsop")) call conf%get_or_die("check_apply_obsop",nam%check_apply_obsop)
 
@@ -1196,6 +1515,7 @@ if (conf%has("ens2_nsub")) call conf%get_or_die("ens2_nsub",nam%ens2_nsub)
 ! sampling_param
 if (conf%has("sam_read")) call conf%get_or_die("sam_read",nam%sam_read)
 if (conf%has("sam_write")) call conf%get_or_die("sam_write",nam%sam_write)
+if (conf%has("sam_write_grids")) call conf%get_or_die("sam_write_grids",nam%sam_write_grids)
 if (conf%has("mask_type")) then
    call conf%get_or_die("mask_type",str)
    nam%mask_type = str
@@ -1227,6 +1547,7 @@ if (conf%has("irmax")) call conf%get_or_die("irmax",nam%irmax)
 
 ! diag_param
 if (conf%has("ne")) call conf%get_or_die("ne",nam%ne)
+if (conf%has("gen_kurt_th")) call conf%get_or_die("gen_kurt_th",nam%gen_kurt_th)
 if (conf%has("gau_approx")) call conf%get_or_die("gau_approx",nam%gau_approx)
 if (conf%has("avg_nbins")) call conf%get_or_die("avg_nbins",nam%avg_nbins)
 if (conf%has("vbal_block")) then
@@ -1234,6 +1555,7 @@ if (conf%has("vbal_block")) then
    nam%vbal_block(1:nam%nv*(nam%nv-1)/2) = logical_array(1:nam%nv*(nam%nv-1)/2)
 end if
 if (conf%has("vbal_rad")) call conf%get_or_die("vbal_rad",nam%vbal_rad)
+if (conf%has("vbal_dlat")) call conf%get_or_die("vbal_dlat",nam%vbal_dlat)
 if (conf%has("vbal_diag_auto")) then
    call conf%get_or_die("vbal_diag_auto",logical_array)
    nam%vbal_diag_auto(1:nam%nv*(nam%nv-1)/2) = logical_array(1:nam%nv*(nam%nv-1)/2)
@@ -1262,17 +1584,10 @@ if (conf%has("minim_algo")) then
    call conf%get_or_die("minim_algo",str)
    nam%minim_algo = str
 end if
-if (conf%has("fit_type")) then
-   call conf%get_or_die("fit_type",str)
-   nam%fit_type = str
-end if
-if (conf%has("double_fit")) then
-   call conf%get_or_die("double_fit",logical_array)
-   nam%double_fit(1:nam%nv) = logical_array(1:nam%nv)
-end if
-if (conf%has("lhomh")) call conf%get_or_die("lhomh",nam%lhomh)
-if (conf%has("lhomv")) call conf%get_or_die("lhomv",nam%lhomv)
-if (conf%has("rvflt")) call conf%get_or_die("rvflt",nam%rvflt)
+if (conf%has("diag_rhflt")) call conf%get_or_die("diag_rhflt",nam%diag_rhflt)
+if (conf%has("diag_rvflt")) call conf%get_or_die("diag_rvflt",nam%diag_rvflt)
+if (conf%has("smoothness_penalty")) call conf%get_or_die("smoothness_penalty",nam%smoothness_penalty)
+if (conf%has("fit_dl0")) call conf%get_or_die("fit_dl0",nam%fit_dl0)
 if (conf%has("lct_nscales")) call conf%get_or_die("lct_nscales",nam%lct_nscales)
 if (conf%has("lct_scale_ratio")) call conf%get_or_die("lct_scale_ratio",nam%lct_scale_ratio)
 if (conf%has("lct_cor_min")) call conf%get_or_die("lct_cor_min",nam%lct_cor_min)
@@ -1302,6 +1617,8 @@ if (conf%has("rh")) call conf%get_or_die("rh",nam%rh)
 if (conf%has("rv")) call conf%get_or_die("rv",nam%rv)
 if (conf%has("pos_def_test")) call conf%get_or_die("pos_def_test",nam%pos_def_test)
 if (conf%has("write_grids")) call conf%get_or_die("write_grids",nam%write_grids)
+
+! dirac_param
 if (conf%has("ndir")) call conf%get_or_die("ndir",nam%ndir)
 if (conf%has("londir")) then
    call conf%get_or_die("londir",real_array)
@@ -1345,43 +1662,10 @@ if (conf%has("name_ldwv")) then
    call conf%get_or_die("name_ldwv",csize,char_array)
    nam%name_ldwv(1:nam%nldwv) = char_array(1:nam%nldwv)
 end if
-if (conf%has("diag_rhflt")) call conf%get_or_die("diag_rhflt",nam%diag_rhflt)
 if (conf%has("grid_output")) call conf%get_or_die("grid_output",nam%grid_output)
 if (conf%has("grid_resol")) call conf%get_or_die("grid_resol",nam%grid_resol)
 
 end subroutine nam_from_conf
-
-!----------------------------------------------------------------------
-! Subroutine: nam_setup_internal
-! Purpose: setup namelist parameters internally (model 'online')
-!----------------------------------------------------------------------
-subroutine nam_setup_internal(nam,ens1_ne,ens1_nsub,ens2_ne,ens2_nsub)
-
-implicit none
-
-! Passed variable
-class(nam_type),intent(inout) :: nam                   ! Namelist
-integer,intent(in) :: ens1_ne                          ! Ensemble 1 size
-integer,intent(in) :: ens1_nsub                        ! Ensemble 1 number of sub-ensembles
-integer,intent(in) :: ens2_ne                          ! Ensemble 2 size
-integer,intent(in) :: ens2_nsub                        ! Ensemble 2 size of sub-ensembles
-
-! Local variables
-integer :: il
-
-if (trim(nam%model)=='') then
-   ! Set namelist values
-   nam%model = 'online'
-   do il=1,nam%nl
-      nam%levs(il) = il
-   end do
-   nam%ens1_ne = ens1_ne
-   nam%ens1_nsub = ens1_nsub
-   nam%ens2_ne = ens2_ne
-   nam%ens2_nsub = ens2_nsub
-end if
-
-end subroutine nam_setup_internal
 
 !----------------------------------------------------------------------
 ! Subroutine: nam_check
@@ -1413,16 +1697,17 @@ if (nam%nldwv>nldwvmax) call mpl%abort(subr,'nldwv is too large')
 nam%Lcoast = nam%Lcoast/req
 nam%dc = nam%dc/req
 nam%vbal_rad = nam%vbal_rad/req
+nam%vbal_dlat = nam%vbal_dlat*deg2rad
 nam%var_rhflt = nam%var_rhflt/req
 nam%local_rad = nam%local_rad/req
 nam%adv_rad = nam%adv_rad/req
 nam%adv_rhflt = nam%adv_rhflt/req
+nam%diag_rhflt = nam%diag_rhflt/req
 nam%rh = nam%rh/req
 if (nam%ndir>0) nam%londir(1:nam%ndir) = nam%londir(1:nam%ndir)*deg2rad
 if (nam%ndir>0) nam%latdir(1:nam%ndir) = nam%latdir(1:nam%ndir)*deg2rad
 if (nam%nldwv>0) nam%lon_ldwv(1:nam%nldwv) = nam%lon_ldwv(1:nam%nldwv)*deg2rad
 if (nam%nldwv>0) nam%lat_ldwv(1:nam%nldwv) = nam%lat_ldwv(1:nam%nldwv)*deg2rad
-nam%diag_rhflt = nam%diag_rhflt/req
 nam%grid_resol = nam%grid_resol/req
 
 ! Check general_param
@@ -1463,6 +1748,7 @@ if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_n
    end select
 end if
 if (nam%new_vbal.and.nam%load_vbal) call mpl%abort(subr,'new_vbal and load_vbal are exclusive')
+if (nam%new_var.and.nam%load_var) call mpl%abort(subr,'new_var and load_var are exclusive')
 if (nam%new_mom.and.nam%load_mom) call mpl%abort(subr,'new_mom and load_mom are exclusive')
 if (nam%new_hdiag.and.nam%new_lct) call mpl%abort(subr,'new_hdiag and new_lct are exclusive')
 if ((nam%new_hdiag.or.nam%new_lct).and.nam%load_cmat) call mpl%abort(subr,'new_hdiag or new_lct and load_cmat are exclusive')
@@ -1471,10 +1757,10 @@ if (nam%new_obsop.and.nam%load_obsop) call mpl%abort(subr,'new_obsop and load_ob
 if (nam%check_vbal.and..not.(nam%new_vbal.or.nam%load_vbal)) call mpl%abort(subr,'new_vbal or load_vbal required for check_vbal')
 if ((nam%new_hdiag.or.nam%new_lct).and.(.not.(nam%new_mom.or.nam%load_mom))) &
  & call mpl%abort(subr,'new_mom or load_mom required for new_hdiag and new_lct')
-if (nam%check_adjoints.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'new_nicas or load_nicas required for check_adjoints')
-if (nam%check_dirac.and..not.(nam%new_nicas.or.nam%load_nicas)) &
- & call mpl%abort(subr,'new_nicas or load_nicas required for check_dirac')
+if (nam%check_adjoints.and..not.(nam%new_vbal.or.nam%load_vbal.or.nam%new_nicas.or.nam%load_nicas.or.nam%new_obsop &
+ & .or.nam%load_obsop)) call mpl%abort(subr,'new or load for vbal, nicas or obsop required for check_adjoints')
+if (nam%check_dirac.and..not.(nam%new_vbal.or.nam%load_vbal.or.nam%new_nicas.or.nam%load_nicas)) &
+ & call mpl%abort(subr,'new or load for vbal or nicas required for check_dirac')
 if (nam%check_randomization) then
    if (trim(nam%method)/='cor') call mpl%abort(subr,'cor method required for check_randomization')
    if (.not.nam%new_nicas) call mpl%abort(subr,'new_nicas required for check_randomization')
@@ -1489,9 +1775,9 @@ if (nam%check_optimality) then
    if (.not.nam%write_hdiag) call mpl%abort(subr,'write_hdiag required for check_optimality')
 end if
 if (nam%check_obsop.and..not.(nam%new_obsop.or.nam%load_obsop)) &
- & call mpl%abort(subr,'new_obsop or load_obsop required for check_obsop')
+ & call mpl%abort(subr,'new or load obsop required for check_obsop')
 if (nam%check_no_obs.and..not.(nam%new_obsop.or.nam%load_obsop)) &
- & call mpl%abort(subr,'new_obsop or load_obsop required for check_no_obs')
+ & call mpl%abort(subr,'new or load_obsop required for check_no_obs')
 if (nam%check_no_obs.and.(mpl%nproc<2)) call mpl%abort(subr,'at least 2 MPI tasks required for check_no_obs')
 if (nam%check_no_point.and.nam%check_no_point_mask) &
  & call mpl%abort(subr,'check_no_point and check_no_point_mask are exclusive')
@@ -1502,8 +1788,10 @@ if (nam%check_no_point_nicas.and..not.(nam%new_nicas.or.nam%load_nicas)) &
 if (nam%check_no_point_nicas.and.(mpl%nproc<2)) call mpl%abort(subr,'at least 2 MPI tasks required for check_no_point_nicas')
 if ((nam%check_set_param_cor.or.nam%check_set_param_cor.or.nam%check_set_param_cor).and..not.nam%new_nicas) &
  & call mpl%abort(subr,'new_nicas required for check_set_param_[...]')
-if (nam%check_get_param_cor.and..not.(nam%new_hdiag.and.(trim(nam%method)=='cor').and.all(nam%double_fit(1:nam%nv)))) &
- & call mpl%abort(subr,'new_hdiag, cor method and double fit required for check_get_param_cor')
+if (nam%check_get_param_stddev.and..not.(nam%new_var)) &
+ & call mpl%abort(subr,'new_var required for check_get_param_stddev')
+if (nam%check_get_param_cor.and..not.(nam%new_hdiag.and.(trim(nam%method)=='cor'))) &
+ & call mpl%abort(subr,'new_hdiag and cor method required for check_get_param_cor')
 if (nam%check_get_param_hyb.and..not.(nam%new_hdiag.and.(trim(nam%method)=='hyb-avg'))) &
  & call mpl%abort(subr,'new_hdiag and hyb-avg method required for check_get_param_hyb')
 if (nam%check_get_param_Dloc.and..not.(nam%new_hdiag.and.(trim(nam%method)=='loc'))) &
@@ -1512,6 +1800,8 @@ if (nam%check_get_param_lct.and..not.(nam%new_lct.and.(nam%lct_nscales==2))) &
  & call mpl%abort(subr,'new_lct and lct_nscales = 2 required for check_get_param_lct')
 if (nam%check_apply_vbal.and..not.(nam%new_vbal.or.nam%load_vbal)) &
  & call mpl%abort(subr,'new_vbal or load_vbal required for check_apply_vbal')
+if (nam%check_apply_stddev.and..not.(nam%new_var.or.nam%load_var)) &
+ & call mpl%abort(subr,'new_var or load_var required for check_apply_stddev')
 if (nam%check_apply_nicas.and..not.(nam%new_nicas.or.nam%load_nicas)) &
  & call mpl%abort(subr,'new_nicas or load_nicas required for check_apply_nicas')
 if (nam%check_apply_obsop.and..not.(nam%new_obsop.or.nam%load_obsop)) &
@@ -1524,7 +1814,8 @@ do il=1,nam%nl
    if (count(nam%levs(1:nam%nl)==nam%levs(il))>1) call mpl%abort(subr,'redundant levels')
 end do
 if ((trim(nam%lev2d)/='first').and.(trim(nam%lev2d)/='last')) call mpl%abort(subr,'wrong lev2d value')
-if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat.or.nam%new_nicas.or.nam%load_nicas) then
+if (nam%new_vbal.or.nam%load_vbal.or.nam%new_var.or.nam%load_var.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat &
+ & .or.nam%new_nicas.or.nam%load_nicas) then
    if (nam%nv<=0) call mpl%abort(subr,'nv should be positive')
    do iv=1,nam%nv
       write(ivchar,'(i2.2)') iv
@@ -1539,8 +1830,8 @@ if (nam%new_vbal.or.nam%load_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%load_cm
 end if
 
 ! Check ens1_param
-if (nam%new_cortrack.or.nam%new_corstats.or.nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_randomization &
- & .or.nam%check_consistency.or.nam%check_optimality) then
+if (nam%new_normality.or.nam%new_cortrack.or.nam%new_corstats.or.nam%new_vbal.or.nam%new_var.or.nam%new_hdiag.or.nam%new_lct &
+ & .or.nam%check_randomization.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%ens1_nsub<1) call mpl%abort(subr,'ens1_nsub should be positive')
    if (mod(nam%ens1_ne,nam%ens1_nsub)/=0) call mpl%abort(subr,'ens1_nsub should be a divider of ens1_ne')
    if (nam%ens1_ne/nam%ens1_nsub<=3) call mpl%abort(subr,'ens1_ne/ens1_nsub should be larger than 3')
@@ -1556,6 +1847,7 @@ end if
 ! Check sampling_param
 if (nam%new_vbal.or.nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%sam_write.and.nam%sam_read) call mpl%abort(subr,'sam_write and sam_read are both true')
+   if (nam%sam_write_grids.and.(.not.nam%sam_write)) call mpl%abort(subr,'sam_write required for sam_write_grids')
    select case (trim(nam%draw_type))
    case ('random_uniform')
    case ('random_coast')
@@ -1600,7 +1892,7 @@ if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimalit
    if (nam%nc3<=0) call mpl%abort(subr,'nc3 should be positive')
 end if
 if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
-   if (nam%dc<0.0) call mpl%abort(subr,'dc should be positive')
+   if (.not.(nam%dc>0.0)) call mpl%abort(subr,'dc should be positive')
 end if
 if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    if (nam%nl0r<1) call mpl%abort (subr,'nl0r should be positive')
@@ -1614,18 +1906,20 @@ if (nam%new_vbal) then
    if (nam%nv<2) call mpl%abort(subr,'at least two variables required to diagnose vertical balance')
    if (.not.(any(nam%vbal_block(1:nam%nv*(nam%nv-1)/2)))) &
  & call mpl%abort(subr,'no block selected for the vertical balance diagnostics')
-   if (.not.(nam%vbal_rad>0.0)) call mpl%abort(subr,'vbal_rad should be positive')
+   if ((.not.(nam%vbal_rad>0.0)).and.(.not.(nam%vbal_dlat>0.0))) call mpl%abort(subr,'vbal_rad or vbal_dlat should be positive')
+end if
+if (nam%new_var) then
+   if (nam%var_filter) then
+      if (nam%var_niter<=0) call mpl%abort(subr,'var_niter should be positive')
+      if (.not.(nam%var_rhflt>0.0)) call mpl%abort(subr,'var_rhflt should be positive')
+   end if
 end if
 if (nam%new_hdiag.or.nam%check_consistency.or.nam%check_optimality) then
    select case (trim(nam%method))
    case ('loc','hyb-avg','hyb-rnd','dual-ens')
       if (nam%ne<=3) call mpl%abort(subr,'ne should be larger than 3')
    end select
-   if (nam%var_filter.and.(.not.nam%local_diag)) call mpl%abort(subr,'local_diag required for var_filter')
-   if (nam%var_filter) then
-      if (nam%var_niter<=0) call mpl%abort(subr,'var_niter should be positive')
-      if (.not.(nam%var_rhflt>0.0)) call mpl%abort(subr,'var_rhflt should be positive')
-   end if
+   if (.not.(nam%gen_kurt_th>0.0)) call mpl%abort(subr,'gen_kurt_th should be positive')
    if (nam%local_diag) then
       if (.not.(nam%local_rad>0.0)) call mpl%abort(subr,'local_rad should be positive')
    end if
@@ -1641,25 +1935,16 @@ end if
 ! Check fit_param
 if (nam%new_hdiag.or.nam%new_lct.or.nam%check_consistency.or.nam%check_optimality) then
    select case (trim(nam%minim_algo))
-   case ('none','fast','hooke')
+   case ('none','fast','hooke','praxis')
    case default
       call mpl%abort(subr,'wrong minim_algo')
    end select
    if (nam%new_lct.and.((trim(nam%minim_algo)=='none').or.(trim(nam%minim_algo)=='fast'))) &
  & call mpl%abort(subr,'wrong minim_algo for LCT')
-   select case (nam%fit_type(1:4))
-   case ('gc99','cres','poly4')
-   case ('fb07')
-      select case (nam%fit_type(5:9))
-      case ('_gc99','_cres')
-         write(nam%fit_type(10:14),'(a,i4.4)') '_',nam%ne
-      case default
-         call mpl%abort(subr,'wrong fit_type')
-      end select
-   case default
-      call mpl%abort(subr,'wrong fit_type')
-   end select
-   if (nam%rvflt<0) call mpl%abort(subr,'rvflt should be non-negative')
+   if (nam%diag_rhflt<0.0) call mpl%abort(subr,'diag_rhflt should be non-negative')
+   if (nam%diag_rvflt<0.0) call mpl%abort(subr,'diag_rvflt should be non-negative')
+   if (nam%smoothness_penalty<0.0) call mpl%abort(subr,'smoothness_penalty should be non-negative')
+   if (nam%fit_dl0<=0) call mpl%abort(subr,'fit_dl0 should be postive')
 end if
 if (nam%new_lct) then
    if (nam%lct_nscales<=0) call mpl%abort(subr,'lct_nscales should be postive')
@@ -1681,7 +1966,10 @@ if (nam%new_hdiag) then
 end if
 
 ! Check nicas_param
-if (nam%new_nicas.or.nam%check_adjoints.or.nam%check_dirac.or.nam%check_randomization) then
+if (nam%new_nicas.or.nam%load_nicas) then
+   if (nam%nonunit_diag) then
+      if (nam%method=='cor') call mpl%abort(subr,'nonunit_diag is inconsistent with correlation, use variance operator instead')
+   end if
    if (nam%lsqrt) then
       if (nam%mpicom==1) call mpl%abort(subr,'mpicom should be 2 for square-root application')
    end if
@@ -1721,6 +2009,8 @@ if (nam%new_nicas.or.nam%check_adjoints.or.nam%check_dirac.or.nam%check_randomiz
    end select
 end if
 if (nam%write_grids.and.(.not.nam%new_nicas)) call mpl%abort(subr,'new_nicas required for write_grids')
+
+! Check dirac_param
 if (nam%new_cortrack.or.nam%check_dirac) then
    if (nam%ndir<1) call mpl%abort(subr,'ndir should be positive')
    do idir=1,nam%ndir
@@ -1747,9 +2037,6 @@ if (nam%new_hdiag) then
             if (trim(nam%name_ldwv(ildwv))=='') call mpl%abort(subr,'name_ldwv not specified for profile '//ildwvchar)
          end do
       end if
-   end if
-   if (nam%local_diag.or.nam%adv_diag) then
-      if (nam%diag_rhflt<0.0) call mpl%abort(subr,'diag_rhflt should be non-negative')
    end if
 end if
 if (nam%new_hdiag.or.nam%new_nicas.or.nam%check_adjoints.or.nam%check_dirac.or.nam%check_randomization.or.nam%new_lct) then
@@ -1803,11 +2090,15 @@ if (mpl%msv%is(lncid)) then
 end if
 call mpl%write(lncid,'nam','method',nam%method)
 call mpl%write(lncid,'nam','strategy',nam%strategy)
+call mpl%write(lncid,'nam','new_normality',nam%new_normality)
 call mpl%write(lncid,'nam','new_cortrack',nam%new_cortrack)
 call mpl%write(lncid,'nam','new_corstats',nam%new_corstats)
 call mpl%write(lncid,'nam','new_vbal',nam%new_vbal)
 call mpl%write(lncid,'nam','load_vbal',nam%load_vbal)
 call mpl%write(lncid,'nam','write_vbal',nam%write_vbal)
+call mpl%write(lncid,'nam','new_var',nam%new_var)
+call mpl%write(lncid,'nam','load_var',nam%load_var)
+call mpl%write(lncid,'nam','write_var',nam%write_var)
 call mpl%write(lncid,'nam','new_mom',nam%new_mom)
 call mpl%write(lncid,'nam','load_mom',nam%load_mom)
 call mpl%write(lncid,'nam','write_mom',nam%write_mom)
@@ -1837,11 +2128,13 @@ call mpl%write(lncid,'nam','check_no_point_nicas',nam%check_no_point_nicas)
 call mpl%write(lncid,'nam','check_set_param_cor',nam%check_set_param_cor)
 call mpl%write(lncid,'nam','check_set_param_hyb',nam%check_set_param_hyb)
 call mpl%write(lncid,'nam','check_set_param_lct',nam%check_set_param_lct)
+call mpl%write(lncid,'nam','check_get_param_stddev',nam%check_get_param_stddev)
 call mpl%write(lncid,'nam','check_get_param_cor',nam%check_get_param_cor)
 call mpl%write(lncid,'nam','check_get_param_hyb',nam%check_get_param_hyb)
 call mpl%write(lncid,'nam','check_get_param_Dloc',nam%check_get_param_Dloc)
 call mpl%write(lncid,'nam','check_get_param_lct',nam%check_get_param_lct)
 call mpl%write(lncid,'nam','check_apply_vbal',nam%check_apply_vbal)
+call mpl%write(lncid,'nam','check_apply_stddev',nam%check_apply_stddev)
 call mpl%write(lncid,'nam','check_apply_nicas',nam%check_apply_nicas)
 call mpl%write(lncid,'nam','check_apply_obsop',nam%check_apply_obsop)
 
@@ -1885,6 +2178,7 @@ if (mpl%msv%is(lncid)) then
    call mpl%flush
 end if
 call mpl%write(lncid,'nam','sam_write',nam%sam_write)
+call mpl%write(lncid,'nam','sam_write_grids',nam%sam_write_grids)
 call mpl%write(lncid,'nam','sam_read',nam%sam_read)
 call mpl%write(lncid,'nam','mask_type',nam%mask_type)
 call mpl%write(lncid,'nam','mask_lu',nam%nv,nam%mask_lu(1:nam%nv))
@@ -1909,10 +2203,12 @@ if (mpl%msv%is(lncid)) then
    call mpl%flush
 end if
 call mpl%write(lncid,'nam','ne',nam%ne)
+call mpl%write(lncid,'nam','gen_kurt_th',nam%gen_kurt_th)
 call mpl%write(lncid,'nam','gau_approx',nam%gau_approx)
 call mpl%write(lncid,'nam','avg_nbins',nam%avg_nbins)
 call mpl%write(lncid,'nam','vbal_block',nam%nv*(nam%nv-1)/2,nam%vbal_block(1:nam%nv*(nam%nv-1)/2))
 call mpl%write(lncid,'nam','vbal_rad',nam%vbal_rad)
+call mpl%write(lncid,'nam','vbal_dlat',nam%vbal_dlat*rad2deg)
 call mpl%write(lncid,'nam','vbal_diag_auto',nam%nv*(nam%nv-1)/2,nam%vbal_diag_auto(1:nam%nv*(nam%nv-1)/2))
 call mpl%write(lncid,'nam','vbal_diag_reg',nam%nv*(nam%nv-1)/2,nam%vbal_diag_reg(1:nam%nv*(nam%nv-1)/2))
 call mpl%write(lncid,'nam','var_filter',nam%var_filter)
@@ -1933,11 +2229,10 @@ if (mpl%msv%is(lncid)) then
    call mpl%flush
 end if
 call mpl%write(lncid,'nam','minim_algo',nam%minim_algo)
-call mpl%write(lncid,'nam','fit_type',nam%fit_type(1:9))
-call mpl%write(lncid,'nam','double_fit',nam%nv,nam%double_fit(1:nam%nv))
-call mpl%write(lncid,'nam','lhomh',nam%lhomh)
-call mpl%write(lncid,'nam','lhomv',nam%lhomv)
-call mpl%write(lncid,'nam','rvflt',nam%rvflt)
+call mpl%write(lncid,'nam','diag_rhflt',nam%diag_rhflt*req)
+call mpl%write(lncid,'nam','diag_rvflt',nam%diag_rvflt)
+call mpl%write(lncid,'nam','smoothness_penalty',nam%smoothness_penalty)
+call mpl%write(lncid,'nam','fit_dl0',nam%fit_dl0)
 call mpl%write(lncid,'nam','lct_nscales',nam%lct_nscales)
 call mpl%write(lncid,'nam','lct_scale_ratio',nam%lct_scale_ratio)
 call mpl%write(lncid,'nam','lct_cor_min',nam%lct_cor_min)
@@ -1965,6 +2260,8 @@ call mpl%write(lncid,'nam','rh',nam%rh)
 call mpl%write(lncid,'nam','rv',nam%rv)
 call mpl%write(lncid,'nam','pos_def_test',nam%pos_def_test)
 call mpl%write(lncid,'nam','write_grids',nam%write_grids)
+
+! dirac_param
 call mpl%write(lncid,'nam','ndir',nam%ndir)
 allocate(londir(nam%ndir))
 allocate(latdir(nam%ndir))
@@ -2001,7 +2298,6 @@ end if
 call mpl%write(lncid,'nam','lon_ldwv',nam%nldwv,lon_ldwv)
 call mpl%write(lncid,'nam','lat_ldwv',nam%nldwv,lat_ldwv)
 call mpl%write(lncid,'nam','name_ldwv',nam%nldwv,nam%name_ldwv(1:nam%nldwv))
-call mpl%write(lncid,'nam','diag_rhflt',nam%diag_rhflt*req)
 call mpl%write(lncid,'nam','grid_output',nam%grid_output)
 call mpl%write(lncid,'nam','grid_resol',nam%grid_resol*req)
 

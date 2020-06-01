@@ -32,6 +32,12 @@ endif()
 set(SABER_TEST_VALGRIND 0)
 set(SABER_TEST_MODEL 0)
 set(SABER_TEST_MODEL_DIR "")
+set(SABER_TEST_OOPS 0)
+if (${OOPS_FOUND})
+   if (${ENABLE_OOPS_TOYMODELS})
+       set(SABER_TEST_OOPS 1)
+   endif()
+endif()
 
 # Override test selection variables using environment variables
 if(DEFINED ENV{SABER_TEST_MPI})
@@ -52,6 +58,9 @@ endif()
 if(DEFINED ENV{SABER_TEST_MODEL_DIR})
     set(SABER_TEST_MODEL_DIR "$ENV{SABER_TEST_MODEL_DIR}")
 endif()
+if(DEFINED ENV{SABER_TEST_OOPS})
+    set(SABER_TEST_OOPS "$ENV{SABER_TEST_OOPS}")
+endif()
 
 # Summary
 message(STATUS "SABER_TEST_TIER:      " ${SABER_TEST_TIER})
@@ -60,9 +69,10 @@ message(STATUS "SABER_TEST_OMP:       " ${SABER_TEST_OMP})
 message(STATUS "SABER_TEST_QUAD:      " ${SABER_TEST_QUAD})
 message(STATUS "SABER_TEST_VALGRIND:  " ${SABER_TEST_VALGRIND})
 message(STATUS "SABER_TEST_MODEL:     " ${SABER_TEST_MODEL})
-if(${SABER_TEST_MODEL} MATCHES 1)
+if(${SABER_TEST_MODEL})
     message(STATUS "  SABER_TEST_MODEL_DIR: " ${SABER_TEST_MODEL_DIR})
 endif()
+message(STATUS "SABER_TEST_OOPS:      " ${SABER_TEST_OOPS})
 
 # TIER 1
 file(STRINGS testlist/saber_test_1.txt saber_test_tmp )
@@ -116,7 +126,7 @@ if(${SABER_TEST_TIER} GREATER 2)
 endif()
 
 # Quad-core tests
-if(${SABER_TEST_QUAD} MATCHES 1)
+if(${SABER_TEST_QUAD})
     file(STRINGS testlist/saber_test_quad.txt saber_test_quad_tmp )
     list(APPEND saber_test_quad ${saber_test_quad_tmp})
     file(STRINGS testlist/saber_ref_quad.txt saber_ref_tmp )
@@ -125,9 +135,21 @@ if(${SABER_TEST_QUAD} MATCHES 1)
 endif()
 
 # Model tests
-if(${SABER_TEST_MODEL} MATCHES 1)
+if(${SABER_TEST_MODEL})
     file(STRINGS testlist/saber_test_model.txt saber_test_model_tmp )
     list(APPEND saber_test_model ${saber_test_model_tmp})
+endif()
+
+# OOPS tests
+if(${SABER_TEST_OOPS})
+    file(STRINGS testlist/saber_test_oops.txt saber_test_oops_tmp )
+    list(APPEND saber_test_oops ${saber_test_oops_tmp})
+    file(STRINGS testlist/saber_data_oops.txt saber_data_tmp )
+    list(APPEND saber_data ${saber_data_tmp})
+    list(APPEND saber_data_tar saber_data_oops.tar.gz)
+    file(STRINGS testlist/saber_ref_oops.txt saber_ref_tmp )
+    list(APPEND saber_ref ${saber_ref_tmp})
+    list(APPEND saber_ref_tar saber_ref_oops.tar.gz)
 endif()
 
 # Set download URL
@@ -221,6 +243,11 @@ foreach(test ${saber_test_model})
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testoutput/${test})
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testref/${test})
 endforeach()
+foreach(test ${saber_test_oops})
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testdata/${test})
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testoutput/${test})
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testref/${test})
+endforeach()
 
 # Link data/reference files
 foreach(file ${saber_data})
@@ -238,7 +265,7 @@ if(NOT ${METIS_FOUND})
     # Remove METIS tests
     file(STRINGS testlist/saber_test_metis.txt saber_test_tmp )
     list(REMOVE_ITEM saber_test ${saber_test_tmp})
-    if(${SABER_TEST_QUAD} MATCHES 1)
+    if(${SABER_TEST_QUAD})
         file(STRINGS testlist/saber_test_metis.txt saber_test_quad_tmp )
         list(REMOVE_ITEM saber_test_quad ${saber_test_quad_tmp})
     endif()
@@ -279,7 +306,7 @@ foreach(test ${saber_test})
 endforeach()
 
 # Dual-core tests (MPI)
-if(${SABER_TEST_MPI} MATCHES 1)
+if(${SABER_TEST_MPI})
     set(mpi 2)
     set(omp 1)
     foreach(test ${saber_test})
@@ -305,7 +332,7 @@ if(${SABER_TEST_MPI} MATCHES 1)
 endif()
 
 # Dual-core tests (OpenMP)
-if(${SABER_TEST_OMP} MATCHES 1)
+if(${SABER_TEST_OMP})
     set(mpi 1)
     set(omp 2)
     foreach(test ${saber_test})
@@ -331,7 +358,7 @@ if(${SABER_TEST_OMP} MATCHES 1)
 endif()
 
 # Quad-core tests (MPI)
-if(${SABER_TEST_QUAD} MATCHES 1)
+if(${SABER_TEST_QUAD})
     set(mpi 4)
     set(omp 1)
     foreach(test ${saber_test_quad})
@@ -358,16 +385,16 @@ endif()
 
 # Specific compare (TIER > 1)
 if(${SABER_TEST_TIER} GREATER 1)
-    ecbuild_add_test(TARGET       test_bump_nicas_mpicom_lsqrt_a-b_dirac
+    ecbuild_add_test(TARGET       test_bump_nicas_mpicom_lsqrt_a-b_dirac_compare
                      TYPE SCRIPT
-                     COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare_specific.sh
+                     COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_b dirac
                      TEST_DEPENDS test_bump_nicas_mpicom_lsqrt_a_1-1_run
                                   test_bump_nicas_mpicom_lsqrt_b_1-1_run)
 
-    ecbuild_add_test(TARGET       test_bump_nicas_mpicom_lsqrt_a-c_dirac
+    ecbuild_add_test(TARGET       test_bump_nicas_mpicom_lsqrt_a-c_dirac_compare
                      TYPE SCRIPT
-                     COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare_specific.sh
+                     COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_c dirac
                      TEST_DEPENDS test_bump_nicas_mpicom_lsqrt_a_1-1_run
                                   test_bump_nicas_mpicom_lsqrt_c_1-1_run)
@@ -393,5 +420,91 @@ if(${SABER_TEST_MODEL})
                          ARGS         testinput/${test}.yaml testoutput
                          DEPENDS      bump.x
                          TEST_DEPENDS test_${test}_link)
+    endforeach()
+endif()
+
+# OOPS tests
+if(${SABER_TEST_OOPS})
+    # Function to add tests
+    include(../../oops/cmake/oops_add_test)
+
+    foreach(test ${saber_test_oops})
+        # Link to yaml files
+        execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
+                        ${CMAKE_CURRENT_SOURCE_DIR}/testinput/${test}.yaml
+                        ${CMAKE_CURRENT_BINARY_DIR}/testinput/${test}.yaml)
+
+        # Link to reference files
+        execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
+                        ${CMAKE_CURRENT_BINARY_DIR}/testref/${test}/test.log.out
+                        ${CMAKE_CURRENT_BINARY_DIR}/testoutput/${test}/test.ref)
+    endforeach()
+
+    # Parameters tests
+    foreach(test ${saber_test_oops})
+        string(FIND ${test} "qg_parameters" qg_parameters)
+        if (${qg_parameters} MATCHES 0)
+            string(SUBSTRING ${test} 3 -1 testname)
+            oops_add_test(TESTNAME ${testname}
+                          MODELNAME qg
+                          MPI 1
+                          OMP 2
+                          YAMLNAME testinput/${test}.yaml
+                          EXENAME  saber_qg_estimate_parameters.x
+                          RUN_FILE ${test}/test.log.out
+                          REF_FILE ${test}/test.ref
+                          DEPENDS saber_qg_estimate_parameters.x
+                          TEST_DEPENDS get_saber_data
+                          COMPARE)
+        endif()
+    endforeach()
+
+    # Links
+    ecbuild_add_test(TARGET test_qg_links
+                     TYPE SCRIPT
+                     COMMAND ${CMAKE_BINARY_DIR}/bin/saber_qg_links.sh
+                     TEST_DEPENDS test_qg_parameters_bump_cov
+                                  test_qg_parameters_bump_hyb
+                                  test_qg_parameters_bump_lct
+                                  test_qg_parameters_bump_loc_3d
+                                  test_qg_parameters_bump_loc_4d)
+
+    # Dirac tests
+    foreach(test ${saber_test_oops})
+        string(FIND ${test} "qg_dirac" qg_dirac)
+        if (${qg_dirac} MATCHES 0)
+            string(SUBSTRING ${test} 3 -1 testname)
+            oops_add_test(TESTNAME ${testname}
+                          MODELNAME qg
+                          MPI 1
+                          OMP 2
+                          YAMLNAME testinput/${test}.yaml
+                          EXENAME  saber_qg_dirac.x
+                          RUN_FILE ${test}/test.log.out
+                          REF_FILE ${test}/test.ref
+                          DEPENDS saber_qg_dirac.x
+                          TEST_DEPENDS test_qg_links
+                          COMPARE)
+        endif()
+    endforeach()
+
+    # Variational tests
+    foreach(test ${saber_test_oops})
+        string(FIND ${test} "qg_3d" qg_3d)
+        string(FIND ${test} "qg_4d" qg_4d)
+        if ((${qg_3d} MATCHES 0) OR (${qg_4d} MATCHES 0))
+            string(SUBSTRING ${test} 3 -1 testname)
+            oops_add_test(TESTNAME ${testname}
+                          MODELNAME qg
+                          MPI 1
+                          OMP 2
+                          YAMLNAME testinput/${test}.yaml
+                          EXENAME  saber_qg_4dvar.x
+                          RUN_FILE ${test}/test.log.out
+                          REF_FILE ${test}/test.ref
+                          DEPENDS saber_qg_4dvar.x
+                          TEST_DEPENDS test_qg_links
+                          COMPARE)
+        endif()
     endforeach()
 endif()

@@ -1,3 +1,0 @@
-unusedStructMember:src/eckit/memory/MapAllocator.cc
-unusedStructMember:src/eckit/memory/MemoryPool.cc
-unusedFunction:*
