@@ -1,17 +1,8 @@
-# Documentation
-doc/html
+# ECKIT
+eckit
 
-# NCL figures
-ncl/fig
+# FCKIT
+fckit
 
-# Executable
-run/bump
-
-# Listings
-run/*.out
-
-# Namelist SQLite database save
-script/namelist.sqlite_save
-
-# Test
-test/test_*.nc
+# ATLAS
+atlas
