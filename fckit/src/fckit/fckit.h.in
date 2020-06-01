@@ -1,0 +1,70 @@
+#if 0
+(C) Copyright 2013 ECMWF.
+
+This software is licensed under the terms of the Apache Licence Version 2.0
+which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+In applying this licence, ECMWF does not waive the privileges and immunities
+granted to it by virtue of its status as an intergovernmental organisation nor
+does it submit to any jurisdiction.
+#endif
+
+#if 0
+// clang-format off
+#endif
+
+#ifndef FCKIT_H
+#define FCKIT_H
+
+#define FCKIT_GIT_SHA1      "@FCKIT_GIT_SHA1@"
+#define FCKIT_VERSION       "@FCKIT_VERSION@"
+
+#define FCKIT_HAVE_ECKIT                           @FCKIT_HAVE_ECKIT@
+#define FCKIT_HAVE_FINAL                           @FCKIT_HAVE_FINAL@
+#define FCKIT_FINAL_FUNCTION_RESULT                @FCKIT_FINAL_FUNCTION_RESULT@
+#define FCKIT_FINAL_UNINITIALIZED_LOCAL            @FCKIT_FINAL_UNINITIALIZED_LOCAL@
+#define FCKIT_FINAL_UNINITIALIZED_INTENT_OUT       @FCKIT_FINAL_UNINITIALIZED_INTENT_OUT@
+#define FCKIT_FINAL_UNINITIALIZED_INTENT_INOUT     @FCKIT_FINAL_UNINITIALIZED_INTENT_INOUT@
+#define FCKIT_FINAL_NOT_PROPAGATING                @FCKIT_FINAL_NOT_PROPAGATING@
+#define FCKIT_FINAL_NOT_INHERITING                 @FCKIT_FINAL_NOT_INHERITING@
+#define FCKIT_FINAL_BROKEN_FOR_ALLOCATABLE_ARRAY   @FCKIT_FINAL_BROKEN_FOR_ALLOCATABLE_ARRAY@
+#define FCKIT_FINAL_BROKEN_FOR_AUTOMATIC_ARRAY     @FCKIT_FINAL_BROKEN_FOR_AUTOMATIC_ARRAY@
+
+#define FCKIT_FINAL impure elemental
+#define FCKIT_FINAL_DEBUGGING 0
+
+#define FCKIT_SUPPRESS_UNUSED( X ) \
+associate( unused_ => X ); \
+end associate
+
+#define PGIBUG_ATLAS_197 1
+#if 0
+Following is to workaround PGI bug which prevents the use of function c_ptr()
+#endif
+#if PGIBUG_ATLAS_197
+#define CPTR_PGIBUG_A cpp_object_ptr
+#define CPTR_PGIBUG_B shared_object_%cpp_object_ptr
+#define PGIBUG_ATLAS_197_DEBUG 0
+#else
+#define CPTR_PGIBUG_A c_ptr()
+#define CPTR_PGIBUG_B c_ptr()
+#define PGIBUG_ATLAS_197_DEBUG 0
+#endif
+
+#define XLBUG_FCKIT_14 1
+#if 0
+Following is to workaround XL bug where allocate( character(len=xxx,kind=c_char ) :: string )
+does not compile
+#endif
+#if XLBUG_FCKIT_14
+#define FCKIT_ALLOCATE_CHARACTER( VARIABLE, SIZE ) allocate( character(len=(SIZE)) :: VARIABLE )
+#else
+#define FCKIT_ALLOCATE_CHARACTER( VARIABLE, SIZE ) allocate( character(len=(SIZE),kind=c_char) :: VARIABLE )
+#endif
+
+#define ECKIT_IMPROVED_MPI @ECKIT_IMPROVED_MPI@
+
+#if 0
+// clang-format on
+#endif
+
+#endif

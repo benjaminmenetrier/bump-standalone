@@ -1,3 +1,0 @@
-test/ens1_*.nc filter=lfs diff=lfs merge=lfs -text
-test/grid.nc filter=lfs diff=lfs merge=lfs -text
-test/truth_*.nc filter=lfs diff=lfs merge=lfs -text
