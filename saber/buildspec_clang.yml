@@ -13,9 +13,6 @@ phases:
       - echo $CODEBUILD_WEBHOOK_BASE_REF
       - echo $CODEBUILD_WEBHOOK_ACTOR_ACCOUNT_ID
       - echo $CODEBUILD_WEBHOOK_EVENT
-      - echo $CODEBUILD_BUILD_SUCCEEDING
-      - echo $CODEBUILD_WEBHOOK_PREV_COMMIT
-      - echo $CODEBUILD_WEBHOOK_HEAD_REF
       - echo $CODEBUILD_RESOLVED_SOURCE_VERSION
 
       - if [ "$CODEBUILD_WEBHOOK_EVENT" = "PULL_REQUEST_MERGED" ];
@@ -23,7 +20,7 @@ phases:
         echo "Merging to develop";
         else CODEBUILD_GIT_BRANCH="$(git branch -a --contains $CODEBUILD_RESOLVED_SOURCE_VERSION | sed -n 2p | awk '{ printf $1 }')";
         export CODEBUILD_GIT_BRANCH=${CODEBUILD_GIT_BRANCH#remotes/origin/};
-        fi      
+        fi
 
       - echo "CODEBUILD_GIT_BRANCH=${CODEBUILD_GIT_BRANCH}"
       - echo "CODEBUILD_SOURCE_VERSION=${CODEBUILD_SOURCE_VERSION}"
@@ -31,59 +28,36 @@ phases:
   pre_build:
     commands:
       - echo Executing pre_build phase
-      - git lfs install
+      - mkdir /build_container
+      - mkdir /jcsda
+      - mkdir /jcsda/saber-bundle
 
-      # saber-bundle
-      - mkdir -p saber-bundle
+      - cp CI/CMakeLists.txt /jcsda/saber-bundle
+
+      - git lfs install
+      - cd CI
 
       # fckit
-      - git clone https://$GIT_USER:$GIT_PASS@github.com/jcsda/fckit saber-bundle/fckit
-      - cd saber-bundle/fckit
-      - git checkout $CODEBUILD_GIT_BRANCH || echo "No branch named $CODEBUILD_GIT_BRANCH in fckit repo"
-      - cd $CODEBUILD_SRC_DIR
-      - ls
-
+      - ./clone.sh $GIT_USER $GIT_PASS fckit $CODEBUILD_GIT_BRANCH fckit /jcsda/saber-bundle release-stable
       # atlas
-      - git clone https://$GIT_USER:$GIT_PASS@github.com/jcsda/atlas saber-bundle/atlas
-      - cd saber-bundle/atlas
-      - git checkout $CODEBUILD_GIT_BRANCH || echo "No branch named $CODEBUILD_GIT_BRANCH in atlas repo"
-      - cd $CODEBUILD_SRC_DIR
-      - ls
-
+      - ./clone.sh $GIT_USER $GIT_PASS atlas $CODEBUILD_GIT_BRANCH atlas /jcsda/saber-bundle release-stable
       # metis
-      - git clone https://$GIT_USER:$GIT_PASS@github.com/jcsda/metis saber-bundle/metis
-      - ls
-
+      - ./clone.sh $GIT_USER $GIT_PASS metis $CODEBUILD_GIT_BRANCH metis /jcsda/saber-bundle develop
       # oops
-      - git clone https://$GIT_USER:$GIT_PASS@github.com/jcsda/oops saber-bundle/oops
-      - cd saber-bundle/oops
-      - git checkout $CODEBUILD_GIT_BRANCH || echo "No branch named $CODEBUILD_GIT_BRANCH in oops repo"
-      - cd $CODEBUILD_SRC_DIR
-      - ls
-
+      - ./clone.sh $GIT_USER $GIT_PASS oops $CODEBUILD_GIT_BRANCH oops /jcsda/saber-bundle develop
       # saber
-      - git clone -b $CODEBUILD_GIT_BRANCH https://$GIT_USER:$GIT_PASS@github.com/jcsda/saber saber-bundle/saber
-      - ls
+      - ./clone.sh $GIT_USER $GIT_PASS saber $CODEBUILD_GIT_BRANCH saber /jcsda/saber-bundle develop
 
-      # copy bundle CMakeLists.txt
-      - cp saber-bundle/saber/bundle/CMakeLists.txt saber-bundle
+      - cd /jcsda/saber-bundle
       - ls
-
-      - mkdir /build_container
-      - mkdir /src_repo
-      - mv saber-bundle /src_repo/
-
-      - cd /src_repo/saber-bundle
-      - ls
-      - sed -i 's/BRANCH develop UPDATE//' CMakeLists.txt
-      - sed -i '/PROJECT eckit/d' CMakeLists.txt
 
   build:
     commands:
       - echo Executing build phase
       - cd /build_container
-      - ecbuild /src_repo/saber-bundle/
-      - cd /build_container/saber
+      - ls
+      - ecbuild /jcsda/saber-bundle/
+      - cd saber
       - make -j4
 
       - export BUILD_STATUS="0"
@@ -95,6 +69,8 @@ phases:
         echo "Build passed";
         fi
       - echo $BUILD_STATUS
+
+      - cd /build_container/saber
       - ctest
 
   post_build:
