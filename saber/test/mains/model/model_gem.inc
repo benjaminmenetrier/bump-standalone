@@ -1,8 +1,8 @@
 !----------------------------------------------------------------------
-! Subroutine: model_gfs_coord
-! Purpose: get GFS coordinates
+! Subroutine: model_gem_coord
+! Purpose: get GEM coordinates
 !----------------------------------------------------------------------
-subroutine model_gfs_coord(model,mpl,nam)
+subroutine model_gem_coord(model,mpl,nam)
 
 implicit none
 
@@ -14,32 +14,32 @@ type(nam_type),intent(in) :: nam         ! Namelist
 ! Local variables
 integer :: img,ilon,ilat
 integer :: ncid,nlon_id,nlat_id,nlev_id,lon_id,lat_id,a_id,b_id
-real(kind_real),allocatable :: lon(:),lat(:),a(:),b(:)
-character(len=1024),parameter :: subr = 'model_gfs_coord'
+real(kind=8),allocatable :: lon(:),lat(:),a(:),b(:)
+character(len=1024),parameter :: subr = 'model_gem_coord'
 
 ! Open file and get dimensions
 model%ntile = 1
 call mpl%ncerr(subr,nf90_open(trim(nam%datadir)//'/grid.nc',nf90_share,ncid))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'longitude',nlon_id))
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'latitude',nlat_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lon',nlon_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lat',nlat_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlon_id,len=model%nlon))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlat_id,len=model%nlat))
 model%nmg = model%nlon*model%nlat
-call mpl%ncerr(subr,nf90_inq_dimid(ncid,'level',nlev_id))
+call mpl%ncerr(subr,nf90_inq_dimid(ncid,'lev',nlev_id))
 call mpl%ncerr(subr,nf90_inquire_dimension(ncid,nlev_id,len=model%nlev))
 
 ! Allocation
 call model%alloc
 allocate(lon(model%nlon))
 allocate(lat(model%nlat))
-allocate(a(model%nlev+1))
-allocate(b(model%nlev+1))
+allocate(a(model%nlev))
+allocate(b(model%nlev))
 
 ! Read data and close file
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'longitude',lon_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'latitude',lat_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'ak',a_id))
-call mpl%ncerr(subr,nf90_inq_varid(ncid,'bk',b_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'lon',lon_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'lat',lat_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'ap',a_id))
+call mpl%ncerr(subr,nf90_inq_varid(ncid,'b',b_id))
 call mpl%ncerr(subr,nf90_get_var(ncid,lon_id,lon))
 call mpl%ncerr(subr,nf90_get_var(ncid,lat_id,lat))
 call mpl%ncerr(subr,nf90_get_var(ncid,a_id,a))
@@ -68,8 +68,7 @@ model%mask = .true.
 ! Vertical unit
 do img=1,model%nmg
    if (nam%logpres) then
-      model%vunit(img,1:nam%nl) = log(0.5*(a(nam%levs(1:nam%nl))+a(nam%levs(1:nam%nl)+1)) &
-                               & +0.5*(b(nam%levs(1:nam%nl))+b(nam%levs(1:nam%nl)+1))*ps)
+      model%vunit(img,1:nam%nl) = log(a(nam%levs(1:nam%nl))+b(nam%levs(1:nam%nl))*ps)
       if (model%nl0>nam%nl) model%vunit(img,model%nl0) = log(ps)
    else
       model%vunit(img,:) = real(nam%levs(1:model%nl0),kind_real)
@@ -82,13 +81,13 @@ deallocate(lat)
 deallocate(a)
 deallocate(b)
 
-end subroutine model_gfs_coord
+end subroutine model_gem_coord
 
 !----------------------------------------------------------------------
-! Subroutine: model_gfs_read
-! Purpose: read GFS field
+! Subroutine: model_gem_read
+! Purpose: read GEM field
 !----------------------------------------------------------------------
-subroutine model_gfs_read(model,mpl,nam,filename,fld)
+subroutine model_gem_read(model,mpl,nam,filename,fld)
 
 implicit none
 
@@ -102,12 +101,15 @@ real(kind_real),intent(out) :: fld(model%nmga,model%nl0,nam%nv) ! Field
 ! Local variables
 integer :: iv,il0,img,ilon,ilat,ndims
 integer :: ncid,fld_id
+integer,allocatable :: fld_tmp_int(:,:)
+real(kind_real) :: add_offset,scale_factor
 real(kind_real) :: fld_mg(model%nmg,model%nl0)
 real(kind_real),allocatable :: fld_tmp(:,:,:)
-character(len=1024),parameter :: subr = 'model_gfs_read'
+character(len=1024),parameter :: subr = 'model_gem_read'
 
 if (mpl%main) then
    ! Allocation
+   allocate(fld_tmp_int(model%nlon,model%nlat))
    allocate(fld_tmp(model%nlon,model%nlat,model%nl0))
 
    ! Open file
@@ -117,26 +119,30 @@ end if
 do iv=1,nam%nv
    if (mpl%main) then
       ! Get variable id
-      call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%varname(iv)),fld_id))
+      call mpl%ncerr(subr,nf90_inq_varid(ncid,trim(nam%variables(iv)),fld_id))
 
-
-      ! Read data
+      ! Check variable type and read data
+      call mpl%ncerr(subr,nf90_inquire_variable(ncid,fld_id,ndims=ndims))
+      call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'add_offset',add_offset))
+      call mpl%ncerr(subr,nf90_get_att(ncid,fld_id,'scale_factor',scale_factor))
       select case (ndims)
       case (2)
          ! 2D data
+         call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp_int,(/1,1/),(/model%nlon,model%nlat/)))
          fld_tmp = mpl%msv%valr
          if (trim(nam%lev2d)=='first') then
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,1),(/1,1/),(/model%nlon,model%nlat/)))
+            fld_tmp(:,:,1) = add_offset+scale_factor*real(fld_tmp_int,kind_real)
          elseif (trim(nam%lev2d)=='last') then
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,model%nl0),(/1,1/),(/model%nlon,model%nlat/)))
+            fld_tmp(:,:,model%nl0) = add_offset+scale_factor*real(fld_tmp_int,kind_real)
          end if
       case (3) 
          ! 3D data
          do il0=1,nam%nl
-            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp(:,:,il0),(/1,1,nam%levs(il0)/),(/model%nlon,model%nlat,1/)))
+            call mpl%ncerr(subr,nf90_get_var(ncid,fld_id,fld_tmp_int,(/1,1,nam%levs(il0)/),(/model%nlon,model%nlat,1/)))
+            fld_tmp(:,:,il0) = add_offset+scale_factor*real(fld_tmp_int,kind_real)
          end do
       case default
-         call mpl%abort(subr,'wrong number of dimensions for variable '//trim(nam%varname(iv)))
+         call mpl%abort(subr,'wrong number of dimensions for variable '//trim(nam%variables(iv)))
       end select
 
       ! Pack
@@ -156,7 +162,8 @@ if (mpl%main) then
    call mpl%ncerr(subr,nf90_close(ncid))
 
    ! Release memory
+   deallocate(fld_tmp_int)
    deallocate(fld_tmp)
 end if
 
-end subroutine model_gfs_read
+end subroutine model_gem_read
