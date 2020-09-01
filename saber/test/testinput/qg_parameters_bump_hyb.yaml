@@ -1,6 +1,6 @@
 background:
   date: 2010-01-01T12:00:00Z
-  filename: testdata/forecast.fc.2009-12-31T00:00:00Z.P1DT12H
+  filename: testdata/forecast.fc.2009-12-31T00:00:00Z.P1DT12H.nc
 bump:
   datadir: testdata
   dc: 500.0e3
@@ -19,7 +19,7 @@ bump:
   resol: 8.0
   strategy: specific_univariate
 covariance:
-  covariance: QgError
+  covariance model: QgError
   horizontal_length_scale: 2.2e6
   maximum_condition_number: 1.0e6
   pseudoens_size: 30
@@ -28,29 +28,30 @@ covariance:
 ensemble:
   members:
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.1.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.1.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.2.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.2.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.3.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.3.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.4.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.4.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.5.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.5.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.6.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.6.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.7.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.7.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.8.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.8.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.9.2009-12-31T00:00:00Z.P1DT12H
+    filename: testdata/forecast.ens.9.2009-12-31T00:00:00Z.P1DT12H.nc
   - date: 2010-01-01T12:00:00Z
-    filename: testdata/forecast.ens.10.2009-12-31T00:00:00Z.P1DT12H
-  variables:
-  - x
-logging:
-  categories: Info, Test, Warning, Error
+    filename: testdata/forecast.ens.10.2009-12-31T00:00:00Z.P1DT12H.nc
+geometry:
+  nx: 40
+  ny: 20
+  depths: [4500.0, 5500.0]
+input variables: [x]
 output:
 - datadir: testdata/qg_parameters_bump_hyb
   date: 2010-01-01T12:00:00Z
@@ -72,11 +73,3 @@ output:
   exp: hyb_coef
   parameter: hyb_coef
   type: an
-resolution:
-  nx: 40
-  ny: 20
-  depths:
-  - 4500.0
-  - 5500.0
-variables:
-- x

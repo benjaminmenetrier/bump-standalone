@@ -10,7 +10,7 @@ module type_var
 use fckit_mpi_module, only: fckit_mpi_sum
 !$ use omp_lib
 use tools_const, only: reqkm
-use tools_kinds, only: kind_real
+use tools_kinds, only: kind_real,huge_real
 use type_cmat_blk, only: cmat_blk_type
 use type_ens, only: ens_type
 use type_geom, only: geom_type
@@ -119,7 +119,7 @@ type(io_type),intent(in) :: io       ! I/O
 
 ! Local variables
 integer :: iv,its
-character(len=1024) :: filename,variables
+character(len=1024) :: filename,grpname
 
 ! Read variance
 write(mpl%info,'(a7,a)') '','Read variance'
@@ -128,22 +128,17 @@ call mpl%flush
 ! Allocation
 call var%alloc(nam,geom)
 
-! Create file and write vertical unit
+! Set filename
 filename = trim(nam%prefix)//'_var'
 
-! Write raw variance, fourth-order moment, filtered variance and standard-deviation
+! Read raw variance, fourth-order moment, filtered variance and standard-deviation
 do its=1,nam%nts
    do iv=1,nam%nv
-      write(variables,'(a,i2.2,a,i2.2)') 'm2_',iv,'_',its
-      call io%fld_read(mpl,nam,geom,filename,variables,var%m2(:,:,iv,its))
-      write(variables,'(a,i2.2,a,i2.2)') 'm4_',iv,'_',its
-      call io%fld_read(mpl,nam,geom,filename,variables,var%m4(:,:,iv,its))
-      if (nam%var_filter) then
-         write(variables,'(a,i2.2,a,i2.2)') 'm2flt_',iv,'_',its
-         call io%fld_read(mpl,nam,geom,filename,variables,var%m2flt(:,:,iv,its))
-      end if
-      write(variables,'(a,i2.2,a,i2.2)') 'm2sqrt_',iv,'_',its
-      call io%fld_read(mpl,nam,geom,filename,variables,var%m2sqrt(:,:,iv,its))
+      call nam%io_key_value(trim(nam%variables(iv))//'_'//trim(nam%timeslots(its)),grpname)
+      call io%fld_read(mpl,nam,geom,filename,'m2',var%m2(:,:,iv,its),grpname)
+      call io%fld_read(mpl,nam,geom,filename,'m4',var%m4(:,:,iv,its),grpname)
+      if (nam%var_filter) call io%fld_read(mpl,nam,geom,filename,'m2flt',var%m2flt(:,:,iv,its),grpname)
+      call io%fld_read(mpl,nam,geom,filename,'m2sqrt',var%m2sqrt(:,:,iv,its),grpname)
    end do
 end do
 
@@ -166,29 +161,26 @@ type(io_type),intent(in) :: io       ! I/O
 
 ! Local variables
 integer :: iv,its
-character(len=1024) :: filename,variables
+character(len=1024) :: filename,grpname
 
 ! Write variance
 write(mpl%info,'(a7,a)') '','Write variance'
 call mpl%flush
 
-! Create file and write vertical unit
+! Set filename
 filename = trim(nam%prefix)//'_var'
+
+! Write vertical unit
 call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
 
 ! Write raw variance, fourth-order moment, filtered variance and standard-deviation
 do its=1,nam%nts
    do iv=1,nam%nv
-      write(variables,'(a,i2.2,a,i2.2)') 'm2_',iv,'_',its
-      call io%fld_write(mpl,nam,geom,filename,variables,var%m2(:,:,iv,its))
-      write(variables,'(a,i2.2,a,i2.2)') 'm4_',iv,'_',its
-      call io%fld_write(mpl,nam,geom,filename,variables,var%m4(:,:,iv,its))
-      if (nam%var_filter) then
-         write(variables,'(a,i2.2,a,i2.2)') 'm2flt_',iv,'_',its
-         call io%fld_write(mpl,nam,geom,filename,variables,var%m2flt(:,:,iv,its))
-      end if
-      write(variables,'(a,i2.2,a,i2.2)') 'm2sqrt_',iv,'_',its
-      call io%fld_write(mpl,nam,geom,filename,variables,var%m2sqrt(:,:,iv,its))
+      call nam%io_key_value(trim(nam%variables(iv))//'_'//trim(nam%timeslots(its)),grpname)
+      call io%fld_write(mpl,nam,geom,filename,'m2',var%m2(:,:,iv,its),grpname)
+      call io%fld_write(mpl,nam,geom,filename,'m4',var%m4(:,:,iv,its),grpname)
+      if (nam%var_filter) call io%fld_write(mpl,nam,geom,filename,'m2flt',var%m2flt(:,:,iv,its),grpname)
+      call io%fld_write(mpl,nam,geom,filename,'m2sqrt',var%m2sqrt(:,:,iv,its),grpname)
    end do
 end do
 
@@ -212,33 +204,57 @@ type(ens_type), intent(in) :: ens    ! Ensemble
 type(io_type),intent(in) :: io       ! I/O
 
 ! Local variables
-integer :: ie,ic0a,il0
-real(kind_real) :: norm_m2,norm_m4
+integer :: isub,ie_sub,ie,ic0a,il0
+real(kind_real) :: m2(geom%nc0a,geom%nl0,nam%nv,nam%nts,ens%nsub)
 
 ! Allocation
 call var%alloc(nam,geom)
 
 ! Initialization
-norm_m2 = 1.0/real(ens%ne-1,kind_real)
-norm_m4 = 1.0/real(ens%ne,kind_real)
 var%ne = ens%ne
-var%m2 = 0.0
+m2 = 0.0
 var%m4 = 0.0
 
 ! Compute variance
 write(mpl%info,'(a7,a)') '','Compute variance'
 call mpl%flush
-do ie=1,ens%ne
-   var%m2 = var%m2+ens%mem(ie)%fld**2
-   var%m4 = var%m4+ens%mem(ie)%fld**4
+
+! Loop on sub-ensembles
+do isub=1,ens%nsub
+   if (ens%nsub==1) then
+      write(mpl%info,'(a10,a)') '','Full ensemble, member:'
+      call mpl%flush(.false.)
+   else
+      write(mpl%info,'(a10,a,i4,a)') '','Sub-ensemble ',isub,', member:'
+      call mpl%flush(.false.)
+   end if
+
+   ! Compute centered moments
+   do ie_sub=1,ens%ne/ens%nsub
+      write(mpl%info,'(i4)') ie_sub
+      call mpl%flush(.false.)
+
+      ! Full ensemble index
+      ie = ie_sub+(isub-1)*ens%ne/ens%nsub
+
+      ! Variance
+      m2(:,:,:,:,isub) = m2(:,:,:,:,isub)+ens%mem(ie)%fld**2
+
+      ! Fourth-order moment
+      var%m4 = var%m4+ens%mem(ie)%fld**4
+   end do
+   write(mpl%info,'(a)') ''
+   call mpl%flush
 end do
-var%m2 = var%m2*norm_m2
-var%m4 = var%m4*norm_m4
+
+! Normalization
+var%m2 = sum(m2,dim=5)/real(ens%ne-ens%nsub,kind_real)
+var%m4 = var%m4/real(ens%ne,kind_real)
 
 ! Apply mask
 do il0=1,geom%nl0
    do ic0a=1,geom%nc0a
-      if (.not.geom%mask_c0a(ic0a,il0)) then
+      if (.not.geom%gmask_c0a(ic0a,il0)) then
          var%m2(ic0a,il0,:,:) = mpl%msv%valr
          var%m4(ic0a,il0,:,:) = mpl%msv%valr
       end if
@@ -304,8 +320,8 @@ do its=1,nam%nts
 
       ! Global sum
       do il0=1,geom%nl0
-         m2sq(il0) = sum(var%m2(:,il0,iv,its)**2,mask=geom%mask_c0a(:,il0))
-         m4(il0) = sum(var%m4(:,il0,iv,its),mask=geom%mask_c0a(:,il0))
+         m2sq(il0) = sum(var%m2(:,il0,iv,its)**2,mask=geom%gmask_c0a(:,il0))
+         m4(il0) = sum(var%m4(:,il0,iv,its),mask=geom%gmask_c0a(:,il0))
       end do
       call mpl%f_comm%allreduce(m2sq,m2sq_tot,fckit_mpi_sum())
       call mpl%f_comm%allreduce(m4,m4_tot,fckit_mpi_sum())
@@ -325,7 +341,7 @@ do its=1,nam%nts
       dichotomy = .false.
       rhflt = nam%var_rhflt
       drhflt = rhflt
-      diff_abs_min = huge(1.0)
+      diff_abs_min = huge_real
 
       do iter=1,nam%var_niter
          ! Copy initial value
@@ -339,7 +355,7 @@ do its=1,nam%nts
 
          ! Global product
          do il0=1,geom%nl0
-            m2prod(il0) = sum(m2(:,il0)*m2_ini(:,il0),mask=geom%mask_c0a(:,il0))
+            m2prod(il0) = sum(m2(:,il0)*m2_ini(:,il0),mask=geom%gmask_c0a(:,il0))
          end do
          call mpl%f_comm%allreduce(m2prod,m2prod_tot,fckit_mpi_sum())
 
@@ -349,7 +365,7 @@ do its=1,nam%nts
          do il0=1,geom%nl0
             if (m2sqasy(il0)>0.0) then
                write(mpl%info,'(a19,a,i3,a,f10.2,a,e12.5)') '','Level ',il0,': rhflt = ',rhflt(il0)*reqkm,' km, rel. diff. = ', &
-             & (m2prod_tot(il0)-m2sqasy(il0))/m2sqasy(il0)
+ & (m2prod_tot(il0)-m2sqasy(il0))/m2sqasy(il0)
                call mpl%flush
             end if
          end do
@@ -416,7 +432,7 @@ integer :: ic0a,il0
 ! Apply variance
 do il0=1,geom%nl0
    do ic0a=1,geom%nc0a
-      if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,:,:) = fld(ic0a,il0,:,:)*var%m2sqrt(ic0a,il0,:,:)
+      if (geom%gmask_c0a(ic0a,il0)) fld(ic0a,il0,:,:) = fld(ic0a,il0,:,:)*var%m2sqrt(ic0a,il0,:,:)
    end do
 end do
 
@@ -442,7 +458,7 @@ integer :: ic0a,il0
 ! Apply inverse variance
 do il0=1,geom%nl0
    do ic0a=1,geom%nc0a
-      if (geom%mask_c0a(ic0a,il0)) fld(ic0a,il0,:,:) = fld(ic0a,il0,:,:)/var%m2sqrt(ic0a,il0,:,:)
+      if (geom%gmask_c0a(ic0a,il0)) fld(ic0a,il0,:,:) = fld(ic0a,il0,:,:)/var%m2sqrt(ic0a,il0,:,:)
    end do
 end do
 
