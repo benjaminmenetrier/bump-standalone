@@ -164,7 +164,7 @@ if( SABER_TEST_OOPS )
 endif()
 
 # Set download URL
-set( ECBUILD_DOWNLOAD_BASE_URL https://jedi-test-files.s3.amazonaws.com/saber/bump-standalone )
+set( ECBUILD_DOWNLOAD_BASE_URL https://jedi-test-files.s3.amazonaws.com/saber )
 
 # Define local path for test files
 if( DEFINED ENV{LOCAL_PATH_TESTFILES_SABER} )
@@ -464,19 +464,33 @@ if( SABER_TEST_MULTI )
     endforeach()
 endif()
 
-# Specific compare (TIER > 1)
+# Specific comparisons
+ecbuild_add_test( TARGET       test_bump_read_cmat_parallel-serial_compare
+                  TYPE SCRIPT
+                  COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
+                  ARGS         bump_read_cmat bump_read_cmat_serial 2-1 dirac
+                  TEST_DEPENDS test_bump_read_cmat_2-1_run
+                               test_bump_read_cmat_serial_2-1_run )
+
+ecbuild_add_test( TARGET       test_bump_write_cmat_parallel-serial_compare
+                  TYPE SCRIPT
+                  COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
+                  ARGS         bump_write_cmat bump_write_cmat_serial 2-1 cmat
+                  TEST_DEPENDS test_bump_write_cmat_2-1_run
+                               test_bump_write_cmat_serial_2-1_run )
+
 if( SABER_TEST_TIER GREATER 1 )
     ecbuild_add_test( TARGET       test_bump_nicas_mpicom_lsqrt_a-b_dirac_compare
                       TYPE SCRIPT
                       COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
-                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_b dirac
+                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_b 1-1 dirac
                       TEST_DEPENDS test_bump_nicas_mpicom_lsqrt_a_1-1_run
                                    test_bump_nicas_mpicom_lsqrt_b_1-1_run )
 
     ecbuild_add_test( TARGET       test_bump_nicas_mpicom_lsqrt_a-c_dirac_compare
                       TYPE SCRIPT
                       COMMAND      ${CMAKE_BINARY_DIR}/bin/saber_compare.sh
-                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_c dirac
+                      ARGS         bump_nicas_mpicom_lsqrt_a bump_nicas_mpicom_lsqrt_c 1-1 dirac
                       TEST_DEPENDS test_bump_nicas_mpicom_lsqrt_a_1-1_run
                                    test_bump_nicas_mpicom_lsqrt_c_1-1_run )
 endif()

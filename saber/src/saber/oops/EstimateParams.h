@@ -20,7 +20,7 @@
 #include "oops/assimilation/Increment4D.h"
 #include "oops/assimilation/State4D.h"
 #include "oops/base/IncrementEnsemble.h"
-#include "oops/parallel/mpi/mpi.h"
+#include "oops/mpi/mpi.h"
 #include "oops/runs/Application.h"
 #include "oops/util/Logger.h"
 
@@ -43,14 +43,14 @@ template <typename MODEL> class EstimateParams : public oops::Application {
   typedef oops::Increment4D<MODEL>                        Increment4D_;
   typedef oops::State<MODEL>                              State_;
   typedef oops::State4D<MODEL>                            State4D_;
-  typedef ParametersBUMP<MODEL>                           Parameters_;
+  typedef ParametersBUMP<MODEL>                           ParametersBUMP_;
   typedef oops::IncrementEnsemble<MODEL>                  Ensemble_;
   typedef std::shared_ptr<oops::IncrementEnsemble<MODEL>> EnsemblePtr_;
 
  public:
 // -----------------------------------------------------------------------------
   static const std::string classname() {return "saber::EstimateParams";}
-  explicit EstimateParams(const eckit::mpi::Comm & comm = oops::mpi::comm()) : Application(comm) {
+  explicit EstimateParams(const eckit::mpi::Comm & comm = oops::mpi::world()) : Application(comm) {
     instantiateCovarFactory<MODEL>();
   }
 // -----------------------------------------------------------------------------
@@ -117,7 +117,7 @@ template <typename MODEL> class EstimateParams : public oops::Application {
     }
 
     // Setup parameters
-    Parameters_ param(resol, vars, timeslots, fullConfig, ens, pseudo_ens);
+    ParametersBUMP_ param(resol, vars, timeslots, fullConfig, ens, pseudo_ens);
 
     // Write parameters
     param.write();

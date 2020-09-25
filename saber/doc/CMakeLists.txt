@@ -3,7 +3,7 @@
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 
-option(BUILD_SABER_DOC "Build SABER documentation" OFF)
+option(BUILD_SABER_DOC "Build SABER documentation" ON)
 
 if ( BUILD_SABER_DOC )
     # Run SABER doc overview script

@@ -31,12 +31,13 @@ type nam_type
    ! general_param
    character(len=1024) :: datadir                       ! Data directory
    character(len=1024) :: prefix                        ! Files prefix
-   character(len=1024) :: model                         ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'qg, 'res' or 'wrf')
+   character(len=1024) :: model                         ! Model name ('aro', 'arp', 'fv3', 'gem', 'geos', 'gfs', 'ifs', 'mpas', 'nemo', 'norcpm', 'online', 'qg, 'res' or 'wrf')
    character(len=1024) :: verbosity                     ! Verbosity level ('all', 'main' or 'none')
    logical :: colorlog                                  ! Add colors to the log (for display on terminal)
    logical :: default_seed                              ! Default seed for random numbers
    logical :: repro                                     ! Inter-compilers reproducibility
-   integer :: nprocio                                   ! Number of IO processors
+   logical :: parallel_io                               ! Parallel NetCDF I/O
+   integer :: nprocio                                   ! Number of I/O processors
    logical :: remap                                     ! Remap points to improve load balance
    real(kind_real) :: universe_rad                      ! Universe radius [in meters]
 
@@ -98,6 +99,7 @@ type nam_type
    logical :: logpres                                   ! Use pressure logarithm as vertical coordinate (model level if .false.)
    integer :: nv                                        ! Number of variables
    character(len=1024),dimension(nvmax) :: variables    ! Variables names
+   character(len=1024) :: variable_change               ! Variable change
    integer :: nts                                       ! Number of time slots
    character(len=1024),dimension(ntsmax) :: timeslots   ! Timeslots
    real(kind_real) :: dts                               ! Timeslots width [in s]
@@ -245,6 +247,7 @@ nam%verbosity = 'all'
 nam%colorlog = .false.
 nam%default_seed = .true.
 nam%repro = .true.
+nam%parallel_io = .true.
 nam%nprocio = min(nproc,nprociomax)
 nam%remap = .false.
 nam%universe_rad = pi*req
@@ -311,6 +314,7 @@ nam%nv = 0
 do iv=1,nvmax
    nam%variables(iv) = ''
 end do
+nam%variable_change = ''
 nam%nts = 0
 do its=1,ntsmax
    nam%timeslots(its) = ''
@@ -460,6 +464,7 @@ character(len=1024) :: verbosity
 logical :: colorlog
 logical :: default_seed
 logical :: repro
+logical :: parallel_io
 integer :: nprocio
 logical :: remap
 real(kind_real) :: universe_rad
@@ -518,6 +523,7 @@ character(len=1024) :: lev2d
 logical :: logpres
 integer :: nv
 character(len=1024),dimension(nvmax) :: variables
+character(len=1024) :: variable_change
 integer :: nts
 character(len=1024),dimension(ntsmax) :: timeslots
 real(kind_real) :: dts
@@ -617,6 +623,7 @@ namelist/general_param/ &
  & colorlog, &
  & default_seed, &
  & repro, &
+ & parallel_io, &
  & nprocio, &
  & remap, &
  & universe_rad
@@ -677,6 +684,7 @@ namelist/model_param/ &
  & logpres, &
  & nv, &
  & variables, &
+ & variable_change, &
  & nts, &
  & timeslots, &
  & dts, &
@@ -785,6 +793,7 @@ if (mpl%main) then
    colorlog = .false.
    default_seed = .true.
    repro = .true.
+   parallel_io = .true.
    nprocio = min(mpl%nproc,nprociomax)
    remap = .false.
    universe_rad = pi*req
@@ -851,6 +860,7 @@ if (mpl%main) then
    do iv=1,nvmax
       variables(iv) = ''
    end do
+   variable_change = ''
    nts = 0
    do its=1,ntsmax
       timeslots(its) = ''
@@ -986,6 +996,7 @@ if (mpl%main) then
    nam%colorlog = colorlog
    nam%default_seed = default_seed
    nam%repro = repro
+   nam%parallel_io = parallel_io
    nam%nprocio = nprocio
    nam%remap = remap
    nam%universe_rad = universe_rad
@@ -1053,6 +1064,7 @@ if (mpl%main) then
    nam%logpres = logpres
    nam%nv = nv
    if (nv>0) nam%variables(1:nv) = variables(1:nv)
+   nam%variable_change = variable_change
    nam%nts = nts
    if (nts>0) nam%timeslots(1:nts) = timeslots(1:nts)
    nam%dts = dts
@@ -1226,6 +1238,7 @@ call mpl%f_comm%broadcast(nam%verbosity,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%colorlog,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%default_seed,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%repro,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%parallel_io,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%nprocio,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%remap,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%universe_rad,mpl%rootproc-1)
@@ -1288,6 +1301,7 @@ call mpl%f_comm%broadcast(nam%lev2d,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%logpres,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%nv,mpl%rootproc-1)
 call mpl%broadcast(nam%variables,mpl%rootproc-1)
+call mpl%f_comm%broadcast(nam%variable_change,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%nts,mpl%rootproc-1)
 call mpl%broadcast(nam%timeslots,mpl%rootproc-1)
 call mpl%f_comm%broadcast(nam%dts,mpl%rootproc-1)
@@ -1437,6 +1451,7 @@ end if
 if (conf%has("colorlog")) call conf%get_or_die("colorlog",nam%colorlog)
 if (conf%has("default_seed")) call conf%get_or_die("default_seed",nam%default_seed)
 if (conf%has("repro")) call conf%get_or_die("repro",nam%repro)
+if (conf%has("parallel_io")) call conf%get_or_die("parallel_io",nam%parallel_io)
 if (conf%has("nprocio")) call conf%get_or_die("nprocio",nam%nprocio)
 if (conf%has("remap")) call conf%get_or_die("remap",nam%remap)
 if (conf%has("universe_rad")) call conf%get_or_die("universe_rad",nam%universe_rad)
@@ -1513,6 +1528,10 @@ if (conf%has("nv")) call conf%get_or_die("nv",nam%nv)
 if (conf%has("variables")) then
    call conf%get_or_die("variables",str_array)
    nam%variables(1:size(str_array)) = str_array
+end if
+if (conf%has("variable_change")) then
+   call conf%get_or_die("variable_change",str)
+   nam%variable_change = str
 end if
 if (conf%has("nts")) call conf%get_or_die("nts",nam%nts)
 if (conf%has("timeslots")) then
@@ -1746,7 +1765,7 @@ if (nam%nldwv>0) nam%lat_ldwv(1:nam%nldwv) = nam%lat_ldwv(1:nam%nldwv)*deg2rad
 if (trim(nam%datadir)=='') call mpl%abort(subr,'datadir not specified')
 if (trim(nam%prefix)=='') call mpl%abort(subr,'prefix not specified')
 select case (trim(nam%model))
-case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','online','qg','res','wrf')
+case ('aro','arp','fv3','gem','geos','gfs','ifs','mpas','nemo','norcpm','online','qg','res','wrf')
 case default
    call mpl%abort(subr,'wrong model')
 end select
@@ -2033,8 +2052,14 @@ if (nam%new_nicas.or.nam%load_nicas) then
       if ((nam%mpicom/=1).and.(nam%mpicom/=2)) call mpl%abort(subr,'mpicom should be 1 or 2')
    end if
    if (nam%forced_radii) then
-      if (nam%new_hdiag.or.nam%new_lct.or.nam%load_cmat) &
- & call mpl%abort(subr,'new_hdiag, new_lct and load_cmat forbidden for forced_radii')
+      if (nam%new_hdiag) then
+         select case (trim(nam%method))
+         case ('hyb-avg','hyb-rnd')
+         case default
+           call mpl%abort(subr,'new_diag forbidden for forced_radii (except for static hybridization)')
+         end select
+      end if
+      if (nam%new_lct.or.nam%load_cmat) call mpl%abort(subr,'new_lct and load_cmat forbidden for forced_radii')
       if (nam%rh<0.0) call mpl%abort(subr,'rh should be non-negative')
       if (nam%rv<0.0) call mpl%abort(subr,'rv should be non-negative')
    end if
@@ -2112,6 +2137,7 @@ call mpl%write(lncid,'nam','verbosity',nam%verbosity)
 call mpl%write(lncid,'nam','colorlog',nam%colorlog)
 call mpl%write(lncid,'nam','default_seed',nam%default_seed)
 call mpl%write(lncid,'nam','repro',nam%repro)
+call mpl%write(lncid,'nam','parallel_io',nam%parallel_io)
 call mpl%write(lncid,'nam','nprocio',nam%nprocio)
 call mpl%write(lncid,'nam','remap',nam%remap)
 call mpl%write(lncid,'nam','universe_rad',nam%universe_rad*req)
@@ -2182,6 +2208,7 @@ call mpl%write(lncid,'nam','lev2d',nam%lev2d)
 call mpl%write(lncid,'nam','logpres',nam%logpres)
 call mpl%write(lncid,'nam','nv',nam%nv)
 call mpl%write(lncid,'nam','variables',nam%nv,nam%variables(1:nam%nv))
+call mpl%write(lncid,'nam','variable_change',nam%variable_change)
 call mpl%write(lncid,'nam','nts',nam%nts)
 call mpl%write(lncid,'nam','timeslots',nam%nts,nam%timeslots(1:nam%nts))
 call mpl%write(lncid,'nam','dts',nam%dts)

@@ -22,6 +22,7 @@ use type_rng, only: rng_type
 
 implicit none
 
+real(kind_real),parameter :: qmin = 1.0e-6        ! Minimum specific humidity value in the log variable change
 character(len=1024) :: zone = 'C+I'               ! Computation zone for AROME ('C', 'C+I' or 'C+I+E')
 
 ! Member field derived type
@@ -99,6 +100,8 @@ contains
    procedure :: mpas_read => model_mpas_read
    procedure :: nemo_coord => model_nemo_coord
    procedure :: nemo_read => model_nemo_read
+   procedure :: norcpm_coord => model_norcpm_coord
+   procedure :: norcpm_read => model_norcpm_read
    procedure :: qg_coord => model_qg_coord
    procedure :: qg_read => model_qg_read
    procedure :: res_coord => model_res_coord
@@ -132,6 +135,7 @@ include 'model/model_gfs.inc'
 include 'model/model_ifs.inc'
 include 'model/model_mpas.inc'
 include 'model/model_nemo.inc'
+include 'model/model_norcpm.inc'
 include 'model/model_qg.inc'
 include 'model/model_res.inc'
 include 'model/model_wrf.inc'
@@ -248,6 +252,7 @@ if (trim(nam%model)=='gfs') call model%gfs_coord(mpl,nam)
 if (trim(nam%model)=='ifs') call model%ifs_coord(mpl,nam)
 if (trim(nam%model)=='mpas') call model%mpas_coord(mpl,nam)
 if (trim(nam%model)=='nemo') call model%nemo_coord(mpl,nam)
+if (trim(nam%model)=='norcpm') call model%norcpm_coord(mpl,nam)
 if (trim(nam%model)=='qg') call model%qg_coord(mpl,nam)
 if (trim(nam%model)=='res') call model%res_coord(mpl,nam)
 if (trim(nam%model)=='wrf') call model%wrf_coord(mpl,nam)
@@ -312,7 +317,7 @@ elseif (mpl%nproc>1) then
       if (mpl%msv%isnot(model%ntile)) then
          ! Special case for model with tiles
          if (mod(mpl%nproc,model%ntile)/=0) call mpl%abort(subr, &
-      & 'the number of MPI tasks should be a multiple of the number of tiles')
+ & 'the number of MPI tasks should be a multiple of the number of tiles')
          nprocpertile = mpl%nproc/model%ntile
       else
          ! General case
@@ -393,7 +398,7 @@ elseif (mpl%nproc>1) then
       else
          ! Unstructured grid
          if ((model%ntile>1).and.inf(sum(model%area),4.0*pi)) call mpl%abort(subr, &
-       & 'unstructured grid requires a single tile and a global domain')
+ & 'unstructured grid requires a single tile and a global domain')
 
          ! Allocation
          allocate(lon_inf(nprocpertile))
@@ -423,7 +428,7 @@ elseif (mpl%nproc>1) then
             do while (.not.found)
                if (iproc<=nprocpertile) then
                   if (((model%lon(img)>=lon_inf(iproc)).and.(model%lon(img)<=lon_sup(iproc)) &
-                & .and.(model%lat(img)>=lat_inf(iproc)).and.(model%lat(img)<=lat_sup(iproc)))) then
+ & .and.(model%lat(img)>=lat_inf(iproc)).and.(model%lat(img)<=lat_sup(iproc)))) then
                      model%mg_to_proc(img) = iproc
                      found = .true.
                   end if
@@ -584,7 +589,7 @@ case ('ldwv')
          end if
       end if
       write(mpl%info,'(a7,a,e15.8,a,e15.8)') '','Profile '//trim(nam%name_ldwv(ildw))//' required at lon/lat: ', &
-    & nam%lon_ldwv(ildw),' / ',nam%lat_ldwv(ildw)
+ & nam%lon_ldwv(ildw),' / ',nam%lat_ldwv(ildw)
       call mpl%flush
       if (.not.any(model%mask(nam%img_ldwv(ildw),:))) call mpl%warning(subr,'profile '//trim(nam%name_ldwv(ildw))//' is not valid')
    end do
@@ -743,6 +748,7 @@ if (trim(nam%model)=='gfs') call model%gfs_read(mpl,nam,filename,fld_mga)
 if (trim(nam%model)=='ifs') call model%ifs_read(mpl,nam,filename,its,fld_mga)
 if (trim(nam%model)=='mpas') call model%mpas_read(mpl,nam,filename,its,fld_mga)
 if (trim(nam%model)=='nemo') call model%nemo_read(mpl,nam,filename,its,fld_mga)
+if (trim(nam%model)=='norcpm') call model%norcpm_read(mpl,nam,filename,fld_mga)
 if (trim(nam%model)=='qg') call model%qg_read(mpl,nam,filename,fld_mga)
 if (trim(nam%model)=='res') call model%res_read(mpl,nam,filename,fld_mga)
 if (trim(nam%model)=='wrf') call model%wrf_read(mpl,nam,filename,its,fld_mga)
@@ -787,7 +793,7 @@ character(len=1024) :: fullname
 afieldset = atlas_fieldset()
 
 do its=1,nam%nts
-   ! Define filename
+   ! Set file name
    write(fullname,'(a,i6.6)') trim(filename)//'_'//trim(nam%timeslots(its))//'_',ie
 
    ! Read file

@@ -11,4 +11,4 @@
 | subroutine | [diag_correlation](https://github.com/JCSDA/saber/tree/develop/src/saber/bump/type_diag.F90#L446) | compute correlation |
 | subroutine | [diag_localization](https://github.com/JCSDA/saber/tree/develop/src/saber/bump/type_diag.F90#L527) | compute diagnostic localization |
 | subroutine | [diag_hybridization](https://github.com/JCSDA/saber/tree/develop/src/saber/bump/type_diag.F90#L608) | compute diagnostic hybridization |
-| subroutine | [diag_dualens](https://github.com/JCSDA/saber/tree/develop/src/saber/bump/type_diag.F90#L689) | compute diagnostic dualens |
+| subroutine | [diag_dualens](https://github.com/JCSDA/saber/tree/develop/src/saber/bump/type_diag.F90#L695) | compute diagnostic dualens |
