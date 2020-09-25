@@ -29,9 +29,9 @@ Code report obtained with [CLOC](https://github.com/AlDanial/cloc).
 
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| Fortran 90 | 36 | 5469 | 8525 | 22841 | 37 % |
+| Fortran 90 | 36 | 5405 | 8414 | 22626 | 37 % |
 | C/C++ Header | 1 | 7 | 7 | 39 | 17 % |
-| C | 1 | 1 | 0 | 21 | 0 % |
+| C | 1 | 2 | 6 | 21 | 28 % |
 
 
 ### src/saber/external
@@ -53,15 +53,15 @@ Code report obtained with [CLOC](https://github.com/AlDanial/cloc).
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
 | Fortran 90 | 2 | 165 | 231 | 405 | 57 % |
-| C/C++ Header | 2 | 23 | 19 | 55 | 34 % |
-| C++ | 1 | 11 | 16 | 34 | 47 % |
+| C/C++ Header | 2 | 23 | 19 | 56 | 33 % |
+| C++ | 1 | 12 | 17 | 41 | 41 % |
 
 
 ### src/saber/oops
 
 | language | files | blank | comment | code | comment/code ratio |
 |:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| C/C++ Header | 14 | 408 | 288 | 1697 | 16 % |
+| C/C++ Header | 14 | 407 | 288 | 1687 | 17 % |
 
 
 ### src/saber/util
