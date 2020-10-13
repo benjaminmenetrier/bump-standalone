@@ -313,27 +313,20 @@ type(rng_type),intent(inout) :: rng    ! Random number generator
 type(nam_type),intent(inout) :: nam    ! Namelist
 type(geom_type),intent(in) :: geom     ! Geometry
 type(bpar_type),intent(in) :: bpar     ! Block parameters
-type(ens_type), intent(in) :: ens      ! Ensemble
+type(ens_type), intent(inout) :: ens   ! Ensemble
 type(ens_type),intent(inout) :: ensu   ! Unbalanced ensemble
 
 ! Local variables
 integer :: il0i,i_s,ic0a,ic2b,iv,jv,ie
-real(kind_real) :: fld(geom%nc0a,geom%nl0)
+real(kind_real) :: fld_c0a_1(geom%nc0a,geom%nl0),fld_c0a_2(geom%nc0a,geom%nl0)
 real(kind_real),allocatable :: auto(:,:,:,:),cross(:,:,:,:)
 
-! Setup sampling, first step
+! Setup sampling
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
 call mpl%flush
-write(mpl%info,'(a)') '--- Setup sampling, first step'
+write(mpl%info,'(a)') '--- Setup sampling'
 call mpl%flush
 call vbal%samp%setup('vbal',mpl,rng,nam,geom,ens)
-
-! Setup sampling, second step
-write(mpl%info,'(a)') '-------------------------------------------------------------------'
-call mpl%flush
-write(mpl%info,'(a)') '--- Setup sampling, second step'
-call mpl%flush
-call vbal%samp%setup(mpl,rng,nam,geom)
 
 ! Compute vertical balance operators
 write(mpl%info,'(a)') '-------------------------------------------------------------------'
@@ -342,10 +335,10 @@ write(mpl%info,'(a)') '--- Compute vertical balance operators'
 call mpl%flush
 
 ! Allocation
-call ensu%alloc(nam,geom,ens%ne,ens%nsub)
+call ensu%alloc(ens%ne,ens%nsub)
 
 ! Copy ensemble
-call ensu%copy(ens)
+call ensu%copy(mpl,nam,geom,ens)
 
 ! Allocation
 allocate(auto(vbal%samp%nc1e,geom%nl0,geom%nl0,ensu%nsub))
@@ -400,16 +393,31 @@ do iv=1,nam%nv
       do ie=1,ensu%ne
          write(mpl%info,'(i6)') ie
          call mpl%flush(.false.)
+
+         ! Get member on subset Sc0
+         call ensu%get_c0(mpl,iv,geom,'member',ie,fld_c0a_1)
+
          do jv=1,iv-1
             if (bpar%vbal_block(iv,jv)) then
-               fld = ensu%mem(ie)%fld(:,:,jv,1)
-               call vbal%blk(iv,jv)%apply(geom,vbal%h_n_s,vbal%h_c2b,vbal%h_S,fld)
-               ensu%mem(ie)%fld(:,:,iv,1) = ensu%mem(ie)%fld(:,:,iv,1)-fld
+               ! Get member on subset Sc0
+               call ensu%get_c0(mpl,jv,geom,'member',ie,fld_c0a_2)
+
+               ! Apply balance operator block
+               call vbal%blk(iv,jv)%apply(geom,vbal%h_n_s,vbal%h_c2b,vbal%h_S,fld_c0a_2)
+
+               ! Subtract balanced part
+               fld_c0a_1 = fld_c0a_1-fld_c0a_2
             end if
          end do
+
+         ! Set member from subset Sc0
+         call ensu%set_c0(mpl,iv,geom,'member',ie,fld_c0a_1)
       end do
       write(mpl%info,'(a)') ''
       call mpl%flush
+
+      ! Recompute ensemble mean
+      call ensu%compute_mean(mpl,nam,geom)
    end if
 end do
 
@@ -757,15 +765,14 @@ type(bpar_type),intent(in) :: bpar  ! Block parameters
 type(io_type),intent(in) :: io      ! I/O
 
 ! Local variables
-integer :: idir,iv,its
-real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv,nam%nts)
-character(len=2) :: itschar
+integer :: idir,iv
+real(kind_real) :: fld(geom%nc0a,geom%nl0,nam%nv)
 character(len=1024) :: filename
 
 ! Generate dirac field
 fld = 0.0
 do idir=1,geom%ndir
-   if (geom%iprocdir(idir)==mpl%myproc) fld(geom%ic0adir(idir),geom%il0dir(idir),geom%ivdir(idir),geom%itsdir(idir)) = 1.0
+   if (geom%iprocdir(idir)==mpl%myproc) fld(geom%ic0adir(idir),geom%il0dir(idir),geom%ivdir(idir)) = 1.0
 end do
 
 ! Apply vertical balance to dirac
@@ -774,11 +781,8 @@ call vbal%apply(nam,geom,bpar,fld)
 ! Write field
 filename = trim(nam%prefix)//'_dirac'
 call io%fld_write(mpl,nam,geom,filename,'vunit',geom%vunit_c0a)
-do its=1,nam%nts
-   write(itschar,'(i2.2)') its
-   do iv=1,nam%nv
-      call io%fld_write(mpl,nam,geom,filename,'vbal',fld(:,:,iv,its),trim(nam%variables(iv))//'_'//trim(nam%timeslots(its)))
-   end do
+do iv=1,nam%nv
+   call io%fld_write(mpl,nam,geom,filename,'vbal',fld(:,:,iv),trim(nam%variables(iv)))
 end do
 
 end subroutine vbal_test_dirac

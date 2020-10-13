@@ -10,7 +10,7 @@ module type_bump
 use atlas_module, only: atlas_field,atlas_fieldset,atlas_integer,atlas_real,atlas_functionspace
 use fckit_configuration_module, only: fckit_configuration
 use fckit_mpi_module, only: fckit_mpi_comm,fckit_mpi_sum,fckit_mpi_min,fckit_mpi_max
-use tools_atlas, only: create_atlas_fieldset,create_atlas_function_space,atlas_to_fld,fld_to_atlas
+use tools_atlas, only: create_atlas_function_space
 use tools_const, only: req,deg2rad
 use tools_func, only: sphere_dist,lct_r2d
 use tools_kinds,only: kind_int,kind_real
@@ -19,6 +19,7 @@ use type_bpar, only: bpar_type
 use type_cmat, only: cmat_type
 use type_cv, only: cv_type
 use type_ens, only: ens_type
+use type_fieldset, only: fieldset_type
 use type_geom, only: geom_type
 use type_hdiag, only: hdiag_type
 use type_io, only: io_type
@@ -51,30 +52,40 @@ type bump_type
    type(rng_type) :: rng
    type(var_type) :: var
    type(vbal_type) :: vbal
-   real(kind_real),allocatable :: fld_uv(:,:,:,:)
 contains
-   procedure :: create => bump_create
+   procedure :: bump_create
+   procedure :: bump_create_deprecated_atlas
+   generic :: create => bump_create,bump_create_deprecated_atlas
    procedure :: setup => bump_setup
    procedure :: run_drivers => bump_run_drivers
    procedure :: add_member => bump_add_member
-   procedure :: remove_member => bump_remove_member
    procedure :: apply_vbal => bump_apply_vbal
    procedure :: apply_vbal_inv => bump_apply_vbal_inv
    procedure :: apply_vbal_ad => bump_apply_vbal_ad
    procedure :: apply_vbal_inv_ad => bump_apply_vbal_inv_ad
    procedure :: apply_stddev => bump_apply_stddev
    procedure :: apply_stddev_inv => bump_apply_stddev_inv
-   procedure :: apply_nicas => bump_apply_nicas
+   procedure :: bump_apply_nicas
+   procedure :: bump_apply_nicas_deprecated_atlas
+   generic :: apply_nicas => bump_apply_nicas,bump_apply_nicas_deprecated_atlas
    procedure :: get_cv_size => bump_get_cv_size
-   procedure :: apply_nicas_sqrt => bump_apply_nicas_sqrt
+   procedure :: bump_apply_nicas_sqrt
+   procedure :: bump_apply_nicas_sqrt_deprecated_atlas
+   generic :: apply_nicas_sqrt => bump_apply_nicas_sqrt,bump_apply_nicas_sqrt_deprecated_atlas
    procedure :: apply_nicas_sqrt_ad => bump_apply_nicas_sqrt_ad
    procedure :: randomize => bump_randomize
-   procedure :: apply_obsop => bump_apply_obsop
-   procedure :: apply_obsop_ad => bump_apply_obsop_ad
+   procedure :: bump_apply_obsop
+   procedure :: bump_apply_obsop_deprecated_atlas
+   generic :: apply_obsop => bump_apply_obsop,bump_apply_obsop_deprecated_atlas
+   procedure :: bump_apply_obsop_ad
+   procedure :: bump_apply_obsop_ad_deprecated_atlas
+   generic :: apply_obsop_ad => bump_apply_obsop_ad,bump_apply_obsop_ad_deprecated_atlas
    procedure :: get_parameter => bump_get_parameter
    procedure :: copy_to_field => bump_copy_to_field
    procedure :: test_get_parameter => bump_test_get_parameter
-   procedure :: set_parameter => bump_set_parameter
+   procedure :: bump_set_parameter
+   procedure :: bump_set_parameter_deprecated_atlas
+   generic :: set_parameter => bump_set_parameter,bump_set_parameter_deprecated_atlas
    procedure :: copy_from_field => bump_copy_from_field
    procedure :: test_set_parameter => bump_test_set_parameter
    procedure :: test_apply_interfaces => bump_test_apply_interfaces
@@ -85,8 +96,7 @@ end type bump_type
 
 integer,parameter :: dmsvali = -999           ! Default missing value for integers
 real(kind_real),parameter :: dmsvalr = -999.0 ! Default missing value for reals
-logical,parameter :: print_member = .false.   ! Print info when adding member to BUMP
-logical,parameter :: write_member = .false.   ! Write file when adding member to BUMP
+logical :: copy_ensemble = .false.            ! Deep copy of ensemble members
 
 private
 public :: bump_type
@@ -112,7 +122,7 @@ contains
 ! Subroutine: bump_create
 ! Purpose: create
 !----------------------------------------------------------------------
-subroutine bump_create(bump,comm,afunctionspace,afieldset,conf,grid)
+subroutine bump_create(bump,comm,afunctionspace,fieldset,conf,grid)
 
 implicit none
 
@@ -120,7 +130,7 @@ implicit none
 class(bump_type),intent(inout) :: bump                 ! BUMP
 type(fckit_mpi_comm),intent(in) :: comm                ! FCKIT MPI communicator wrapper
 type(atlas_functionspace),intent(in) :: afunctionspace ! ATLAS function space
-type(atlas_fieldset),intent(in) :: afieldset           ! ATLAS fieldset  (containing geometry features: area, vunit, gmask, smask, wind)
+type(fieldset_type),intent(in) :: fieldset             ! Fieldset containing geometry elements
 type(fckit_configuration),intent(in) :: conf           ! FCKIT configuration
 type(fckit_configuration),intent(in) :: grid           ! FCKIT grid configuration
 
@@ -148,15 +158,42 @@ llunit = lmsvali
 if (conf%has('lunit')) call conf%get_or_die('lunit',llunit)
 
 ! Setup BUMP
-call bump%setup(comm,afunctionspace,afieldset,lunit=llunit,msvali=lmsvali,msvalr=lmsvalr)
+call bump%setup(comm,afunctionspace,fieldset,lunit=llunit,msvali=lmsvali,msvalr=lmsvalr)
 
 end subroutine bump_create
+
+!----------------------------------------------------------------------
+! Subroutine: bump_create_deprecated_atlas
+! Purpose: create (deprecated)
+!----------------------------------------------------------------------
+subroutine bump_create_deprecated_atlas(bump,comm,afunctionspace,afieldset,conf,grid)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump                 ! BUMP
+type(fckit_mpi_comm),intent(in) :: comm                ! FCKIT MPI communicator wrapper
+type(atlas_functionspace),intent(in) :: afunctionspace ! ATLAS function space
+type(atlas_fieldset),intent(in) :: afieldset           ! ATLAS fieldset containing geometry elements
+type(fckit_configuration),intent(in) :: conf           ! FCKIT configuration
+type(fckit_configuration),intent(in) :: grid           ! FCKIT grid configuration
+
+! Local variables
+type(fieldset_type) :: fieldset
+
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
+
+! Call fieldset interface
+call bump%create(comm,afunctionspace,fieldset,conf,grid)
+
+end subroutine bump_create_deprecated_atlas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_setup
 ! Purpose: setup
 !----------------------------------------------------------------------
-subroutine bump_setup(bump,f_comm,afunctionspace,afieldset,nobs,lonobs,latobs,lunit,msvali,msvalr)
+subroutine bump_setup(bump,f_comm,afunctionspace,fieldset,nobs,lonobs,latobs,lunit,msvali,msvalr)
 
 implicit none
 
@@ -164,7 +201,7 @@ implicit none
 class(bump_type),intent(inout) :: bump                 ! BUMP
 type(fckit_mpi_comm),intent(in) :: f_comm              ! FCKIT MPI communicator wrapper
 type(atlas_functionspace),intent(in) :: afunctionspace ! ATLAS functionspace
-type(atlas_fieldset),intent(in),optional :: afieldset  ! ATLAS fieldset (containing geometry features: area, vunit, gmask, smask, wind)
+type(fieldset_type),intent(in),optional :: fieldset    ! Fieldset containing geometry elements
 integer,intent(in),optional :: nobs                    ! Number of observations
 real(kind_real),intent(in),optional :: lonobs(:)       ! Observations longitude (in degrees)
 real(kind_real),intent(in),optional :: latobs(:)       ! Observations latitude (in degrees)
@@ -173,12 +210,7 @@ integer,intent(in),optional :: msvali                  ! Missing value for integ
 real(kind_real),intent(in),optional :: msvalr          ! Missing value for reals
 
 ! Local variables
-integer :: iv,its
-real(kind_real),allocatable :: fld_uv(:,:)
-real(kind_real),pointer :: real_ptr(:,:)
-character(len=1024) :: fieldname
 character(len=1024),parameter :: subr = 'bump_setup'
-type(atlas_field) :: afield
 
 ! Initialize MPL
 call bump%mpl%init(f_comm)
@@ -255,8 +287,8 @@ write(bump%mpl%info,'(a)') '----------------------------------------------------
 call bump%mpl%flush
 write(bump%mpl%info,'(a)') '--- Initialize geometry'
 call bump%mpl%flush
-if (present(afieldset)) then
-   call bump%geom%setup(bump%mpl,bump%rng,bump%nam,afunctionspace,afieldset)
+if (present(fieldset)) then
+   call bump%geom%setup(bump%mpl,bump%rng,bump%nam,afunctionspace,fieldset)
 else
    call bump%geom%setup(bump%mpl,bump%rng,bump%nam,afunctionspace)
 end if
@@ -284,7 +316,7 @@ if (bump%nam%ens1_ne>0) then
    call bump%mpl%flush
    write(bump%mpl%info,'(a)') '--- Initialize ensemble 1'
    call bump%mpl%flush
-   call bump%ens1%alloc(bump%nam,bump%geom,bump%nam%ens1_ne,bump%nam%ens1_nsub)
+   call bump%ens1%alloc(bump%nam%ens1_ne,bump%nam%ens1_nsub)
 else
    call bump%ens1%set_att(bump%nam%ens1_ne,bump%nam%ens1_nsub)
 end if
@@ -295,46 +327,9 @@ if (bump%nam%ens2_ne>0) then
    call bump%mpl%flush
    write(bump%mpl%info,'(a)') '--- Initialize ensemble 2'
    call bump%mpl%flush
-   call bump%ens2%alloc(bump%nam,bump%geom,bump%nam%ens2_ne,bump%nam%ens2_nsub)
+   call bump%ens2%alloc(bump%nam%ens2_ne,bump%nam%ens2_nsub)
 else
    call bump%ens2%set_att(bump%nam%ens2_ne,bump%nam%ens2_nsub)
-end if
-
-if (bump%nam%new_cortrack.or.(trim(bump%nam%adv_type)=='wind').or.(trim(bump%nam%adv_type)=='windmax')) then
-   ! Initialize wind fields
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Initialize wind fields'
-   call bump%mpl%flush
-
-   ! Check that afieldset is present
-   if (.not.present(afieldset)) call bump%mpl%abort(subr,'afieldset required to initialize wind fields')
-
-   ! Allocation
-   allocate(fld_uv(bump%geom%nmga,bump%geom%nl0))
-   allocate(bump%fld_uv(bump%geom%nc0a,bump%geom%nl0,2,bump%nam%nts))
-
-   ! Get field from ATLAS fieldset
-   do its=1,bump%nam%nts
-      do iv=1,2
-         ! Get field
-         fieldname = trim(bump%nam%wind_variables(iv))//'_'//trim(bump%nam%timeslots(its))
-         afield = afieldset%field(trim(fieldname))
-
-         ! Get data
-         call afield%data(real_ptr)
-
-         ! Copy to BUMP
-         fld_uv = transpose(real_ptr)
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_uv,bump%fld_uv(:,:,iv,its))
-      end do
-   end do
-
-   ! Normalization
-   bump%fld_uv = bump%fld_uv/req
-
-   ! Release memory
-   deallocate(fld_uv)
 end if
 
 if (present(nobs)) then
@@ -367,21 +362,21 @@ implicit none
 class(bump_type),intent(inout) :: bump ! BUMP
 
 if (bump%nam%ens1_ne>0) then
-   ! Finalize ensemble 1
+   ! Compute mean for ensemble 1
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Finalize ensemble 1'
+   write(bump%mpl%info,'(a)') '--- Compute mean for ensemble 1'
    call bump%mpl%flush
-   call bump%ens1%remove_mean
+   call bump%ens1%compute_mean(bump%mpl,bump%nam,bump%geom)
 end if
 
 if (bump%nam%ens2_ne>0) then
-   ! Finalize ensemble 2
+   ! Compute mean for ensemble 2
    write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
    call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Finalize ensemble 2'
+   write(bump%mpl%info,'(a)') '--- Compute mean for ensemble 2'
    call bump%mpl%flush
-   call bump%ens2%remove_mean
+   call bump%ens2%compute_mean(bump%mpl,bump%nam,bump%geom)
 end if
 
 if (bump%nam%new_normality) then
@@ -391,30 +386,6 @@ if (bump%nam%new_normality) then
    write(bump%mpl%info,'(a)') '--- Run normality tests'
    call bump%mpl%flush
    call bump%ens1%normality(bump%mpl,bump%nam,bump%geom,bump%io)
-end if
-
-if (bump%nam%new_cortrack) then
-   ! Run correlation tracker
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Run correlation tracker'
-   call bump%mpl%flush
-   if (allocated(bump%fld_uv)) then
-      call bump%ens1%cortrack(bump%mpl,bump%rng,bump%nam,bump%geom,bump%io,bump%fld_uv)
-   else
-      call bump%ens1%cortrack(bump%mpl,bump%rng,bump%nam,bump%geom,bump%io)
-   end if
-   if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
-end if
-
-if (bump%nam%new_corstats) then
-   ! Run correlation statistics
-   write(bump%mpl%info,'(a)') '-------------------------------------------------------------------'
-   call bump%mpl%flush
-   write(bump%mpl%info,'(a)') '--- Run correlation statistics'
-   call bump%mpl%flush
-   call bump%ens1%corstats(bump%mpl,bump%rng,bump%nam,bump%geom)
-   if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 end if
 
 if (bump%nam%new_vbal) then
@@ -468,18 +439,9 @@ if (bump%nam%new_hdiag) then
    write(bump%mpl%info,'(a)') '--- Run HDIAG driver'
    call bump%mpl%flush
    if ((trim(bump%nam%method)=='hyb-rnd').or.(trim(bump%nam%method)=='dual-ens')) then
-      if (allocated(bump%fld_uv)) then
-         call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,ens2=bump%ens2, &
- & fld_uv=bump%fld_uv)
-      else
-         call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,ens2=bump%ens2)
-      end if
+      call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,ens2=bump%ens2)
    else
-      if (allocated(bump%fld_uv)) then
-         call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1,fld_uv=bump%fld_uv)
-      else
-         call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1)
-      end if
+      call bump%hdiag%run_hdiag(bump%mpl,bump%rng,bump%nam,bump%geom,bump%bpar,bump%io,bump%ens1)
    end if
    if (bump%nam%default_seed) call bump%rng%reseed(bump%mpl)
 
@@ -620,188 +582,85 @@ end subroutine bump_run_drivers
 ! Subroutine: bump_add_member
 ! Purpose: add member into bump%ens[1,2]
 !----------------------------------------------------------------------
-subroutine bump_add_member(bump,afieldset,ie,iens)
+subroutine bump_add_member(bump,fieldset,ie,iens)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
-integer,intent(in) :: ie                        ! Member index
-integer,intent(in) :: iens                      ! Ensemble number
+class(bump_type),intent(inout) :: bump     ! BUMP
+type(fieldset_type),intent(in) :: fieldset ! Fieldset
+integer,intent(in) :: ie                   ! Member index
+integer,intent(in) :: iens                 ! Ensemble number
 
 ! Local variables
-integer :: its,iv,nnonzero,nzero,nmask,nnonzero_tot,nzero_tot,nmask_tot
-real(kind_real) :: norm,norm_tot,fld_c0a(bump%geom%nc0a,bump%geom%nl0)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-character(len=1024) :: filename,variables
 character(len=1024),parameter :: subr = 'bump_add_member'
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
-
 ! Check ensemble number
 if ((iens/=1).and.(iens/=2)) call bump%mpl%abort(subr,'wrong ensemble number')
 
-! Allocate member
 if (iens==1) then
-   if (.not.allocated(bump%ens1%mem(ie)%fld)) &
- & allocate(bump%ens1%mem(ie)%fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   if (copy_ensemble) then
+      ! Initialize fieldset
+      call bump%ens1%mem(ie)%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+    & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+
+      ! Copy ATLAS fields
+      call bump%ens1%mem(ie)%copy_fields(fieldset)
+   else
+      ! Initialize fieldset
+      call bump%ens1%mem(ie)%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+    & bump%nam%lev2d)
+
+      ! Pass ATLAS fields
+      call bump%ens1%mem(ie)%pass_fields(fieldset)
+   end if
 elseif (iens==2) then
-   if (.not.allocated(bump%ens2%mem(ie)%fld)) &
- & allocate(bump%ens2%mem(ie)%fld(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   if (copy_ensemble) then
+      ! Initialize fieldset
+      call bump%ens2%mem(ie)%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+    & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+
+      ! Copy ATLAS fields
+      call bump%ens2%mem(ie)%copy_fields(fieldset)
+   else
+      ! Initialize fieldset
+      call bump%ens2%mem(ie)%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+    & bump%nam%lev2d)
+
+      ! Pass ATLAS fields
+      call bump%ens2%mem(ie)%pass_fields(fieldset)
+   end if
 end if
-
-! Add member
-write(bump%mpl%info,'(a7,a,i3,a,i1)') '','Member ',ie,' added to ensemble ',iens
-call bump%mpl%flush
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      ! Model grid to subset Sc0
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a)
-
-      ! Copy to ensemble structure
-      if (iens==1) then
-         bump%ens1%mem(ie)%fld(:,:,iv,its) = fld_c0a
-      elseif (iens==2) then
-         bump%ens2%mem(ie)%fld(:,:,iv,its) = fld_c0a
-      end if
-
-      if (print_member) then
-         ! Print norm
-         norm = sum(fld_c0a**2,mask=bump%geom%gmask_c0a)
-         call bump%mpl%f_comm%allreduce(norm,norm_tot,fckit_mpi_sum())
-         write(bump%mpl%info,'(a10,a,i2,a,i2,a,e9.2)') '','Local norm for variable ',iv,' and timeslot ',its,': ',norm
-         call bump%mpl%flush
-         write(bump%mpl%info,'(a10,a,i2,a,i2,a,e9.2)') '','Global norm for variable ',iv,' and timeslot ',its,': ',norm_tot
-         call bump%mpl%flush
-         if (bump%geom%nc0a>0) then
-            nnonzero = count((abs(fld_c0a)>0.0).and.bump%geom%gmask_c0a)
-            nzero = count((.not.(abs(fld_c0a)>0.0)).and.bump%geom%gmask_c0a)
-            nmask = count(.not.bump%geom%gmask_c0a)
-         else
-            nnonzero = 0
-            nzero = 0
-            nmask = bump%geom%nc0a
-         end if
-         call bump%mpl%f_comm%allreduce(nnonzero,nnonzero_tot,fckit_mpi_sum())
-         call bump%mpl%f_comm%allreduce(nzero,nzero_tot,fckit_mpi_sum())
-         call bump%mpl%f_comm%allreduce(nmask,nmask_tot,fckit_mpi_sum())
-         write(bump%mpl%info,'(a10,a,i8,a,i8,a,i8,a,i8)') '','Local total / non-zero / zero / masked points: ', &
- & bump%geom%nc0a*bump%geom%nl0,' / ',nnonzero,' / ',nzero,' / ',nmask
-         call bump%mpl%flush
-         write(bump%mpl%info,'(a10,a,i8,a,i8,a,i8,a,i8)') '','Global total / non-zero / zero / masked points: ', &
- & bump%geom%nc0*bump%geom%nl0,' / ',nnonzero_tot,' / ',nzero_tot,' / ',nmask_tot
-         call bump%mpl%flush
-      end if
-
-      if (write_member) then
-         ! Write member
-         write(filename,'(a,a,i6.6,a,i6.6)') trim(bump%nam%prefix),'_member_',iens,'-',ie
-         variables = trim(bump%nam%variables(iv))//'_'//trim(bump%nam%timeslots(its))
-         call bump%io%fld_write(bump%mpl,bump%nam,bump%geom,filename,variables,fld_c0a)
-      end if
-   end do
-end do
 
 end subroutine bump_add_member
-
-!----------------------------------------------------------------------
-! Subroutine: bump_remove_member
-! Purpose: remove member into bump%ens[1,2]
-!----------------------------------------------------------------------
-subroutine bump_remove_member(bump,afieldset,ie,iens)
-
-implicit none
-
-! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
-integer,intent(in) :: ie                        ! Member index
-integer,intent(in) :: iens                      ! Ensemble number
-
-! Local variables
-integer :: its,iv,isub
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-character(len=1024),parameter :: subr = 'bump_remove_member'
-
-! Check ensemble number
-if ((iens/=1).and.(iens/=2)) call bump%mpl%abort(subr,'wrong ensemble number')
-
-! Remove member
-write(bump%mpl%info,'(a7,a,i3,a,i1)') '','Member ',ie,' removed from ensemble ',iens
-call bump%mpl%flush
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      ! Copy from ensemble structure and add mean
-      if (iens==1) then
-         isub = (ie-1)*bump%ens1%nsub/bump%ens1%ne+1
-         fld_c0a = bump%ens1%mem(ie)%fld(:,:,iv,its)+bump%ens1%mean(isub)%fld(:,:,iv,its)
-      elseif (iens==2) then
-         isub = (ie-1)*bump%ens2%nsub/bump%ens2%ne+1
-         fld_c0a = bump%ens2%mem(ie)%fld(:,:,iv,its)+bump%ens2%mean(isub)%fld(:,:,iv,its)
-      end if
-
-      ! Model grid to subset Sc0
-      call bump%geom%copy_mga_to_c0a(bump%mpl,fld_c0a,fld_mga(:,:,iv,its))
-   end do
-end do
-
-! Release memory
-if (iens==1) then
-   deallocate(bump%ens1%mem(ie)%fld)
-elseif (iens==2) then
-   deallocate(bump%ens2%mem(ie)%fld)
-end if
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
-
-end subroutine bump_remove_member
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_vbal
 ! Purpose: vertical balance application
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal(bump,afieldset)
+subroutine bump_apply_vbal(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
-do its=1,bump%nam%nts
-   if (bump%geom%same_grid) then
-       ! Apply vertical balance
-      call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
-   else
-      ! Model grid to subset Sc0
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-      end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-      ! Apply vertical balance
-      call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_c0a)
+! Apply vertical balance
+call bump%vbal%apply(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-      ! Subset Sc0 to model grid
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-      end do
-   end if
-end do
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_vbal
 
@@ -809,44 +668,29 @@ end subroutine bump_apply_vbal
 ! Subroutine: bump_apply_vbal_inv
 ! Purpose: vertical balance application, inverse
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_inv(bump,afieldset)
+subroutine bump_apply_vbal_inv(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
-do its=1,bump%nam%nts
-   if (bump%geom%same_grid) then
-      ! Apply vertical balance, inverse
-      call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
-   else
-      ! Model grid to subset Sc0
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-      end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-      ! Apply vertical balance, inverse
-      call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_c0a)
+! Apply vertical balance, inverse
+call bump%vbal%apply_inv(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-      ! Subset Sc0 to model grid
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-      end do
-   end if
-end do
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_vbal_inv
 
@@ -854,44 +698,29 @@ end subroutine bump_apply_vbal_inv
 ! Subroutine: bump_apply_vbal_ad
 ! Purpose: vertical balance application, adjoint
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_ad(bump,afieldset)
+subroutine bump_apply_vbal_ad(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
-do its=1,bump%nam%nts
-   if (bump%geom%same_grid) then
-      ! Apply vertical balance, adjoint
-      call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
-   else
-      ! Model grid to subset Sc0
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-      end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-      ! Apply vertical balance, adjoint
-      call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+! Apply vertical balance, adjoint
+call bump%vbal%apply_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-      ! Subset Sc0 to model grid
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-      end do
-   end if
-end do
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_vbal_ad
 
@@ -899,44 +728,29 @@ end subroutine bump_apply_vbal_ad
 ! Subroutine: bump_apply_vbal_inv_ad
 ! Purpose: vertical balance application, inverse adjoint
 !----------------------------------------------------------------------
-subroutine bump_apply_vbal_inv_ad(bump,afieldset)
+subroutine bump_apply_vbal_inv_ad(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
 real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
-do its=1,bump%nam%nts
-   if (bump%geom%same_grid) then
-      ! Apply vertical balance, inverse adjoint
-      call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_mga(:,:,:,its))
-   else
-      ! Model grid to subset Sc0
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv))
-      end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-      ! Apply vertical balance, inverse adjoint
-      call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
+! Apply vertical balance, inverse adjoint
+call bump%vbal%apply_inv_ad(bump%nam,bump%geom,bump%bpar,fld_c0a)
 
-      ! Subset Sc0 to model grid
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv),fld_mga(:,:,iv,its))
-      end do
-   end if
-end do
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_vbal_inv_ad
 
@@ -944,46 +758,29 @@ end subroutine bump_apply_vbal_inv_ad
 ! Subroutine: bump_apply_stddev
 ! Purpose: standard-deviation application
 !----------------------------------------------------------------------
-subroutine bump_apply_stddev(bump,afieldset)
+subroutine bump_apply_stddev(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
- if (bump%geom%same_grid) then
-   ! Apply standard-deviation
-   call bump%var%apply_sqrt(bump%nam,bump%geom,fld_mga)
-else
-   ! Model grid to subset Sc0
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
-      end do
-   end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-   ! Apply standard-deviation
-   call bump%var%apply_sqrt(bump%nam,bump%geom,fld_c0a)
+! Apply standard-deviation
+call bump%var%apply_sqrt(bump%nam,bump%geom,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
-      end do
-   end do
-end if
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_stddev
 
@@ -991,46 +788,29 @@ end subroutine bump_apply_stddev
 ! Subroutine: bump_apply_stddev_inv
 ! Purpose: standard-deviation application, inverse
 !----------------------------------------------------------------------
-subroutine bump_apply_stddev_inv(bump,afieldset)
+subroutine bump_apply_stddev_inv(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
- if (bump%geom%same_grid) then
-   ! Apply standard-deviation inverse
-   call bump%var%apply_sqrt_inv(bump%nam,bump%geom,fld_mga)
-else
-   ! Model grid to subset Sc0
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
-      end do
-   end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-   ! Apply standard-deviation
-   call bump%var%apply_sqrt_inv(bump%nam,bump%geom,fld_c0a)
+! Apply standard-deviation
+call bump%var%apply_sqrt_inv(bump%nam,bump%geom,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
-      end do
-   end do
-end if
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_stddev_inv
 
@@ -1038,7 +818,41 @@ end subroutine bump_apply_stddev_inv
 ! Subroutine: bump_apply_nicas
 ! Purpose: NICAS application
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas(bump,afieldset)
+subroutine bump_apply_nicas(bump,fieldset)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
+
+! Local variable
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
+
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
+
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
+
+! Apply NICAS
+if (bump%nam%lsqrt) then
+   call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
+else
+    call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
+end if
+
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
+
+end subroutine bump_apply_nicas
+
+!----------------------------------------------------------------------
+! Subroutine: bump_apply_nicas_deprecated_atlas
+! Purpose: NICAS application (deprecated
+!----------------------------------------------------------------------
+subroutine bump_apply_nicas_deprecated_atlas(bump,afieldset)
 
 implicit none
 
@@ -1046,48 +860,16 @@ implicit none
 class(bump_type),intent(inout) :: bump          ! BUMP
 type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
 
-! Local variable
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+! Local variables
+type(fieldset_type) :: fieldset
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
 
-if (bump%geom%same_grid) then
-   ! Apply NICAS
-   if (bump%nam%lsqrt) then
-      call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga)
-   else
-      call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga)
-   end if
-else
-   ! Model grid to subset Sc0
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
-      end do
-   end do
+! Call fieldset interface
+call bump%apply_nicas(fieldset)
 
-   ! Apply NICAS
-   if (bump%nam%lsqrt) then
-      call bump%nicas%apply_from_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
-   else
-      call bump%nicas%apply(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a)
-   end if
-
-   ! Subset Sc0 to model grid
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
-      end do
-   end do
-end if
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
-
-end subroutine bump_apply_nicas
+end subroutine bump_apply_nicas_deprecated_atlas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_get_cv_size
@@ -1116,19 +898,17 @@ end subroutine bump_get_cv_size
 ! Subroutine: bump_apply_nicas_sqrt
 ! Purpose: NICAS square-root application
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas_sqrt(bump,pcv,afieldset)
+subroutine bump_apply_nicas_sqrt(bump,pcv,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-real(kind_real),intent(in) :: pcv(:)            ! Packed control variable
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+real(kind_real),intent(in) :: pcv(:)          ! Packed control variable
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 character(len=1024),parameter :: subr = 'bump_apply_nicas_sqrt'
 type(cv_type) :: cv
 
@@ -1143,63 +923,69 @@ else
    call bump%mpl%abort(subr,'wrong control variable size in bump_apply_nicas_sqrt')
 end if
 
-if (bump%geom%same_grid) then
-   ! Apply NICAS square-root
-   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_mga)
-else
-   ! Apply NICAS square-root
-   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
+! Apply NICAS square-root
+call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
-      end do
-   end do
-end if
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_apply_nicas_sqrt
 
 !----------------------------------------------------------------------
-! Subroutine: bump_apply_nicas_sqrt_ad
-! Purpose: NICAS square-root adjoint application
+! Subroutine: bump_apply_nicas_sqrt_deprecated_atlas
+! Purpose: NICAS square-root application (deprecated)
 !----------------------------------------------------------------------
-subroutine bump_apply_nicas_sqrt_ad(bump,afieldset,pcv)
+subroutine bump_apply_nicas_sqrt_deprecated_atlas(bump,pcv,afieldset)
 
 implicit none
 
 ! Passed variables
 class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
-real(kind_real),intent(inout) :: pcv(:)         ! Packed control variable
+real(kind_real),intent(in) :: pcv(:)            ! Packed control variable
+type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS Fieldset
 
 ! Local variables
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+type(fieldset_type) :: fieldset
+
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
+
+! Call fieldset interface
+call bump%apply_nicas_sqrt(pcv,fieldset)
+
+end subroutine bump_apply_nicas_sqrt_deprecated_atlas
+
+!----------------------------------------------------------------------
+! Subroutine: bump_apply_nicas_sqrt_ad
+! Purpose: NICAS square-root adjoint application
+!----------------------------------------------------------------------
+subroutine bump_apply_nicas_sqrt_ad(bump,fieldset,pcv)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
+real(kind_real),intent(inout) :: pcv(:)       ! Packed control variable
+
+! Local variables
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 character(len=1024),parameter :: subr = 'bump_apply_nicas_sqrt_ad'
 type(cv_type) :: cv
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
 
-if (bump%geom%same_grid) then
-   ! Apply NICAS square-root adjoint
-   call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_mga,cv)
-else
-   ! Model grid to subset Sc0
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,iv,its),fld_c0a(:,:,iv,its))
-      end do
-   end do
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
 
-   ! Apply NICAS square-root adjoint
-   call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a,cv)
-end if
+! Apply NICAS square-root adjoint
+call bump%nicas%apply_sqrt_ad(bump%mpl,bump%nam,bump%geom,bump%bpar,fld_c0a,cv)
 
 ! Check dimension
 if (size(pcv)==cv%n) then
@@ -1215,40 +1001,30 @@ end subroutine bump_apply_nicas_sqrt_ad
 ! Subroutine: bump_randomize
 ! Purpose: NICAS randomization
 !----------------------------------------------------------------------
-subroutine bump_randomize(bump,afieldset)
+subroutine bump_randomize(bump,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variable
-integer :: its,iv
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
 type(cv_type) :: cv
 
 ! Generate random control vector
 call bump%nicas%random_cv(bump%mpl,bump%rng,bump%bpar,cv)
 
-if (bump%geom%same_grid) then
-   ! Apply NICAS square-root
-   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_mga)
-else
-   ! Apply NICAS square-root
-   call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
+! Apply NICAS square-root
+call bump%nicas%apply_sqrt(bump%mpl,bump%nam,bump%geom,bump%bpar,cv,fld_c0a)
 
-   ! Subset Sc0 to model grid
-   do its=1,bump%nam%nts
-      do iv=1,bump%nam%nv
-         call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a(:,:,iv,its),fld_mga(:,:,iv,its))
-      end do
-   end do
-end if
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
 end subroutine bump_randomize
 
@@ -1256,7 +1032,39 @@ end subroutine bump_randomize
 ! Subroutine: bump_apply_obsop
 ! Purpose: observation operator application
 !----------------------------------------------------------------------
-subroutine bump_apply_obsop(bump,afieldset,obs)
+subroutine bump_apply_obsop(bump,fieldset,obs)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump                             ! BUMP
+type(fieldset_type),intent(inout) :: fieldset                      ! Fieldset
+real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
+
+! Local variables
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
+character(len=1024),parameter :: subr = 'bump_apply_obsop'
+
+! Test dimensions
+if (bump%nam%nv>1) call bump%mpl%abort(subr,'only one variable to call bump_apply_obsop')
+
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
+
+! Fieldset to Fortran on subset Sc0
+call bump%geom%fieldset_to_c0(bump%mpl,bump%nam,fieldset,fld_c0a)
+
+! Apply observation operator
+call bump%obsop%apply(bump%mpl,bump%geom,fld_c0a,obs)
+
+end subroutine bump_apply_obsop
+
+!----------------------------------------------------------------------
+! Subroutine: bump_apply_obsop_deprecated_atlas
+! Purpose: observation operator application (deprecated)
+!----------------------------------------------------------------------
+subroutine bump_apply_obsop_deprecated_atlas(bump,afieldset,obs)
 
 implicit none
 
@@ -1266,35 +1074,53 @@ type(atlas_fieldset),intent(inout) :: afieldset                    ! ATLAS field
 real(kind_real),intent(out) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
 
 ! Local variables
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,1,1)
-character(len=1024),parameter :: subr = 'bump_apply_obsop'
+type(fieldset_type) :: fieldset
 
-! Test dimensions
-if (bump%nam%nv>1) call bump%mpl%abort(subr,'only one variable to call bump_apply_obsop')
-if (bump%nam%nts>1) call bump%mpl%abort(subr,'only one timeslot to call bump_apply_obsop')
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Call fieldset interface
+call bump%apply_obsop(fieldset,obs)
 
-if (bump%geom%same_grid) then
-   ! Apply observation operator
-   call bump%obsop%apply(bump%mpl,bump%geom,fld_mga(:,:,1,1),obs)
-else
-   ! Model grid to subset Sc0
-   call bump%geom%copy_mga_to_c0a(bump%mpl,fld_mga(:,:,1,1),fld_c0a)
-
-   ! Apply observation operator
-   call bump%obsop%apply(bump%mpl,bump%geom,fld_c0a,obs)
-end if
-
-end subroutine bump_apply_obsop
+end subroutine bump_apply_obsop_deprecated_atlas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_apply_obsop_ad
 ! Purpose: observation operator adjoint application
 !----------------------------------------------------------------------
-subroutine bump_apply_obsop_ad(bump,obs,afieldset)
+subroutine bump_apply_obsop_ad(bump,obs,fieldset)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump                            ! BUMP
+real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations columns
+type(fieldset_type),intent(inout) :: fieldset                     ! Fieldset
+
+! Local variables
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
+character(len=1024),parameter :: subr = 'bump_apply_obsop_ad'
+
+! Test dimensions
+if (bump%nam%nv>1) call bump%mpl%abort(subr,'only one variable to call bump_apply_obsop_ad')
+
+! Apply observation operator adjoint
+call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_c0a)
+
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
+
+end subroutine bump_apply_obsop_ad
+
+!----------------------------------------------------------------------
+! Subroutine: bump_apply_obsop_ad_deprecated_atlas
+! Purpose: observation operator adjoint application (deprecated)
+!----------------------------------------------------------------------
+subroutine bump_apply_obsop_ad_deprecated_atlas(bump,obs,afieldset)
 
 implicit none
 
@@ -1304,46 +1130,32 @@ real(kind_real),intent(in) :: obs(bump%obsop%nobsa,bump%geom%nl0) ! Observations
 type(atlas_fieldset),intent(inout) :: afieldset                   ! ATLAS fieldset
 
 ! Local variables
-real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0)
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,1,1)
-character(len=1024),parameter :: subr = 'bump_apply_obsop_ad'
+type(fieldset_type) :: fieldset
 
-! Test dimensions
-if (bump%nam%nv>1) call bump%mpl%abort(subr,'only one variable to call bump_apply_obsop_ad')
-if (bump%nam%nts>1) call bump%mpl%abort(subr,'only one timeslot to call bump_apply_obsop_ad')
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
 
-if (bump%geom%same_grid) then
-   ! Apply observation operator adjoint
-   call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_mga(:,:,1,1))
-else
-   ! Apply observation operator adjoint
-   call bump%obsop%apply_ad(bump%mpl,bump%geom,obs,fld_c0a)
+! Call fieldset interface
+call bump%apply_obsop_ad(obs,fieldset)
 
-   ! Subset Sc0 to model grid
-   call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a,fld_mga(:,:,1,1))
-end if
-
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
-
-end subroutine bump_apply_obsop_ad
+end subroutine bump_apply_obsop_ad_deprecated_atlas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_get_parameter
 ! Purpose: get a parameter
 !----------------------------------------------------------------------
-subroutine bump_get_parameter(bump,param,afieldset)
+subroutine bump_get_parameter(bump,param,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-character(len=*),intent(in) :: param            ! Parameter
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+character(len=*),intent(in) :: param          ! Parameter
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variables
-integer :: ib,iv,jv,its,jts
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+integer :: ib,iv,jv
+real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv)
 
 write(bump%mpl%info,'(a7,a,a)') '','Get ',trim(param)
 call bump%mpl%flush
@@ -1357,21 +1169,17 @@ case ('cor_rh','cor_rv','loc_coef','loc_rh','loc_rv','hyb_coef','loc_D11','loc_D
          ! Get indices
          iv = bump%bpar%b_to_v1(ib)
          jv = bump%bpar%b_to_v2(ib)
-         its = bump%bpar%b_to_ts1(ib)
-         jts = bump%bpar%b_to_ts2(ib)
 
          ! Copy to field
-         if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
+         if (iv==jv) call bump%copy_to_field(param,ib,fld_mga(:,:,iv))
       end do
-   case ('common','common_univariate','common_weighted')
+   case ('common','common_weighted')
       ! Set common index
       ib = bump%bpar%nbe
 
-      do its=1,bump%nam%nts
-         do iv=1,bump%nam%nv
-            ! Copy to field
-            call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
-         end do
+      do iv=1,bump%nam%nv
+         ! Copy to field
+         call bump%copy_to_field(param,ib,fld_mga(:,:,iv))
       end do
    end select
 case default
@@ -1379,16 +1187,18 @@ case default
       ! Get indices
       iv = bump%bpar%b_to_v1(ib)
       jv = bump%bpar%b_to_v2(ib)
-      its = bump%bpar%b_to_ts1(ib)
-      jts = bump%bpar%b_to_ts2(ib)
 
       ! Copy to field
-      if ((iv==jv).and.(its==jts)) call bump%copy_to_field(param,ib,fld_mga(:,:,iv,its))
+      if (iv==jv) call bump%copy_to_field(param,ib,fld_mga(:,:,iv))
    end do
 end select
 
-! Field to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+
+! Fortran array to fieldset
+call fieldset%from_array(bump%mpl,fld_mga)
 
 end subroutine bump_get_parameter
 
@@ -1407,7 +1217,7 @@ integer,intent(in) :: ib                                             ! Block ind
 real(kind_real),intent(out) :: fld_mga(bump%geom%nmga,bump%geom%nl0) ! Field
 
 ! Local variables
-integer :: iscales,ie,imga,il0,iv,its
+integer :: iscales,ie,imga,il0,iv
 real(kind_real) :: tmp
 character(len=1024),parameter :: subr = 'bump_copy_to_field'
 
@@ -1435,9 +1245,8 @@ end select
 select case (trim(param))
 case ('stddev')
    iv = bump%bpar%b_to_v1(ib)
-   its = bump%bpar%b_to_ts1(ib)
    if (.not.allocated(bump%var%m2sqrt)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%var%m2sqrt(:,:,iv,its),fld_mga)
+   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%var%m2sqrt(:,:,iv),fld_mga)
 case ('cor_rh')
    if (.not.allocated(bump%cmat%blk(ib)%rh)) call bump%mpl%abort(subr,trim(param)//' is not allocated in bump%copy_to_field')
    call bump%geom%copy_c0a_to_mga(bump%mpl,bump%cmat%blk(ib)%rh,fld_mga)
@@ -1563,8 +1372,9 @@ if (param(1:min(6,len(param)))=='ens1u_') then
    read(param(7:12),'(i6.6)') ie
    if (ie>size(bump%ens1u%mem)) call bump%mpl%abort(subr,trim(param)//' has fewer members in bump%copy_to_field')
    iv = bump%bpar%b_to_v1(ib)
-   its = bump%bpar%b_to_ts1(ib)
-   call bump%geom%copy_c0a_to_mga(bump%mpl,bump%ens1u%mem(ie)%fld(:,:,iv,its),fld_mga)
+
+   ! Fieldset to Fortran array
+   call bump%ens1u%mem(ie)%to_array(bump%mpl,iv,fld_mga)
 end if
 
 end subroutine bump_copy_to_field
@@ -1581,47 +1391,47 @@ implicit none
 class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Local variables
-type(atlas_fieldset) :: afieldset
+type(fieldset_type) :: fieldset
 
-! Create ATLAS fieldset with empty fields
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset)
+! Create fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
 ! Get parameter
 if (bump%nam%check_get_param_stddev) then
-   call bump%get_parameter('stddev',afieldset)
+   call bump%get_parameter('stddev',fieldset)
 elseif (bump%nam%check_get_param_cor) then
-   call bump%get_parameter('cor_rh',afieldset)
-   call bump%get_parameter('cor_rv',afieldset)
+   call bump%get_parameter('cor_rh',fieldset)
+   call bump%get_parameter('cor_rv',fieldset)
 elseif (bump%nam%check_get_param_hyb) then
-   call bump%get_parameter('loc_coef',afieldset)
-   call bump%get_parameter('loc_rh',afieldset)
-   call bump%get_parameter('loc_rv',afieldset)
-   call bump%get_parameter('hyb_coef',afieldset)
+   call bump%get_parameter('loc_coef',fieldset)
+   call bump%get_parameter('loc_rh',fieldset)
+   call bump%get_parameter('loc_rv',fieldset)
+   call bump%get_parameter('hyb_coef',fieldset)
 elseif (bump%nam%check_get_param_Dloc) then
-   call bump%get_parameter('loc_D11',afieldset)
-   call bump%get_parameter('loc_D22',afieldset)
-   call bump%get_parameter('loc_D33',afieldset)
-   call bump%get_parameter('loc_D12',afieldset)
-   call bump%get_parameter('loc_Dcoef',afieldset)
-   call bump%get_parameter('loc_DLh',afieldset)
+   call bump%get_parameter('loc_D11',fieldset)
+   call bump%get_parameter('loc_D22',fieldset)
+   call bump%get_parameter('loc_D33',fieldset)
+   call bump%get_parameter('loc_D12',fieldset)
+   call bump%get_parameter('loc_Dcoef',fieldset)
+   call bump%get_parameter('loc_DLh',fieldset)
 elseif (bump%nam%check_get_param_lct) then
-   call bump%get_parameter('D11_1',afieldset)
-   call bump%get_parameter('D22_1',afieldset)
-   call bump%get_parameter('D33_1',afieldset)
-   call bump%get_parameter('D12_1',afieldset)
-   call bump%get_parameter('Dcoef_1',afieldset)
-   call bump%get_parameter('DLh_1',afieldset)
-   call bump%get_parameter('D11_2',afieldset)
-   call bump%get_parameter('D22_2',afieldset)
-   call bump%get_parameter('D33_2',afieldset)
-   call bump%get_parameter('D12_2',afieldset)
-   call bump%get_parameter('Dcoef_2',afieldset)
-   call bump%get_parameter('DLh_2',afieldset)
+   call bump%get_parameter('D11_1',fieldset)
+   call bump%get_parameter('D22_1',fieldset)
+   call bump%get_parameter('D33_1',fieldset)
+   call bump%get_parameter('D12_1',fieldset)
+   call bump%get_parameter('Dcoef_1',fieldset)
+   call bump%get_parameter('DLh_1',fieldset)
+   call bump%get_parameter('D11_2',fieldset)
+   call bump%get_parameter('D22_2',fieldset)
+   call bump%get_parameter('D33_2',fieldset)
+   call bump%get_parameter('D12_2',fieldset)
+   call bump%get_parameter('Dcoef_2',fieldset)
+   call bump%get_parameter('DLh_2',fieldset)
 end if
 
 ! Release memory
-call afieldset%final()
+call fieldset%final()
 
 end subroutine bump_test_get_parameter
 
@@ -1629,21 +1439,25 @@ end subroutine bump_test_get_parameter
 ! Subroutine: bump_set_parameter
 ! Purpose: set a parameter
 !----------------------------------------------------------------------
-subroutine bump_set_parameter(bump,param,afieldset)
+subroutine bump_set_parameter(bump,param,fieldset)
 
 implicit none
 
 ! Passed variables
-class(bump_type),intent(inout) :: bump          ! BUMP
-character(len=*),intent(in) :: param            ! Parameter
-type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+class(bump_type),intent(inout) :: bump        ! BUMP
+character(len=*),intent(in) :: param          ! Parameter
+type(fieldset_type),intent(inout) :: fieldset ! Fieldset
 
 ! Local variables
-integer :: ib,iv,jv,its,jts
-real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts)
+integer :: ib,iv,jv
+real(kind_real) :: fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv)
 
-! ATLAS fieldset to field
-call atlas_to_fld(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),afieldset,fld_mga,bump%nam%lev2d)
+! Initialize fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d)
+
+! Fieldset to Fortran array
+call fieldset%to_array(bump%mpl,fld_mga)
 
 write(bump%mpl%info,'(a7,a,a)') '','Set ',trim(param)
 call bump%mpl%flush
@@ -1656,21 +1470,17 @@ case ('cor_rh','cor_rv','loc_coef','loc_rh','loc_rv','hyb_coef')
          ! Get indices
          iv = bump%bpar%b_to_v1(ib)
          jv = bump%bpar%b_to_v2(ib)
-         its = bump%bpar%b_to_ts1(ib)
-         jts = bump%bpar%b_to_ts2(ib)
 
          ! Copy to field
-         if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
+         if (iv==jv) call bump%copy_from_field(param,ib,fld_mga(:,:,iv))
       end do
    case ('common','common_univariate','common_weighted')
       ! Set common index
       ib = bump%bpar%nbe
 
-      do its=1,bump%nam%nts
-         do iv=1,bump%nam%nv
-            ! Copy to field
-            call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
-         end do
+      do iv=1,bump%nam%nv
+         ! Copy to field
+         call bump%copy_from_field(param,ib,fld_mga(:,:,iv))
       end do
    end select
 case default
@@ -1678,15 +1488,37 @@ case default
       ! Get indices
       iv = bump%bpar%b_to_v1(ib)
       jv = bump%bpar%b_to_v2(ib)
-      its = bump%bpar%b_to_ts1(ib)
-      jts = bump%bpar%b_to_ts2(ib)
 
       ! Copy to field
-      if ((iv==jv).and.(its==jts)) call bump%copy_from_field(param,ib,fld_mga(:,:,iv,its))
+      if (iv==jv) call bump%copy_from_field(param,ib,fld_mga(:,:,iv))
    end do
 end select
 
 end subroutine bump_set_parameter
+
+!----------------------------------------------------------------------
+! Subroutine: bump_set_parameter_deprecated_atlas
+! Purpose: set a parameter (deprecated)
+!----------------------------------------------------------------------
+subroutine bump_set_parameter_deprecated_atlas(bump,param,afieldset)
+
+implicit none
+
+! Passed variables
+class(bump_type),intent(inout) :: bump         ! BUMP
+character(len=*),intent(in) :: param            ! Parameter
+type(atlas_fieldset),intent(inout) :: afieldset ! ATLAS fieldset
+
+! Local variables
+type(fieldset_type) :: fieldset
+
+! ATLAS fieldset to fieldset
+fieldset = atlas_fieldset(afieldset%c_ptr())
+
+! Call fieldset interface
+call bump%set_parameter(param,fieldset)
+
+end subroutine bump_set_parameter_deprecated_atlas
 
 !----------------------------------------------------------------------
 ! Subroutine: bump_copy_from_field
@@ -1797,75 +1629,68 @@ implicit none
 class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Local variables
-integer :: iv,its,ic0a,ic0
+integer :: iv,ic0a,ic0
 real(kind_real) :: hash_min,hash_max,hash_spread_inv
-real(kind_real),allocatable :: fld_c0a(:,:),fld_mga(:,:,:,:)
-type(atlas_fieldset) :: afieldset,afieldset_req,afieldset_reqsq,afieldset_vert,afieldset_vertsq
-
-! Allocation
-allocate(fld_c0a(bump%geom%nc0a,bump%geom%nl0))
-allocate(fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+real(kind_real) :: fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv)
+type(fieldset_type) :: fieldset,fieldset_req,fieldset_reqsq,fieldset_vert,fieldset_vertsq
 
 ! Initialization
 call bump%mpl%f_comm%allreduce(minval(bump%geom%hash_c0a),hash_min,fckit_mpi_min())
 call bump%mpl%f_comm%allreduce(maxval(bump%geom%hash_c0a),hash_max,fckit_mpi_max())
 hash_spread_inv = 1.0/(hash_max-hash_min)
-do its=1,bump%nam%nts
-   do iv=1,bump%nam%nv
-      do ic0a=1,bump%geom%nc0a
-         ic0 = bump%geom%c0a_to_c0(ic0a)
-         fld_c0a(ic0a,:) = max(min(1.0e-6_kind_real,(bump%geom%hash_c0a(ic0a)-hash_min)*hash_spread_inv),1.0-1.0e-6_kind_real)
-      end do
-      call bump%geom%copy_c0a_to_mga(bump%mpl,fld_c0a,fld_mga(:,:,iv,its))
+do iv=1,bump%nam%nv
+   do ic0a=1,bump%geom%nc0a
+      ic0 = bump%geom%c0a_to_c0(ic0a)
+      fld_c0a(ic0a,:,iv) = max(min(1.0e-6_kind_real,(bump%geom%hash_c0a(ic0a)-hash_min)*hash_spread_inv), & 
+ & 1.0-1.0e-6_kind_real)
    end do
 end do
 
-! Create ATLAS fieldset with empty fields
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset)
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset_req)
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset_reqsq)
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset_vert)
-call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset_vertsq)
+! Create fieldset
+call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+call fieldset_req%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+call fieldset_reqsq%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+call fieldset_vert%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
+call fieldset_vertsq%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-! Convert to ATLAS fieldset
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga*req, &
- & afieldset_req,bump%nam%lev2d)
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga*req**2, &
- & afieldset_reqsq,bump%nam%lev2d)
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts), &
- & (1.0+fld_mga)*(maxval(bump%geom%vunitavg)-minval(bump%geom%vunitavg)),afieldset_vert,bump%nam%lev2d)
-call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts), &
- & ((1.0+fld_mga)*(maxval(bump%geom%vunitavg)-minval(bump%geom%vunitavg))),afieldset_vertsq,bump%nam%lev2d)
+! Fortran array on subset Sc0 to fieldset
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a*req,fieldset_req)
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a*req**2,fieldset_reqsq)
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,(1.0+fld_c0a)*(maxval(bump%geom%vunitavg)-minval(bump%geom%vunitavg)), &
+ & fieldset_vert)
+call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,((1.0+fld_c0a)*(maxval(bump%geom%vunitavg)-minval(bump%geom%vunitavg))), &
+ & fieldset_vertsq)
+!call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,((1.0+fld_c0a)*(maxval(bump%geom%vunitavg)-minval(bump%geom%vunitavg)))**2,fieldset) TODO: bugfix
 
 ! Set parameter
 if (bump%nam%check_set_param_cor) then
-   call bump%set_parameter('cor_rh',afieldset_req)
-   call bump%set_parameter('cor_rv',afieldset_vert)
+   call bump%set_parameter('cor_rh',fieldset_req)
+   call bump%set_parameter('cor_rv',fieldset_vert)
 elseif (bump%nam%check_set_param_hyb) then
-   call bump%set_parameter('loc_coef',afieldset)
-   call bump%set_parameter('loc_rh',afieldset_req)
-   call bump%set_parameter('loc_rv',afieldset_vert)
-   call bump%set_parameter('hyb_coef',afieldset)
+   call bump%set_parameter('loc_coef',fieldset)
+   call bump%set_parameter('loc_rh',fieldset_req)
+   call bump%set_parameter('loc_rv',fieldset_vert)
+   call bump%set_parameter('hyb_coef',fieldset)
 elseif (bump%nam%check_set_param_lct) then
-   call bump%set_parameter('D11',afieldset_reqsq)
-   call bump%set_parameter('D22',afieldset_reqsq)
-   call bump%set_parameter('D33',afieldset_vertsq)
-   call bump%set_parameter('D12',afieldset)
-   call bump%set_parameter('Dcoef',afieldset)
+   call bump%set_parameter('D11',fieldset_reqsq)
+   call bump%set_parameter('D22',fieldset_reqsq)
+   call bump%set_parameter('D33',fieldset_vertsq)
+   call bump%set_parameter('D12',fieldset)
+   call bump%set_parameter('Dcoef',fieldset)
 end if
 
 ! Release memory
-deallocate(fld_c0a)
-deallocate(fld_mga)
-call afieldset%final()
-call afieldset_req%final()
-call afieldset_reqsq%final()
+call fieldset%final()
+call fieldset_req%final()
+call fieldset_reqsq%final()
+call fieldset_vert%final()
+call fieldset_vertsq%final()
 
 end subroutine bump_test_set_parameter
 
@@ -1881,9 +1706,9 @@ implicit none
 class(bump_type),intent(inout) :: bump ! BUMP
 
 ! Local variables
-integer :: n,nv_save,nts_save
-real(kind_real),allocatable :: fld_mga(:,:,:,:),pcv(:),obs(:,:)
-type(atlas_fieldset) :: afieldset
+integer :: n,nv_save
+real(kind_real),allocatable :: fld_c0a(:,:,:),pcv(:),obs(:,:)
+type(fieldset_type) :: fieldset
 
 ! Test apply_vbal
 if (bump%nam%check_apply_vbal) then
@@ -1891,27 +1716,27 @@ if (bump%nam%check_apply_vbal) then
    call bump%mpl%flush
 
    ! Allocation
-   allocate(fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   allocate(fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv))
 
    ! Initialization
-   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_mga)
+   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_c0a)
 
-   ! Create ATLAS fieldset with empty fields
-   call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset)
+   ! Create fieldset
+   call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-   ! Convert to ATLAS fieldset
-   call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+   ! Fortran array on subset Sc0 to fieldset
+   call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
    ! Calls
-   call bump%apply_vbal(afieldset)
-   call bump%apply_vbal_inv(afieldset)
-   call bump%apply_vbal_ad(afieldset)
-   call bump%apply_vbal_inv_ad(afieldset)
+   call bump%apply_vbal(fieldset)
+   call bump%apply_vbal_inv(fieldset)
+   call bump%apply_vbal_ad(fieldset)
+   call bump%apply_vbal_inv_ad(fieldset)
 
    ! Release memory
-   deallocate(fld_mga)
-   call afieldset%final()
+   deallocate(fld_c0a)
+   call fieldset%final()
 end if
 
 ! Test apply_stddev
@@ -1920,24 +1745,25 @@ if (bump%nam%check_apply_stddev) then
    call bump%mpl%flush
 
    ! Allocation
-   allocate(fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   allocate(fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv))
 
    ! Initialization
-   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_mga)
+   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_c0a)
 
-   ! Create ATLAS fieldset with empty fields
-   call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables,bump%nam%timeslots,afieldset)
+   ! Create fieldset
+   call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-   ! Convert to ATLAS fieldset
-   call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+   ! Fortran array on subset Sc0 to fieldset
+   call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
    ! Calls
-   call bump%apply_stddev(afieldset)
-   call bump%apply_stddev_inv(afieldset)
+   call bump%apply_stddev(fieldset)
+   call bump%apply_stddev_inv(fieldset)
 
    ! Release memory
-   deallocate(fld_mga)
-   call afieldset%final()
+   deallocate(fld_c0a)
+   call fieldset%final()
 end if
 
 ! Test apply_nicas
@@ -1949,29 +1775,29 @@ if (bump%nam%check_apply_nicas) then
    call bump%get_cv_size(n)
 
    ! Allocation
-   allocate(fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   allocate(fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv))
    allocate(pcv(n))
 
    ! Initialization
-   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_mga)
+   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_c0a)
 
-   ! Create ATLAS fieldset with empty fields
-   call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset)
+   ! Create fieldset
+   call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-   ! Convert to ATLAS fieldset
-   call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+   ! Fortran array on subset Sc0 to fieldset
+   call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
    ! Calls
-   call bump%apply_nicas(afieldset)
-   call bump%apply_nicas_sqrt(pcv,afieldset)
-   call bump%apply_nicas_sqrt_ad(afieldset,pcv)
-   call bump%randomize(afieldset)
+   call bump%apply_nicas(fieldset)
+   call bump%apply_nicas_sqrt(pcv,fieldset)
+   call bump%apply_nicas_sqrt_ad(fieldset,pcv)
+   call bump%randomize(fieldset)
 
    ! Release memory
-   deallocate(fld_mga)
+   deallocate(fld_c0a)
    deallocate(pcv)
-   call afieldset%final()
+   call fieldset%final()
 end if
 
 ! Test apply_obsop
@@ -1981,38 +1807,35 @@ if (bump%nam%check_apply_obsop) then
 
    ! Save namelist parameters
    nv_save = bump%nam%nv
-   nts_save = bump%nam%nts
 
    ! Set namelist parameters
    bump%nam%nv = 1
-   bump%nam%nts = 1
 
    ! Allocation
-   allocate(fld_mga(bump%geom%nmga,bump%geom%nl0,bump%nam%nv,bump%nam%nts))
+   allocate(fld_c0a(bump%geom%nc0a,bump%geom%nl0,bump%nam%nv))
    allocate(obs(bump%obsop%nobsa,bump%geom%nl0))
 
    ! Initialization
-   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_mga)
+   call bump%rng%rand_real(0.0_kind_real,1.0_kind_real,fld_c0a)
 
-   ! Create ATLAS fieldset with empty fields
-   call create_atlas_fieldset(bump%geom%afunctionspace_mg,bump%geom%nl0,bump%nam%variables(1:bump%nam%nv), &
- & bump%nam%timeslots(1:bump%nam%nts),afieldset)
+   ! Create fieldset
+   call fieldset%init(bump%mpl,bump%geom%nmga,bump%geom%nl0,bump%geom%gmask_mga,bump%nam%variables(1:bump%nam%nv), &
+ & bump%nam%lev2d,bump%geom%afunctionspace_mg)
 
-   ! Convert to ATLAS fieldset
-   call fld_to_atlas(bump%mpl,bump%nam%variables(1:bump%nam%nv),bump%nam%timeslots(1:bump%nam%nts),fld_mga,afieldset,bump%nam%lev2d)
+   ! Fortran array on subset Sc0 to fieldset
+   call bump%geom%c0_to_fieldset(bump%mpl,bump%nam,fld_c0a,fieldset)
 
    ! Calls
-   call bump%apply_obsop(afieldset,obs)
-   call bump%apply_obsop_ad(obs,afieldset)
+   call bump%apply_obsop(fieldset,obs)
+   call bump%apply_obsop_ad(obs,fieldset)
 
    ! Reset namelist parameters
    bump%nam%nv = nv_save
-   bump%nam%nts = nts_save
 
    ! Release memory
-   deallocate(fld_mga)
+   deallocate(fld_c0a)
    deallocate(obs)
-   call afieldset%final()
+   call fieldset%final()
 end if
 
 end subroutine bump_test_apply_interfaces
@@ -2041,7 +1864,6 @@ call bump%nicas%partial_dealloc
 call bump%obsop%partial_dealloc
 call bump%var%partial_dealloc
 call bump%vbal%partial_dealloc
-if (allocated(bump%fld_uv)) deallocate(bump%fld_uv)
 
 end subroutine bump_partial_dealloc
 
@@ -2070,7 +1892,6 @@ call bump%nicas%dealloc
 call bump%obsop%dealloc
 call bump%var%dealloc
 call bump%vbal%dealloc
-if (allocated(bump%fld_uv)) deallocate(bump%fld_uv)
 
 end subroutine bump_dealloc
 
